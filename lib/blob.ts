@@ -26,6 +26,7 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
   await put(blobPathname(userId), JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
   });
 }
