@@ -85,12 +85,19 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-5">
-          Hesabınız yok mu?{" "}
-          <Link href="/register" className="text-green-700 font-medium hover:underline">
-            Hesap Oluştur
-          </Link>
-        </p>
+        <div className="mt-5 space-y-2 text-center text-sm text-gray-500">
+          <p>
+            Hesabınız yok mu?{" "}
+            <Link href="/register" className="text-green-700 font-medium hover:underline">
+              Hesap Oluştur
+            </Link>
+          </p>
+          <p>
+            <Link href="/forgot-password" className="text-gray-400 hover:text-green-700 hover:underline">
+              Şifremi unuttum
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

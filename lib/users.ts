@@ -30,10 +30,35 @@ export async function findUserByFamilyName(familyName: string): Promise<User | n
   return users.find((u) => u.familyName.toLowerCase() === familyName.toLowerCase()) ?? null;
 }
 
-export async function createUser(id: string, familyName: string, passwordHash: string): Promise<User> {
+export async function createUser(
+  id: string,
+  familyName: string,
+  passwordHash: string,
+  recoveryCodeHash: string
+): Promise<User> {
   const data = await getUsersData();
-  const user: User = { id, familyName, passwordHash, createdAt: new Date().toISOString() };
+  const user: User = {
+    id,
+    familyName,
+    passwordHash,
+    recoveryCodeHash,
+    createdAt: new Date().toISOString(),
+  };
   data.users.push(user);
   await saveUsersData(data);
   return user;
+}
+
+export async function updateUserPassword(
+  familyName: string,
+  newPasswordHash: string
+): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find(
+    (u) => u.familyName.toLowerCase() === familyName.toLowerCase()
+  );
+  if (!user) return false;
+  user.passwordHash = newPasswordHash;
+  await saveUsersData(data);
+  return true;
 }
