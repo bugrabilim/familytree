@@ -92,7 +92,7 @@ function buildGraph(people: Person[]): { nodes: Node[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-export default function FamilyTree({ people }: { people: Person[] }) {
+export default function FamilyTree({ people, onAddPerson }: { people: Person[]; onAddPerson?: () => void }) {
   const { nodes: rawNodes, edges: rawEdges } = useMemo(
     () => buildGraph(people),
     [people]
@@ -115,12 +115,12 @@ export default function FamilyTree({ people }: { people: Person[] }) {
       <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
         <div className="text-6xl">🌱</div>
         <p className="text-lg font-medium">Henüz kimse eklenmemiş</p>
-        <a
-          href="/person/new"
+        <button
+          onClick={onAddPerson}
           className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors text-sm"
         >
           İlk kişiyi ekle
-        </a>
+        </button>
       </div>
     );
   }

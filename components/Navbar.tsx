@@ -11,7 +11,6 @@ export default function Navbar({ familyName }: { familyName?: string }) {
   const links = [
     { href: "/tree", label: "Ağaç" },
     { href: "/search", label: "Arama" },
-    { href: "/person/new", label: "+ Kişi Ekle" },
   ];
 
   return (
