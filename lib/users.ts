@@ -18,6 +18,7 @@ async function saveUsersData(data: UsersData): Promise<void> {
   await put(USERS_PATHNAME, JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
   });
 }

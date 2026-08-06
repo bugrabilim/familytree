@@ -4,6 +4,17 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import DeleteButton from "./DeleteButton";
+import EditPersonButton from "./EditPersonButton";
+
+function formatDate(stored?: string): string {
+  if (!stored) return "";
+  if (/^\d{4}$/.test(stored)) return stored;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stored)) {
+    const [y, m, d] = stored.split("-");
+    return `${d}.${m}.${y}`;
+  }
+  return stored;
+}
 
 export default async function PersonPage({
   params,
@@ -29,8 +40,8 @@ export default async function PersonPage({
       p.parentIds.some((pid) => person.parentIds.includes(pid))
   );
 
-  const birthYear = person.birthDate?.slice(0, 4);
-  const deathYear = person.deathDate?.slice(0, 4);
+  const birthDisplay = formatDate(person.birthDate);
+  const deathDisplay = formatDate(person.deathDate);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -57,15 +68,15 @@ export default async function PersonPage({
             <h1 className="text-2xl font-bold text-gray-900">
               {person.firstName} {person.lastName}
             </h1>
-            {(birthYear || person.birthPlace) && (
+            {(birthDisplay || person.birthPlace) && (
               <p className="text-gray-500 text-sm mt-1">
-                {birthYear && (
+                {birthDisplay && (
                   <span>
-                    {birthYear}
-                    {deathYear && ` – ${deathYear}`}
+                    {birthDisplay}
+                    {deathDisplay && ` – ${deathDisplay}`}
                   </span>
                 )}
-                {birthYear && person.birthPlace && " · "}
+                {birthDisplay && person.birthPlace && " · "}
                 {person.birthPlace && <span>{person.birthPlace}</span>}
               </p>
             )}
@@ -75,12 +86,7 @@ export default async function PersonPage({
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            <Link
-              href={`/person/${id}/edit`}
-              className="px-3 py-1.5 bg-green-700 text-white text-sm rounded-lg hover:bg-green-800 transition-colors"
-            >
-              Düzenle
-            </Link>
+            <EditPersonButton people={people} personId={id} />
             <DeleteButton personId={id} />
           </div>
         </div>
