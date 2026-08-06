@@ -1,33 +1,21 @@
-"use client";
-
-export const dynamic = "force-dynamic";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { auth } from "@/auth";
+import { getFamilyData } from "@/lib/blob";
 import Navbar from "@/components/Navbar";
-import PersonForm from "@/components/PersonForm";
-import type { Person } from "@/types/family";
-import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
+import NewPersonClient from "./NewPersonClient";
 
-export default function NewPersonPage() {
-  const router = useRouter();
-  const { data: session } = useSession();
-  const [people, setPeople] = useState<Person[]>([]);
+export default async function NewPersonPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
 
-  useEffect(() => {
-    fetch("/api/family").then((r) => r.json()).then((d) => setPeople(d.people ?? []));
-  }, []);
+  const { people } = await getFamilyData(session.user.id);
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar familyName={session?.user?.name ?? undefined} />
+      <Navbar familyName={session.user.name ?? undefined} />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Yeni Kişi Ekle</h1>
-        <PersonForm
-          people={people}
-          onClose={() => router.back()}
-          onSaved={(person) => router.push(`/person/${person.id}`)}
-        />
+        <NewPersonClient people={people} />
       </main>
     </div>
   );
