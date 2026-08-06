@@ -4,17 +4,13 @@ import type { User, UsersData } from "@/types/user";
 const USERS_PATHNAME = "users.json";
 
 export async function getUsersData(): Promise<UsersData> {
-  try {
-    const { blobs } = await list({ prefix: USERS_PATHNAME });
-    if (blobs.length === 0) return { users: [] };
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const res = await fetch(latest.url, { cache: "no-store" });
-    return await res.json();
-  } catch {
-    return { users: [] };
-  }
+  const { blobs } = await list({ prefix: USERS_PATHNAME });
+  if (blobs.length === 0) return { users: [] };
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const res = await fetch(latest.url, { cache: "no-store" });
+  return await res.json();
 }
 
 async function saveUsersData(data: UsersData): Promise<void> {
