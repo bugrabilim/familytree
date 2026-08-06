@@ -1,30 +1,28 @@
 import { put, list } from "@vercel/blob";
 import type { FamilyData } from "@/types/family";
 
-const BLOB_PATHNAME = "family-data.json";
+function pathname(userId: string) {
+  return `family-data-${userId}.json`;
+}
 
-export async function getFamilyData(): Promise<FamilyData> {
+export async function getFamilyData(userId: string): Promise<FamilyData> {
   try {
-    const { blobs } = await list({ prefix: BLOB_PATHNAME });
-    if (blobs.length === 0) {
-      return { people: [], updatedAt: new Date().toISOString() };
-    }
-
-    const latestBlob = blobs.sort(
-      (a, b) =>
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    const key = pathname(userId);
+    const { blobs } = await list({ prefix: key });
+    if (blobs.length === 0) return { people: [], updatedAt: new Date().toISOString() };
+    const latest = blobs.sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     )[0];
-
-    const res = await fetch(latestBlob.url, { cache: "no-store" });
+    const res = await fetch(latest.url, { cache: "no-store" });
     return await res.json();
   } catch {
     return { people: [], updatedAt: new Date().toISOString() };
   }
 }
 
-export async function saveFamilyData(data: FamilyData): Promise<void> {
+export async function saveFamilyData(userId: string, data: FamilyData): Promise<void> {
   data.updatedAt = new Date().toISOString();
-  await put(BLOB_PATHNAME, JSON.stringify(data), {
+  await put(pathname(userId), JSON.stringify(data), {
     access: "public",
     addRandomSuffix: false,
     contentType: "application/json",

@@ -7,11 +7,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const userId = session.user.id;
   const { id } = await params;
   const body = await req.json();
-  const data = await getFamilyData();
+  const data = await getFamilyData(userId);
 
   const index = data.people.findIndex((p) => p.id === id);
   if (index === -1)
@@ -38,20 +39,19 @@ export async function PUT(
   const oldSpouseIds = data.people[index].spouseIds;
   data.people[index] = updated;
 
-  // Sync spouse bidirectional refs
   const removed: string[] = oldSpouseIds.filter((sid: string) => !updated.spouseIds.includes(sid));
   const added: string[] = updated.spouseIds.filter((sid: string) => !oldSpouseIds.includes(sid));
 
-  for (const sid of removed as string[]) {
+  for (const sid of removed) {
     const s = data.people.find((p) => p.id === sid);
     if (s) s.spouseIds = s.spouseIds.filter((x) => x !== id);
   }
-  for (const sid of added as string[]) {
+  for (const sid of added) {
     const s = data.people.find((p) => p.id === sid);
     if (s && !s.spouseIds.includes(id)) s.spouseIds.push(id);
   }
 
-  await saveFamilyData(data);
+  await saveFamilyData(userId, data);
   return NextResponse.json(updated);
 }
 
@@ -60,15 +60,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const userId = session.user.id;
   const { id } = await params;
-  const data = await getFamilyData();
+  const data = await getFamilyData(userId);
 
   const person = data.people.find((p) => p.id === id);
   if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Remove references in other people
   data.people = data.people
     .filter((p) => p.id !== id)
     .map((p) => ({
@@ -77,6 +77,6 @@ export async function DELETE(
       spouseIds: p.spouseIds.filter((sid) => sid !== id),
     }));
 
-  await saveFamilyData(data);
+  await saveFamilyData(userId, data);
   return NextResponse.json({ success: true });
 }

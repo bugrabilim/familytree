@@ -1,25 +1,28 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
+import { findUserByFamilyName } from "@/lib/users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       name: "credentials",
       credentials: {
-        username: { label: "Soyisim", type: "text" },
+        familyName: { label: "Soyisim", type: "text" },
         password: { label: "Şifre", type: "password" },
       },
       async authorize(credentials) {
-        const username = credentials?.username as string | undefined;
+        const familyName = credentials?.familyName as string | undefined;
         const password = credentials?.password as string | undefined;
+        if (!familyName || !password) return null;
 
-        if (
-          username === process.env.FAMILY_NAME &&
-          password === process.env.FAMILY_PASSWORD
-        ) {
-          return { id: "1", name: process.env.FAMILY_NAME ?? "Aile" };
-        }
-        return null;
+        const user = await findUserByFamilyName(familyName);
+        if (!user) return null;
+
+        const valid = await compare(password, user.passwordHash);
+        if (!valid) return null;
+
+        return { id: user.id, name: user.familyName };
       },
     }),
   ],
@@ -32,10 +35,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.name = user.name;
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+      }
       return token;
     },
     async session({ session, token }) {
+      if (token.id) session.user.id = token.id as string;
       if (token.name) session.user.name = token.name as string;
       return session;
     },

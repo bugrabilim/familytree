@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/dagre": "^0.7.54",
     "@vercel/blob": "^2.7.0",
     "@xyflow/react": "^12.11.2",
+    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "dagre": "^0.8.5",
     "nanoid": "^6.0.1",

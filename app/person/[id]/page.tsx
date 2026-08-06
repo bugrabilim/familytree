@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { getFamilyData } from "@/lib/blob";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import DeleteButton from "./DeleteButton";
 
 export default async function PersonPage({
@@ -12,7 +12,9 @@ export default async function PersonPage({
 }) {
   const { id } = await params;
   const session = await auth();
-  const { people } = await getFamilyData();
+  if (!session?.user?.id) redirect("/login");
+
+  const { people } = await getFamilyData(session.user.id);
 
   const person = people.find((p) => p.id === id);
   if (!person) notFound();
@@ -32,9 +34,8 @@ export default async function PersonPage({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar familyName={session?.user?.name ?? undefined} />
+      <Navbar familyName={session.user.name ?? undefined} />
       <main className="max-w-2xl mx-auto w-full px-4 py-8">
-        {/* Header */}
         <div className="bg-white rounded-2xl shadow-md p-6 mb-6 flex gap-5 items-start">
           {person.photo ? (
             <img
@@ -84,7 +85,6 @@ export default async function PersonPage({
           </div>
         </div>
 
-        {/* Relations */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <RelationSection title="Ebeveynler" people={parents} />
           <RelationSection title="Eş / Eşler" people={spouses} />
@@ -96,7 +96,13 @@ export default async function PersonPage({
   );
 }
 
-function RelationSection({ title, people }: { title: string; people: { id: string; firstName: string; lastName: string; photo?: string }[] }) {
+function RelationSection({
+  title,
+  people,
+}: {
+  title: string;
+  people: { id: string; firstName: string; lastName: string; photo?: string }[];
+}) {
   if (people.length === 0) return null;
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">

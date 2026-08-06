@@ -5,10 +5,11 @@ import type { Person } from "@/types/family";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const userId = session.user.id;
   const body = await req.json();
-  const data = await getFamilyData();
+  const data = await getFamilyData(userId);
 
   const person: Person = {
     id: crypto.randomUUID(),
@@ -26,7 +27,6 @@ export async function POST(req: NextRequest) {
 
   data.people.push(person);
 
-  // Update spouse bidirectional refs
   for (const spouseId of person.spouseIds) {
     const spouse = data.people.find((p) => p.id === spouseId);
     if (spouse && !spouse.spouseIds.includes(person.id)) {
@@ -34,6 +34,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await saveFamilyData(data);
+  await saveFamilyData(userId, data);
   return NextResponse.json(person, { status: 201 });
 }

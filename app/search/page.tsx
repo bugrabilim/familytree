@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { getFamilyData } from "@/lib/blob";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export default async function SearchPage({
   searchParams,
@@ -10,8 +11,9 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const session = await auth();
-  const { people } = await getFamilyData();
+  if (!session?.user?.id) redirect("/login");
 
+  const { people } = await getFamilyData(session.user.id);
   const query = q?.toLowerCase().trim() ?? "";
 
   const results = query
@@ -26,7 +28,7 @@ export default async function SearchPage({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar familyName={session?.user?.name ?? undefined} />
+      <Navbar familyName={session.user.name ?? undefined} />
       <main className="max-w-2xl mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Arama</h1>
 
@@ -81,10 +83,7 @@ export default async function SearchPage({
                     {person.firstName} {person.lastName}
                   </p>
                   <p className="text-sm text-gray-400">
-                    {[
-                      person.birthDate?.slice(0, 4),
-                      person.birthPlace,
-                    ]
+                    {[person.birthDate?.slice(0, 4), person.birthPlace]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
