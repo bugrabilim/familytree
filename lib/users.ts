@@ -1,25 +1,22 @@
-import { put, list } from "@vercel/blob";
+import { put, list, get } from "@vercel/blob";
 import type { User, UsersData } from "@/types/user";
 
 const USERS_PATHNAME = "users.json";
 
 export async function getUsersData(): Promise<UsersData> {
-  try {
-    const { blobs } = await list({ prefix: USERS_PATHNAME });
-    if (blobs.length === 0) return { users: [] };
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const res = await fetch(latest.url, { cache: "no-store" });
-    return await res.json();
-  } catch {
-    return { users: [] };
-  }
+  const { blobs } = await list({ prefix: USERS_PATHNAME });
+  if (blobs.length === 0) return { users: [] };
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const result = await get(latest.pathname, { access: "private", useCache: false });
+  if (!result || result.statusCode !== 200) return { users: [] };
+  return await new Response(result.stream).json();
 }
 
 async function saveUsersData(data: UsersData): Promise<void> {
   await put(USERS_PATHNAME, JSON.stringify(data), {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     contentType: "application/json",
   });

@@ -43,6 +43,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, recoveryCode }, { status: 201 });
   } catch (err) {
     console.error("Register error:", err);
-    return NextResponse.json({ error: "Sunucu hatası. Lütfen tekrar deneyin." }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    const isBlobAuth = message.includes("No blob credentials") || message.includes("BLOB_READ_WRITE_TOKEN");
+    return NextResponse.json(
+      {
+        error: isBlobAuth
+          ? "Depolama yapılandırması eksik (BLOB_READ_WRITE_TOKEN). Vercel proje ayarlarında Blob store bağlantısını kontrol edin."
+          : `Sunucu hatası: ${message}`,
+      },
+      { status: 500 }
+    );
   }
 }
