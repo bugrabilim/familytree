@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     bio: body.bio || undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],
     spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
+    formerSpouseIds: Array.isArray(body.formerSpouseIds) ? [...body.formerSpouseIds] : [],
   };
 
   /* ---- İlişki bağlama: "X'in babası/çocuğu/eşi/kardeşi olarak ekle" ---- */
@@ -88,6 +89,12 @@ export async function POST(req: NextRequest) {
     const spouse = data.people.find((p) => p.id === spouseId);
     if (spouse && !spouse.spouseIds.includes(person.id)) {
       spouse.spouseIds.push(person.id);
+    }
+  }
+  for (const exId of person.formerSpouseIds ?? []) {
+    const ex = data.people.find((p) => p.id === exId);
+    if (ex && !(ex.formerSpouseIds ?? []).includes(person.id)) {
+      ex.formerSpouseIds = [...(ex.formerSpouseIds ?? []), person.id];
     }
   }
 

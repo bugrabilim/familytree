@@ -5,9 +5,11 @@ import Button from "./ui/Button";
 interface Props {
   onAdd: () => void;
   onImport: () => void;
+  onDemo: () => void;
+  demoLoading?: boolean;
 }
 
-export default function EmptyState({ onAdd, onImport }: Props) {
+export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Props) {
   return (
     <div className="h-full grid place-items-center px-6 py-10 overflow-y-auto">
       <div className="w-full max-w-md text-center">
@@ -50,6 +52,14 @@ export default function EmptyState({ onAdd, onImport }: Props) {
             GEDCOM dosyam var
           </Button>
         </div>
+
+        <button
+          onClick={onDemo}
+          disabled={demoLoading}
+          className="mt-4 text-xs text-text-muted hover:text-primary underline underline-offset-4 disabled:opacity-50"
+        >
+          {demoLoading ? "Demo yükleniyor…" : "Önce örnek bir ağaca göz at"}
+        </button>
 
         <div className="mt-10 grid gap-3 text-left">
           {[

@@ -25,8 +25,23 @@ anneanne mi — uygulama iki kişi arasındaki en kısa yolu bulup doğru terimi
 **Verin sende kalır.** GEDCOM (`.ged`) ile içe/dışa aktarım — MyHeritage,
 Ancestry, FamilySearch, Gramps ve diğerleriyle uyumlu.
 
+**Gerçek hayat karmaşıktır.** Çok eşlilik, boşanma, akraba evliliği, evlat
+edinme, ikili olmayan cinsiyet kimlikleri ve bilinmeyen tarihler veri
+modelinde yerini bulur — hepsi zorlama olmadan.
+
 Ayrıca: koyu/açık tema, `⌘K` ile anlık arama, mobilde alttan açılan paneller,
 Türkçe tarih girişi (`GG.AA.YYYY` ya da sadece `YYYY`) ve otomatik yaş hesabı.
+
+## Demo
+
+Menüden **GEDCOM aktar / al → Demo ağacını yükle** ile 11 kuşaklık örnek bir
+aile yüklenir: 1730'lardan bugüne 172 kişi. Soyadı Kanunu öncesi lakaplar,
+1934'te farklı soyadı seçen kardeşler, dört eşli bir dede, altı kez evlenmiş
+bir torun, birinci ve ikinci dereceden kuzen evlilikleri, Çanakkale ve Sakarya
+kayıpları, Selanik'ten muhacirlik, Almanya'ya işçi göçü, bebek ölümleri,
+interseks ve trans bireyler.
+
+Avatarlar gömülü SVG olarak üretilir — dış servise bağımlılık yok.
 
 ## Teknoloji
 
@@ -65,6 +80,18 @@ lib/
   date.ts                 Türkçe tarih ayrıştırma / doğrulama / yaş
   gedcom.ts               GEDCOM ayrıştırıcı ve üretici
   actions.ts              İstemci API sarmalayıcıları
+  demo-data.ts            11 kuşaklık demo ağacı + avatar üretici
+  useEscapeKey.ts         Katmanlı ESC yönetimi
+tests/                    node --experimental-strip-types ile çalışır
 ```
+
+## Test
+
+```bash
+npm test
+```
+
+Akrabalık terimleri, Türkçe ek çekimi, GEDCOM gidiş-dönüşü ve demo verisinin
+bütünlüğü (referanslar, tarih tutarlılığı, döngü kontrolü) doğrulanır.
 
 Yol haritası ve pazar analizi: [`docs/GELISTIRME-PLANI.md`](docs/GELISTIRME-PLANI.md)

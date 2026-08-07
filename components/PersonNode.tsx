@@ -89,14 +89,7 @@ function PersonNode({ data }: NodeProps) {
         {/* Cinsiyet şeridi */}
         <span
           className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
-          style={{
-            background:
-              person.gender === "female"
-                ? "var(--female)"
-                : person.gender === "male"
-                ? "var(--male)"
-                : "var(--neutral)",
-          }}
+          style={{ background: tone.css }}
           aria-hidden
         />
 

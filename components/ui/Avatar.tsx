@@ -1,4 +1,7 @@
-import type { Person } from "@/types/family";
+"use client";
+
+import { useState } from "react";
+import type { Gender, Person } from "@/types/family";
 
 const SIZES = {
   xs: "w-7 h-7 text-[10px]",
@@ -10,10 +13,14 @@ const SIZES = {
 
 export type AvatarSize = keyof typeof SIZES;
 
-export function genderTone(gender: Person["gender"]) {
-  if (gender === "female") return { bg: "bg-female-soft", text: "text-female", ring: "ring-female/30", border: "border-female/40" };
-  if (gender === "male") return { bg: "bg-male-soft", text: "text-male", ring: "ring-male/30", border: "border-male/40" };
-  return { bg: "bg-neutral-soft", text: "text-neutral", ring: "ring-neutral/25", border: "border-neutral/30" };
+export function genderTone(gender: Gender) {
+  if (gender === "female")
+    return { bg: "bg-female-soft", text: "text-female", ring: "ring-female/30", border: "border-female/40", css: "var(--female)" };
+  if (gender === "male")
+    return { bg: "bg-male-soft", text: "text-male", ring: "ring-male/30", border: "border-male/40", css: "var(--male)" };
+  if (gender === "other")
+    return { bg: "bg-other-soft", text: "text-other", ring: "ring-other/30", border: "border-other/40", css: "var(--other)" };
+  return { bg: "bg-neutral-soft", text: "text-neutral", ring: "ring-neutral/25", border: "border-neutral/30", css: "var(--neutral)" };
 }
 
 export function initials(person: Pick<Person, "firstName" | "lastName">) {
@@ -30,15 +37,18 @@ interface Props {
 }
 
 export default function Avatar({ person, size = "md", className = "", ring = false }: Props) {
+  // Fotoğraf yüklenemezse baş harflere düş — kırık resim simgesi gösterme
+  const [failed, setFailed] = useState(false);
   const tone = genderTone(person.gender);
   const ringCls = ring ? `ring-2 ${tone.ring}` : "";
 
-  if (person.photo) {
+  if (person.photo && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={person.photo}
         alt={`${person.firstName} ${person.lastName}`}
+        onError={() => setFailed(true)}
         className={`${SIZES[size]} rounded-full object-cover shrink-0 bg-surface-2 ${ringCls} ${className}`}
       />
     );

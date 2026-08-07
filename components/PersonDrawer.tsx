@@ -11,6 +11,7 @@ import {
   possessive,
   getChildren,
   getParents,
+  getFormerSpouses,
   getSiblings,
   getSpouses,
   indexPeople,
@@ -49,6 +50,7 @@ export default function PersonDrawer({
   const idx = useMemo(() => indexPeople(people), [people]);
   const parents = useMemo(() => getParents(person, idx), [person, idx]);
   const spouses = useMemo(() => getSpouses(person, idx), [person, idx]);
+  const formerSpouses = useMemo(() => getFormerSpouses(person, idx), [person, idx]);
   const children = useMemo(() => getChildren(person, people), [person, people]);
   const siblings = useMemo(() => getSiblings(person, people), [person, people]);
 
@@ -88,7 +90,7 @@ export default function PersonDrawer({
         className="
           fixed z-40 bg-bg-elevated border-border shadow-modal flex flex-col
           inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t animate-slide-up
-          lg:inset-y-0 lg:right-0 lg:left-auto lg:w-[380px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l lg:animate-slide-left
+          lg:top-14 lg:bottom-0 lg:right-0 lg:left-auto lg:w-[380px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l lg:animate-slide-left
         "
         aria-label="Kişi ayrıntıları"
       >
@@ -198,6 +200,7 @@ export default function PersonDrawer({
             onSelect={onSelect}
             emptyAction={{ label: "Eş ekle", onClick: () => onQuickAdd("spouse", person.id) }}
           />
+          <RelationGroup title="Eski eş" people={formerSpouses} onSelect={onSelect} />
           <RelationGroup
             title="Çocuklar"
             people={children}
