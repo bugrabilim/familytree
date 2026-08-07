@@ -1,7 +1,13 @@
 import { describeRelation, indexPeople, computeStats } from "../lib/relations.ts";
+import type { Gender, Person } from "../types/family.ts";
 
-const P = (id, firstName, gender, parentIds = [], spouseIds = []) =>
-  ({ id, firstName, lastName: "T", gender, parentIds, spouseIds });
+const P = (
+  id: string,
+  firstName: string,
+  gender: Gender,
+  parentIds: string[] = [],
+  spouseIds: string[] = []
+): Person => ({ id, firstName, lastName: "T", gender, parentIds, spouseIds });
 
 //        dedeM ── nineF                    dedeX ── nineY
 //           │                                  │
@@ -13,7 +19,7 @@ const P = (id, firstName, gender, parentIds = [], spouseIds = []) =>
 //       ben        ablaF
 //        │
 //     oglumM
-const people = [
+const people: Person[] = [
   P("dedeM","Dede","male"), P("nineF","Babaanne","female",[],["dedeM"]),
   P("dedeX","DedeX","male"), P("nineY","Anneanne","female",[],["dedeX"]),
   P("babaM","Baba","male",["dedeM","nineF"],["anneF"]),

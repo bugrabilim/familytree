@@ -8,7 +8,6 @@ const c = (ad: string, k: boolean, d="") => k ? ok++ : (fail++, console.log(`✗
 // --- Demo verisiyle GEDCOM gidiş-dönüş ---
 const ged = exportGedcom(DEMO_PEOPLE);
 const back = importGedcom(ged);
-const f = (ad: string) => back.find(p => p.firstName === ad);
 
 c("kişi sayısı korundu", back.length === DEMO_PEOPLE.length, `${back.length}/${DEMO_PEOPLE.length}`);
 
@@ -51,8 +50,9 @@ const cases: Array<[string,string,string]> = [
   ["k11-lina", "k7-kemal", "Büyük büyük dede"],
 ];
 for (const [a,b,bekl] of cases) {
-  const got = rel(a,b);
-  got === bekl ? ok++ : (fail++, console.log(`✗ ${a}→${b}: bekl "${bekl}", geldi "${got}"`));
+  const got = rel(a, b);
+  if (got === bekl) ok++;
+  else { fail++; console.log(`✗ ${a}→${b}: bekl "${bekl}", geldi "${got}"`); }
 }
 
 console.log(`\n${ok}/${ok+fail} geçti${fail?`, ${fail} başarısız`:" ✓"}`);

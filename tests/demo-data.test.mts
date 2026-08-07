@@ -1,5 +1,5 @@
 import { DEMO_PEOPLE } from "../lib/demo-data.ts";
-import { computeStats, indexPeople, ancestorDepths, describeRelation } from "../lib/relations.ts";
+import { computeStats, indexPeople, ancestorDepths } from "../lib/relations.ts";
 
 const P = DEMO_PEOPLE;
 const idx = indexPeople(P);

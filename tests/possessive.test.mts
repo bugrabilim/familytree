@@ -14,5 +14,9 @@ const cases: Array<[string,string]> = [
   ["baldız / görümce","baldızı / görümcesi"],
 ];
 let ok=0,fail=0;
-for (const [g,b] of cases) { const r = possessive(g); r===b ? ok++ : (fail++, console.log(`✗ "${g}" → bekl "${b}", geldi "${r}"`)); }
+for (const [g, b] of cases) {
+  const r = possessive(g);
+  if (r === b) ok++;
+  else { fail++; console.log(`✗ "${g}" → bekl "${b}", geldi "${r}"`); }
+}
 console.log(`\n${ok}/${cases.length} geçti${fail?`, ${fail} başarısız`:" ✓"}`);

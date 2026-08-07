@@ -1,7 +1,8 @@
 import { exportGedcom, importGedcom } from "../lib/gedcom.ts";
 import { isValidDateInput, displayToStored, storedToDisplay, calcAge } from "../lib/date.ts";
+import type { Person } from "../types/family.ts";
 
-const people = [
+const people: Person[] = [
   { id:"a", firstName:"Mehmet", lastName:"Yılmaz", gender:"male", birthDate:"1920-03-12", deathDate:"1994-11-02", birthPlace:"Trabzon", bio:"Balıkçıydı.\nİki satır.", parentIds:[], spouseIds:["b"] },
   { id:"b", firstName:"Fatma", lastName:"Yılmaz", gender:"female", birthDate:"1925", parentIds:[], spouseIds:["a"] },
   { id:"c", firstName:"Ali", lastName:"Yılmaz", gender:"male", birthDate:"1948-01-25", parentIds:["a","b"], spouseIds:["d"] },
@@ -9,7 +10,7 @@ const people = [
   { id:"e", firstName:"Emre", lastName:"Yılmaz", gender:"male", parentIds:["c","d"], spouseIds:[] },
 ];
 
-const ged = exportGedcom(people as any);
+const ged = exportGedcom(people);
 const back = importGedcom(ged);
 
 let ok=0, fail=0;
