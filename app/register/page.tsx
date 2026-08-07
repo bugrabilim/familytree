@@ -4,6 +4,8 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AuthShell, { authField, authLabel } from "@/components/AuthShell";
+import Button from "@/components/ui/Button";
 
 export default function RegisterPage() {
   const [step, setStep] = useState<"form" | "recovery">("form");
@@ -32,14 +34,11 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ familyName, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error ?? "Kayıt başarısız.");
         return;
       }
-
       setRecoveryCode(data.recoveryCode);
       setStep("recovery");
     } catch {
@@ -67,117 +66,103 @@ export default function RegisterPage() {
 
   if (step === "recovery") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
-          <div className="text-center mb-6">
-            <div className="text-5xl mb-3">🔑</div>
-            <h1 className="text-xl font-bold text-gray-900">Kurtarma Kodunuz</h1>
-            <p className="text-gray-500 text-sm mt-1">
-              Şifrenizi unutursanız bu kodu kullanarak sıfırlayabilirsiniz.
-            </p>
-          </div>
-
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4">
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">
-              ⚠️ Bu kodu güvenli bir yere kaydedin
-            </p>
-            <p className="text-lg font-mono font-bold text-center text-gray-900 tracking-widest">
-              {recoveryCode}
-            </p>
-          </div>
-
-          <button
-            onClick={copyCode}
-            className="w-full mb-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            {copied ? "✓ Kopyalandı!" : "Kodu Kopyala"}
-          </button>
-
-          <button
-            onClick={handleContinue}
-            disabled={loading}
-            className="w-full py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors"
-          >
-            {loading ? "Giriş yapılıyor..." : "Devam Et →"}
-          </button>
-
-          <p className="text-xs text-gray-400 text-center mt-3">
-            Bu sayfayı kapatmadan önce kodu kaydettiğinizden emin olun.
+      <AuthShell
+        icon="🔑"
+        title="Kurtarma kodun"
+        subtitle="Şifreni unutursan hesabına yalnızca bu kodla erişebilirsin."
+      >
+        <div className="rounded-2xl border-2 border-accent/40 bg-accent-soft p-4 mb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-2.5">
+            Güvenli bir yere kaydet
+          </p>
+          <p className="font-mono text-lg font-semibold text-center text-text tracking-[0.15em] break-all">
+            {recoveryCode}
           </p>
         </div>
-      </div>
+
+        <Button variant="secondary" full onClick={copyCode} className="mb-2.5">
+          {copied ? "✓ Kopyalandı" : "Kodu kopyala"}
+        </Button>
+
+        <Button size="lg" full onClick={handleContinue} disabled={loading}>
+          {loading ? "Giriş yapılıyor…" : "Ağacıma git"}
+        </Button>
+
+        <p className="text-[11px] text-text-subtle text-center mt-3.5 leading-relaxed">
+          Bu sayfayı kapatınca kod bir daha gösterilmez.
+        </p>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-3">🌳</div>
-          <h1 className="text-2xl font-bold text-gray-900">Hesap Oluştur</h1>
-          <p className="text-gray-500 text-sm mt-1">Aile soy ağacı hesabı aç</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Soyisim</label>
-            <input
-              type="text"
-              value={familyName}
-              onChange={(e) => setFamilyName(e.target.value)}
-              placeholder="Ailenizin soyadı"
-              required
-              minLength={2}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-            />
-            <p className="text-xs text-gray-400 mt-1">Bu aynı zamanda giriş kullanıcı adınız olacak.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="En az 6 karakter"
-              required
-              minLength={6}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre Tekrar</label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Şifrenizi tekrar girin"
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors"
-          >
-            {loading ? "Oluşturuluyor..." : "Hesap Oluştur"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-500 mt-5">
-          Zaten hesabınız var mı?{" "}
-          <Link href="/login" className="text-green-700 font-medium hover:underline">
-            Giriş Yap
+    <AuthShell
+      title="Ailenin ağacını kur"
+      subtitle="Bir hesap aç, herkes birlikte doldursun"
+      footer={
+        <p>
+          Zaten hesabın var mı?{" "}
+          <Link href="/login" className="text-primary font-medium hover:underline">
+            Giriş yap
           </Link>
         </p>
-      </div>
-    </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={authLabel} htmlFor="r-soyisim">Soyisim</label>
+          <input
+            id="r-soyisim"
+            className={authField}
+            value={familyName}
+            onChange={(e) => setFamilyName(e.target.value)}
+            placeholder="Ailenizin soyadı"
+            minLength={2}
+            autoComplete="username"
+            required
+          />
+          <p className="text-[11px] text-text-subtle mt-1.5">
+            Aynı zamanda giriş kullanıcı adın olacak.
+          </p>
+        </div>
+
+        <div>
+          <label className={authLabel} htmlFor="r-sifre">Şifre</label>
+          <input
+            id="r-sifre"
+            type="password"
+            className={authField}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="En az 6 karakter"
+            minLength={6}
+            autoComplete="new-password"
+            required
+          />
+        </div>
+
+        <div>
+          <label className={authLabel} htmlFor="r-sifre2">Şifre tekrar</label>
+          <input
+            id="r-sifre2"
+            type="password"
+            className={authField}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Şifreni tekrar gir"
+            autoComplete="new-password"
+            required
+          />
+        </div>
+
+        {error && (
+          <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
+        )}
+
+        <Button type="submit" size="lg" full disabled={loading}>
+          {loading ? "Oluşturuluyor…" : "Hesap oluştur"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

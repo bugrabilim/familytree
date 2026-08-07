@@ -5,7 +5,11 @@
 > haritası önerir. **Hiçbir özellik hemen eklenmek zorunda değil** — bu bir
 > tartışma ve referans belgesidir.
 >
-> Tarih: 2026-08 · Durum: Taslak / tartışma
+> Tarih: 2026-08 · Durum: Kademe 1 tamamlandı, Kademe 2 kısmen
+>
+> **Güncelleme (2026-08):** Uygulama arayüzü sektör liderleri (MyHeritage,
+> Ancestry, FamilySearch) örnek alınarak baştan tasarlandı. Aşağıdaki bölüm 4
+> ve 5 bu doğrultuda güncellendi.
 
 ---
 
@@ -93,22 +97,28 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 
 ### ✅ Elimizde olan
 - Çok kullanıcılı kayıt + kurtarma kodu ile şifre sıfırlama
-- İnteraktif ağaç (React Flow + dagre), zoom/pan/minimap
-- Kişi profili: fotoğraf, biyografi, doğum/ölüm, yer
-- İlişkiler: ebeveyn, eş, çocuk, kardeş (çift yönlü senkron)
-- CRUD + isim/yer/tarih araması
 - Cloudinary foto, Vercel Blob (JSON) depolama
+- **Tek çalışma alanı, dört görünüm:** ağaç, soy (pedigree), liste, panel
+- **Ağaç üzerinden akraba ekleme** — kartın kenarındaki `+` ile doğrudan
+  anne/baba/eş/çocuk/kardeş; bağlar çift yönlü kurulur
+- **Birlik (union) düğümlü yerleşim** — eşler yan yana, çocuklar ortak
+  ebeveyn noktasından dallanır
+- **Türkçe akrabalık hesaplayıcı** — amca/dayı, hala/teyze, babaanne/anneanne
+  ayrımı; iyelik ve ilgi eki çekimiyle ("Deniz'in büyük halası")
+- **GEDCOM import/export** — tam tarih/yıl-ay/yıl, çok satırlı not, evlilik ve
+  ebeveyn bağları
+- Kişi ayrıntı paneli (sayfa değişimi yok), `⌘K` anlık arama
+- Koyu/açık tema, mobilde alttan açılan paneller
+- Türkçe tarih girişi (GG.AA.YYYY / YYYY) + doğrulama + otomatik yaş
+- Yaklaşan doğum günleri paneli, aile istatistikleri
 
 ### ❌ Eksik olan (piyasa standardı)
-- GEDCOM import/export
 - Yaşayan kişi gizliliği
-- Alternatif grafik türleri (fan, pedigree, timeline)
 - Yaşam olayı zaman çizelgesi (doğum/ölüm dışı olaylar)
 - Kaynak/atıf & çoklu medya galerisi
-- İlişki hesaplayıcı
-- Yaklaşan olaylar / doğum günü bildirimleri
 - Rol ayrımı (görüntüleyen vs düzenleyen)
 - Harita üzerinde doğum yerleri
+- Yelpaze (fan) grafiği
 
 ---
 
@@ -117,21 +127,20 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 Efor/getiri dengesine göre kademeler. Bir kademe komple yapılmak zorunda değil.
 
 ### 🟢 Kademe 1 — Yüksek getiri, makul efor
-1. **GEDCOM import/export** — En değerli tek ekleme. `gedcom` npm parser'ı ile
-   `.ged` → `Person[]` dönüşümü; export tersi. Onboarding + veri sahipliği.
+1. ~~**GEDCOM import/export**~~ ✅ `lib/gedcom.ts` — 5.5.1 uyumlu ayrıştırıcı
+   ve üretici, `/api/family/export` ve `/api/family/import`.
 2. **Yaşayan kişi gizliliği** — Kişiye `isLiving` / `deathDate` mantığı; yaşayan
-   kişilerin detayını isteğe bağlı gizle. KVKK açısından da doğru.
+   kişilerin detayını isteğe bağlı gizle. KVKK açısından da doğru. *(sıradaki)*
 3. **Yaşam olayı zaman çizelgesi** — Profile serbest olay listesi (yıl + tür +
    açıklama): evlilik, mezuniyet, göç, iş… Veri modeline `events[]` alanı.
 
 ### 🟡 Kademe 2 — Deneyimi zenginleştirir
-4. **İlişki hesaplayıcı** — İki kişi arası en kısa yol / ortak ata (BFS).
-   Saf hesaplama, ek altyapı gerektirmez.
+4. ~~**İlişki hesaplayıcı**~~ ✅ `lib/relations.ts` — BFS + Türkçe akrabalık
+   terimleri ve ek çekimi. Panel görünümünde ve kişi panelinde.
 5. **Çoklu medya galerisi** — Kişi başına birden çok foto/belge (şu an tek
    avatar). Cloudinary zaten hazır.
-6. **Yaklaşan olaylar paneli** — Ana sayfada doğum günü/yıldönümü akışı.
-7. **Alternatif grafik: zaman çizelgesi veya fan chart** — Aynı veriye ikinci
-   bir bakış.
+6. ~~**Yaklaşan olaylar paneli**~~ ✅ Panel görünümünde 60 günlük doğum günü akışı.
+7. ~~**Alternatif grafik**~~ ✅ Soy (pedigree) tablosu eklendi. Fan chart hâlâ açık.
 
 ### 🔵 Kademe 3 — Olgunlaşma
 8. **Rol ayrımı** — Aile hesabı içinde "düzenleyen" vs "görüntüleyen" davetleri.
@@ -161,17 +170,23 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 - **`main` geçmişi squash edildi.** Yeni iş her zaman güncel `main`'den
   dallanmalı (süreç zaten böyle işliyor, not olarak).
 
+- **Katmanlı ESC yönetimi.** `keydown` React'te senkron flush eden bir olay
+  olduğu için, her katman kendi `document` dinleyicisini kaydettiğinde alttaki
+  katman state'i güncelleyince üstteki katman dinleyicisini olay dağıtımının
+  ortasında kaldırıp ESC'yi kaçırıyordu. `lib/useEscapeKey.ts` tek dinleyici +
+  katman yığını ile bunu çözüyor — yeni bir kaplama eklerken bu hook kullanılmalı.
+
 ---
 
 ## 7. Öneri / Karar
 
-Uygulama **şu hâliyle amacına uygun ve tamamlanmış** durumda. Bir sonraki tek
-bir adım seçilecekse önerim:
+GEDCOM ve akrabalık hesaplayıcı tamamlandı; arayüz sektör liderleri seviyesine
+çekildi. Sıradaki tek adım için önerim:
 
-> **GEDCOM import/export** + **yaşayan kişi gizliliği**.
+> **Yaşayan kişi gizliliği** + **yaşam olayı zaman çizelgesi**.
 
-İkisi birlikte, uygulamayı "kişisel proje"den "ciddi aile aracı"na taşıyan,
-göreli düşük eforlu ve yüksek getirili çift. Gerisi talep geldikçe eklenebilir.
+Birincisi KVKK/GDPR açısından doğru olan, ikincisi "kuru veri"yi hikâyeye
+çeviren adım. Gerisi talep geldikçe eklenebilir.
 
 ---
 

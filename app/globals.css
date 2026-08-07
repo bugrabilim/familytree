@@ -1,20 +1,260 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------
+   Design tokens — warm heritage palette
+   Light: parchment / cream.  Dark: deep forest night.
+   --------------------------------------------------------------- */
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
-  --primary: #15803d;
-  --primary-hover: #166534;
+  --bg: #f7f6f2;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f1efe9;
+  --surface-3: #e8e5dc;
+  --border: #e2ded3;
+  --border-strong: #cdc7b8;
+
+  --text: #1b1a16;
+  --text-muted: #6d675b;
+  --text-subtle: #9a9384;
+
+  --primary: #1f6b47;
+  --primary-hover: #185639;
+  --primary-soft: #e6f0ea;
+  --primary-text: #ffffff;
+
+  --accent: #a8763e;
+  --accent-soft: #f6efe4;
+
+  --male: #4f7fb8;
+  --male-soft: #e8f0f9;
+  --female: #c06585;
+  --female-soft: #fbecf1;
+  --neutral: #8b8478;
+  --neutral-soft: #eeece6;
+
+  --danger: #b3382f;
+  --danger-soft: #fbeceb;
+
+  --shadow-sm: 0 1px 2px rgb(27 26 22 / 0.06), 0 1px 3px rgb(27 26 22 / 0.04);
+  --shadow: 0 2px 4px rgb(27 26 22 / 0.05), 0 4px 12px rgb(27 26 22 / 0.07);
+  --shadow-lg: 0 8px 24px rgb(27 26 22 / 0.10), 0 2px 6px rgb(27 26 22 / 0.06);
+  --shadow-xl: 0 20px 48px rgb(27 26 22 / 0.16), 0 4px 12px rgb(27 26 22 / 0.08);
+}
+
+.dark {
+  --bg: #12140f;
+  --bg-elevated: #1a1d17;
+  --surface: #1a1d17;
+  --surface-2: #22261e;
+  --surface-3: #2c3128;
+  --border: #2f342a;
+  --border-strong: #434839;
+
+  --text: #eeece4;
+  --text-muted: #a09a8c;
+  --text-subtle: #726c60;
+
+  --primary: #4fae82;
+  --primary-hover: #64c096;
+  --primary-soft: #1d3329;
+  --primary-text: #0d1a13;
+
+  --accent: #d0a065;
+  --accent-soft: #2e2619;
+
+  --male: #7aa8db;
+  --male-soft: #1c2733;
+  --female: #dd90ab;
+  --female-soft: #31202a;
+  --neutral: #9a9384;
+  --neutral-soft: #262a21;
+
+  --danger: #e07a70;
+  --danger-soft: #33201e;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow: 0 2px 4px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.28);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.4), 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 48px rgb(0 0 0 / 0.55), 0 4px 12px rgb(0 0 0 / 0.35);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-text: var(--primary-text);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-male: var(--male);
+  --color-male-soft: var(--male-soft);
+  --color-female: var(--female);
+  --color-female-soft: var(--female-soft);
+  --color-neutral: var(--neutral);
+  --color-neutral-soft: var(--neutral-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --shadow-soft: var(--shadow-sm);
+  --shadow-card: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+  --shadow-modal: var(--shadow-xl);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Scrollbars — subtle, themed */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+  background-clip: content-box;
+}
+
+/* --------------------------------------------------------------- */
+/* Animations                                                       */
+/* --------------------------------------------------------------- */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slide-left {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in { animation: fade-in 0.18s ease-out; }
+.animate-scale-in { animation: scale-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.animate-slide-left { animation: slide-left 0.24s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.animate-pop { animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------- */
+/* React Flow theme overrides                                       */
+/* --------------------------------------------------------------- */
+.react-flow__attribution { display: none; }
+
+.react-flow__controls {
+  box-shadow: var(--shadow);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.react-flow__controls-button {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+  fill: var(--text-muted) !important;
+  width: 32px;
+  height: 32px;
+}
+.react-flow__controls-button:hover {
+  background: var(--surface-2) !important;
+  fill: var(--text) !important;
+}
+.react-flow__controls-button svg {
+  fill: currentColor;
+  max-width: 13px;
+  max-height: 13px;
+}
+.react-flow__minimap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.react-flow__minimap-svg {
+  background: var(--surface);
+  border-radius: 12px;
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.react-flow__node {
+  cursor: default;
+  pointer-events: all;
+}
+/* Seçim görselini kendimiz yönetiyoruz — React Flow'unkini sustur */
+.react-flow__node.selected,
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.react-flow__edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }

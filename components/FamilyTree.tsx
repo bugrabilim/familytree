@@ -1,150 +1,304 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
+  Handle,
+  Position,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   type Node,
   type Edge,
+  type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import PersonNode from "./PersonNode";
+import PersonNode, { type PersonNodeData } from "./PersonNode";
 import type { Person } from "@/types/family";
+import type { RelationType } from "@/lib/actions";
 
-const NODE_WIDTH = 176;
-const NODE_HEIGHT = 80;
+const NODE_W = 188;
+const NODE_H = 76;
+const GEN_GAP = 118;
 
-const nodeTypes = { person: PersonNode };
+/* ---------------------------------------------------------------- */
+/* Birlik (union) düğümü — çiftleri yan yana tutar                   */
+/* ---------------------------------------------------------------- */
 
-function getLayoutedElements(nodes: Node[], edges: Edge[]) {
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 40 });
-
-  nodes.forEach((n) => dagreGraph.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
-
-  // Only parent-child edges drive the layout (not spouse edges)
-  edges
-    .filter((e) => e.data?.type !== "spouse")
-    .forEach((e) => dagreGraph.setEdge(e.source, e.target));
-
-  dagre.layout(dagreGraph);
-
-  return nodes.map((n) => {
-    const pos = dagreGraph.node(n.id);
-    return {
-      ...n,
-      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
-    };
-  });
+function UnionNode() {
+  return (
+    <div className="w-1.5 h-1.5 rounded-full bg-border-strong">
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
+    </div>
+  );
 }
 
-function buildGraph(people: Person[]): { nodes: Node[]; edges: Edge[] } {
-  const nodes: Node[] = people.map((p) => ({
-    id: p.id,
-    type: "person",
-    data: { ...p },
-    position: { x: 0, y: 0 },
-  }));
+const nodeTypes = { person: PersonNode, union: UnionNode as unknown as React.FC<NodeProps> };
 
-  const edges: Edge[] = [];
-  const spousePairs = new Set<string>();
+interface Union {
+  id: string;
+  parentIds: string[];
+  childIds: string[];
+}
 
-  for (const person of people) {
-    for (const parentId of person.parentIds) {
-      edges.push({
-        id: `parent-${parentId}-${person.id}`,
-        source: parentId,
-        target: person.id,
-        type: "smoothstep",
-        style: { stroke: "#15803d", strokeWidth: 2 },
-        data: { type: "parent" },
-      });
+/**
+ * Aynı ebeveyn kümesini paylaşan çocukları bir "birlik" altında toplar;
+ * çocuğu olmayan çiftler için de birlik üretir ki eşler aynı sırada dursun.
+ */
+function buildUnions(people: Person[], ids: Set<string>): Union[] {
+  const byKey = new Map<string, Union>();
+
+  for (const p of people) {
+    const parents = p.parentIds.filter((id) => ids.has(id));
+    if (parents.length === 0) continue;
+    const sorted = [...parents].sort();
+    const key = sorted.join("|");
+    let u = byKey.get(key);
+    if (!u) {
+      u = { id: `u:${key}`, parentIds: sorted, childIds: [] };
+      byKey.set(key, u);
     }
+    u.childIds.push(p.id);
+  }
 
-    for (const spouseId of person.spouseIds) {
-      const key = [person.id, spouseId].sort().join("-");
-      if (!spousePairs.has(key)) {
-        spousePairs.add(key);
-        edges.push({
-          id: `spouse-${key}`,
-          source: person.id,
-          target: spouseId,
-          type: "straight",
+  // Çocuksuz evlilikler
+  for (const p of people) {
+    for (const sid of p.spouseIds) {
+      if (!ids.has(sid)) continue;
+      const sorted = [p.id, sid].sort();
+      const key = sorted.join("|");
+      if (byKey.has(key)) continue;
+      byKey.set(key, { id: `u:${key}`, parentIds: sorted, childIds: [] });
+    }
+  }
+
+  return [...byKey.values()];
+}
+
+function layout(people: Person[], unions: Union[]) {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: "TB", ranksep: GEN_GAP / 2, nodesep: 34, marginx: 60, marginy: 60 });
+
+  for (const p of people) g.setNode(p.id, { width: NODE_W, height: NODE_H });
+  for (const u of unions) g.setNode(u.id, { width: 8, height: 8 });
+
+  for (const u of unions) {
+    for (const pid of u.parentIds) g.setEdge(pid, u.id, { weight: 3 });
+    for (const cid of u.childIds) g.setEdge(u.id, cid, { weight: 2 });
+  }
+
+  dagre.layout(g);
+
+  const pos = new Map<string, { x: number; y: number }>();
+  for (const p of people) {
+    const n = g.node(p.id);
+    if (n) pos.set(p.id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 });
+  }
+  for (const u of unions) {
+    const n = g.node(u.id);
+    if (n) pos.set(u.id, { x: n.x - 4, y: n.y - 4 });
+  }
+  return pos;
+}
+
+/* ---------------------------------------------------------------- */
+
+interface Props {
+  people: Person[];
+  selectedId?: string;
+  highlightIds?: Set<string>;
+  onSelect: (id: string) => void;
+  onQuickAdd: (relation: RelationType, targetId: string) => void;
+}
+
+function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Props) {
+  const { fitView, setCenter } = useReactFlow();
+  const initialised = useRef(false);
+
+  const ids = useMemo(() => new Set(people.map((p) => p.id)), [people]);
+  const unions = useMemo(() => buildUnions(people, ids), [people, ids]);
+  const positions = useMemo(() => layout(people, unions), [people, unions]);
+
+  const nodes = useMemo<Node[]>(() => {
+    const personNodes: Node[] = people.map((p) => {
+      const data: PersonNodeData = {
+        person: p,
+        selected: p.id === selectedId,
+        dimmed: !!highlightIds && !highlightIds.has(p.id),
+        canAddParent: p.parentIds.length < 2,
+        onSelect,
+        onQuickAdd,
+      };
+      return {
+        id: p.id,
+        type: "person",
+        position: positions.get(p.id) ?? { x: 0, y: 0 },
+        data: data as unknown as Record<string, unknown>,
+        draggable: false,
+      } as Node;
+    });
+
+    const unionNodes: Node[] = unions.map((u) => ({
+      id: u.id,
+      type: "union",
+      position: positions.get(u.id) ?? { x: 0, y: 0 },
+      data: {},
+      draggable: false,
+      selectable: false,
+    })) as Node[];
+
+    return [...unionNodes, ...personNodes];
+  }, [people, unions, positions, selectedId, highlightIds, onSelect, onQuickAdd]);
+
+  const edges = useMemo<Edge[]>(() => {
+    const out: Edge[] = [];
+    const dim = (a: string, b: string) =>
+      highlightIds ? !highlightIds.has(a) || !highlightIds.has(b) : false;
+
+    for (const u of unions) {
+      for (const pid of u.parentIds) {
+        const faded = highlightIds ? !highlightIds.has(pid) : false;
+        out.push({
+          id: `${pid}->${u.id}`,
+          source: pid,
+          target: u.id,
+          type: "smoothstep",
           style: {
-            stroke: "#ec4899",
-            strokeWidth: 1.5,
-            strokeDasharray: "5,4",
+            stroke: "var(--border-strong)",
+            strokeWidth: 1.6,
+            opacity: faded ? 0.2 : 1,
           },
-          label: "♥",
-          labelStyle: { fill: "#ec4899", fontSize: 12 },
-          data: { type: "spouse" },
+        });
+      }
+      for (const cid of u.childIds) {
+        const faded = highlightIds ? !highlightIds.has(cid) : false;
+        out.push({
+          id: `${u.id}->${cid}`,
+          source: u.id,
+          target: cid,
+          type: "smoothstep",
+          style: {
+            stroke: "var(--primary)",
+            strokeWidth: 1.8,
+            opacity: faded ? 0.2 : 0.85,
+          },
         });
       }
     }
-  }
 
-  return { nodes, edges };
-}
+    // Eş bağlarını, ortak birliği olmayan çiftler için göster
+    const covered = new Set(unions.map((u) => u.parentIds.join("|")));
+    for (const p of people) {
+      for (const sid of p.spouseIds) {
+        if (!ids.has(sid)) continue;
+        const key = [p.id, sid].sort().join("|");
+        if (covered.has(key)) continue;
+        covered.add(key);
+        out.push({
+          id: `s:${key}`,
+          source: p.id,
+          target: sid,
+          type: "straight",
+          style: {
+            stroke: "var(--female)",
+            strokeWidth: 1.4,
+            strokeDasharray: "4 4",
+            opacity: dim(p.id, sid) ? 0.2 : 0.7,
+          },
+        });
+      }
+    }
 
-export default function FamilyTree({ people, onAddPerson }: { people: Person[]; onAddPerson?: () => void }) {
-  const { nodes: rawNodes, edges: rawEdges } = useMemo(
-    () => buildGraph(people),
-    [people]
+    return out;
+  }, [people, unions, ids, highlightIds]);
+
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(nodes);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(edges);
+
+  useEffect(() => setRfNodes(nodes), [nodes, setRfNodes]);
+  useEffect(() => setRfEdges(edges), [edges, setRfEdges]);
+
+  const onInit = useCallback(
+    (rf: ReactFlowInstance) => {
+      if (initialised.current) return;
+      initialised.current = true;
+      requestAnimationFrame(() => rf.fitView({ padding: 0.18, duration: 0 }));
+    },
+    []
   );
 
-  const layoutedNodes = useMemo(
-    () => getLayoutedElements(rawNodes, rawEdges),
-    [rawNodes, rawEdges]
-  );
-
-  const [nodes, , onNodesChange] = useNodesState(layoutedNodes);
-  const [edges, , onEdgesChange] = useEdgesState(rawEdges);
-
-  const onInit = useCallback((rf: { fitView: () => void }) => {
-    rf.fitView();
-  }, []);
-
-  if (people.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400">
-        <div className="text-6xl">🌱</div>
-        <p className="text-lg font-medium">Henüz kimse eklenmemiş</p>
-        <button
-          onClick={onAddPerson}
-          className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors text-sm"
-        >
-          İlk kişiyi ekle
-        </button>
-      </div>
-    );
-  }
+  // Seçili kişiyi görünür alana getir
+  useEffect(() => {
+    if (!selectedId) return;
+    const pos = positions.get(selectedId);
+    if (!pos) return;
+    setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 1, duration: 420 });
+  }, [selectedId, positions, setCenter]);
 
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
+      nodes={rfNodes}
+      edges={rfEdges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
       onInit={onInit}
-      fitView
-      minZoom={0.2}
-      maxZoom={2}
+      minZoom={0.15}
+      maxZoom={1.8}
+      proOptions={{ hideAttribution: true }}
+      nodesConnectable={false}
+      panOnScroll
+      selectionOnDrag={false}
+      className="bg-bg"
     >
-      <Background color="#e5e7eb" gap={20} />
-      <Controls />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
+      <Controls
+        showInteractive={false}
+        position="bottom-right"
+        className="!bottom-24 lg:!bottom-6 !right-4"
+      />
       <MiniMap
+        pannable
+        zoomable
+        position="bottom-left"
+        className="!hidden lg:!block !bottom-6 !left-4"
+        bgColor="var(--surface)"
+        maskColor="color-mix(in srgb, var(--bg) 78%, transparent)"
+        maskStrokeColor="var(--border-strong)"
         nodeColor={(n) => {
-          const gender = (n.data as unknown as Person).gender;
-          return gender === "female" ? "#fbcfe8" : gender === "male" ? "#bfdbfe" : "#e5e7eb";
+          if (n.type === "union") return "transparent";
+          const p = (n.data as unknown as PersonNodeData)?.person;
+          if (!p) return "var(--neutral)";
+          return p.gender === "female"
+            ? "var(--female)"
+            : p.gender === "male"
+            ? "var(--male)"
+            : "var(--neutral)";
         }}
       />
+      <button
+        onClick={() => fitView({ padding: 0.18, duration: 400 })}
+        className="absolute top-4 right-4 z-10 h-9 px-3 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
+      >
+        Tümünü sığdır
+      </button>
     </ReactFlow>
+  );
+}
+
+export default function FamilyTree(props: Props) {
+  return (
+    <ReactFlowProvider>
+      <Canvas {...props} />
+    </ReactFlowProvider>
   );
 }
