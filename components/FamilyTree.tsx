@@ -21,6 +21,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
+import { genderTone } from "./ui/Avatar";
 import type { Person } from "@/types/family";
 import type { RelationType } from "@/lib/actions";
 
@@ -197,25 +198,28 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
 
     // Eş bağlarını, ortak birliği olmayan çiftler için göster
     const covered = new Set(unions.map((u) => u.parentIds.join("|")));
+    const esKenari = (a: string, b: string, bosanmis: boolean) => {
+      if (!ids.has(b)) return;
+      const key = [a, b].sort().join("|");
+      if (covered.has(key)) return;
+      covered.add(key);
+      out.push({
+        id: `s:${key}`,
+        source: a,
+        target: b,
+        type: "straight",
+        style: {
+          stroke: bosanmis ? "var(--text-subtle)" : "var(--female)",
+          strokeWidth: 1.4,
+          strokeDasharray: bosanmis ? "2 5" : "4 4",
+          opacity: dim(a, b) ? 0.2 : bosanmis ? 0.45 : 0.7,
+        },
+      });
+    };
+
     for (const p of people) {
-      for (const sid of p.spouseIds) {
-        if (!ids.has(sid)) continue;
-        const key = [p.id, sid].sort().join("|");
-        if (covered.has(key)) continue;
-        covered.add(key);
-        out.push({
-          id: `s:${key}`,
-          source: p.id,
-          target: sid,
-          type: "straight",
-          style: {
-            stroke: "var(--female)",
-            strokeWidth: 1.4,
-            strokeDasharray: "4 4",
-            opacity: dim(p.id, sid) ? 0.2 : 0.7,
-          },
-        });
-      }
+      for (const sid of p.spouseIds) esKenari(p.id, sid, false);
+      for (const sid of p.formerSpouseIds ?? []) esKenari(p.id, sid, true);
     }
 
     return out;
@@ -227,21 +231,32 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
   useEffect(() => setRfNodes(nodes), [nodes, setRfNodes]);
   useEffect(() => setRfEdges(edges), [edges, setRfEdges]);
 
-  const onInit = useCallback(
-    (rf: ReactFlowInstance) => {
-      if (initialised.current) return;
+  const onInit = useCallback((rf: ReactFlowInstance) => {
+    requestAnimationFrame(() => rf.fitView({ padding: 0.15, duration: 0 }));
+  }, []);
+
+  /* Görünür kişi kümesi değiştiğinde yeniden sığdır.
+     onInit tek başına yetmiyor: düğümler mount'tan sonra bir effect ile
+     yerleşiyor, dolayısıyla ilk fitView eksik bir kümeyi ölçüyordu. */
+  const nodeCount = people.length;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fitView({ padding: 0.15, duration: initialised.current ? 300 : 0 });
       initialised.current = true;
-      requestAnimationFrame(() => rf.fitView({ padding: 0.18, duration: 0 }));
-    },
-    []
-  );
+    }, 60);
+    return () => clearTimeout(t);
+  }, [nodeCount, fitView]);
 
   // Seçili kişiyi görünür alana getir
   useEffect(() => {
     if (!selectedId) return;
     const pos = positions.get(selectedId);
     if (!pos) return;
-    setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 1, duration: 420 });
+    const t = setTimeout(
+      () => setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 0.9, duration: 420 }),
+      120
+    );
+    return () => clearTimeout(t);
   }, [selectedId, positions, setCenter]);
 
   return (
@@ -277,12 +292,7 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
         nodeColor={(n) => {
           if (n.type === "union") return "transparent";
           const p = (n.data as unknown as PersonNodeData)?.person;
-          if (!p) return "var(--neutral)";
-          return p.gender === "female"
-            ? "var(--female)"
-            : p.gender === "male"
-            ? "var(--male)"
-            : "var(--neutral)";
+          return p ? genderTone(p.gender).css : "var(--neutral)";
         }}
       />
       <button

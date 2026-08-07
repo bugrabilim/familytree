@@ -15,7 +15,7 @@ import PedigreeView from "@/components/PedigreeView";
 import Modal from "@/components/ui/Modal";
 import PersonForm from "@/components/PersonForm";
 import { RELATION_LABELS, type RelationType } from "@/lib/actions";
-import { ancestorDepths, indexPeople } from "@/lib/relations";
+import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 
 const FamilyTree = dynamic(() => import("@/components/FamilyTree"), {
   ssr: false,
@@ -51,6 +51,9 @@ export default function Workspace({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+  /** Ağaçta odak kişinin kaç kuşak çevresi gösterilsin — 0 = tümü */
+  const [treeDepth, setTreeDepth] = useState(3);
   const [toast, setToast] = useState<string>();
 
   const idx = useMemo(() => indexPeople(people), [people]);
@@ -75,6 +78,40 @@ export default function Workspace({
   }, [people, idx]);
 
   const effectiveRoot = (rootId && idx.has(rootId) ? rootId : undefined) ?? varsayilanKok;
+
+  /**
+   * Ağaç görünümünde gösterilecek kişiler — odak kişinin çevresindeki
+   * "kum saati" (hourglass): N kuşak ata + N kuşak soy + eşler + kardeşler.
+   *
+   * Yüzlerce kişilik bir ağacın tamamı tek ekranda okunmuyor; olgun soy
+   * ağacı araçları da bu yüzden kuşak sınırı sunuyor.
+   */
+  const treeFocusId = selectedId && idx.has(selectedId) ? selectedId : effectiveRoot;
+
+  const treePeople = useMemo(() => {
+    if (treeDepth === 0 || !treeFocusId) return people;
+
+    const keep = new Set<string>([treeFocusId]);
+    for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (d <= treeDepth) keep.add(id);
+    for (const [id, d] of descendantDepths(treeFocusId, people)) if (d <= treeDepth) keep.add(id);
+
+    // Odak kişinin kardeşleri
+    const focus = idx.get(treeFocusId);
+    if (focus?.parentIds.length) {
+      for (const p of people) {
+        if (p.parentIds.some((pid) => focus.parentIds.includes(pid))) keep.add(p.id);
+      }
+    }
+    // Kalanların eşleri — çiftler bölünmesin
+    for (const id of [...keep]) {
+      const p = idx.get(id);
+      if (!p) continue;
+      for (const s of [...p.spouseIds, ...(p.formerSpouseIds ?? [])]) {
+        if (idx.has(s)) keep.add(s);
+      }
+    }
+    return people.filter((p) => keep.has(p.id));
+  }, [people, idx, treeFocusId, treeDepth]);
 
   /* Klavye kısayolları */
   useEffect(() => {
@@ -131,6 +168,32 @@ export default function Workspace({
     [router, notify]
   );
 
+  const handleDemoLoaded = useCallback(
+    (count: number) => {
+      setGedcomOpen(false);
+      setDemoLoading(false);
+      setSelectedId(undefined);
+      setRootId(undefined);
+      notify(`Demo ağacı yüklendi — ${count} kişi`);
+      router.refresh();
+    },
+    [router, notify]
+  );
+
+  /** Boş durumdan tek tıkla demo yükle */
+  const loadDemoDirect = useCallback(async () => {
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/family/demo", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Demo yüklenemedi.");
+      handleDemoLoaded(data.count ?? 0);
+    } catch (err) {
+      setDemoLoading(false);
+      notify((err as Error).message);
+    }
+  }, [handleDemoLoaded, notify]);
+
   const focusPerson = useCallback((id: string) => {
     setRootId(id);
     setView("soy");
@@ -155,14 +218,30 @@ export default function Workspace({
         }`}
       >
         {isEmpty ? (
-          <EmptyState onAdd={openAdd} onImport={() => setGedcomOpen(true)} />
-        ) : view === "agac" ? (
-          <FamilyTree
-            people={people}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onQuickAdd={openQuickAdd}
+          <EmptyState
+            onAdd={openAdd}
+            onImport={() => setGedcomOpen(true)}
+            onDemo={loadDemoDirect}
+            demoLoading={demoLoading}
           />
+        ) : view === "agac" ? (
+          <>
+            <FamilyTree
+              people={treePeople}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onQuickAdd={openQuickAdd}
+            />
+            <TreeDepthControl
+              depth={treeDepth}
+              onChange={setTreeDepth}
+              shown={treePeople.length}
+              total={people.length}
+              focusName={
+                treeFocusId ? idx.get(treeFocusId)?.firstName : undefined
+              }
+            />
+          </>
         ) : view === "soy" ? (
           <PedigreeView
             people={people}
@@ -268,6 +347,7 @@ export default function Workspace({
           peopleCount={people.length}
           onClose={() => setGedcomOpen(false)}
           onImported={handleImported}
+          onDemoLoaded={handleDemoLoaded}
         />
       )}
 
@@ -280,6 +360,51 @@ export default function Workspace({
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+function TreeDepthControl({
+  depth,
+  onChange,
+  shown,
+  total,
+  focusName,
+}: {
+  depth: number;
+  onChange: (d: number) => void;
+  shown: number;
+  total: number;
+  focusName?: string;
+}) {
+  if (total <= 25) return null;
+
+  return (
+    <div className="absolute top-4 left-4 z-10 flex items-center gap-2.5 h-9 pl-3 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+      <span className="text-[11px] text-text-muted whitespace-nowrap">
+        {focusName ? `${focusName} çevresi` : "Kuşak"}
+      </span>
+      <div className="flex items-center gap-0.5">
+        {[2, 3, 4, 0].map((d) => (
+          <button
+            key={d}
+            onClick={() => onChange(d)}
+            title={d === 0 ? "Herkesi göster" : `${d} kuşak yukarı ve aşağı`}
+            className={`h-6 min-w-6 px-1.5 rounded-md text-[11px] font-medium transition-colors ${
+              depth === d
+                ? "bg-primary text-primary-text"
+                : "text-text-muted hover:text-text hover:bg-surface-2"
+            }`}
+          >
+            {d === 0 ? "Tümü" : d}
+          </button>
+        ))}
+      </div>
+      <span className="text-[11px] text-text-subtle tabular-nums whitespace-nowrap border-l border-border pl-2">
+        {shown}/{total}
+      </span>
     </div>
   );
 }

@@ -22,6 +22,12 @@ export function getSpouses(person: Person, idx: PersonIndex): Person[] {
   return person.spouseIds.map((id) => idx.get(id)).filter((p): p is Person => !!p);
 }
 
+export function getFormerSpouses(person: Person, idx: PersonIndex): Person[] {
+  return (person.formerSpouseIds ?? [])
+    .map((id) => idx.get(id))
+    .filter((p): p is Person => !!p);
+}
+
 export function getSiblings(person: Person, people: Person[]): Person[] {
   if (person.parentIds.length === 0) return [];
   return people.filter(
@@ -36,6 +42,7 @@ export function neighbors(person: Person, people: Person[], idx: PersonIndex): P
   for (const p of [
     ...getParents(person, idx),
     ...getSpouses(person, idx),
+    ...getFormerSpouses(person, idx),
     ...getChildren(person, people),
     ...getSiblings(person, people),
   ]) {
@@ -154,7 +161,7 @@ export function findRelationPath(
       if (arr) arr.push(p.id);
       else childrenOf.set(pid, [p.id]);
     }
-    for (const sid of p.spouseIds) {
+    for (const sid of [...p.spouseIds, ...(p.formerSpouseIds ?? [])]) {
       link(p.id, sid);
       link(sid, p.id);
     }
@@ -224,6 +231,10 @@ export function describeRelation(
   idx: PersonIndex
 ): string | null {
   if (fromId === toId) return "Kendisi";
+
+  const from = idx.get(fromId);
+  if (from?.formerSpouseIds?.includes(toId)) return "Eski eş";
+
   const path = findRelationPath(fromId, toId, people, idx);
   if (!path || path.length === 0) return null;
 
@@ -345,7 +356,7 @@ export function describeRelation(
     const buyuk = up === 3 ? "büyük" : `${up - 2} kez büyük`;
     return capitalize(`${buyuk} ${taban}`);
   }
-  return `Uzak akraba (${up} yukarı, ${down} aşağı)`;
+  return "Uzak akraba";
 }
 
 /* ---------------------------------------------------------------- */

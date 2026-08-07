@@ -51,6 +51,7 @@ export function exportGedcom(people: Person[]): string {
     lines.push(`1 NAME ${p.firstName} /${p.lastName}/`);
     if (p.gender === "male") lines.push("1 SEX M");
     else if (p.gender === "female") lines.push("1 SEX F");
+    else if (p.gender === "other") lines.push("1 SEX X");
 
     const bd = dateToGedcom(p.birthDate);
     if (bd || p.birthPlace) {
@@ -74,7 +75,7 @@ export function exportGedcom(people: Person[]): string {
     }
   }
 
-  type FamRec = { husb?: string; wife?: string; children: string[] };
+  type FamRec = { husb?: string; wife?: string; children: string[]; divorced?: boolean };
   const fams: FamRec[] = [];
   const famLookup = new Map<string, number>();
 
@@ -87,10 +88,19 @@ export function exportGedcom(people: Person[]): string {
     return idx;
   }
 
-  // Pass 1: FAM records from spouse pairs
+  function markDivorced(husb: string | undefined, wife: string | undefined) {
+    const i = famLookup.get(`${husb ?? ""}|${wife ?? ""}`);
+    if (i !== undefined) fams[i].divorced = true;
+  }
+
+  // Pass 1: FAM records from spouse pairs (current + divorced)
   const spouseSeen = new Set<string>();
   for (const p of people) {
-    for (const spouseId of p.spouseIds) {
+    const esler: Array<[string, boolean]> = [
+      ...p.spouseIds.map((id) => [id, false] as [string, boolean]),
+      ...(p.formerSpouseIds ?? []).map((id) => [id, true] as [string, boolean]),
+    ];
+    for (const [spouseId, bosanmis] of esler) {
       const pairKey = [p.id, spouseId].sort().join("|");
       if (spouseSeen.has(pairKey)) continue;
       spouseSeen.add(pairKey);
@@ -100,6 +110,7 @@ export function exportGedcom(people: Person[]): string {
       else if (sp?.gender === "female") { husb = p.id; wife = spouseId; }
       else { husb = p.id; wife = spouseId; }
       getOrCreateFam(husb, wife);
+      if (bosanmis) markDivorced(husb, wife);
     }
   }
 
@@ -134,6 +145,7 @@ export function exportGedcom(people: Person[]): string {
     for (const cid of fam.children) {
       if (idToGed.has(cid)) lines.push(`1 CHIL ${idToGed.get(cid)}`);
     }
+    if (fam.divorced) lines.push("1 DIV Y");
   });
 
   lines.push("0 TRLR");
@@ -146,7 +158,7 @@ export function importGedcom(content: string): Person[] {
     ourId: string;
     firstName: string;
     lastName: string;
-    gender: "male" | "female" | "unknown";
+    gender: Person["gender"];
     birthDate?: string;
     deathDate?: string;
     birthPlace?: string;
@@ -156,6 +168,7 @@ export function importGedcom(content: string): Person[] {
     husb?: string;
     wife?: string;
     children: string[];
+    divorced?: boolean;
   }
 
   const individuals = new Map<string, GedIndi>();
@@ -205,7 +218,8 @@ export function importGedcom(content: string): Person[] {
             curIndi.firstName = parts.join(" ");
           }
         } else if (tag === "SEX") {
-          curIndi.gender = value === "M" ? "male" : value === "F" ? "female" : "unknown";
+          curIndi.gender =
+            value === "M" ? "male" : value === "F" ? "female" : value === "X" ? "other" : "unknown";
         } else if (tag === "BIRT") { ctx = "BIRT"; }
         else if (tag === "DEAT") { ctx = "DEAT"; }
         else if (tag === "NOTE") { ctx = "NOTE"; curIndi.bio = value; }
@@ -225,6 +239,7 @@ export function importGedcom(content: string): Person[] {
       if (tag === "HUSB") curFam.husb = value;
       else if (tag === "WIFE") curFam.wife = value;
       else if (tag === "CHIL") curFam.children.push(value);
+      else if (tag === "DIV" && value.toUpperCase() !== "N") curFam.divorced = true;
     }
   }
   flush();
@@ -242,6 +257,7 @@ export function importGedcom(content: string): Person[] {
       bio: gi.bio || undefined,
       parentIds: [],
       spouseIds: [],
+      formerSpouseIds: [],
     });
   }
 
@@ -252,8 +268,13 @@ export function importGedcom(content: string): Person[] {
     const wp = wi ? people.find((p) => p.id === wi.ourId) : undefined;
 
     if (hp && wp) {
-      if (!hp.spouseIds.includes(wp.id)) hp.spouseIds.push(wp.id);
-      if (!wp.spouseIds.includes(hp.id)) wp.spouseIds.push(hp.id);
+      if (fam.divorced) {
+        if (!hp.formerSpouseIds!.includes(wp.id)) hp.formerSpouseIds!.push(wp.id);
+        if (!wp.formerSpouseIds!.includes(hp.id)) wp.formerSpouseIds!.push(hp.id);
+      } else {
+        if (!hp.spouseIds.includes(wp.id)) hp.spouseIds.push(wp.id);
+        if (!wp.spouseIds.includes(hp.id)) wp.spouseIds.push(hp.id);
+      }
     }
 
     for (const childGedId of fam.children) {

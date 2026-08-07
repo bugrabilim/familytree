@@ -1,0 +1,104 @@
+import { DEMO_PEOPLE } from "../lib/demo-data.ts";
+import { computeStats, indexPeople, ancestorDepths } from "../lib/relations.ts";
+
+const P = DEMO_PEOPLE;
+const idx = indexPeople(P);
+const ids = new Set(P.map(p => p.id));
+let hata = 0;
+const err = (m: string) => { hata++; console.log("✗ " + m); };
+
+// --- Referans bütünlüğü ---
+for (const p of P) {
+  const ad = `${p.firstName} ${p.lastName} (${p.id})`;
+  for (const pid of p.parentIds) if (!ids.has(pid)) err(`${ad}: olmayan ebeveyn ${pid}`);
+  for (const sid of p.spouseIds) if (!ids.has(sid)) err(`${ad}: olmayan eş ${sid}`);
+  for (const sid of p.formerSpouseIds ?? []) if (!ids.has(sid)) err(`${ad}: olmayan eski eş ${sid}`);
+  if (p.parentIds.length > 2) err(`${ad}: ${p.parentIds.length} ebeveyn`);
+  if (p.parentIds.includes(p.id) || p.spouseIds.includes(p.id)) err(`${ad}: kendine referans`);
+  if (new Set(p.parentIds).size !== p.parentIds.length) err(`${ad}: yinelenen ebeveyn`);
+  // Eş hem güncel hem eski olamaz
+  const kesisim = p.spouseIds.filter(s => (p.formerSpouseIds ?? []).includes(s));
+  if (kesisim.length) err(`${ad}: hem eş hem eski eş: ${kesisim}`);
+}
+
+// --- Çift yönlülük ---
+for (const p of P) {
+  for (const sid of p.spouseIds) if (!idx.get(sid)!.spouseIds.includes(p.id)) err(`${p.id} ↔ ${sid} eş bağı tek yönlü`);
+  for (const sid of p.formerSpouseIds ?? []) if (!(idx.get(sid)!.formerSpouseIds ?? []).includes(p.id)) err(`${p.id} ↔ ${sid} eski eş bağı tek yönlü`);
+}
+
+// --- Tarih tutarlılığı ---
+const yil = (d?: string) => d ? Number(d.slice(0,4)) : undefined;
+for (const p of P) {
+  const b = yil(p.birthDate), d = yil(p.deathDate);
+  if (b && d && d < b) err(`${p.firstName} ${p.lastName}: ölüm (${d}) doğumdan (${b}) önce`);
+  for (const pid of p.parentIds) {
+    const par = idx.get(pid); if (!par) continue;
+    const pb = yil(par.birthDate);
+    if (pb && b) {
+      const fark = b - pb;
+      if (fark < 13) err(`${par.firstName} ${par.lastName} (${pb}) → ${p.firstName} ${p.lastName} (${b}): ${fark} yaş farkı`);
+      if (fark > 65) err(`${par.firstName} ${par.lastName} (${pb}) → ${p.firstName} ${p.lastName} (${b}): ${fark} yaş farkı fazla`);
+    }
+    const pd = yil(par.deathDate);
+    // Anne öldükten sonra doğum olamaz; baba için 1 yıl tolerans
+    if (pd && b && b > pd + (par.gender === "female" ? 0 : 1))
+      err(`${par.firstName} ${par.lastName} ${pd}'de öldü ama çocuk ${p.firstName} ${b}'de doğmuş`);
+  }
+}
+
+// --- Döngü kontrolü: kimse kendi atası olamaz ---
+for (const p of P) if (ancestorDepths(p.id, idx).has(p.id)) err(`${p.firstName} ${p.lastName}: kendi atası (döngü)`);
+
+// --- Kapsam kontrolü: istenen durumlar var mı? ---
+const st = computeStats(P);
+const kontrol = (ad: string, kosul: boolean, detay = "") =>
+  console.log(`${kosul ? "✓" : "✗ EKSİK"} ${ad}${detay ? " — " + detay : ""}`);
+if (!kontrol) {}
+
+const cokEsli = P.filter(p => p.spouseIds.length >= 3);
+const seriEvli = P.filter(p => (p.formerSpouseIds ?? []).length >= 4);
+const bosanmis = P.filter(p => (p.formerSpouseIds ?? []).length > 0);
+const tarihsiz = P.filter(p => !p.birthDate);
+const bebekOlum = P.filter(p => { const b=yil(p.birthDate),d=yil(p.deathDate); return b&&d&&d-b<=1; });
+const interseks = P.filter(p => p.gender === "other");
+const bilinmeyenC = P.filter(p => p.gender === "unknown");
+const fotolu = P.filter(p => p.photo);
+const biyografili = P.filter(p => p.bio);
+const soyadlar = new Set(P.map(p => p.lastName));
+const tekEbeveyn = P.filter(p => p.parentIds.length === 1);
+const ikizler = (() => { const m = new Map<string,number>(); for(const p of P) if(p.birthDate?.length===10 && p.parentIds.length) { const k=p.parentIds.join()+p.birthDate; m.set(k,(m.get(k)??0)+1);} return [...m.values()].filter(v=>v>1).length; })();
+
+console.log("");
+kontrol("Kuşak sayısı ≥ 11", st.generations >= 11, `${st.generations} kuşak`);
+kontrol("Toplam kişi ≥ 130", st.total >= 130, `${st.total} kişi`);
+kontrol("Çok eşlilik (aynı anda 3+)", cokEsli.length > 0, cokEsli.map(p=>`${p.firstName} ${p.spouseIds.length} eş`).join(", "));
+kontrol("Seri evlilik (5+ boşanma)", seriEvli.length > 0, seriEvli.map(p=>`${p.firstName} ${(p.formerSpouseIds??[]).length} eski eş`).join(", "));
+kontrol("Boşanmalar", bosanmis.length >= 4, `${bosanmis.length} kişi`);
+kontrol("Tarihi bilinmeyenler", tarihsiz.length >= 3, `${tarihsiz.length} kişi`);
+kontrol("Bebek/doğum ölümleri", bebekOlum.length >= 4, `${bebekOlum.length} kişi`);
+kontrol("İnterseks / ikili olmayan", interseks.length >= 2, interseks.map(p=>p.firstName).join(", "));
+kontrol("Cinsiyeti bilinmeyen", bilinmeyenC.length >= 2, `${bilinmeyenC.length} kişi`);
+kontrol("Fotoğraflı", fotolu.length >= 60, `${fotolu.length} kişi`);
+kontrol("Biyografili", biyografili.length >= 40, `${biyografili.length} kişi`);
+kontrol("Farklı soyadı (Soyadı Kanunu)", soyadlar.size >= 10, `${soyadlar.size} soyadı`);
+kontrol("Tek ebeveynli çocuk", tekEbeveyn.length >= 2, `${tekEbeveyn.length} kişi`);
+kontrol("İkizler", ikizler >= 1, `${ikizler} ikiz çifti`);
+
+// Akraba evliliği: eşlerin ortak atası var mı? (eş kenarını kullanmadan)
+const akrabaEvlilik: string[] = [];
+for (const p of P) {
+  for (const sid of p.spouseIds) {
+    if (p.id > sid) continue;
+    const a = ancestorDepths(p.id, idx), b = ancestorDepths(sid, idx);
+    const ortak = [...a.keys()].filter(k => b.has(k));
+    if (ortak.length) {
+      const derece = Math.min(...ortak.map(k => Math.max(a.get(k)!, b.get(k)!)));
+      const es = idx.get(sid)!;
+      akrabaEvlilik.push(`${p.firstName}–${es.firstName} (${derece}. kuşak ortak ata)`);
+    }
+  }
+}
+kontrol("Akraba evliliği", akrabaEvlilik.length >= 2, akrabaEvlilik.join(", "));
+
+console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

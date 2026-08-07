@@ -8,13 +8,29 @@ interface Props {
   peopleCount: number;
   onClose: () => void;
   onImported: (count: number) => void;
+  onDemoLoaded: (count: number) => void;
 }
 
-export default function GedcomDialog({ peopleCount, onClose, onImported }: Props) {
+export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoLoaded }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [busy, setBusy] = useState<"" | "export" | "import">("");
+  const [busy, setBusy] = useState<"" | "export" | "import" | "demo">("");
   const [error, setError] = useState("");
+  const [demoOnay, setDemoOnay] = useState(false);
+
+  const handleDemo = async () => {
+    setBusy("demo");
+    setError("");
+    try {
+      const res = await fetch("/api/family/demo", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Demo yüklenemedi.");
+      onDemoLoaded(data.count ?? 0);
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy("");
+    }
+  };
 
   const handleExport = async () => {
     setBusy("export");
@@ -128,6 +144,48 @@ export default function GedcomDialog({ peopleCount, onClose, onImported }: Props
             className="hidden"
             onChange={handleImport}
           />
+        </section>
+
+        <div className="h-px bg-border" />
+
+        {/* Demo ağacı */}
+        <section>
+          <h3 className="text-sm font-semibold text-text mb-1">Demo ağacı</h3>
+          <p className="text-xs text-text-muted leading-relaxed mb-3">
+            11 kuşaklık örnek bir aile: 1730&apos;lardan bugüne 172 kişi. Soyadı
+            Kanunu öncesi lakaplar, çok eşlilik, boşanmalar, akraba evlilikleri,
+            göç ve savaş kayıpları — uygulamanın tüm özelliklerini gösterir.
+          </p>
+
+          {demoOnay || peopleCount === 0 ? (
+            <div className="space-y-2.5">
+              {peopleCount > 0 && (
+                <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg leading-relaxed">
+                  Mevcut {peopleCount} kişi silinip demo ağacıyla değiştirilecek.
+                  Önce GEDCOM olarak yedek almak isteyebilirsin.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleDemo} disabled={busy !== ""}>
+                  {busy === "demo" ? "Yükleniyor…" : "Demo ağacını yükle"}
+                </Button>
+                {peopleCount > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setDemoOnay(false)}>
+                    Vazgeç
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDemoOnay(true)}
+              disabled={busy !== ""}
+            >
+              Demo ağacını yükle
+            </Button>
+          )}
         </section>
 
         {error && (

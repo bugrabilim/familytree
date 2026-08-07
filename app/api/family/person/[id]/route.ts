@@ -34,6 +34,9 @@ export async function PUT(
     spouseIds: Array.isArray(body.spouseIds)
       ? body.spouseIds
       : data.people[index].spouseIds,
+    formerSpouseIds: Array.isArray(body.formerSpouseIds)
+      ? body.formerSpouseIds
+      : data.people[index].formerSpouseIds ?? [],
   };
 
   const oldSpouseIds = data.people[index].spouseIds;
@@ -49,6 +52,20 @@ export async function PUT(
   for (const sid of added) {
     const s = data.people.find((p) => p.id === sid);
     if (s && !s.spouseIds.includes(id)) s.spouseIds.push(id);
+  }
+
+  // Eski eş bağlarını da çift yönlü tut
+  const oldEx: string[] = data.people[index].formerSpouseIds ?? [];
+  const newEx: string[] = updated.formerSpouseIds ?? [];
+  for (const sid of oldEx.filter((x) => !newEx.includes(x))) {
+    const s = data.people.find((p) => p.id === sid);
+    if (s) s.formerSpouseIds = (s.formerSpouseIds ?? []).filter((x) => x !== id);
+  }
+  for (const sid of newEx.filter((x) => !oldEx.includes(x))) {
+    const s = data.people.find((p) => p.id === sid);
+    if (s && !(s.formerSpouseIds ?? []).includes(id)) {
+      s.formerSpouseIds = [...(s.formerSpouseIds ?? []), id];
+    }
   }
 
   await saveFamilyData(userId, data);

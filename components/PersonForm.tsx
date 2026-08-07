@@ -57,6 +57,7 @@ export default function PersonForm({
     photo: initial?.photo ?? "",
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
+    formerSpouseIds: initial?.formerSpouseIds ?? [],
   });
 
   const [errors, setErrors] = useState<Errors>({});
@@ -97,7 +98,7 @@ export default function PersonForm({
     }
   };
 
-  const toggleLink = (kind: "parentIds" | "spouseIds", id: string) => {
+  const toggleLink = (kind: "parentIds" | "spouseIds" | "formerSpouseIds", id: string) => {
     setForm((f) => {
       const arr = f[kind];
       const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -145,6 +146,7 @@ export default function PersonForm({
     } else {
       payload.parentIds = form.parentIds;
       payload.spouseIds = form.spouseIds;
+      payload.formerSpouseIds = form.formerSpouseIds;
     }
 
     try {
@@ -242,17 +244,18 @@ export default function PersonForm({
       {/* Cinsiyet — segmented */}
       <div>
         <span className={label}>Cinsiyet</span>
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-2 border border-border">
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-surface-2 border border-border">
           {([
             { v: "female", l: "Kadın" },
             { v: "male", l: "Erkek" },
-            { v: "unknown", l: "Belirtme" },
+            { v: "other", l: "Diğer" },
+            { v: "unknown", l: "Bilinmiyor" },
           ] as const).map((o) => (
             <button
               key={o.v}
               type="button"
               onClick={() => set("gender", o.v)}
-              className={`h-8 rounded-lg text-xs font-medium transition-all ${
+              className={`h-8 rounded-lg text-[11px] font-medium transition-all ${
                 form.gender === o.v
                   ? "bg-bg-elevated text-text shadow-soft"
                   : "text-text-muted hover:text-text"
@@ -334,9 +337,9 @@ export default function PersonForm({
           >
             <span className="text-xs font-medium text-text">
               Aile bağları
-              {form.parentIds.length + form.spouseIds.length > 0 && (
+              {form.parentIds.length + form.spouseIds.length + form.formerSpouseIds.length > 0 && (
                 <span className="ml-1.5 text-primary">
-                  · {form.parentIds.length + form.spouseIds.length} seçili
+                  · {form.parentIds.length + form.spouseIds.length + form.formerSpouseIds.length} seçili
                 </span>
               )}
             </span>
@@ -363,6 +366,13 @@ export default function PersonForm({
                 people={others}
                 selected={form.spouseIds}
                 onToggle={(id) => toggleLink("spouseIds", id)}
+              />
+              <LinkPicker
+                title="Eski eş / eşler"
+                hint="boşanma"
+                people={others}
+                selected={form.formerSpouseIds}
+                onToggle={(id) => toggleLink("formerSpouseIds", id)}
               />
             </div>
           )}

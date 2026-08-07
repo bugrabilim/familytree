@@ -112,6 +112,12 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 - Türkçe tarih girişi (GG.AA.YYYY / YYYY) + doğrulama + otomatik yaş
 - Yaklaşan doğum günleri paneli, aile istatistikleri
 
+- **Gerçek dünya karmaşıklığı:** çok eşlilik, boşanma (`formerSpouseIds`),
+  akraba evliliği, evlat edinme, ikili olmayan cinsiyet (`gender: "other"`),
+  bilinmeyen tarih ve cinsiyet
+- **Ağaçta kuşak derinliği denetimi** — yüzlerce kişilik ağaçlarda okunabilirlik
+- **11 kuşaklık demo ağacı** (172 kişi) ve gömülü avatar üretici
+
 ### ❌ Eksik olan (piyasa standardı)
 - Yaşayan kişi gizliliği
 - Yaşam olayı zaman çizelgesi (doğum/ölüm dışı olaylar)
@@ -169,6 +175,15 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 
 - **`main` geçmişi squash edildi.** Yeni iş her zaman güncel `main`'den
   dallanmalı (süreç zaten böyle işliyor, not olarak).
+
+- **Ağaç ölçeklenmesi.** Dagre yerleşimi 172 kişide çok geniş bir tuval üretiyor;
+  tamamı tek ekranda okunmuyor. Çözüm olarak odak kişinin çevresinde kum saati
+  (N kuşak ata + N kuşak soy + eşler + kardeşler) filtresi eklendi. Daha büyük
+  ağaçlarda sanallaştırma (viewport dışı düğümleri render etmeme) gerekebilir.
+
+- **`fitView` zamanlaması.** Düğümler mount sonrası bir effect ile yerleştiği
+  için `onInit` içindeki tek `fitView` eksik bir kümeyi ölçüyordu; görünür kişi
+  sayısı değiştikçe yeniden sığdırmak gerekiyor.
 
 - **Katmanlı ESC yönetimi.** `keydown` React'te senkron flush eden bir olay
   olduğu için, her katman kendi `document` dinleyicisini kaydettiğinde alttaki

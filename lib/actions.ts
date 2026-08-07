@@ -1,4 +1,4 @@
-import type { Person } from "@/types/family";
+import type { Gender, Person } from "@/types/family";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
 
@@ -12,7 +12,7 @@ export const RELATION_LABELS: Record<RelationType, { title: string; verb: string
 export interface PersonPayload {
   firstName: string;
   lastName: string;
-  gender: Person["gender"];
+  gender: Gender;
   birthDate?: string;
   deathDate?: string;
   birthPlace?: string;
@@ -20,6 +20,7 @@ export interface PersonPayload {
   bio?: string;
   parentIds?: string[];
   spouseIds?: string[];
+  formerSpouseIds?: string[];
   relation?: { type: RelationType; targetId: string };
 }
 

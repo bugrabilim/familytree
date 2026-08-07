@@ -31,6 +31,8 @@
   --male-soft: #e8f0f9;
   --female: #c06585;
   --female-soft: #fbecf1;
+  --other: #7d6aa8;
+  --other-soft: #efebf8;
   --neutral: #8b8478;
   --neutral-soft: #eeece6;
 
@@ -68,6 +70,8 @@
   --male-soft: #1c2733;
   --female: #dd90ab;
   --female-soft: #31202a;
+  --other: #a892d6;
+  --other-soft: #262135;
   --neutral: #9a9384;
   --neutral-soft: #262a21;
 
@@ -105,6 +109,8 @@
   --color-male-soft: var(--male-soft);
   --color-female: var(--female);
   --color-female-soft: var(--female-soft);
+  --color-other: var(--other);
+  --color-other-soft: var(--other-soft);
   --color-neutral: var(--neutral);
   --color-neutral-soft: var(--neutral-soft);
 
