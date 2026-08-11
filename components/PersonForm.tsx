@@ -3,7 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import {
   ESTRANGEMENT_LABELS,
+  LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
+  type LifeEvent,
   type ParentLink,
   type Person,
 } from "@/types/family";
@@ -35,7 +37,16 @@ interface Props {
   onSaved: (person: Person) => void;
 }
 
-type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "deathDate" | "form", string>>;
+type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "deathDate" | "events" | "form", string>>;
+
+/** Formda düzenlenen olay satırı — tarih görüntü biçiminde tutulur (GG.AA.YYYY). */
+interface EventRow {
+  id: string;
+  date: string;
+  type: string;
+  title: string;
+  place: string;
+}
 
 const field =
   "w-full h-10 px-3 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-subtle " +
@@ -77,6 +88,16 @@ export default function PersonForm({
     formerSpouseIds: initial?.formerSpouseIds ?? [],
     parentLinks: (initial?.parentLinks ?? {}) as Record<string, ParentLink>,
   });
+
+  const [events, setEvents] = useState<EventRow[]>(
+    (initial?.events ?? []).map((e) => ({
+      id: e.id,
+      date: storedToDisplay(e.date),
+      type: e.type || "diger",
+      title: e.title ?? "",
+      place: e.place ?? "",
+    }))
+  );
 
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
@@ -126,6 +147,18 @@ export default function PersonForm({
     }
   };
 
+  const addEvent = () =>
+    setEvents((es) => [
+      ...es,
+      { id: crypto.randomUUID(), date: "", type: "diger", title: "", place: "" },
+    ]);
+  const removeEvent = (id: string) =>
+    setEvents((es) => es.filter((e) => e.id !== id));
+  const updateEvent = (id: string, patch: Partial<EventRow>) => {
+    setEvents((es) => es.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    if (errors.events) setErrors((prev) => ({ ...prev, events: undefined }));
+  };
+
   const toggleLink = (kind: "parentIds" | "spouseIds" | "formerSpouseIds", id: string) => {
     setForm((f) => {
       const arr = f[kind];
@@ -147,6 +180,10 @@ export default function PersonForm({
         e.deathDate = "Doğumdan önce olamaz";
       }
     }
+
+    if (events.some((ev) => !isValidDateInput(ev.date))) {
+      e.events = "Olay tarihi GG.AA.YYYY veya YYYY olmalı";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -157,6 +194,17 @@ export default function PersonForm({
 
     setSaving(true);
     setErrors({});
+
+    // Boş satırları at, tarihi depolama biçimine çevir
+    const builtEvents: LifeEvent[] = events
+      .filter((ev) => ev.title.trim() || ev.date.trim() || ev.place.trim())
+      .map((ev) => ({
+        id: ev.id,
+        date: ev.date.trim() ? displayToStored(ev.date) : undefined,
+        type: ev.type,
+        title: ev.title.trim(),
+        place: ev.place.trim() || undefined,
+      }));
 
     const payload: PersonPayload = {
       firstName: form.firstName.trim(),
@@ -178,6 +226,7 @@ export default function PersonForm({
       deathCause: form.deathCause.trim() || undefined,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
+      events: builtEvents,
     };
 
     if (relation) {
@@ -492,6 +541,87 @@ export default function PersonForm({
           <p className="text-[11px] text-text-subtle -mt-1">
             Kalıtsal ve sonradan gelen durumları izlemek isteyen aileler için. Boş bırakabilirsin.
           </p>
+        </div>
+      </details>
+
+      {/* Yaşam olayları — katlanır, isteğe bağlı */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">
+            Yaşam olayları
+            {events.length > 0 && <span className="ml-1.5 text-primary">· {events.length}</span>}
+          </span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          {events.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">
+              Evlilik, mezuniyet, göç, askerlik… ömrün dönüm noktalarını ekle. Zaman
+              çizelgesinde sıralı gösterilir.
+            </p>
+          ) : (
+            events.map((ev) => (
+              <div key={ev.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
+                <div className="flex gap-1.5">
+                  <input
+                    inputMode="numeric"
+                    aria-label="Olay tarihi"
+                    className={`${field} tabular-nums flex-1`}
+                    value={ev.date}
+                    onChange={(e) => updateEvent(ev.id, { date: e.target.value })}
+                    placeholder="GG.AA.YYYY"
+                  />
+                  <select
+                    aria-label="Olay türü"
+                    value={ev.type in LIFE_EVENT_TYPES ? ev.type : "diger"}
+                    onChange={(e) => updateEvent(ev.id, { type: e.target.value })}
+                    className="h-10 px-2 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary flex-1 min-w-0"
+                  >
+                    {Object.entries(LIFE_EVENT_TYPES).map(([k, v]) => (
+                      <option key={k} value={k}>{v.icon} {v.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeEvent(ev.id)}
+                    aria-label="Olayı kaldır"
+                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+                <input
+                  aria-label="Olay başlığı"
+                  className={field}
+                  value={ev.title}
+                  onChange={(e) => updateEvent(ev.id, { title: e.target.value })}
+                  placeholder="Başlık — ör. İlkokul mezuniyeti"
+                />
+                <input
+                  aria-label="Olay yeri"
+                  className={field}
+                  value={ev.place}
+                  onChange={(e) => updateEvent(ev.id, { place: e.target.value })}
+                  placeholder="Yer (isteğe bağlı)"
+                />
+              </div>
+            ))
+          )}
+
+          {errors.events && <p className="text-[11px] text-danger">{errors.events}</p>}
+
+          <button
+            type="button"
+            onClick={addEvent}
+            className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Olay ekle
+          </button>
         </div>
       </details>
 

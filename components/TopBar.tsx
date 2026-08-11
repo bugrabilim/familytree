@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
+import { usePrivacy } from "./PrivacyContext";
 
 export type ViewKey = "agac" | "soy" | "liste" | "panel";
 
@@ -33,6 +34,7 @@ export default function TopBar({
 }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { hideLiving, setHideLiving } = usePrivacy();
 
   return (
     <header className="relative z-30 shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
@@ -104,6 +106,44 @@ export default function TopBar({
             <kbd className="hidden md:inline text-[10px] font-sans px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-subtle">
               ⌘K
             </kbd>
+          </button>
+
+          {/* Yaşayanları gizle — KVKK/GDPR dostu görüntü katmanı */}
+          <button
+            onClick={() => setHideLiving(!hideLiving)}
+            aria-label="Yaşayanları gizle"
+            aria-pressed={hideLiving}
+            title={
+              hideLiving
+                ? "Yaşayanların özel bilgileri gizli — göstermek için tıkla"
+                : "Yaşayanların özel bilgilerini gizle"
+            }
+            className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+              hideLiving
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              {hideLiving ? (
+                <path
+                  d="M6 10V8a6 6 0 0112 0v2M5 10h14v10H5V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : (
+                <path
+                  d="M6 10V8a6 6 0 0111.5-2.4M5 10h14v10H5V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            <span className="hidden md:inline text-xs">Yaşayanları gizle</span>
           </button>
 
           <ThemeToggle />

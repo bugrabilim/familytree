@@ -7,6 +7,8 @@ import Avatar, { genderTone } from "./ui/Avatar";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName } from "@/lib/name";
 import type { RelationType } from "@/lib/actions";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 export interface PersonNodeData extends Record<string, unknown> {
   person: Person;
@@ -65,8 +67,12 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onOpen, onQuickAdd } =
+  const { person: rawPerson, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onOpen, onQuickAdd } =
     data as unknown as PersonNodeData;
+
+  const { view, hideLiving } = usePrivacy();
+  const person = view(rawPerson);
+  const masked = isMasked(rawPerson, hideLiving);
 
   const tone = genderTone(person.gender);
   const years = lifeSpan(person.birthDate, person.deathDate);
@@ -155,16 +161,26 @@ function PersonNode({ data }: NodeProps) {
                 {alt}
               </p>
             )}
-            {showYears && years && (
-              <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums truncate">
-                {years}
-                {showAge && <span> · {person.deathDate ? `${age} yaşında` : `${age} yaş`}</span>}
-              </p>
-            )}
-            {showCity && (
-              <p className="text-[10px] leading-tight text-text-subtle truncate">
-                {person.birthPlace}
-              </p>
+            {masked ? (
+              detail >= 1 && (
+                <p className="text-[11px] leading-tight text-text-subtle mt-0.5 truncate">
+                  🔒 Yaşayan
+                </p>
+              )
+            ) : (
+              <>
+                {showYears && years && (
+                  <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums truncate">
+                    {years}
+                    {showAge && <span> · {person.deathDate ? `${age} yaşında` : `${age} yaş`}</span>}
+                  </p>
+                )}
+                {showCity && (
+                  <p className="text-[10px] leading-tight text-text-subtle truncate">
+                    {person.birthPlace}
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>

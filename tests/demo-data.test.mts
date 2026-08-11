@@ -281,4 +281,24 @@ kontrol("Herkese kod atandı", kodlar.length === P.length, `${kodlar.length}/${P
 kontrol("Kod biçimi 289xxx", kodBicimi, kodlar.slice(0, 3).join(", "));
 kontrol("Kodlar benzersiz", kodBenzersiz, `${new Set(kodlar).size} farklı`);
 
+// --- Yaşam olayları (zaman çizelgesi) ---
+const olayli = P.filter(p => (p.events ?? []).length > 0);
+const tumOlaylar = P.flatMap(p => p.events ?? []);
+kontrol("Yaşam olayları ekli kişi", olayli.length >= 4,
+  olayli.map(p => `${p.firstName} (${p.events!.length})`).join(", "));
+kontrol("Olaylarda başlık ve tür var", tumOlaylar.length > 0 && tumOlaylar.every(e => !!e.title && !!e.type),
+  `${tumOlaylar.length} olay`);
+kontrol("Olay id'leri benzersiz", new Set(tumOlaylar.map(e => e.id)).size === tumOlaylar.length,
+  `${tumOlaylar.length} olay`);
+// Olay tarihleri (varsa) depolama biçiminde ve doğum ile tutarlı olmalı
+for (const p of P) {
+  const b = yil(p.birthDate);
+  for (const e of p.events ?? []) {
+    if (e.date && !/^\d{4}(-\d{2}(-\d{2})?)?$/.test(e.date))
+      err(`${ad(p)}: geçersiz olay tarihi biçimi ${e.date}`);
+    const ey = yil(e.date);
+    if (b && ey && ey < b) err(`${ad(p)}: olay (${ey}) doğumdan (${b}) önce`);
+  }
+}
+
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

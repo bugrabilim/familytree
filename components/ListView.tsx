@@ -6,6 +6,8 @@ import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
 type Filter =
@@ -25,10 +27,15 @@ interface Props {
   onAdd: () => void;
 }
 
-export default function ListView({ people, selectedId, onSelect, onAdd }: Props) {
+export default function ListView({ people: rawPeople, selectedId, onSelect, onAdd }: Props) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("soyad");
   const [filter, setFilter] = useState<Filter>("hepsi");
+
+  const { view, hideLiving } = usePrivacy();
+  // Süzme, arama ve gösterim maskeli görünüm üzerinden yapılır — böylece
+  // arama gizlenmiş alanlarla eşleşmez ve gizli bilgi listelenmez.
+  const people = useMemo(() => rawPeople.map(view), [rawPeople, view]);
 
   const childIds = useMemo(() => {
     const s = new Set<string>();
@@ -189,6 +196,7 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {rows.map((p) => {
               const age = calcAge(p.birthDate, p.deathDate);
+              const masked = isMasked(p, hideLiving);
               return (
                 <li key={p.id}>
                   <button
@@ -207,10 +215,16 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
                         {fullName(p)}
                         {p.code && <span className="ml-1.5 text-[10px] font-mono text-text-subtle/70">#{p.code}</span>}
                       </p>
-                      <p className="text-xs text-text-muted truncate leading-tight mt-0.5 tabular-nums">
-                        {lifeSpan(p.birthDate, p.deathDate) || "Tarih yok"}
-                        {age !== null && ` · ${age} yaş`}
-                      </p>
+                      {masked ? (
+                        <p className="text-xs text-text-subtle truncate leading-tight mt-0.5">
+                          🔒 Yaşayan
+                        </p>
+                      ) : (
+                        <p className="text-xs text-text-muted truncate leading-tight mt-0.5 tabular-nums">
+                          {lifeSpan(p.birthDate, p.deathDate) || "Tarih yok"}
+                          {age !== null && ` · ${age} yaş`}
+                        </p>
+                      )}
                       {p.birthPlace && (
                         <p className="text-[11px] text-text-subtle truncate leading-tight mt-0.5">
                           📍 {p.birthPlace}

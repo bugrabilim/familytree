@@ -1,4 +1,4 @@
-import type { Gender, ParentLink, Person } from "@/types/family";
+import type { Gender, LifeEvent, ParentLink, Person } from "@/types/family";
 
 /** İnsan-okur kod: 6 haneli, "289" ile başlar (bkz. lib/code.ts). */
 const formatCode = (n: number): string => "289" + String(n).padStart(3, "0");
@@ -168,6 +168,7 @@ interface Seed {
   /** doğuştan sağlık durumu / engellilik */ dogustan?: string;
   /** yaşarken edinilen sağlık sorunu */ saglik?: string;
   /** ölüm nedeni */ olum?: string;
+  /** yaşam olayları — zaman çizelgesi */ olaylar?: LifeEvent[];
 }
 
 /**
@@ -212,6 +213,7 @@ function build(seeds: Seed[]): Person[] {
     congenitalCondition: s.dogustan,
     healthCondition: s.saglik,
     deathCause: s.olum,
+    events: s.olaylar,
     parentIds: s.eb ?? [],
     parentLinks: s.bag,
     spouseIds: s.es ?? [],
@@ -585,6 +587,11 @@ const K7: Seed[] = [
     id: "k7-kemal", ad: "Kemal", soyad: "Demirtaş", c: "male", d: "1918-03-08", o: "1994-12-27", yer: "Kayseri",
     eb: ["k6-mehmet", "k6-naz"],
     bio: "Ailenin İstanbul'a taşınmasına önayak oldu. Sümerbank'ta memur olarak çalıştı, 1978'de emekli oldu. Akşamları radyo dinleyip çocuklarına Çanakkale'de ölen amcası Rıza'yı anlatırdı.",
+    olaylar: [
+      { id: "ev-kemal-askerlik", type: "askerlik", title: "Askerliğini yaptı", date: "1939", place: "Erzurum" },
+      { id: "ev-kemal-is", type: "is", title: "Sümerbank'ta memuriyete başladı", date: "1945", place: "İstanbul" },
+      { id: "ev-kemal-emekli", type: "is", title: "Sümerbank'tan emekli oldu", date: "1978", place: "İstanbul" },
+    ],
   },
   { id: "k7-kemal-es", ad: "Muazzez", soyad: "Demirtaş", c: "female", d: "1924-05-16", o: "2009-08-03", yer: "İstanbul", es: ["k7-kemal"], bio: "İlkokul öğretmeni. Emekli olduktan sonra da mahalledeki çocuklara ücretsiz ders verdi." },
 
@@ -600,6 +607,10 @@ const K7: Seed[] = [
     id: "k7-yusuf", ad: "Yusuf", soyad: "Demirtaş", c: "male", d: "1926-09-23", o: "2004-06-15", yer: "Kayseri",
     eb: ["k6-mehmet", "k6-naz"],
     bio: "1962'de işçi olarak Almanya'ya gitti; Köln'de Ford fabrikasında çalıştı. \"İki yıllığına\" gitti, kırk iki yıl kaldı. Ailenin Almanya kolu ondan gelir.",
+    olaylar: [
+      { id: "ev-yusuf-goc", type: "goc-tasinma", title: "Almanya'ya işçi göçü", date: "1962", place: "Köln, Almanya", note: "\"İki yıllığına\" dedi, kırk iki yıl kaldı." },
+      { id: "ev-yusuf-is", type: "is", title: "Ford fabrikasında işe başladı", date: "1962", place: "Köln, Almanya" },
+    ],
   },
   { id: "k7-yusuf-es", ad: "Gülizar", soyad: "Demirtaş", c: "female", d: "1931-04-02", o: "2018-10-09", yer: "Develi", es: ["k7-yusuf"], bio: "1965'te eşinin yanına, Köln'e gitti. Ömrünün yarısını Almanya'da geçirdi ama Almanca öğrenmedi." },
 
@@ -642,6 +653,10 @@ const K8: Seed[] = [
     eb: ["k7-kemal", "k7-kemal-es"],
     es: ["k8-orhan-es3"], eski: ["k8-orhan-es1", "k8-orhan-es2"],
     bio: "Üç kez evlendi, ikisinden boşandı. İnşaat mühendisi; 70'lerde Libya ve Suudi Arabistan'da şantiyelerde çalıştı, uzun süre ailesinden ayrı kaldı — ilk iki evliliğinin bitmesini buna bağlar.\n\nHer üç evliliğinden de çocukları var.",
+    olaylar: [
+      { id: "ev-orhan-mez", type: "mezuniyet", title: "İnşaat mühendisliğinden mezun oldu", date: "1970", place: "İstanbul" },
+      { id: "ev-orhan-goc", type: "goc-tasinma", title: "Libya şantiyesine gitti", date: "1974", place: "Trablus, Libya" },
+    ],
   },
   { id: "k8-orhan-es1", ad: "Filiz", soyad: "Aksoy", c: "female", d: "1950-06-08", yer: "İstanbul", bio: "Orhan'ın ilk eşi. 1968'de evlendiler, 1976'da boşandılar." },
   { id: "k8-orhan-es2", ad: "Sevda", soyad: "Kurtoğlu", c: "female", d: "1955-03-22", yer: "Ankara", bio: "Orhan'ın ikinci eşi. 1978-1989 arası evli kaldılar." },
@@ -668,6 +683,10 @@ const K8: Seed[] = [
     eb: ["k7-sabri", "k7-sabri-es"],
     bag: { "k7-sabri": { estranged: "by-parent", note: "1994'teki kayıt değişikliğinden sonra babası görüşmeyi kesti; 1997'de vefat edene dek barışmadılar." } },
     bio: "İnterseks doğdu. 1958'de nüfusa \"erkek\" olarak kaydedildi; 1994'te açtığı davayla kaydını değiştirdi. Babası bunu kabul etmedi ve ölene dek görüşmediler; annesi ise hep aradı.\n\nSeramik sanatçısı. Bodrum'da atölyesi var. 1999'da Umut'u evlat edindi.",
+    olaylar: [
+      { id: "ev-denizs-atolye", type: "is", title: "Bodrum'da seramik atölyesini açtı", date: "1990", place: "Bodrum" },
+      { id: "ev-denizs-cocuk", type: "cocuk", title: "Umut'u evlat edindi", date: "1999", place: "Bodrum" },
+    ],
   },
   { id: "k8-nurhan", ad: "Nurhan", soyad: "Demirtaş", c: "female", d: "1961-12-09", yer: "Kayseri", eb: ["k7-sabri", "k7-sabri-es"], es: ["k8-nurhan-es"] },
   { id: "k8-nurhan-es", ad: "Selçuk", soyad: "Demirtaş", c: "male", d: "1958-05-27", yer: "Kayseri" },
@@ -730,6 +749,10 @@ const K9: Seed[] = [
     id: "k9-deniz", ad: "Deniz", soyad: "Demirtaş", c: "male", d: "1978-06-14", yer: "İstanbul",
     eb: ["k8-orhan", "k8-orhan-es1"], es: ["k9-deniz-es"],
     bio: "Trans erkek. 2009'da geçiş sürecini tamamladı, nüfus kaydını değiştirdi. Ailede önce zorlanıldı, dedesi Kemal'in \"benim torunum\" deyip sahiplenmesi dönüm noktası oldu.\n\nMimar. Bu ağacı derleyen kişi — 2019'da büyükannesi Muazzez'in sandığından çıkan defterle başladı.",
+    olaylar: [
+      { id: "ev-deniz-mez", type: "mezuniyet", title: "Mimarlık fakültesinden mezun oldu", date: "2001", place: "İstanbul" },
+      { id: "ev-deniz-evlilik", type: "evlilik", title: "Ece ile evlendi", date: "2011", place: "İstanbul" },
+    ],
   },
   { id: "k9-deniz-es", ad: "Ece", soyad: "Demirtaş", c: "female", d: "1982-11-08", yer: "İstanbul", bio: "Belgesel yönetmeni. Deniz'le 2011'de evlendi." },
   { id: "k9-pinar", ad: "Pınar", soyad: "Demirtaş", c: "female", d: "1974-09-30", yer: "İstanbul", eb: ["k8-orhan", "k8-orhan-es1"], es: ["k9-pinar-es"] },
@@ -741,6 +764,10 @@ const K9: Seed[] = [
     eb: ["k8-orhan", "k8-orhan-es2"],
     es: ["k9-cem-es6"], eski: ["k9-cem-es1", "k9-cem-es2", "k9-cem-es3", "k9-cem-es4", "k9-cem-es5"],
     bio: "Altı kez evlendi, beşinden boşandı. Ailede hakkında en çok şaka yapılan kişi; kendisi de ilk gülen olur. Müzisyen, sürekli turnede.\n\nDört farklı evliliğinden çocukları var.",
+    olaylar: [
+      { id: "ev-cem-ilk-evlilik", type: "evlilik", title: "İlk evliliği", date: "2003", place: "Ankara" },
+      { id: "ev-cem-turne", type: "is", title: "İlk yurt dışı turnesine çıktı", date: "2008" },
+    ],
   },
   { id: "k9-cem-es1", ad: "Esra", soyad: "Bilgin", c: "female", d: "1983-07-19", yer: "Ankara", bio: "Cem'in ilk eşi. 2003-2005." },
   { id: "k9-cem-es2", ad: "Melis", soyad: "Arkan", c: "female", d: "1985-01-24", yer: "İstanbul", bio: "Cem'in ikinci eşi. 2006-2009." },

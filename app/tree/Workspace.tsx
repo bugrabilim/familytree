@@ -15,6 +15,7 @@ import PedigreeView from "@/components/PedigreeView";
 import Modal from "@/components/ui/Modal";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
+import { PrivacyProvider } from "@/components/PrivacyContext";
 import { RELATION_LABELS, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 
@@ -214,6 +215,7 @@ export default function Workspace({
   const isEmpty = people.length === 0;
 
   return (
+    <PrivacyProvider>
     <div className="flex flex-col h-screen overflow-hidden">
       <TopBar
         familyName={familyName}
@@ -376,6 +378,7 @@ export default function Workspace({
         </div>
       )}
     </div>
+    </PrivacyProvider>
   );
 }
 

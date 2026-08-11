@@ -6,6 +6,8 @@ import Avatar from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 interface Props {
   people: Person[];
@@ -14,11 +16,15 @@ interface Props {
   onAdd: () => void;
 }
 
-export default function CommandPalette({ people, onSelect, onClose, onAdd }: Props) {
+export default function CommandPalette({ people: rawPeople, onSelect, onClose, onAdd }: Props) {
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  const { view, hideLiving } = usePrivacy();
+  // Arama ve gösterim maskeli görünüm üzerinden — gizli alanlar eşleşmez.
+  const people = useMemo(() => rawPeople.map(view), [rawPeople, view]);
 
   const results = useMemo(() => {
     const q = query.toLocaleLowerCase("tr").trim();
@@ -145,9 +151,11 @@ export default function CommandPalette({ people, onSelect, onClose, onAdd }: Pro
                         {fullName(p)}
                       </p>
                       <p className="text-[11px] text-text-subtle truncate leading-tight">
-                        {[lifeSpan(p.birthDate, p.deathDate), p.birthPlace]
-                          .filter(Boolean)
-                          .join(" · ") || "Ayrıntı yok"}
+                        {isMasked(p, hideLiving)
+                          ? "🔒 Yaşayan"
+                          : [lifeSpan(p.birthDate, p.deathDate), p.birthPlace]
+                              .filter(Boolean)
+                              .join(" · ") || "Ayrıntı yok"}
                       </p>
                     </div>
                     {i === cursor && (
