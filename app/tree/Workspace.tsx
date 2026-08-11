@@ -32,6 +32,8 @@ const FamilyTree = dynamic(() => import("@/components/FamilyTree"), {
   ),
 });
 
+const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
+
 /** "Tümü" seçeneği için kuşak sınırı sentineli — 0..8 gerçek derinlikler */
 const HERKES = 999;
 
@@ -284,6 +286,8 @@ export default function Workspace({
             onSelect={setSelectedId}
             onAdd={openAdd}
           />
+        ) : view === "harita" ? (
+          <PlacesMap people={people} onSelect={setSelectedId} />
         ) : (
           <PanelView
             people={people}
