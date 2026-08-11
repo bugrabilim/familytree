@@ -76,6 +76,7 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
       if (!q) return true;
       return (
         fullName(p).toLocaleLowerCase("tr").includes(q) ||
+        (p.code ?? "").includes(q) ||
         (p.birthPlace ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.bio ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.orientation ?? "").toLocaleLowerCase("tr").includes(q) ||
@@ -204,6 +205,7 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text truncate leading-tight">
                         {fullName(p)}
+                        {p.code && <span className="ml-1.5 text-[10px] font-mono text-text-subtle/70">#{p.code}</span>}
                       </p>
                       <p className="text-xs text-text-muted truncate leading-tight mt-0.5 tabular-nums">
                         {lifeSpan(p.birthDate, p.deathDate) || "Tarih yok"}

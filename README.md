@@ -9,8 +9,8 @@ farklı açıdan bakarsın:
 
 | Görünüm | Ne gösterir |
 |---|---|
-| **Ağaç** | Seçili kişinin çevresi; eşler yan yana, çocuklar altta (dagre + birlik düğümü). Kuşak derinliği ayarlanır: 2–8 kuşak, tüm akrabalar ya da herkes |
-| **Soy** | Seçilen kişi **merkezde**; yukarı atalar, aşağı torunlar — kum saati şeceresi (seçilen kuşak kadar geri ve ileri) |
+| **Ağaç** | Seçili kişinin çevresi; eşler yan yana, çocuklar altta (dagre + birlik düğümü). Kuşak derinliği 0–8 ya da tümü; **tık** ile gezin/merkeze al, **çift tık** ile detay aç, yakınlaştırınca gizlenen bilgiler geri gelir |
+| **Soy** | Seçilen kişi **merkezde**; solda atalar, sağda torunlar — yatay kum saati şeceresi (seçilen kuşak kadar geri ve ileri) |
 | **Liste** | Herkes; arama, sıralama ve "yaşayan / vefat / bağsız" süzgeçleri |
 | **Panel** | Genişletilmiş istatistikler, yaklaşan doğum günleri, akrabalık hesaplayıcı ve "kişinin tüm akrabaları" bulucu (ör. birinin halası kim) |
 
@@ -71,8 +71,9 @@ kadınlar; Down sendromu, doğuştan görme ve işitme engeli, uzuv eksikliği,
 olanlar; ve insanın karanlık gerçeklerinden biri — evlilik dışı, çok küçük
 yaşta annelik — sükûnetle, gerçeğe sadık kalınarak.
 
-Herkesin bir hikâyesi, herkesin bir avatarı var. Avatarlar gömülü SVG olarak
-üretilir — dış servise bağımlılık yok.
+Herkesin bir hikâyesi, herkesin bir avatarı ve **6 haneli benzersiz bir kimlik
+kodu** var (289 ile başlar; kartta görünür, aramada kullanılır). Avatarlar
+gömülü SVG olarak üretilir — dış servise bağımlılık yok.
 
 ## Teknoloji
 

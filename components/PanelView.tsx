@@ -5,7 +5,7 @@ import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
-import { computeStats, describeRelation, genitive, indexPeople, possessive } from "@/lib/relations";
+import { computeStats, describeRelation, findRelationPath, genitive, indexPeople, possessive } from "@/lib/relations";
 import { fullName } from "@/lib/name";
 
 interface Props {
@@ -32,6 +32,13 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
     return [...people]
       .filter((p) => p.birthDate)
       .sort((a, b) => (a.birthDate ?? "").localeCompare(b.birthDate ?? ""))
+      .slice(0, 5);
+  }, [people]);
+
+  const newest = useMemo(() => {
+    return [...people]
+      .filter((p) => p.birthDate)
+      .sort((a, b) => (b.birthDate ?? "").localeCompare(a.birthDate ?? ""))
       .slice(0, 5);
   }, [people]);
 
@@ -172,6 +179,35 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             </ul>
           </Card>
 
+          {/* En yeni kayıtlar */}
+          <Card title="En yeni kayıtlar" hint="Doğuma göre" empty={newest.length === 0 ? "Tarihli kayıt yok" : undefined}>
+            <ul className="space-y-1">
+              {newest.map((p) => (
+                <li key={p.id}>
+                  <button
+                    onClick={() => onSelect(p.id)}
+                    className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                  >
+                    <Avatar person={p} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-text truncate leading-tight">
+                        {fullName(p)}
+                      </p>
+                      {p.birthPlace && (
+                        <p className="text-[11px] text-text-subtle truncate leading-tight">
+                          {p.birthPlace}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs text-text-muted tabular-nums shrink-0">
+                      {lifeSpan(p.birthDate, p.deathDate)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
           {/* Soyadları + uyarılar */}
           <Card title="Aileler" hint="Soyada göre">
             <div className="flex flex-wrap gap-1.5 mb-4">
@@ -274,15 +310,21 @@ function RelativesFinder({
 
   const relatives = useMemo(() => {
     if (!personId) return [];
-    const out: Array<{ person: Person; relation: string }> = [];
+    const out: Array<{ person: Person; relation: string; dist: number }> = [];
     for (const other of people) {
       if (other.id === personId) continue;
+      const path = findRelationPath(personId, other.id, people, idx);
+      if (!path) continue;
       const rel = describeRelation(personId, other.id, people, idx);
-      if (rel) out.push({ person: other, relation: rel });
+      if (rel) out.push({ person: other, relation: rel, dist: path.length });
     }
+    // En yakın (en kısa yol) en üstte; eşitlikte akrabalık adı, sonra isim
     const coll = new Intl.Collator("tr");
     return out.sort(
-      (a, b) => coll.compare(a.relation, b.relation) || coll.compare(a.person.firstName, b.person.firstName)
+      (a, b) =>
+        a.dist - b.dist ||
+        coll.compare(a.relation, b.relation) ||
+        coll.compare(a.person.firstName, b.person.firstName)
     );
   }, [personId, people, idx]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -39,11 +39,17 @@ const DIMS: Record<Detail, { w: number; h: number; gap: number; nodesep: number 
   0: { w: 150, h: 50, gap: 60, nodesep: 22 },
 };
 
-/** treeDepth (2-8, -1=tümü, 0=herkes) + görünen kişi sayısı → ayrıntı düzeyi */
+/** treeDepth (0-8, büyük değer=Tümü) + görünen kişi sayısı → temel ayrıntı düzeyi */
 function detailFor(depth: number, count: number): Detail {
-  const byDepth: Detail = depth === 2 || depth === 3 ? 3 : depth === 4 || depth === 5 ? 2 : depth === 6 || depth === 7 ? 1 : 0;
+  const byDepth: Detail = depth <= 3 ? 3 : depth <= 5 ? 2 : depth <= 7 ? 1 : 0;
   const byCount: Detail = count > 220 ? 0 : count > 120 ? 1 : count > 60 ? 2 : 3;
   return Math.min(byDepth, byCount) as Detail;
+}
+
+/** Yakınlaştırma düzeyi de ayrıntıyı yükseltebilir — kullanıcı zoom yapınca
+    kaybolan bilgiler geri gelir. */
+function detailFromZoom(zoom: number): Detail {
+  return zoom >= 1.15 ? 3 : zoom >= 0.8 ? 2 : zoom >= 0.5 ? 1 : 0;
 }
 
 /* ---------------------------------------------------------------- */
@@ -134,19 +140,27 @@ interface Props {
   people: Person[];
   selectedId?: string;
   focusId?: string;
-  /** treeDepth: 2-8 kuşak, -1 = tümü, 0 = herkes — ayrıntı düzeyini belirler */
+  /** treeDepth: 0-8 kuşak, büyük değer = Tümü — ayrıntı düzeyini belirler */
   depth?: number;
   highlightIds?: Set<string>;
+  /** Tek tık: odak/merkez (panel açılmaz) */
   onSelect: (id: string) => void;
+  /** Çift tık: detay panelini aç */
+  onOpen?: (id: string) => void;
   onDeselect?: () => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
-function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onDeselect, onQuickAdd }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd }: Props) {
   const { fitView, setCenter } = useReactFlow();
   const initialised = useRef(false);
+  const [zoom, setZoom] = useState(1);
 
-  const detail = useMemo(() => detailFor(depth, people.length), [depth, people.length]);
+  // Temel ayrıntı kuşak/kalabalıktan; yakınlaştırma bunu yükseltebilir.
+  const detail = useMemo(
+    () => Math.max(detailFor(depth, people.length), detailFromZoom(zoom)) as Detail,
+    [depth, people.length, zoom]
+  );
   const dim = DIMS[detail];
 
   const ids = useMemo(() => new Set(people.map((p) => p.id)), [people]);
@@ -165,6 +179,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         width: dim.w,
         height: dim.h,
         onSelect,
+        onOpen,
         onQuickAdd,
       };
       return {
@@ -186,7 +201,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     })) as Node[];
 
     return [...unionNodes, ...personNodes];
-  }, [people, unions, positions, selectedId, focusId, highlightIds, detail, dim, onSelect, onQuickAdd]);
+  }, [people, unions, positions, selectedId, focusId, highlightIds, detail, dim, onSelect, onOpen, onQuickAdd]);
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
@@ -323,6 +338,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       panOnScroll
       selectionOnDrag={false}
       onPaneClick={onDeselect}
+      onMoveEnd={(_, vp) => setZoom(vp.zoom)}
       className="bg-bg"
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />

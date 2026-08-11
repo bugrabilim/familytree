@@ -273,4 +273,12 @@ const cokYasli = P.filter(p => !p.deathDate && yil(p.birthDate) && buYil - yil(p
 kontrol("Yaşayan kimse 110'u geçmiyor", cokYasli.length === 0,
   cokYasli.map(p => `${p.firstName} ${buYil - yil(p.birthDate)!}`).join(", ") || "tamam");
 
+// --- Benzersiz 6 haneli kod (289…) ---
+const kodlar = P.map(p => p.code).filter(Boolean) as string[];
+const kodBenzersiz = new Set(kodlar).size === kodlar.length;
+const kodBicimi = kodlar.every(c => /^289\d{3}$/.test(c));
+kontrol("Herkese kod atandı", kodlar.length === P.length, `${kodlar.length}/${P.length}`);
+kontrol("Kod biçimi 289xxx", kodBicimi, kodlar.slice(0, 3).join(", "));
+kontrol("Kodlar benzersiz", kodBenzersiz, `${new Set(kodlar).size} farklı`);
+
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

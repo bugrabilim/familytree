@@ -20,6 +20,8 @@ export interface PersonNodeData extends Record<string, unknown> {
   width?: number;
   height?: number;
   onSelect: (id: string) => void;
+  /** Çift tık: detay panelini aç */
+  onOpen?: (id: string) => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
@@ -63,7 +65,7 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onQuickAdd } =
+  const { person, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onOpen, onQuickAdd } =
     data as unknown as PersonNodeData;
 
   const tone = genderTone(person.gender);
@@ -94,6 +96,8 @@ function PersonNode({ data }: NodeProps) {
 
       <button
         onClick={() => onSelect(person.id)}
+        onDoubleClick={() => onOpen?.(person.id)}
+        title="Tık: merkeze al · Çift tık: detay"
         style={{ width, height }}
         className={`
           relative text-left overflow-hidden
@@ -121,6 +125,13 @@ function PersonNode({ data }: NodeProps) {
           style={{ background: tone.css }}
           aria-hidden
         />
+
+        {/* Benzersiz kod */}
+        {detail >= 2 && person.code && (
+          <span className="absolute right-1.5 top-1 text-[9px] font-mono text-text-subtle/70 tabular-nums">
+            {person.code}
+          </span>
+        )}
 
         <div className={`flex items-center h-full ${detail >= 2 ? "gap-2.5" : "gap-2"} pl-1.5`}>
           <div className="relative shrink-0">

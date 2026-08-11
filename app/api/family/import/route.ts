@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { importGedcom } from "@/lib/gedcom";
+import { nextCode } from "@/lib/code";
+import type { Person } from "@/types/family";
+
+/** İçe aktarılan/mevcut herkese benzersiz kod ata (kodu olmayanlara). */
+function ensureCodes(people: Person[]): Person[] {
+  const withCodes = [...people];
+  for (let i = 0; i < withCodes.length; i++) {
+    if (!withCodes[i].code) {
+      withCodes[i] = { ...withCodes[i], code: nextCode(withCodes) };
+    }
+  }
+  return withCodes;
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -28,11 +41,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (mode === "replace") {
-    await saveFamilyData(session.user.id, { people: imported, updatedAt: new Date().toISOString() });
+    await saveFamilyData(session.user.id, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
   } else {
     const { people: existing } = await getFamilyData(session.user.id);
     await saveFamilyData(session.user.id, {
-      people: [...existing, ...imported],
+      people: ensureCodes([...existing, ...imported]),
       updatedAt: new Date().toISOString(),
     });
   }
