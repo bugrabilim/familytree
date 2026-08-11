@@ -5,6 +5,7 @@ import {
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
+  SOURCE_KINDS,
   type Person,
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
@@ -314,6 +315,44 @@ export default function PersonDrawer({
                   </button>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* Kaynaklar — maskeli (yaşayan) kişide `sources` taşınmadığı için boş kalır */}
+          {person.sources && person.sources.length > 0 && (
+            <section>
+              <SectionTitle>Kaynaklar</SectionTitle>
+              <ul className="space-y-2.5">
+                {person.sources.map((s) => {
+                  const meta = SOURCE_KINDS[s.kind ?? ""];
+                  return (
+                    <li key={s.id} className="flex gap-2.5">
+                      <span className="text-sm w-5 text-center shrink-0" aria-hidden>
+                        {meta?.icon ?? "✨"}
+                      </span>
+                      <div className="min-w-0">
+                        {s.url ? (
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline leading-tight break-words"
+                          >
+                            {s.title}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-text leading-tight break-words">{s.title}</p>
+                        )}
+                        {s.note && (
+                          <p className="text-[11px] text-text-subtle leading-snug mt-0.5 whitespace-pre-wrap">
+                            {s.note}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           )}
 
