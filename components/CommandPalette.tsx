@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
+import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 
 interface Props {
@@ -25,7 +26,7 @@ export default function CommandPalette({ people, onSelect, onClose, onAdd }: Pro
 
     const scored = people
       .map((p) => {
-        const full = `${p.firstName} ${p.lastName}`.toLocaleLowerCase("tr");
+        const full = fullName(p).toLocaleLowerCase("tr");
         let score = -1;
         if (full.startsWith(q)) score = 0;
         else if (p.firstName.toLocaleLowerCase("tr").startsWith(q)) score = 1;
@@ -33,6 +34,7 @@ export default function CommandPalette({ people, onSelect, onClose, onAdd }: Pro
         else if (full.includes(q)) score = 3;
         else if ((p.birthPlace ?? "").toLocaleLowerCase("tr").includes(q)) score = 4;
         else if ((p.bio ?? "").toLocaleLowerCase("tr").includes(q)) score = 5;
+        else if ((p.orientation ?? "").toLocaleLowerCase("tr").includes(q)) score = 6;
         return { p, score };
       })
       .filter((x) => x.score >= 0)
@@ -140,7 +142,7 @@ export default function CommandPalette({ people, onSelect, onClose, onAdd }: Pro
                     <Avatar person={p} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-text truncate leading-tight">
-                        {p.firstName} {p.lastName}
+                        {fullName(p)}
                       </p>
                       <p className="text-[11px] text-text-subtle truncate leading-tight">
                         {[lifeSpan(p.birthDate, p.deathDate), p.birthPlace]

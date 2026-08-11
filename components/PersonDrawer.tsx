@@ -22,6 +22,7 @@ import {
   indexPeople,
 } from "@/lib/relations";
 import { deletePerson, type RelationType } from "@/lib/actions";
+import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 
 interface Props {
@@ -120,7 +121,7 @@ export default function PersonDrawer({
             <Avatar person={person} size="xl" ring />
             <div className="min-w-0 pt-1">
               <h2 className="font-serif text-xl font-semibold text-text leading-tight">
-                {person.firstName} {person.lastName}
+                {fullName(person)}
               </h2>
               {years && (
                 <p className="text-sm text-text-muted mt-0.5 tabular-nums">
@@ -181,25 +182,27 @@ export default function PersonDrawer({
             </section>
           )}
 
-          {(person.religion || person.denomination || person.language ||
-            person.ethnicity || person.nationality) && (
+          {(person.language || person.religion || person.denomination ||
+            person.ethnicity || person.nationality || person.orientation) && (
             <section>
-              <SectionTitle>Köken</SectionTitle>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  person.religion,
-                  person.denomination,
-                  person.language,
-                  person.ethnicity,
-                  person.nationality,
-                ]
-                  .filter(Boolean)
-                  .map((v, i) => (
-                    <span key={i} className="px-2 py-1 rounded-lg bg-surface-2 text-[11px] text-text-muted">
-                      {v}
-                    </span>
+              <SectionTitle>Kimlik ve köken</SectionTitle>
+              <dl className="space-y-1.5">
+                {([
+                  ["Ana dil", person.language],
+                  ["Din", person.religion],
+                  ["Mezhep", person.denomination],
+                  ["Etnik köken", person.ethnicity],
+                  ["Uyruk", person.nationality],
+                  ["Cinsel yönelim", person.orientation],
+                ] as const)
+                  .filter(([, v]) => !!v)
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-baseline gap-2">
+                      <dt className="text-[11px] text-text-subtle w-24 shrink-0">{k}</dt>
+                      <dd className="text-sm text-text leading-snug">{v}</dd>
+                    </div>
                   ))}
-              </div>
+              </dl>
             </section>
           )}
 
@@ -341,7 +344,7 @@ function RelationGroup({
                 <Avatar person={p} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-text truncate leading-tight">
-                    {p.firstName} {p.lastName}
+                    {fullName(p)}
                   </p>
                   {badge && (
                     <span className="inline-block mt-0.5 px-1.5 py-px rounded bg-accent-soft text-accent text-[10px] font-medium">

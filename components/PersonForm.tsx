@@ -55,6 +55,9 @@ export default function PersonForm({
   const [form, setForm] = useState({
     firstName: initial?.firstName ?? "",
     lastName: initial?.lastName ?? relation?.target.lastName ?? "",
+    nickname: initial?.nickname ?? "",
+    patronymic: initial?.patronymic ?? "",
+    orientation: initial?.orientation ?? "",
     gender: (initial?.gender ?? "unknown") as Person["gender"],
     birthDate: storedToDisplay(initial?.birthDate),
     deathDate: storedToDisplay(initial?.deathDate),
@@ -158,6 +161,9 @@ export default function PersonForm({
     const payload: PersonPayload = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
+      nickname: form.nickname.trim() || undefined,
+      patronymic: form.patronymic.trim() || undefined,
+      orientation: form.orientation.trim() || undefined,
       gender: form.gender,
       birthDate: form.birthDate ? displayToStored(form.birthDate) : undefined,
       deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
@@ -291,6 +297,18 @@ export default function PersonForm({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Lakap — eski kuşaklar için */}
+      <div>
+        <label className={label} htmlFor="pf-lakap">Lakap</label>
+        <input
+          id="pf-lakap"
+          className={field}
+          value={form.nickname}
+          onChange={(e) => set("nickname", e.target.value)}
+          placeholder="Topal, Avcı, Kör… (adın önünde görünür)"
+        />
       </div>
 
       {/* Ad / Soyad */}
@@ -439,10 +457,23 @@ export default function PersonForm({
                 onChange={(e) => set("ethnicity", e.target.value)} placeholder="Türk, Çerkes, Arnavut…" />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="pf-uyruk">Uyruk</label>
+              <input id="pf-uyruk" className={field} value={form.nationality}
+                onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
+            </div>
+            <div>
+              <label className={label} htmlFor="pf-yonelim">Cinsel yönelim</label>
+              <input id="pf-yonelim" className={field} value={form.orientation}
+                onChange={(e) => set("orientation", e.target.value)} placeholder="Eşcinsel, Biseksüel…" />
+            </div>
+          </div>
           <div>
-            <label className={label} htmlFor="pf-uyruk">Uyruk</label>
-            <input id="pf-uyruk" className={field} value={form.nationality}
-              onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
+            <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
+            <input id="pf-patronim" className={field} value={form.patronymic}
+              onChange={(e) => set("patronymic", e.target.value)}
+              placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

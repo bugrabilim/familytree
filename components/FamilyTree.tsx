@@ -25,9 +25,26 @@ import { genderTone } from "./ui/Avatar";
 import type { Person } from "@/types/family";
 import type { RelationType } from "@/lib/actions";
 
-const NODE_W = 188;
-const NODE_H = 76;
-const GEN_GAP = 118;
+/**
+ * Kuşak sayısı arttıkça kartlar okunmaz hâle geliyordu. "Ayrıntı düzeyi"
+ * (detail) yükseldikçe kart büyür ve daha çok bilgi gösterir; kalabalıkta
+ * küçülüp sadeleşir. Sıra: önce yaş, sonra şehir, sonra kutu/çizgi yüksekliği.
+ */
+type Detail = 0 | 1 | 2 | 3;
+
+const DIMS: Record<Detail, { w: number; h: number; gap: number; nodesep: number }> = {
+  3: { w: 190, h: 98, gap: 130, nodesep: 34 },
+  2: { w: 190, h: 82, gap: 108, nodesep: 32 },
+  1: { w: 176, h: 66, gap: 84, nodesep: 28 },
+  0: { w: 150, h: 50, gap: 60, nodesep: 22 },
+};
+
+/** treeDepth (2-8, -1=tümü, 0=herkes) + görünen kişi sayısı → ayrıntı düzeyi */
+function detailFor(depth: number, count: number): Detail {
+  const byDepth: Detail = depth === 2 || depth === 3 ? 3 : depth === 4 || depth === 5 ? 2 : depth === 6 || depth === 7 ? 1 : 0;
+  const byCount: Detail = count > 220 ? 0 : count > 120 ? 1 : count > 60 ? 2 : 3;
+  return Math.min(byDepth, byCount) as Detail;
+}
 
 /* ---------------------------------------------------------------- */
 /* Birlik (union) düğümü — çiftleri yan yana tutar                   */
@@ -84,12 +101,12 @@ function buildUnions(people: Person[], ids: Set<string>): Union[] {
   return [...byKey.values()];
 }
 
-function layout(people: Person[], unions: Union[]) {
+function layout(people: Person[], unions: Union[], dim: { w: number; h: number; gap: number; nodesep: number }) {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", ranksep: GEN_GAP / 2, nodesep: 34, marginx: 60, marginy: 60 });
+  g.setGraph({ rankdir: "TB", ranksep: dim.gap / 2, nodesep: dim.nodesep, marginx: 60, marginy: 60 });
 
-  for (const p of people) g.setNode(p.id, { width: NODE_W, height: NODE_H });
+  for (const p of people) g.setNode(p.id, { width: dim.w, height: dim.h });
   for (const u of unions) g.setNode(u.id, { width: 8, height: 8 });
 
   for (const u of unions) {
@@ -102,7 +119,7 @@ function layout(people: Person[], unions: Union[]) {
   const pos = new Map<string, { x: number; y: number }>();
   for (const p of people) {
     const n = g.node(p.id);
-    if (n) pos.set(p.id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 });
+    if (n) pos.set(p.id, { x: n.x - dim.w / 2, y: n.y - dim.h / 2 });
   }
   for (const u of unions) {
     const n = g.node(u.id);
@@ -117,18 +134,24 @@ interface Props {
   people: Person[];
   selectedId?: string;
   focusId?: string;
+  /** treeDepth: 2-8 kuşak, -1 = tümü, 0 = herkes — ayrıntı düzeyini belirler */
+  depth?: number;
   highlightIds?: Set<string>;
   onSelect: (id: string) => void;
+  onDeselect?: () => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
-function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAdd }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onDeselect, onQuickAdd }: Props) {
   const { fitView, setCenter } = useReactFlow();
   const initialised = useRef(false);
 
+  const detail = useMemo(() => detailFor(depth, people.length), [depth, people.length]);
+  const dim = DIMS[detail];
+
   const ids = useMemo(() => new Set(people.map((p) => p.id)), [people]);
   const unions = useMemo(() => buildUnions(people, ids), [people, ids]);
-  const positions = useMemo(() => layout(people, unions), [people, unions]);
+  const positions = useMemo(() => layout(people, unions, dim), [people, unions, dim]);
 
   const nodes = useMemo<Node[]>(() => {
     const personNodes: Node[] = people.map((p) => {
@@ -138,6 +161,9 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
         focused: p.id === focusId,
         dimmed: !!highlightIds && !highlightIds.has(p.id),
         canAddParent: p.parentIds.length < 2,
+        detail,
+        width: dim.w,
+        height: dim.h,
         onSelect,
         onQuickAdd,
       };
@@ -160,15 +186,17 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
     })) as Node[];
 
     return [...unionNodes, ...personNodes];
-  }, [people, unions, positions, selectedId, focusId, highlightIds, onSelect, onQuickAdd]);
+  }, [people, unions, positions, selectedId, focusId, highlightIds, detail, dim, onSelect, onQuickAdd]);
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
   const edges = useMemo<Edge[]>(() => {
     const out: Edge[] = [];
-    const dim = (a: string, b: string) =>
+    const soluk = (a: string, b: string) =>
       highlightIds ? !highlightIds.has(a) || !highlightIds.has(b) : false;
 
+    // Soybağı çizgileri tek ve nötr bir renkte (ebeveyn→birlik→çocuk kesintisiz
+    // okunur); evlilik çizgileri ayrı, sıcak bir tonda. İki temada da net.
     for (const u of unions) {
       for (const pid of u.parentIds) {
         const faded = highlightIds ? !highlightIds.has(pid) : false;
@@ -178,9 +206,9 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
           target: u.id,
           type: "smoothstep",
           style: {
-            stroke: "var(--border-strong)",
-            strokeWidth: 1.6,
-            opacity: faded ? 0.2 : 1,
+            stroke: "var(--tree-edge)",
+            strokeWidth: 1.8,
+            opacity: faded ? 0.25 : 1,
           },
         });
       }
@@ -200,10 +228,10 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
           target: cid,
           type: "smoothstep",
           style: {
-            stroke: kopuk ? "var(--text-subtle)" : "var(--primary)",
+            stroke: kopuk ? "var(--text-subtle)" : "var(--tree-edge)",
             strokeWidth: 1.8,
             strokeDasharray: evlatlik ? "6 4" : kopuk ? "2 6" : undefined,
-            opacity: faded ? 0.2 : kopuk ? 0.4 : 0.85,
+            opacity: faded ? 0.25 : kopuk ? 0.45 : 1,
           },
         });
       }
@@ -222,10 +250,10 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
         target: b,
         type: "straight",
         style: {
-          stroke: bosanmis ? "var(--text-subtle)" : "var(--female)",
-          strokeWidth: 1.4,
-          strokeDasharray: bosanmis ? "2 5" : "4 4",
-          opacity: dim(a, b) ? 0.2 : bosanmis ? 0.45 : 0.7,
+          stroke: "var(--tree-edge-spouse)",
+          strokeWidth: 1.6,
+          strokeDasharray: bosanmis ? "1 5" : "5 4",
+          opacity: soluk(a, b) ? 0.2 : bosanmis ? 0.5 : 0.9,
         },
       });
     };
@@ -274,11 +302,11 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
       typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
     const kaydir = drawerAcik ? 190 / zoom : 0; // panelin yarısı kadar dünya birimi
     const t = setTimeout(
-      () => setCenter(pos.x + NODE_W / 2 + kaydir, pos.y + NODE_H / 2, { zoom, duration: 420 }),
+      () => setCenter(pos.x + dim.w / 2 + kaydir, pos.y + dim.h / 2, { zoom, duration: 420 }),
       140
     );
     return () => clearTimeout(t);
-  }, [selectedId, positions, setCenter]);
+  }, [selectedId, positions, setCenter, dim.w, dim.h]);
 
   return (
     <ReactFlow
@@ -294,6 +322,7 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
       nodesConnectable={false}
       panOnScroll
       selectionOnDrag={false}
+      onPaneClick={onDeselect}
       className="bg-bg"
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />

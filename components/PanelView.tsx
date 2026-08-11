@@ -6,6 +6,7 @@ import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
 import { computeStats, describeRelation, genitive, indexPeople, possessive } from "@/lib/relations";
+import { fullName } from "@/lib/name";
 
 interface Props {
   people: Person[];
@@ -61,7 +62,40 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           <Stat value={stats.deceased} label="Vefat eden" tone="neutral" />
         </section>
 
+        {/* Rakamlarla aile — genişletilmiş istatistikler */}
+        <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="font-serif text-base font-semibold text-text">Rakamlarla aile</h2>
+            <span className="text-[11px] text-text-subtle shrink-0">özet</span>
+          </div>
+          <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+            <MiniStat label="Kadın" value={stats.female} />
+            <MiniStat label="Erkek" value={stats.male} />
+            <MiniStat label="Evlilik" value={stats.marriages} />
+            <MiniStat label="Boşanma" value={stats.divorces} />
+            {stats.avgLifespan !== undefined && (
+              <MiniStat label="Ortalama ömür" value={`${stats.avgLifespan} yıl`} />
+            )}
+            {stats.oldestLivingAge !== undefined && (
+              <MiniStat label="En yaşlı yaşayan" value={`${stats.oldestLivingAge} yaş`} />
+            )}
+            {stats.oldestBirthYear !== undefined && (
+              <MiniStat label="En eski doğum" value={stats.oldestBirthYear} />
+            )}
+            <MiniStat label="En kalabalık kardeş" value={stats.largestSibship} />
+            {stats.topBirthPlace && (
+              <MiniStat label="En sık doğum yeri" value={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} wide />
+            )}
+            {stats.unlinked > 0 && <MiniStat label="Bağsız kişi" value={stats.unlinked} />}
+          </dl>
+        </section>
+
         <div className="grid gap-6 lg:grid-cols-2">
+          {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
+          <Card title="Kişinin akrabaları" hint="Örn. birinin halası kim?">
+            <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
+          </Card>
+
           {/* Doğum günleri */}
           <Card
             title="Yaklaşan doğum günleri"
@@ -80,7 +114,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                       <Avatar person={person} size="sm" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-text truncate leading-tight">
-                          {person.firstName} {person.lastName}
+                          {fullName(person)}
                         </p>
                         {age !== null && (
                           <p className="text-[11px] text-text-subtle leading-tight">
@@ -121,7 +155,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                     <Avatar person={p} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-text truncate leading-tight">
-                        {p.firstName} {p.lastName}
+                        {fullName(p)}
                       </p>
                       {p.birthPlace && (
                         <p className="text-[11px] text-text-subtle truncate leading-tight">
@@ -205,6 +239,112 @@ function Stat({
   );
 }
 
+function MiniStat({ label, value, wide }: { label: string; value: string | number; wide?: boolean }) {
+  return (
+    <div className={wide ? "col-span-2" : ""}>
+      <dt className="text-[11px] text-text-subtle leading-tight">{label}</dt>
+      <dd className="text-lg font-semibold text-text tabular-nums leading-tight truncate">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * Bir kişiyi seç, herkesin ona göre akrabalığını Türkçe adıyla gör.
+ * "Hatice'nin halası kim?" gibi soruları, üstteki kutuya "hala" yazıp
+ * yanıtlamayı sağlar.
+ */
+function RelativesFinder({
+  people,
+  idx,
+  onSelect,
+}: {
+  people: Person[];
+  idx: ReturnType<typeof indexPeople>;
+  onSelect: (id: string) => void;
+}) {
+  const [personId, setPersonId] = useState("");
+  const [filter, setFilter] = useState("");
+
+  const sorted = useMemo(() => {
+    const coll = new Intl.Collator("tr");
+    return [...people].sort(
+      (x, y) => coll.compare(x.firstName, y.firstName) || coll.compare(x.lastName, y.lastName)
+    );
+  }, [people]);
+
+  const relatives = useMemo(() => {
+    if (!personId) return [];
+    const out: Array<{ person: Person; relation: string }> = [];
+    for (const other of people) {
+      if (other.id === personId) continue;
+      const rel = describeRelation(personId, other.id, people, idx);
+      if (rel) out.push({ person: other, relation: rel });
+    }
+    const coll = new Intl.Collator("tr");
+    return out.sort(
+      (a, b) => coll.compare(a.relation, b.relation) || coll.compare(a.person.firstName, b.person.firstName)
+    );
+  }, [personId, people, idx]);
+
+  const shown = useMemo(() => {
+    const q = filter.toLocaleLowerCase("tr").trim();
+    const list = q
+      ? relatives.filter(
+          (r) =>
+            r.relation.toLocaleLowerCase("tr").includes(q) ||
+            fullName(r.person).toLocaleLowerCase("tr").includes(q)
+        )
+      : relatives;
+    return list.slice(0, 60);
+  }, [relatives, filter]);
+
+  const selectCls =
+    "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
+
+  return (
+    <div className="space-y-3">
+      <select value={personId} onChange={(e) => setPersonId(e.target.value)} className={selectCls} aria-label="Kişi seç">
+        <option value="">Kişi seç…</option>
+        {sorted.map((p) => (
+          <option key={p.id} value={p.id}>
+            {fullName(p)}
+            {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
+          </option>
+        ))}
+      </select>
+
+      {personId && (
+        <>
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Akrabalık ya da isim süz — örn. hala, dayı…"
+            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+          />
+          <p className="text-[11px] text-text-subtle">{relatives.length} akraba bulundu</p>
+          <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
+            {shown.map(({ person, relation }) => (
+              <li key={person.id}>
+                <button
+                  onClick={() => onSelect(person.id)}
+                  className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
+                >
+                  <Avatar person={person} size="xs" />
+                  <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(person)}</span>
+                  <span className="text-[11px] font-medium text-primary shrink-0">{relation}</span>
+                </button>
+              </li>
+            ))}
+            {shown.length === 0 && (
+              <li className="text-sm text-text-subtle py-2 text-center">Eşleşen akraba yok</li>
+            )}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Card({
   title,
   hint,
@@ -264,7 +404,7 @@ function RelationCalculator({
           <option value="">Kişi seç…</option>
           {sorted.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.firstName} {p.lastName}
+              {fullName(p)}
             </option>
           ))}
         </select>
@@ -272,7 +412,7 @@ function RelationCalculator({
           <option value="">Kişi seç…</option>
           {sorted.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.firstName} {p.lastName}
+              {fullName(p)}
             </option>
           ))}
         </select>
@@ -283,7 +423,7 @@ function RelationCalculator({
           {result ? (
             <p className="text-sm text-text leading-relaxed">
               <button onClick={() => onSelect(b.id)} className="font-semibold hover:underline">
-                {b.firstName} {b.lastName}
+                {fullName(b)}
               </button>
               {" — "}
               <button onClick={() => onSelect(a.id)} className="font-semibold hover:underline">

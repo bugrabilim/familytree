@@ -26,6 +26,21 @@ export interface Person {
   firstName: string;
   lastName: string;
   gender: Gender;
+  /**
+   * Lakap — özellikle Soyadı Kanunu (1934) öncesi kuşaklarda: "Topal",
+   * "Avcı", "Kör" gibi. Adın önünde gösterilir: "Topal Mehmed".
+   */
+  nickname?: string;
+  /**
+   * Baba adına dayalı anılma — soyadı olmayan eski kuşaklar için:
+   * "Şaban oğlu", "Veli kızı". `lastName` boşsa soyad yerine gösterilir.
+   */
+  patronymic?: string;
+  /**
+   * Cinsel yönelim (isteğe bağlı, serbest metin): "Eşcinsel", "Biseksüel"…
+   * Yalnızca kişi/aile kaydetmek isterse.
+   */
+  orientation?: string;
   birthDate?: string;
   deathDate?: string;
   birthPlace?: string;

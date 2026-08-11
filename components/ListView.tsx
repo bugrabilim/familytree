@@ -5,6 +5,7 @@ import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
+import { fullName } from "@/lib/name";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
 type Filter =
@@ -12,6 +13,7 @@ type Filter =
   | "yasayan"
   | "vefat"
   | "bagsiz"
+  | "lgbt"
   | "dogustan"
   | "hastalik"
   | "olum-neden";
@@ -34,6 +36,28 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
     return s;
   }, [people]);
 
+  /**
+   * LGBT+ süzgeci için: cinsel yönelimi kayıtlı olanlar VEYA aynı cinsten
+   * (eski) eşi bulunanlar. Böylece "aile içinde LGBT+ biri var mı?" sorusu
+   * tek tıkla yanıtlanır.
+   */
+  const lgbtIds = useMemo(() => {
+    const idx = new Map(people.map((p) => [p.id, p]));
+    const s = new Set<string>();
+    for (const p of people) {
+      if (p.orientation) s.add(p.id);
+      const esler = [...p.spouseIds, ...(p.formerSpouseIds ?? [])];
+      for (const sid of esler) {
+        const es = idx.get(sid);
+        if (es && es.gender === p.gender && p.gender !== "unknown") {
+          s.add(p.id);
+          s.add(sid);
+        }
+      }
+    }
+    return s;
+  }, [people]);
+
   const rows = useMemo(() => {
     const q = query.toLocaleLowerCase("tr").trim();
 
@@ -45,14 +69,16 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
           p.parentIds.length > 0 || p.spouseIds.length > 0 || childIds.has(p.id);
         if (linked) return false;
       }
+      if (filter === "lgbt" && !lgbtIds.has(p.id)) return false;
       if (filter === "dogustan" && !p.congenitalCondition) return false;
       if (filter === "hastalik" && !p.healthCondition) return false;
       if (filter === "olum-neden" && !p.deathCause) return false;
       if (!q) return true;
       return (
-        `${p.firstName} ${p.lastName}`.toLocaleLowerCase("tr").includes(q) ||
+        fullName(p).toLocaleLowerCase("tr").includes(q) ||
         (p.birthPlace ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.bio ?? "").toLocaleLowerCase("tr").includes(q) ||
+        (p.orientation ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.congenitalCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.healthCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.deathCause ?? "").toLocaleLowerCase("tr").includes(q) ||
@@ -75,13 +101,14 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
     });
     if (sort === "yeni") out.reverse();
     return out;
-  }, [people, query, sort, filter, childIds]);
+  }, [people, query, sort, filter, childIds, lgbtIds]);
 
   const FILTERS: Array<{ k: Filter; l: string }> = [
     { k: "hepsi", l: "Hepsi" },
     { k: "yasayan", l: "Yaşayan" },
     { k: "vefat", l: "Vefat" },
     { k: "bagsiz", l: "Bağsız" },
+    { k: "lgbt", l: "LGBT+" },
     { k: "dogustan", l: "Doğuştan durum" },
     { k: "hastalik", l: "Sonradan rahatsızlık" },
     { k: "olum-neden", l: "Ölüm nedeni" },
@@ -176,7 +203,7 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
                     <Avatar person={p} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text truncate leading-tight">
-                        {p.firstName} {p.lastName}
+                        {fullName(p)}
                       </p>
                       <p className="text-xs text-text-muted truncate leading-tight mt-0.5 tabular-nums">
                         {lifeSpan(p.birthDate, p.deathDate) || "Tarih yok"}

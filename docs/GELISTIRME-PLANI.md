@@ -132,7 +132,21 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 - **Belirgin cinsiyet renkleri** — kadın/erkek/diğer/bilinmiyor açık ve koyu
   temada net ayrışır; karttaki cinsiyet şeridi genişletildi.
 - **Seçili kart ortalanır** — ağaçta bir kart seçilince görünür alanın
-  (detay paneli hariç) ortasına kayar.
+  (detay paneli hariç) ortasına kayar; boşluğa tıklayınca seçim kalkar.
+- **Ayrıntı düzeyine göre kart** — ağaçta kuşak/kalabalık arttıkça kartlar
+  kademeli sadeleşir (önce yaş, sonra şehir çıkar, sonra kutu/çizgi küçülür),
+  böylece derin ağaçlarda okunur kalır.
+- **Nötr soybağı / sıcak evlilik çizgileri** — ağaç bağlantıları iki temada
+  da net; kendine ait renk belirteçleriyle (yeşil/soluk karmaşası giderildi).
+- **Çift yönlü şecere (Soy)** — merkez kişi ortada, atalar yukarı, torunlar
+  aşağı; özyinelemeli kum saati yerleşimi, seçilen kuşak kadar iki yön.
+- **Ayrışmış cinsiyet renkleri** — kadın/erkek/diğer/bilinmiyor iki temada net.
+- **Lakap + patronim + cinsel yönelim alanları** — Soyadı Kanunu öncesi
+  kuşaklar soyadsız gösterilir, baba adından türetilen patronim ve lakapla
+  anılır; cinsel yönelim isteğe bağlı kaydedilir ve LGBT+ süzgeciyle bulunur.
+- **Genişletilmiş panel** — kadın/erkek, evlilik/boşanma, ortalama ömür, en
+  yaşlı yaşayan, en sık doğum yeri, en kalabalık kardeş grubu; ayrıca
+  "kişinin tüm akrabaları" bulucu (Türkçe terimle süzülür).
 - **Ağaçta kuşak derinliği denetimi** — yüzlerce kişilik ağaçlarda okunabilirlik
 - **Evlat edinme / koruyucu aile / üvey bağ ayrımı** ve **kopan ilişkiler**
   (`parentLinks`): evlatlıktan reddetme ve ebeveyni reddetme bağı silmez,

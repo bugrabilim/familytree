@@ -4,7 +4,8 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
-import { lifeSpan } from "@/lib/date";
+import { calcAge, lifeSpan } from "@/lib/date";
+import { primaryName, secondaryName } from "@/lib/name";
 import type { RelationType } from "@/lib/actions";
 
 export interface PersonNodeData extends Record<string, unknown> {
@@ -14,6 +15,10 @@ export interface PersonNodeData extends Record<string, unknown> {
   focused?: boolean;
   dimmed: boolean;
   canAddParent: boolean;
+  /** 3 = en ayrıntılı (yaş+şehir), 0 = en sade (kalabalık) */
+  detail?: 0 | 1 | 2 | 3;
+  width?: number;
+  height?: number;
   onSelect: (id: string) => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
@@ -58,18 +63,29 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person, selected, focused, dimmed, canAddParent, onSelect, onQuickAdd } =
+  const { person, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onQuickAdd } =
     data as unknown as PersonNodeData;
 
   const tone = genderTone(person.gender);
   const years = lifeSpan(person.birthDate, person.deathDate);
+  const age = calcAge(person.birthDate, person.deathDate);
   const deceased = !!person.deathDate;
+
+  // Ayrıntı düzeyine göre kademeli sadeleşme:
+  //   3 → yaş + şehir + yıllar,  2 → şehir + yıllar,  1 → yıllar,  0 → yalnız ad
+  const showYears = detail >= 1;
+  const showCity = detail >= 2 && !!person.birthPlace;
+  const showAge = detail >= 3 && age !== null;
+  const avatarSize = detail >= 2 ? "md" : "sm";
+  const pad = detail >= 2 ? "px-3 py-2.5" : detail === 1 ? "px-2.5 py-2" : "px-2 py-1.5";
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     fn();
   };
+
+  const alt = secondaryName(person);
 
   return (
     <div className="group relative" data-sel={selected}>
@@ -78,9 +94,10 @@ function PersonNode({ data }: NodeProps) {
 
       <button
         onClick={() => onSelect(person.id)}
+        style={{ width, height }}
         className={`
-          relative w-[188px] text-left
-          bg-surface rounded-2xl px-3 py-2.5
+          relative text-left overflow-hidden
+          bg-surface rounded-2xl ${pad}
           border-2 transition-all duration-200
           ${selected
             ? "border-primary shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/25 z-10"
@@ -91,7 +108,7 @@ function PersonNode({ data }: NodeProps) {
         {/* Odak rozeti — ağaçta nereden başladığını gösterir */}
         {focused && !selected && (
           <span
-            className="absolute -top-2 -left-2 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft"
+            className="absolute -top-2 -left-2 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft z-10"
             title="Ağacın odak noktası"
           >
             odak
@@ -105,9 +122,9 @@ function PersonNode({ data }: NodeProps) {
           aria-hidden
         />
 
-        <div className="flex items-center gap-2.5 pl-1.5">
+        <div className={`flex items-center h-full ${detail >= 2 ? "gap-2.5" : "gap-2"} pl-1.5`}>
           <div className="relative shrink-0">
-            <Avatar person={person} size="md" />
+            <Avatar person={person} size={avatarSize} />
             {deceased && (
               <span
                 className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-surface border border-border grid place-items-center text-[9px] leading-none text-text-subtle"
@@ -119,18 +136,21 @@ function PersonNode({ data }: NodeProps) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-[13px] leading-tight text-text truncate">
-              {person.firstName || "İsimsiz"}
+            <p className={`font-semibold leading-tight text-text truncate ${detail === 0 ? "text-[12px]" : "text-[13px]"}`}>
+              {primaryName(person)}
             </p>
-            <p className="text-[12px] leading-tight text-text-muted truncate">
-              {person.lastName}
-            </p>
-            {years && (
-              <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums">
-                {years}
+            {alt && (
+              <p className="text-[12px] leading-tight text-text-muted truncate">
+                {alt}
               </p>
             )}
-            {person.birthPlace && (
+            {showYears && years && (
+              <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums truncate">
+                {years}
+                {showAge && <span> · {person.deathDate ? `${age} yaşında` : `${age} yaş`}</span>}
+              </p>
+            )}
+            {showCity && (
               <p className="text-[10px] leading-tight text-text-subtle truncate">
                 {person.birthPlace}
               </p>

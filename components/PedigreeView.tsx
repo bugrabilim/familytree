@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
-import { ancestorDepths, indexPeople } from "@/lib/relations";
+import { primaryName, secondaryName, fullName } from "@/lib/name";
+import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
+import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 
 interface Props {
@@ -16,14 +18,11 @@ interface Props {
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
-interface Slot {
-  person?: Person;
-  /** Bu boşluğu dolduracak çocuk (ebeveyn eklemek için) */
-  childId?: string;
-  gen: number;
-}
-
-const GEN_LABELS = ["", "Ebeveynler", "Büyükanne / büyükbaba", "Büyük büyük kuşak", "4. kuşak", "5. kuşak"];
+/* Sabit kart genişliği, bağlantı çizgilerinin hesabını mümkün kılar */
+const CARD_W = 172;
+const HALF = CARD_W / 2;
+const GAP = 28;
+const STUB = 18;
 
 export default function PedigreeView({
   people,
@@ -31,12 +30,11 @@ export default function PedigreeView({
   selectedId,
   onSelect,
   onSetRoot,
-  onQuickAdd,
 }: Props) {
   const [generations, setGenerations] = useState(4);
   const idx = useMemo(() => indexPeople(people), [people]);
 
-  /** Kök seçilmemişse en uzun ata zincirine sahip kişiyi al — soy görünümü dolu olsun. */
+  /** Kök seçilmemişse en uzun ata zincirine sahip kişiyi al. */
   const varsayilanKok = useMemo(() => {
     let best: Person | undefined;
     let bestDepth = -1;
@@ -53,7 +51,6 @@ export default function PedigreeView({
 
   const root = (rootId ? idx.get(rootId) : undefined) ?? varsayilanKok;
 
-  /** Kök seçici için alfabetik liste */
   const siraliKisiler = useMemo(() => {
     const coll = new Intl.Collator("tr");
     return [...people].sort(
@@ -61,34 +58,15 @@ export default function PedigreeView({
     );
   }, [people]);
 
-  /** Kuşak kuşak ata dizisi (Sosa sırası: her kuşakta 2^n yer) */
-  const columns = useMemo(() => {
-    if (!root) return [];
-    const cols: Slot[][] = [[{ person: root, gen: 0 }]];
-
-    for (let gen = 1; gen < generations; gen++) {
-      const prev = cols[gen - 1];
-      const col: Slot[] = [];
-      for (const slot of prev) {
-        const parents = slot.person
-          ? slot.person.parentIds.map((id) => idx.get(id)).filter((p): p is Person => !!p)
-          : [];
-        // Baba önce, anne sonra — tutarlı sıralama
-        const father = parents.find((p) => p.gender === "male") ?? parents.find((p) => p.gender === "unknown");
-        const mother = parents.find((p) => p.gender === "female") ?? parents.find((p) => p !== father);
-
-        col.push({ person: father, childId: slot.person?.id, gen });
-        col.push({ person: mother, childId: slot.person?.id, gen });
-      }
-      // Ebeveyn sütununu her zaman göster (boş yuvalar "Ebeveyn ekle" olur);
-      // daha üst kuşaklarda tamamen boşsa dur.
-      const bosKusak = col.every((s) => !s.person);
-      if (bosKusak && gen > 1) break;
-      cols.push(col);
-      if (bosKusak) break;
-    }
-    return cols;
-  }, [root, generations, idx]);
+  /** Kök etrafında kaç kuşak yukarı / aşağı gerçekten var? — bilgi rozeti için */
+  const kapsam = useMemo(() => {
+    if (!root) return { up: 0, down: 0 };
+    let up = 0;
+    for (const d of ancestorDepths(root.id, idx).values()) if (d > up) up = d;
+    let down = 0;
+    for (const d of descendantDepths(root.id, people).values()) if (d > down) down = d;
+    return { up: Math.min(up, generations), down: Math.min(down, generations) };
+  }, [root, idx, people, generations]);
 
   if (!root) {
     return (
@@ -98,6 +76,8 @@ export default function PedigreeView({
     );
   }
 
+  const cardProps = { idx, people, selectedId, onSelect, onSetRoot };
+
   return (
     <div className="h-full flex flex-col">
       {/* Kontrol çubuğu */}
@@ -106,7 +86,7 @@ export default function PedigreeView({
           <Avatar person={root} size="sm" />
           <div className="min-w-0">
             <label className="text-xs text-text-subtle leading-tight block" htmlFor="kok-secici">
-              Kök kişi — değiştirmek için seç
+              Merkez kişi — {kapsam.up} kuşak geri, {kapsam.down} kuşak ileri
             </label>
             <select
               id="kok-secici"
@@ -116,7 +96,7 @@ export default function PedigreeView({
             >
               {siraliKisiler.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.firstName} {p.lastName}
+                  {fullName(p)}
                   {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
                 </option>
               ))}
@@ -129,7 +109,7 @@ export default function PedigreeView({
             Kuşak
             <input
               type="range"
-              min={2}
+              min={1}
               max={6}
               value={generations}
               onChange={(e) => setGenerations(Number(e.target.value))}
@@ -140,144 +120,162 @@ export default function PedigreeView({
         </div>
       </div>
 
-      {/* Soy tablosu — her sütunda 2^n yuva, ebeveynler çocuğa göre simetrik */}
-      <div className="flex-1 overflow-auto p-6 sm:p-8">
-        <div className="flex gap-8 min-w-max h-full min-h-[460px]">
-          {columns.map((col, gi) => {
-            // Her sütunda yuvalar ikili gruplanır: bir çocuğun anne–baba çifti
-            const pairs: Slot[][] = [];
-            for (let i = 0; i < col.length; i += 2) pairs.push(col.slice(i, i + 2));
-
-            return (
-              <div key={gi} className="flex flex-col w-[186px]">
-                <p className="h-7 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-text-subtle">
-                  {gi === 0 ? "Kök" : GEN_LABELS[gi] ?? `${gi}. kuşak`}
-                </p>
-                <div className="flex-1 flex flex-col">
-                  {pairs.map((pair, pi) => (
-                    <div key={pi} className="flex-1 flex flex-col relative">
-                      {gi > 0 && pair.some((sl) => sl.person || sl.childId) && (
-                        <>
-                          {/* Çifti birleştiren dikey çizgi */}
-                          <span
-                            className="absolute -left-4 top-1/4 bottom-1/4 w-px bg-border-strong"
-                            aria-hidden
-                          />
-                          {/* Çocuğa uzanan yatay çizgi */}
-                          <span
-                            className="absolute -left-8 top-1/2 w-4 h-px bg-border-strong"
-                            aria-hidden
-                          />
-                        </>
-                      )}
-                      {pair.map((slot, si) => (
-                        <div
-                          key={`${gi}-${pi}-${si}`}
-                          className="flex-1 flex items-center min-h-[70px] relative"
-                        >
-                          {gi > 0 && (slot.person || slot.childId) && (
-                            <span
-                              className="absolute -left-4 top-1/2 w-4 h-px bg-border-strong"
-                              aria-hidden
-                            />
-                          )}
-                          <div className="w-full">
-                            <PedigreeCard
-                              slot={slot}
-                              selected={slot.person?.id === selectedId}
-                              onSelect={onSelect}
-                              onSetRoot={onSetRoot}
-                              onQuickAdd={onQuickAdd}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+      {/* Kum saati: merkez kişi ortada, atalar üstte, soy altta */}
+      <div className="flex-1 overflow-auto p-8 sm:p-12">
+        <div className="min-w-max min-h-full flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <AncestorFan person={root} depth={generations} {...cardProps} />
+            <PedigreeCard person={root} isRoot {...cardProps} />
+            <DescendantFan person={root} depth={generations} {...cardProps} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function PedigreeCard({
-  slot,
-  selected,
-  onSelect,
-  onSetRoot,
-  onQuickAdd,
-}: {
-  slot: Slot;
-  selected: boolean;
+/* ---------------------------------------------------------------- */
+/* Özyinelemeli kum saati                                            */
+/* ---------------------------------------------------------------- */
+
+interface BranchProps {
+  idx: PersonIndex;
+  people: Person[];
+  selectedId?: string;
   onSelect: (id: string) => void;
   onSetRoot: (id: string) => void;
-  onQuickAdd: (relation: RelationType, targetId: string) => void;
-}) {
-  const p = slot.person;
+}
 
-  if (!p) {
-    if (!slot.childId) return <div className="h-[62px] w-full" aria-hidden />;
-    return (
-      <button
-        onClick={() => onQuickAdd("parent", slot.childId!)}
-        className="
-          group h-[62px] w-full rounded-xl border border-dashed border-border-strong
-          flex items-center justify-center gap-1.5
-          text-xs text-text-subtle hover:text-primary hover:border-primary hover:bg-primary-soft
-          transition-colors
-        "
-      >
-        <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
-          <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        Ebeveyn ekle
-      </button>
-    );
-  }
+/** Baba önce, anne sonra — tutarlı sıralama */
+function ataSirasi(parents: Person[]): Person[] {
+  const father = parents.find((p) => p.gender === "male") ?? parents.find((p) => p.gender === "unknown");
+  const mother = parents.find((p) => p.gender === "female") ?? parents.find((p) => p !== father);
+  return [father, mother].filter((p): p is Person => !!p);
+}
+
+/** Bir kişinin atalarını (yukarı doğru) çizen fan — kişinin kendi kartı hariç */
+function AncestorFan({ person, depth, ...props }: { person: Person; depth: number } & BranchProps) {
+  if (depth <= 0) return null;
+  const parents = ataSirasi(getParents(person, props.idx));
+  if (parents.length === 0) return null;
 
   return (
-    <div className="group relative">
+    <div className="flex flex-col items-center">
+      <div className="flex items-end justify-center" style={{ gap: GAP }}>
+        {parents.map((par) => (
+          <div key={par.id} className="flex flex-col items-center">
+            <AncestorFan person={par} depth={depth - 1} {...props} />
+            <PedigreeCard person={par} {...props} />
+          </div>
+        ))}
+      </div>
+      <Connector count={parents.length} side="top" />
+    </div>
+  );
+}
+
+/** Bir kişinin soyunu (aşağı doğru) çizen fan — kişinin kendi kartı hariç */
+function DescendantFan({ person, depth, ...props }: { person: Person; depth: number } & BranchProps) {
+  if (depth <= 0) return null;
+  const kids = getChildren(person, props.people).sort((a, b) =>
+    (a.birthDate ?? "9999").localeCompare(b.birthDate ?? "9999")
+  );
+  if (kids.length === 0) return null;
+
+  return (
+    <div className="flex flex-col items-center">
+      <Connector count={kids.length} side="bottom" />
+      <div className="flex items-start justify-center" style={{ gap: GAP }}>
+        {kids.map((c) => (
+          <div key={c.id} className="flex flex-col items-center">
+            <PedigreeCard person={c} {...props} />
+            <DescendantFan person={c} depth={depth - 1} {...props} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bağlantı bölgesi: bir kart ile onun ebeveyn/çocuk satırı arasındaki çizgiler.
+ * `side="top"` → üstteki satırı (atalar) alttaki karta bağlar.
+ * `side="bottom"` → üstteki kartı alttaki satıra (soy) bağlar.
+ * Kart genişliği sabit olduğundan yatay bar, satırın uçlarındaki kart
+ * merkezleri arasına (HALF içeriden) yerleştirilir.
+ */
+function Connector({ count, side }: { count: number; side: "top" | "bottom" }) {
+  const barPos = side === "top" ? { top: 0 } : { bottom: 0 };
+  return (
+    <div className="relative self-stretch" style={{ height: STUB }} aria-hidden>
+      {count > 1 && (
+        <span
+          className="absolute h-px"
+          style={{ left: HALF, right: HALF, background: "var(--tree-edge)", ...barPos }}
+        />
+      )}
+      <span
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{ width: 1, height: STUB, top: 0, background: "var(--tree-edge)" }}
+      />
+    </div>
+  );
+}
+
+function PedigreeCard({
+  person,
+  isRoot,
+  selectedId,
+  onSelect,
+  onSetRoot,
+}: { person: Person; isRoot?: boolean } & BranchProps) {
+  const selected = person.id === selectedId;
+  const alt = secondaryName(person);
+
+  return (
+    <div className="group relative shrink-0" style={{ width: CARD_W }}>
       <button
-        onClick={() => onSelect(p.id)}
+        onClick={() => onSelect(person.id)}
         className={`
-          w-full h-[62px] flex items-center gap-2.5 px-2.5 rounded-xl text-left
-          bg-surface border-2 transition-all duration-150
+          w-full h-[64px] flex items-center gap-2.5 px-2.5 rounded-xl text-left
+          border-2 transition-all duration-150
+          ${isRoot ? "bg-primary-soft" : "bg-surface"}
           ${selected
-            ? "border-primary shadow-float"
+            ? "border-primary shadow-float ring-2 ring-primary/25"
+            : isRoot
+            ? "border-primary/50 shadow-card"
             : "border-border hover:border-border-strong shadow-soft hover:shadow-card"}
         `}
       >
-        <Avatar person={p} size="sm" />
+        <Avatar person={person} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-text truncate leading-tight">
-            {p.firstName}
+            {primaryName(person)}
           </p>
-          <p className="text-[11px] text-text-muted truncate leading-tight">{p.lastName}</p>
-          {lifeSpan(p.birthDate, p.deathDate) && (
+          {alt && <p className="text-[11px] text-text-muted truncate leading-tight">{alt}</p>}
+          {lifeSpan(person.birthDate, person.deathDate) && (
             <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
-              {lifeSpan(p.birthDate, p.deathDate)}
+              {lifeSpan(person.birthDate, person.deathDate)}
             </p>
           )}
         </div>
       </button>
 
-      <button
-        onClick={() => onSetRoot(p.id)}
-        title="Bu kişiyi kök yap"
-        className="
-          absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
-          grid place-items-center text-text-subtle hover:text-primary hover:border-primary
-          opacity-0 group-hover:opacity-100 transition-all
-        "
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" transform="rotate(45 12 12)" />
-        </svg>
-      </button>
+      {!isRoot && (
+        <button
+          onClick={() => onSetRoot(person.id)}
+          title="Bu kişiyi merkeze al"
+          className="
+            absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
+            grid place-items-center text-text-subtle hover:text-primary hover:border-primary
+            opacity-0 group-hover:opacity-100 transition-all
+          "
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" transform="rotate(45 12 12)" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

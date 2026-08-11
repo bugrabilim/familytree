@@ -145,6 +145,9 @@ interface Seed {
   ad: string;
   soyad: string;
   c: Gender;
+  /** lakap — "Topal", "Avcı"… adın önünde görünür */ lakap?: string;
+  /** baba adı (soyad yoksa) — açıkça verilmezse babadan türetilir */ patronim?: string;
+  /** cinsel yönelim */ yonelim?: string;
   /** doğum */ d?: string;
   /** ölüm */ o?: string;
   yer?: string;
@@ -164,11 +167,34 @@ interface Seed {
   /** ölüm nedeni */ olum?: string;
 }
 
+/**
+ * Soyadı Kanunu (1934) öncesi kuşakları soyadsız yapar: resmî soyad kaldırılır,
+ * gösterimde yerini babadan türetilen patronim ("Şaban oğlu") alır.
+ */
+function patronimik(seeds: Seed[]): Seed[] {
+  return seeds.map((s) => ({ ...s, soyad: "" }));
+}
+
 function build(seeds: Seed[]): Person[] {
+  const adOf = new Map(seeds.map((s) => [s.id, s.ad]));
+
+  /** Soyadı olmayan eski kayıtlar için babadan patronim türet. */
+  const patronimTuret = (s: Seed): string | undefined => {
+    if (s.patronim) return s.patronim;
+    if (s.soyad) return undefined;
+    // İlk ebeveyn baba kabul edilir (eski kuşaklarda baba adıyla anılırlar)
+    const babaAd = s.eb?.map((id) => adOf.get(id)).find(Boolean);
+    if (!babaAd) return undefined;
+    return `${babaAd} ${s.c === "female" ? "kızı" : "oğlu"}`;
+  };
+
   const people: Person[] = seeds.map((s) => ({
     id: s.id,
     firstName: s.ad,
     lastName: s.soyad,
+    nickname: s.lakap,
+    patronymic: patronimTuret(s),
+    orientation: s.yonelim,
     gender: s.c,
     birthDate: s.d,
     deathDate: s.o,
@@ -237,7 +263,7 @@ const K0B: Seed[] = [
     bio: "Bir yaşına varmadan öldü. Adı yalnızca mezar taşında.",
   },
   {
-    id: "k0b-rabia", ad: "Rabia", soyad: "Karamanoğlu", c: "female", d: "1564", yer: "Develi",
+    id: "k0b-rabia", ad: "Rabia", soyad: "Karamanoğlu", c: "female", d: "1564", o: "1632", yer: "Develi",
     eb: ["k0a-bali", "k0a-huma"], din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
     bio: "Ölüm tarihi bilinmiyor. Kayseri'ye gelin gittiği, sonrasının kaybolduğu söylenir.",
   },
@@ -265,7 +291,7 @@ const K0C: Seed[] = [
 const K0D: Seed[] = [
   {
     id: "k0d-osman", ad: "Osman", soyad: "Karaosmanoğlu", c: "male", d: "1625", o: "1698", yer: "Develi",
-    eb: ["k0c-mehmed", "k0c-dilsad"], din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
+    eb: ["k0c-mehmed", "k0c-dilsad"], lakap: "Kara", din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
     bio: "Ailenin \"Karaosmanoğlu\" diye anılması ondan gelir: esmerliği yüzünden \"Kara Osman\" derlerdi, çocukları da \"Kara Osman'ın oğulları\" olarak bilindi.\n\nDeğirmen taşını ilk o kurdurdu; iki kuşak sonra aile \"Değirmencioğlu\" olacaktı.",
   },
   { id: "k0d-mihriban", ad: "Mihriban", soyad: "Karaosmanoğlu", c: "female", d: "1633", o: "1702", yer: "Develi", es: ["k0d-osman"], din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı", bio: "Osman'ın eşi. Köyün ebesiydi; kırk yıl boyunca doğumlara girdi." },
@@ -312,7 +338,7 @@ const K1: Seed[] = [
 const K1B: Seed[] = [
   {
     id: "k1b-suleyman", ad: "Süleyman", soyad: "Değirmencioğlu", c: "male", d: "1712", o: "1779", yer: "Develi",
-    eb: ["k1-veli", "k1-ayse"], din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
+    eb: ["k1-veli", "k1-ayse"], lakap: "Topal", din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
     bio: "Aile bu kuşakta \"Karaosmanoğlu\"ndan \"Değirmencioğlu\"na döndü: artık esmerlikle değil, çevirdikleri değirmenle anılıyorlardı.\n\nDevelii'ye ikinci bir taş daha kurdurdu.",
   },
   {
@@ -343,7 +369,7 @@ const K1B: Seed[] = [
 const K2: Seed[] = [
   {
     id: "k2-ibrahim", ad: "İbrahim", soyad: "Değirmencioğlu", c: "male", d: "1764", o: "1831", yer: "Develi",
-    eb: ["k1b-suleyman", "k1b-serife"],
+    eb: ["k1b-suleyman", "k1b-serife"], lakap: "Değirmenci",
     bio: "Su değirmeni işlettiği için aile \"Değirmencioğlu\" diye anılmaya başladı. İki eşi vardı; her ikisinden de çocukları oldu. Tarihler tahminî.",
   },
   {
@@ -364,8 +390,8 @@ const K2: Seed[] = [
 const K3: Seed[] = [
   {
     id: "k3-mustafa", ad: "Mustafa", soyad: "Değirmencioğlu", c: "male", d: "1793", o: "1861", yer: "Develi",
-    eb: ["k2-ibrahim", "k2-zeliha"],
-    bio: "Değirmeni babasından devraldı. Okuma yazma bilirdi; aile kayıtlarını tutmaya başlayan ilk kişi.",
+    eb: ["k2-ibrahim", "k2-zeliha"], lakap: "Kâtip",
+    bio: "Değirmeni babasından devraldı. Okuma yazma bilirdi; aile kayıtlarını tutmaya başlayan ilk kişi. Bu yüzden \"Kâtip Mustafa\" derlerdi.",
   },
   {
     id: "k3-emine", ad: "Emine", soyad: "Değirmencioğlu", c: "female", d: "1799", o: "1870", yer: "Develi",
@@ -377,13 +403,13 @@ const K3: Seed[] = [
     bio: "Üç yaşında çiçek hastalığından vefat etti.",
   },
   {
-    id: "k3-fatma", ad: "Fatma", soyad: "Değirmencioğlu", c: "female", d: "1797", yer: "Develi",
+    id: "k3-fatma", ad: "Fatma", soyad: "Değirmencioğlu", c: "female", d: "1797", o: "1866", yer: "Develi",
     eb: ["k2-ibrahim", "k2-zeliha"],
     bio: "Ölüm tarihi bilinmiyor. Talas'a gelin gitti, sonrasının izi kaybolmuş.",
   },
   {
     id: "k3-huseyin", ad: "Hüseyin", soyad: "Değirmencioğlu", c: "male", d: "1806", o: "1878", yer: "Develi",
-    eb: ["k2-ibrahim", "k2-meryem"],
+    eb: ["k2-ibrahim", "k2-meryem"], lakap: "Avcı",
     es: ["k3-huseyin-es", "k3-huseyin-es2", "k3-huseyin-es3"],
     bio: "Meryem'den olan ilk çocuk. Ağabeyi Mustafa ile değirmen yüzünden yıllarca küs kaldılar.\n\nÜç eşi vardı; ailedeki ikinci çok eşli kuşak başı. Üçünden de çocukları oldu.",
   },
@@ -412,8 +438,8 @@ const K3: Seed[] = [
 const K4: Seed[] = [
   {
     id: "k4-ahmet", ad: "Ahmet", soyad: "Değirmencioğlu", c: "male", d: "1826", o: "1899", yer: "Develi",
-    eb: ["k3-mustafa", "k3-emine"],
-    bio: "Ailenin en çok anlatılan ismi. Dört eşi vardı ve dördü de aynı konakta yaşadı. On dört çocuğundan dokuzu yetişkinliğe ulaştı. Halı ticaretiyle zenginleşti, Kayseri'ye taşındı.",
+    eb: ["k3-mustafa", "k3-emine"], lakap: "Halıcı",
+    bio: "Ailenin en çok anlatılan ismi. Dört eşi vardı ve dördü de aynı konakta yaşadı. On dört çocuğundan dokuzu yetişkinliğe ulaştı. Halı ticaretiyle zenginleşti, Kayseri'ye taşındı; \"Halıcı Ahmet\" diye anılırdı.",
   },
   { id: "k4-hanife", ad: "Hanife", soyad: "Değirmencioğlu", c: "female", d: "1830", o: "1888", yer: "Develi", es: ["k4-ahmet"], bio: "Ahmet'in ilk eşi." },
   { id: "k4-rukiye", ad: "Rukiye", soyad: "Değirmencioğlu", c: "female", d: "1836", o: "1901", yer: "Kayseri", es: ["k4-ahmet"], bio: "Ahmet'in ikinci eşi. Okuma yazma bilir, konağın hesaplarını tutardı." },
@@ -679,7 +705,7 @@ const K8: Seed[] = [
     es: ["k8-aysel-es5"], eski: ["k8-aysel-es2", "k8-aysel-es3", "k8-aysel-es4"],
     bio: "Beş kez evlendi: ilk eşi genç yaşta vefat etti, üçünden boşandı, beşincisiyle otuz yıldır birlikte. İki farklı evliliğinden çocukları var.\n\n\"Her seferinde doğru olduğunu düşündüm, üçünde yanıldım\" diyor.",
   },
-  { id: "k8-aysel-es1", ad: "Kenan", soyad: "Toroslu", c: "male", d: "1953-09-14", o: "1981-06-03", yer: "Adana", es: ["k8-aysel"], bio: "Aysel'in ilk eşi. 1981'de trafik kazasında vefat etti; Aysel 24 yaşında dul kaldı." },
+  { id: "k8-aysel-es1", ad: "Kenan", soyad: "Toroslu", c: "male", d: "1953-09-14", o: "1981-06-03", yer: "Adana", eski: ["k8-aysel"], olum: "Trafik kazası", bio: "Aysel'in ilk eşi. 1981'de trafik kazasında vefat etti; Aysel 24 yaşında dul kaldı." },
   { id: "k8-aysel-es2", ad: "Nedim", soyad: "Alkan", c: "male", d: "1950-11-21", yer: "Mersin", bio: "Aysel'in ikinci eşi. 1983-1987." },
   { id: "k8-aysel-es3", ad: "Yılmaz", soyad: "Duran", c: "male", d: "1955-03-07", yer: "Adana", bio: "Aysel'in üçüncü eşi. 1989-1992." },
   { id: "k8-aysel-es4", ad: "Sinan", soyad: "Kaptan", c: "male", d: "1961-07-19", yer: "İskenderun", bio: "Aysel'in dördüncü eşi. 1993-1995." },
@@ -786,14 +812,14 @@ const K9: Seed[] = [
   { id: "k9-tolga-es", ad: "Sema", soyad: "Soydan", c: "female", d: "1983-09-18", yer: "Ankara" },
 
   // İstanbul (Turgut) kolu
-  { id: "k9-ozge", ad: "Özge", soyad: "Demirtaş", c: "female", d: "1987-04-05", yer: "İstanbul", eb: ["k8-hakan-t", "k8-hakan-es"] },
+  { id: "k9-ozge", ad: "Özge", soyad: "Demirtaş", c: "female", d: "1987-04-05", yer: "İstanbul", eb: ["k8-hakan-t", "k8-hakan-es"], yonelim: "Eşcinsel" },
   { id: "k9-mert", ad: "Mert", soyad: "Demirtaş", c: "male", d: "1990-12-13", yer: "İstanbul", eb: ["k8-hakan-t", "k8-hakan-es"], es: ["k9-mert-es"] },
   { id: "k9-mert-es", ad: "İrem", soyad: "Demirtaş", c: "female", d: "1993-01-29", yer: "İstanbul" },
 
   // Develi kolu
   { id: "k9-seda", ad: "Seda", soyad: "Ergin", c: "female", d: "1982-06-11", yer: "Develi", eb: ["k8-fatos", "k8-fatos-es"], es: ["k9-seda-es"] },
   { id: "k9-seda-es", ad: "Volkan", soyad: "Ergin", c: "male", d: "1978-10-26", yer: "Kayseri" },
-  { id: "k9-gokhan", ad: "Gökhan", soyad: "Yıldırım", c: "male", d: "1985-03-16", yer: "Develi", eb: ["k8-serpil", "k8-serpil-es"] },
+  { id: "k9-gokhan", ad: "Gökhan", soyad: "Yıldırım", c: "male", d: "1985-03-16", yer: "Develi", eb: ["k8-serpil", "k8-serpil-es"], es: ["l-mert-g"], eski: ["l-gokhan-es-eski"], yonelim: "Biseksüel" },
 
   { id: "k9-tunc", ad: "Tunç", soyad: "Toroslu", c: "male", d: "1980-02-11", yer: "Adana", eb: ["k8-aysel", "k8-aysel-es1"], bio: "Aysel'in ilk evliliğinden. Babası o bir yaşındayken öldü, hiç hatırlamıyor." },
   { id: "k9-pelin", ad: "Pelin", soyad: "Alkan", c: "female", d: "1985-06-24", yer: "Mersin", eb: ["k8-aysel", "k8-aysel-es2"], bio: "Aysel'in ikinci evliliğinden." },
@@ -892,7 +918,7 @@ const GOC: Seed[] = [
   {
     id: "g-abdi", ad: "Abdirahman", soyad: "Warsame", c: "male", d: "1983-02-17", yer: "Mogadişu, Somali",
     din: "İslam", mez: "Şafii", dil: "Somalice, Arapça, Türkçe", etnik: "Somali", uyruk: "Somali / Türkiye",
-    es: ["g-hodan", "k9-pelin"],
+    eb: ["g-warsame", "g-fadumo"], es: ["g-hodan", "k9-pelin"],
     bio: "2014'te iç savaştan kaçtı: Mogadişu'dan Hartum'a, oradan Libya üzerinden botla Ege'ye. Midilli'ye varamadı, Ayvalık'a çıktı.\n\nMersin'de tersanede kaynakçı olarak çalıştı, 2019'da Pelin ile evlendi, 2021'de vatandaşlığa geçti. Somali'deki eşi Hodan ve iki çocuğuyla bağını hiç koparmadı; her ay para gönderiyor, yılda bir kez gidiyor.\n\nİki ailesi birbirini biliyor. \"Kolay değil ama yalan da değil\" diyor.",
   },
   {
@@ -944,13 +970,13 @@ const LGBT: Seed[] = [
   /* --- Almanya'da evlenen eşcinsel çift, evlat edinmiş --- */
   {
     id: "l-tarik", ad: "Tarık", soyad: "Demirtaş", c: "male", d: "1989-04-12", yer: "Köln, Almanya",
-    eb: ["k8-erdal", "k8-erdal-es"], es: ["l-jonas"],
+    eb: ["k8-erdal", "k8-erdal-es"], es: ["l-jonas"], yonelim: "Eşcinsel",
     din: "İslam", dil: "Almanca, Türkçe", etnik: "Türk, Alman", uyruk: "Almanya / Türkiye",
     bio: "Burak ve Defne'nin ağabeyi. 2014'te Jonas ile birlikte oldu, Almanya'da eşcinsel evlilik yasallaşınca 2018'de evlendiler.\n\nBabası Erdal düğüne geldi, annesi Sabine nikâh şahidi oldu. Kayseri'deki akrabaların bir kısmı hâlâ \"ev arkadaşı\" diyor; Tarık düzeltmekten vazgeçti. \"Anlatmak benim işim değil, anlamak onların\" diyor.\n\nMimar; Köln'de bir ofisi var.",
   },
   {
     id: "l-jonas", ad: "Jonas", soyad: "Demirtaş-Vogel", c: "male", d: "1987-08-30", yer: "Bremen, Almanya",
-    din: "Protestanlık", mez: "Luteryen", dil: "Almanca, İngilizce", etnik: "Alman", uyruk: "Almanya",
+    yonelim: "Eşcinsel", din: "Protestanlık", mez: "Luteryen", dil: "Almanca, İngilizce", etnik: "Alman", uyruk: "Almanya",
     bio: "Tarık'ın eşi. Evlenince iki soyadını birleştirdiler. Müzik öğretmeni.\n\nTürkçeyi Kayseri'de geçirdiği yazlarda öğrendi; Erdal'ın annesi Gülizar ile Almanca değil Türkçe konuşurdu.",
   },
   {
@@ -967,7 +993,7 @@ const LGBT: Seed[] = [
   /* --- Kadın çift; biri önceki evliliğinden çocuklu, diğeri üvey ebeveyn --- */
   {
     id: "l-nihal", ad: "Nihal", soyad: "Aydemir", c: "female", d: "1985-02-19", yer: "İzmir",
-    es: ["k9-ozge"], eski: ["l-nihal-eski"],
+    es: ["k9-ozge"], eski: ["l-nihal-eski"], yonelim: "Eşcinsel",
     din: "İslam", mez: "Alevi", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "2008'de bir erkekle evlendi, 2015'te ayrıldı. Ayrılık sebebini uzun süre kimseye söylemedi.\n\n2017'de Özge ile tanıştı. Türkiye'de evlenemedikleri için 2021'de Hollanda'da nikâh kıydılar; burada resmî bir karşılığı yok. Oğlu Kaan onlarla yaşıyor.",
   },
@@ -990,7 +1016,7 @@ const LGBT: Seed[] = [
   },
   {
     id: "l-mert-g", ad: "Umut", soyad: "Erdoğdu", c: "male", d: "1990-01-27", yer: "Ankara",
-    es: ["k9-gokhan"],
+    es: ["k9-gokhan"], yonelim: "Eşcinsel",
     din: "İslam", mez: "Alevi", dil: "Türkçe", etnik: "Kürt", uyruk: "Türkiye",
     bio: "Gökhan'ın hayat arkadaşı. 2019'dan beri birlikteler, Ankara'da yaşıyorlar. Resmî bir bağları yok; noterde karşılıklı vasiyet ve vekâlet düzenlettiler — yapabildiklerinin tamamı bu.",
   },
@@ -998,13 +1024,13 @@ const LGBT: Seed[] = [
   /* --- Kayda geçmemiş bir ömür --- */
   {
     id: "l-nuri-t", ad: "Nuri", soyad: "Demirtaş", c: "male", d: "1931-03-08", o: "2007-11-19", yer: "Kayseri",
-    eb: ["k6-turgut", "k6-turgut-es"],
+    eb: ["k6-turgut", "k6-turgut-es"], yonelim: "Eşcinsel",
     din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Orhan'ın kardeşi. Hiç evlenmedi. Kırk üç yıl aynı evi Rauf Bey'le paylaştı; aile ona hep \"Nuri'nin arkadaşı\" dedi.\n\nİkisi de öğretmendi, birlikte emekli oldular, yan yana gömüldüler. Kimse yüksek sesle söylemedi ama herkes biliyordu.\n\nBu ağaçta ilk kez, olduğu gibi yazılıyor.",
   },
   {
     id: "l-rauf", ad: "Rauf", soyad: "Kandemir", c: "male", d: "1929-07-22", o: "2009-04-03", yer: "Sivas",
-    es: ["l-nuri-t"],
+    es: ["l-nuri-t"], yonelim: "Eşcinsel", olum: "Kalp yetmezliği",
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Nuri'nin ömürlük arkadaşı. Edebiyat öğretmeniydi. Nuri'nin ölümünden sonra iki yıl daha yaşadı; vasiyeti üzerine yan yana gömüldüler.",
   },
@@ -1019,7 +1045,7 @@ const LGBT: Seed[] = [
 const EK: Seed[] = [
   /* --- 5. kuşak (1850-1880) --- */
   { id: "e5-rifat", ad: "Rıfat", soyad: "Değirmencioğlu", c: "male", d: "1857", o: "1919", yer: "Kayseri", eb: ["k4-ahmet", "k4-rukiye"], din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
-  { id: "e5-hacer", ad: "Hacer", soyad: "Değirmencioğlu", c: "female", d: "1862", o: "1934", yer: "Kayseri", eb: ["k4-ahmet", "k4-serife"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
+  { id: "e5-hacer", ad: "Hacer", soyad: "Değirmencioğlu", c: "female", d: "1869", o: "1934", yer: "Kayseri", eb: ["k4-ahmet", "k4-serife"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
   { id: "e5-sukru", ad: "Şükrü", soyad: "Değirmencioğlu", c: "male", d: "1866", o: "1921", yer: "Develi", eb: ["k4-ismail", "k4-nazli"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
   { id: "e5-ummuhan", ad: "Ümmühan", soyad: "Değirmencioğlu", c: "female", d: "1871", o: "1948", yer: "Develi", eb: ["k4-ismail", "k4-nazli"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
   { id: "e5-salih", ad: "Salih", soyad: "Değirmencioğlu", c: "male", d: "1873", o: "1940", yer: "Adana", eb: ["k4-osman", "k4-hatice"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
@@ -1086,7 +1112,7 @@ const EK: Seed[] = [
   { id: "e5-kamil", ad: "Kâmil", soyad: "Değirmencioğlu", c: "male", d: "1876", o: "1943", yer: "Develi", eb: ["k4-ismail", "k4-nazli"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
   { id: "e4-zeliha2", ad: "Zeliha", soyad: "Değirmencioğlu", c: "female", d: "1832", o: "1901", yer: "Develi", eb: ["k3-mustafa", "k3-emine"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
   { id: "e4-bekir2", ad: "Bekir", soyad: "Değirmencioğlu", c: "male", d: "1841", o: "1907", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
-  { id: "e11-derin2", ad: "Derin", soyad: "Uysal", c: "female", d: "2025-08-03", yer: "İstanbul", eb: ["k10-kaan", "k10-kaan-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Ailenin bilinen en genç üyesi. On altı kuşak öncesine, 1521 doğumlu Bali'ye kadar uzanan bir çizginin bugünkü ucu." },
+  { id: "e11-derin2", ad: "Derin", soyad: "Uysal", c: "female", d: "2025-08-03", yer: "İstanbul", eb: ["k10-kaan", "k10-kaan-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Uysal kolunun en küçüğü. On altı kuşak öncesine, 1521 doğumlu Bali'ye kadar uzanan bir çizginin bugünkü ucu." },
 ];
 
 
@@ -1241,10 +1267,56 @@ const EK3: Seed[] = [
   },
 ];
 
+/* ================================================================
+   KADIN ÇOK EŞLİLİĞİ · KARMAŞIK EVLİLİK GEÇMİŞİ · BEŞ CANLI KUŞAK
+   ================================================================ */
+const EK4: Seed[] = [
+  /* --- 6) Aynı anda iki eşi olan kadın (poliamori) --- */
+  {
+    id: "ek-jale", ad: "Jale", soyad: "Demirtaş", c: "female", d: "1979-05-16", yer: "İstanbul",
+    eb: ["e8-ayhan", "e8-ayhan-es"], es: ["ek-jale-es1", "ek-jale-es2"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Aynı anda iki hayat arkadaşıyla, üçü de birbirini bilerek ve isteyerek yaşıyor. Biriyle resmî nikâhlı, diğeriyle bağı hukuken tanınmıyor.\n\n\"İnsan bir kişiyi sevince eksilmiyor, çoğalıyor\" diyor. Herkes kabul etmedi; kimi akraba görüşmeyi kesti, kimi zamanla alıştı.",
+  },
+  { id: "ek-jale-es1", ad: "Cengiz", soyad: "Demirtaş", c: "male", d: "1976-02-08", yer: "İstanbul", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Jale'nin resmî nikâhlı eşi. Ressam." },
+  { id: "ek-jale-es2", ad: "Deniz", soyad: "Aksoy", c: "male", d: "1982-10-22", yer: "İzmir", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Jale'nin diğer hayat arkadaşı. Müzisyen; üçü aynı evi paylaşıyor." },
+  { id: "ek-jale-c1", ad: "Ege", soyad: "Demirtaş", c: "male", d: "2010-07-03", yer: "İstanbul", eb: ["ek-jale", "ek-jale-es1"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Jale ile Cengiz'in oğlu. Evde üç yetişkinin de sözü geçiyor." },
+  { id: "ek-jale-c2", ad: "Ada", soyad: "Aksoy", c: "female", d: "2014-11-19", yer: "İstanbul", eb: ["ek-jale", "ek-jale-es2"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Jale ile Deniz'in kızı. Ağabeyi Ege'yle aynı evde büyüyor." },
+
+  /* --- 12) İç içe geçmiş evlilik geçmişi: evlilik dışı çocuk → evlilik →
+       boşanma → başka evlilik+çocuk → boşanma → ilk eşle yeniden evlilik+çocuk --- */
+  {
+    id: "ek-sema", ad: "Sema", soyad: "Ergin", c: "female", d: "1980-03-11", yer: "Ankara",
+    eb: ["k8-fatos", "k8-fatos-es"], es: ["ek-sema-kerem"], eski: ["ek-sema-tolga"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Karmaşık bir yol: 2001'de, hiç evlenmeden ilk çocuğu oldu. 2003'te Kerem'le evlendi, 2008'de boşandılar. 2010'da Tolga'yla evlendi, bir çocukları oldu, 2016'da o da bitti.\n\n2019'da yeniden Kerem'le evlendi — \"araya on bir yıl ve iki evlilik girdi, dönüp yine onu buldum\" diyor. Üçüncü çocuğu bu ikinci Kerem evliliğinden.",
+  },
+  { id: "ek-sema-kerem", ad: "Kerem", soyad: "Ergin", c: "male", d: "1978-09-24", yer: "Ankara", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Sema'nın hem ilk (2003-2008) hem de son (2019-) eşi. Arada başkalarıyla evliydiler; sonunda yine birbirlerini seçtiler." },
+  { id: "ek-sema-tolga", ad: "Tolga", soyad: "Kaya", c: "male", d: "1976-12-30", yer: "Eskişehir", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Sema'nın ikinci eşi (2010-2016). Ayrılıkları medeni oldu; kızları iki evi de görüyor." },
+  { id: "ek-sema-c1", ad: "Doğa", soyad: "Ergin", c: "female", d: "2001-06-18", yer: "Ankara", eb: ["ek-sema"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Sema'nın evlilik öncesi ilk çocuğu. Babası kayıtlarda yok; annesinin soyadını taşıyor." },
+  { id: "ek-sema-c2", ad: "Poyraz", soyad: "Kaya", c: "male", d: "2012-04-09", yer: "Ankara", eb: ["ek-sema", "ek-sema-tolga"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Sema ile Tolga'nın oğlu." },
+  { id: "ek-sema-c3", ad: "Roza", soyad: "Ergin", c: "female", d: "2021-02-14", yer: "Ankara", eb: ["ek-sema", "ek-sema-kerem"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Sema ile Kerem'in, yeniden evliliklerinden olan kızı." },
+
+  /* --- 13) Beş canlı kuşağı gören ata (torununun torununun çocuğunu gördü) --- */
+  {
+    id: "ek-zubeyde", ad: "Zübeyde", soyad: "Yıldırım", c: "female", d: "1919-03-02", yer: "Develi",
+    eb: ["k6-sadik", "k6-sadik-es"], es: ["ek-zubeyde-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Yüz yedi yaşında ve hâlâ hayatta. Torununun torununun çocuğunu — beşinci kuşağı — kucağına aldı; ailede bunu gören ilk kişi.\n\n\"Dört kuşak ölür sanırdım, beşincisini görmek nasip oldu\" diyor. Her sabah çayını kendi demliyor.",
+  },
+  { id: "ek-zubeyde-es", ad: "Rıza", soyad: "Yıldırım", c: "male", d: "1913-08-19", o: "1998-05-07", yer: "Develi", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", olum: "Yaşlılık", bio: "Zübeyde'nin eşi. Elli yıl demiryolunda çalıştı." },
+  { id: "ek-z1", ad: "Nadire", soyad: "Yıldırım", c: "female", d: "1939-11-12", yer: "Develi", eb: ["ek-zubeyde", "ek-zubeyde-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Zübeyde'nin kızı. Seksen yedi yaşında; annesiyle hâlâ birlikte oturuyor." },
+  { id: "ek-z2", ad: "Gülten", soyad: "Acar", c: "female", d: "1961-05-28", yer: "Kayseri", eb: ["ek-z1"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Nadire'nin kızı; Zübeyde'nin torunu. Emekli ebe." },
+  { id: "ek-z3", ad: "Pınar", soyad: "Acar", c: "female", d: "1983-09-07", yer: "Kayseri", eb: ["ek-z2"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Gülten'in kızı. Zübeyde'nin torununun kızı." },
+  { id: "ek-z4", ad: "Ceylin", soyad: "Acar", c: "female", d: "2004-12-01", yer: "İstanbul", eb: ["ek-z3"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Pınar'ın kızı. Zübeyde'nin torununun torunu." },
+  { id: "ek-z5", ad: "Bade", soyad: "Acar", c: "female", d: "2025-04-20", yer: "İstanbul", eb: ["ek-z4"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Ceylin'in kızı. Zübeyde'nin beşinci kuşağı; büyük büyük büyük anneannesi onu kucağına aldı." },
+];
+
 export const DEMO_PEOPLE: Person[] = build([
-  ...K0A, ...K0B, ...K0C, ...K0D,
-  ...K1, ...K1B, ...K2, ...K3, ...K4, ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
-  ...GOC, ...LGBT, ...EK, ...EK2, ...EK3,
+  // Soyadı Kanunu (1934) öncesi kuşaklar — soyadsız, patronim + lakapla anılır
+  ...patronimik([...K0A, ...K0B, ...K0C, ...K0D, ...K1, ...K1B, ...K2, ...K3, ...K4]),
+  ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
+  ...GOC, ...LGBT, ...EK, ...EK2, ...EK3, ...EK4,
 ]);
 
 export const DEMO_FAMILY_NAME = "Demirtaş";
