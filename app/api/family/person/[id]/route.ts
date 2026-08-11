@@ -38,6 +38,7 @@ export async function PUT(
     healthCondition: body.healthCondition ?? data.people[index].healthCondition,
     deathCause: body.deathCause ?? data.people[index].deathCause,
     photo: body.photo ?? data.people[index].photo,
+    photos: Array.isArray(body.photos) ? body.photos : data.people[index].photos,
     bio: body.bio ?? data.people[index].bio,
     events: Array.isArray(body.events) ? body.events : data.people[index].events,
     parentIds: Array.isArray(body.parentIds)

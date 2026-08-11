@@ -62,6 +62,7 @@ export default function PersonForm({
   onSaved,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     firstName: initial?.firstName ?? "",
@@ -75,6 +76,7 @@ export default function PersonForm({
     birthPlace: initial?.birthPlace ?? "",
     bio: initial?.bio ?? "",
     photo: initial?.photo ?? "",
+    photos: (initial?.photos ?? []) as string[],
     religion: initial?.religion ?? "",
     denomination: initial?.denomination ?? "",
     language: initial?.language ?? "",
@@ -101,6 +103,7 @@ export default function PersonForm({
 
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [avatarSecici, setAvatarSecici] = useState(false);
@@ -146,6 +149,31 @@ export default function PersonForm({
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
+  /** Galeriye birden çok fotoğraf yükle — her dosya mevcut yükleyiciyle gider. */
+  const handleGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setGalleryUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        urls.push(await uploadPhoto(file));
+      }
+      setForm((f) => ({ ...f, photos: [...f.photos, ...urls] }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, form: (err as Error).message }));
+    } finally {
+      setGalleryUploading(false);
+      if (galleryRef.current) galleryRef.current.value = "";
+    }
+  };
+
+  const removeGalleryPhoto = (url: string) =>
+    setForm((f) => ({ ...f, photos: f.photos.filter((u) => u !== url) }));
+
+  /** Galerideki bir fotoğrafı kapak (avatar) yap. */
+  const setCover = (url: string) => set("photo", url);
 
   const addEvent = () =>
     setEvents((es) => [
@@ -226,6 +254,7 @@ export default function PersonForm({
       deathCause: form.deathCause.trim() || undefined,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
+      photos: form.photos.length ? form.photos : undefined,
       events: builtEvents,
     };
 
@@ -346,6 +375,83 @@ export default function PersonForm({
             </div>
           </div>
         )}
+
+        {/* Galeri — birden çok fotoğraf */}
+        <div className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-medium text-text">
+              Galeri
+              {form.photos.length > 0 && (
+                <span className="ml-1.5 text-primary">· {form.photos.length}</span>
+              )}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => galleryRef.current?.click()}
+              disabled={galleryUploading}
+            >
+              {galleryUploading ? "Yükleniyor…" : "Fotoğraf ekle"}
+            </Button>
+          </div>
+
+          {form.photos.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">
+              Kişiye ait birden fazla fotoğraf ekleyebilirsin. Herhangi birini
+              kapak (avatar) yapabilirsin.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {form.photos.map((src) => {
+                const isCover = form.photo === src;
+                return (
+                  <div
+                    key={src}
+                    className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      isCover ? "border-primary ring-2 ring-primary/30" : "border-border"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeGalleryPhoto(src)}
+                      aria-label="Fotoğrafı kaldır"
+                      className="absolute top-0.5 right-0.5 w-5 h-5 grid place-items-center rounded-md bg-black/55 text-white hover:bg-danger transition-colors"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden>
+                        <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    {isCover ? (
+                      <span className="absolute bottom-0 inset-x-0 bg-primary/85 text-white text-[9px] font-medium text-center py-0.5">
+                        Kapak
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setCover(src)}
+                        className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[9px] font-medium text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
+                      >
+                        Kapak yap
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <input
+            ref={galleryRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleGallery}
+          />
+        </div>
       </div>
 
       {/* Lakap — eski kuşaklar için */}
@@ -746,7 +852,7 @@ export default function PersonForm({
       )}
 
       <div className="flex gap-2 pt-1">
-        <Button type="submit" disabled={saving || uploading} full>
+        <Button type="submit" disabled={saving || uploading || galleryUploading} full>
           {saving ? "Kaydediliyor…" : personId ? "Güncelle" : "Kaydet"}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel}>

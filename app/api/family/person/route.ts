@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     healthCondition: body.healthCondition || undefined,
     deathCause: body.deathCause || undefined,
     photo: body.photo || undefined,
+    photos: Array.isArray(body.photos) ? body.photos : undefined,
     bio: body.bio || undefined,
     events: Array.isArray(body.events) ? body.events : undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],

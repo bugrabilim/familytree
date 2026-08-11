@@ -28,6 +28,7 @@ export interface PersonPayload {
   healthCondition?: string;
   deathCause?: string;
   photo?: string;
+  photos?: string[];
   bio?: string;
   events?: LifeEvent[];
   parentIds?: string[];

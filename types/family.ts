@@ -66,6 +66,12 @@ export interface Person {
   deathDate?: string;
   birthPlace?: string;
   photo?: string;
+  /**
+   * Galeri — kişiye ait birden çok fotoğrafın URL listesi. `photo` alanı
+   * kapak (avatar) olarak kalır; geri uyumluluk için ayrı tutulur. Galeriden
+   * herhangi bir fotoğraf kapak yapılabilir.
+   */
+  photos?: string[];
   bio?: string;
   /* --- Kimlik ve aidiyet (hepsi isteğe bağlı) ---
      Soy ağaçlarında sıkça kaydedilen bilgiler. "ırk" yerine "etnik köken"
