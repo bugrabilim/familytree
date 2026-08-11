@@ -500,6 +500,18 @@ export interface FamilyStats {
   oldestBirthYear?: number;
   surnames: Array<{ name: string; count: number }>;
   unlinked: number;
+  /** Süregelen evlilik sayısı (benzersiz çift) */
+  marriages: number;
+  /** Boşanmayla biten evlilik sayısı (benzersiz çift) */
+  divorces: number;
+  /** Vefat edenlerin ortalama ömrü (yıl) */
+  avgLifespan?: number;
+  /** Yaşayanların en yaşlısının yaşı */
+  oldestLivingAge?: number;
+  /** En çok görülen doğum yeri */
+  topBirthPlace?: { name: string; count: number };
+  /** En kalabalık kardeş grubu */
+  largestSibship: number;
 }
 
 export function computeStats(people: Person[]): FamilyStats {
@@ -549,6 +561,56 @@ export function computeStats(people: Person[]): FamilyStats {
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 
+  // Evlilik / boşanma çiftleri (benzersiz)
+  const evli = new Set<string>();
+  const bosanmis = new Set<string>();
+  for (const p of people) {
+    for (const sid of p.spouseIds) if (idx.has(sid)) evli.add([p.id, sid].sort().join("|"));
+    for (const sid of p.formerSpouseIds ?? []) if (idx.has(sid)) bosanmis.add([p.id, sid].sort().join("|"));
+  }
+
+  // Ömür ortalaması (vefat edenler) ve en yaşlı yaşayan
+  const yil = (d?: string) => (d ? Number(d.slice(0, 4)) : NaN);
+  let omurTop = 0;
+  let omurN = 0;
+  let oldestLivingAge: number | undefined;
+  const buYil = new Date().getFullYear();
+  for (const p of people) {
+    const b = yil(p.birthDate);
+    const d = yil(p.deathDate);
+    if (!Number.isNaN(b) && !Number.isNaN(d) && d >= b) {
+      omurTop += d - b;
+      omurN++;
+    }
+    if (!p.deathDate && !Number.isNaN(b)) {
+      const yas = buYil - b;
+      if (yas >= 0 && yas < 125 && (oldestLivingAge === undefined || yas > oldestLivingAge)) {
+        oldestLivingAge = yas;
+      }
+    }
+  }
+
+  // En sık doğum yeri
+  const yerMap = new Map<string, number>();
+  for (const p of people) {
+    const y = p.birthPlace?.trim();
+    if (y) yerMap.set(y, (yerMap.get(y) ?? 0) + 1);
+  }
+  let topBirthPlace: { name: string; count: number } | undefined;
+  for (const [name, count] of yerMap) {
+    if (!topBirthPlace || count > topBirthPlace.count) topBirthPlace = { name, count };
+  }
+
+  // En kalabalık kardeş grubu (aynı ebeveyn kümesi)
+  const kardesMap = new Map<string, number>();
+  for (const p of people) {
+    if (p.parentIds.length === 0) continue;
+    const key = [...p.parentIds].sort().join("|");
+    kardesMap.set(key, (kardesMap.get(key) ?? 0) + 1);
+  }
+  let largestSibship = 0;
+  for (const n of kardesMap.values()) if (n > largestSibship) largestSibship = n;
+
   return {
     total: people.length,
     male,
@@ -559,5 +621,11 @@ export function computeStats(people: Person[]): FamilyStats {
     oldestBirthYear,
     surnames,
     unlinked,
+    marriages: evli.size,
+    divorces: bosanmis.size,
+    avgLifespan: omurN ? Math.round(omurTop / omurN) : undefined,
+    oldestLivingAge,
+    topBirthPlace,
+    largestSibship,
   };
 }

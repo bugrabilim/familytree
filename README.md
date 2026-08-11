@@ -10,9 +10,9 @@ farklı açıdan bakarsın:
 | Görünüm | Ne gösterir |
 |---|---|
 | **Ağaç** | Seçili kişinin çevresi; eşler yan yana, çocuklar altta (dagre + birlik düğümü). Kuşak derinliği ayarlanır: 2–8 kuşak, tüm akrabalar ya da herkes |
-| **Soy** | Seçilen kişinin doğrudan ata çizgisi, klasik şecere tablosu (2–6 kuşak) |
+| **Soy** | Seçilen kişi **merkezde**; yukarı atalar, aşağı torunlar — kum saati şeceresi (seçilen kuşak kadar geri ve ileri) |
 | **Liste** | Herkes; arama, sıralama ve "yaşayan / vefat / bağsız" süzgeçleri |
-| **Panel** | Özet sayılar, yaklaşan doğum günleri, akrabalık hesaplayıcı |
+| **Panel** | Genişletilmiş istatistikler, yaklaşan doğum günleri, akrabalık hesaplayıcı ve "kişinin tüm akrabaları" bulucu (ör. birinin halası kim) |
 
 **Akrabalık ağaç üzerinden kurulur.** Kişi ekleyip sonra kutucuk işaretlemek
 yerine, kartın kenarındaki `+` düğmesine basıp doğrudan "anne ekle", "eş ekle",
@@ -20,7 +20,9 @@ yerine, kartın kenarındaki `+` düğmesine basıp doğrudan "anne ekle", "eş 
 
 **Türkçe akrabalık hesabı.** Amca mı dayı mı, hala mı teyze mi, babaanne mi
 anneanne mi — uygulama iki kişi arasındaki en kısa yolu bulup doğru terimi
-üretir; iyelik ve ilgi ekleriyle birlikte: *"Deniz'in büyük halası"*.
+üretir; iyelik ve ilgi ekleriyle birlikte: *"Deniz'in büyük halası"*. Panelde
+bir kişiyi seçip "hala" yazarak o kişinin bütün halalarını tek tıkla
+bulabilirsin.
 
 **Verin sende kalır.** GEDCOM (`.ged`) ile içe/dışa aktarım — MyHeritage,
 Ancestry, FamilySearch, Gramps ve diğerleriyle uyumlu.
@@ -50,7 +52,12 @@ Kendi hesabına yüklemek istersen: menüden **GEDCOM aktar / al → Demo ağac�
 yükle**.
 
 İçinde neler var: Osmanlı klasik çağından tahrir defteri kayıtları; Soyadı
-Kanunu öncesi lakaplar ve 1934'te farklı soyadı seçen kardeşler; dört ve üç
+Kanunu öncesi kuşaklar soyadsız — baba adıyla ("Turgud oğlu Mehmed") ve
+lakapla ("Topal Süleyman", "Avcı Hüseyin") anılır; 1934'te farklı soyadı
+seçen kardeşler; aynı anda iki hayat arkadaşıyla yaşayan bir kadın;
+evlenmeden çocuğu olup sonra evlenen, boşanan ve ilk eşiyle yeniden evlenen
+biri; torununun torununun çocuğunu gören 107 yaşında bir nine (beş canlı
+kuşak); dört ve üç
 eşli iki kuşak başı; altı kez evlenip beşinden boşanan biri ve beş evlilik
 yapan bir kadın; birinci, ikinci ve üçüncü dereceden kuzen evlilikleri; savaş
 ve deprem yetimi evlat edinmeleri; tarihsel "evlatlık" kurumu; evlatlıktan
@@ -100,7 +107,8 @@ components/
   PersonForm.tsx          Ekleme / düzenleme formu
   ui/                     Avatar, Button, Modal
 lib/
-  relations.ts            Akrabalık hesabı + Türkçe ek çekimi
+  relations.ts            Akrabalık hesabı + Türkçe ek çekimi + istatistik
+  name.ts                 Ad gösterimi (lakap + patronim + soyad)
   date.ts                 Türkçe tarih ayrıştırma / doğrulama / yaş
   gedcom.ts               GEDCOM ayrıştırıcı ve üretici
   actions.ts              İstemci API sarmalayıcıları

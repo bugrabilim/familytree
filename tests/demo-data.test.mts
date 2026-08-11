@@ -1,5 +1,5 @@
 import { DEMO_PEOPLE } from "../lib/demo-data.ts";
-import { computeStats, indexPeople, ancestorDepths } from "../lib/relations.ts";
+import { computeStats, indexPeople, ancestorDepths, descendantDepths } from "../lib/relations.ts";
 import { generateAvatar } from "../lib/avatar.ts";
 
 const P = DEMO_PEOPLE;
@@ -221,5 +221,56 @@ for (const cid of COK_GENC_ANNE) {
   if (anne && tekEbeveyn && evlilikYok && yas < 14) cokGencAnne.push(`${anne.firstName} ${yas} yaşında`);
 }
 kontrol("Çok erken yaşta annelik (evlilik dışı)", cokGencAnne.length >= 2, cokGencAnne.join(", "));
+
+// --- Soyadı Kanunu öncesi: soyadsız + patronim, lakaplar ---
+const soyadsiz = P.filter(p => !p.lastName?.trim());
+const patronimli = soyadsiz.filter(p => p.patronymic);
+const lakapli = P.filter(p => p.nickname);
+kontrol("Soyadsız eski kuşak", soyadsiz.length >= 20, `${soyadsiz.length} kişi`);
+kontrol("Patronim türetildi", patronimli.length >= 15,
+  patronimli.slice(0, 4).map(p => `${p.firstName} (${p.patronymic})`).join(", "));
+kontrol("Lakap (Topal/Avcı…)", lakapli.length >= 4,
+  lakapli.map(p => `${p.nickname} ${p.firstName}`).join(", "));
+
+// --- Cinsel yönelim kayıtlı ---
+const yonelimli = P.filter(p => p.orientation);
+kontrol("Cinsel yönelim kayıtlı", yonelimli.length >= 6,
+  yonelimli.map(p => `${p.firstName}: ${p.orientation}`).join(" · "));
+
+// --- Aynı anda çok eşli kadın ---
+const cokEsliKadin = P.filter(p => p.gender === "female" && p.spouseIds.length >= 2);
+kontrol("Aynı anda çok eşli kadın", cokEsliKadin.length >= 1,
+  cokEsliKadin.map(p => `${p.firstName} (${p.spouseIds.length} eş)`).join(", "));
+
+// --- Boşanıp yeniden evlenen kadın (hem eski hem güncel eşi olan) ---
+const bosanipEvlenenKadin = P.filter(
+  p => p.gender === "female" && p.spouseIds.length >= 1 && (p.formerSpouseIds ?? []).length >= 1
+);
+kontrol("Boşanıp yeniden evlenen kadın", bosanipEvlenenKadin.length >= 1,
+  bosanipEvlenenKadin.map(p => p.firstName).join(", "));
+
+// --- Karmaşık evlilik geçmişi: aynı kişiyle iki kez evli (Sema–Kerem) ---
+const sema = idx.get("ek-sema");
+kontrol("İç içe evlilik karakteri", !!sema && sema.spouseIds.includes("ek-sema-kerem") && (sema.formerSpouseIds ?? []).includes("ek-sema-tolga"),
+  sema ? `${sema.spouseIds.length} güncel, ${(sema.formerSpouseIds ?? []).length} eski eş` : "yok");
+
+// --- Beş canlı kuşak: yaşayan bir kişi, 5 kuşak altındaki yaşayan torununu görüyor; yaş ≤ 110 ---
+const buYil = 2026;
+const yasar = (p: typeof P[number]) => !p.deathDate;
+let besKusak = "";
+for (const p of P) {
+  if (!yasar(p)) continue;
+  const b = yil(p.birthDate);
+  if (!b || buYil - b > 110) continue;
+  const soy = descendantDepths(p.id, P);
+  const derinYasayan = [...soy.entries()].some(([id, d]) => d >= 5 && yasar(idx.get(id)!));
+  if (derinYasayan) { besKusak = `${p.firstName} (${buYil - b} yaş)`; break; }
+}
+kontrol("Beş canlı kuşağı gören (≤110)", !!besKusak, besKusak);
+
+// --- Kimse 110 yaşını geçmiyor (yaşayanlar) ---
+const cokYasli = P.filter(p => !p.deathDate && yil(p.birthDate) && buYil - yil(p.birthDate)! > 110);
+kontrol("Yaşayan kimse 110'u geçmiyor", cokYasli.length === 0,
+  cokYasli.map(p => `${p.firstName} ${buYil - yil(p.birthDate)!}`).join(", ") || "tamam");
 
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

@@ -252,7 +252,9 @@ export default function Workspace({
               people={treePeople}
               selectedId={selectedId}
               focusId={treeFocusId}
+              depth={treeDepth}
               onSelect={setSelectedId}
+              onDeselect={() => setSelectedId(undefined)}
               onQuickAdd={openQuickAdd}
             />
             <TreeDepthControl
@@ -407,8 +409,7 @@ function TreeDepthControl({
 
   const sayilar = [2, 3, 4, 5, 6, 7, 8];
   const metinler: Array<{ d: number; l: string; ipucu: string }> = [
-    { d: -1, l: "Tümü", ipucu: "Bu kişinin bağlı olduğu herkes — bütün atalar, tüm soy ve aradaki dallar" },
-    { d: 0, l: "Herkes", ipucu: "Ağaçtaki bütün kayıtlar, bağlı olmayanlar dahil" },
+    { d: 0, l: "Tümü", ipucu: "Ağaçtaki bütün kayıtlar — kuşak sınırı olmadan herkes" },
   ];
 
   return (
