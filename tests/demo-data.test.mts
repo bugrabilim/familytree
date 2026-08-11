@@ -41,7 +41,9 @@ for (const p of P) {
     const pb = yil(par.birthDate);
     if (kanBagi && pb && b) {
       const fark = b - pb;
-      if (fark < 13) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı`);
+      // 14 tabanı bilinçli: demoda erken yaşta ebeveynlik örnekleri var
+      // (en genci 15), ama altına inen her şey veri hatasıdır.
+      if (fark < 14) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı`);
       if (fark > 65) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı fazla`);
     }
     const pd = yil(par.deathDate);
@@ -139,5 +141,52 @@ kontrol("Yurt dışı aileler", yabanci.length >= 12, [...new Set(yabanci.map(p=
 kontrol("Eşcinsel evlilik/birliktelik", escinsel.length >= 4, escinsel.map(p=>p.firstName).join(", "));
 kontrol("Üvey ebeveyn", uvey.length >= 1, uvey.map(p=>p.firstName).join(", "));
 kontrol("Akraba evliliği", akrabaEvlilik.length >= 2, akrabaEvlilik.join(", "));
+
+// --- Soyadı tercihleri: kadının soyadını alan koca, kızlık soyadını koruyan
+//     kadın, çift soyad ---
+// Soyadın kimden geldiği veri modelinde tutulmuyor (biyografide anlatılıyor),
+// bu yüzden "kocanın eşinin soyadını alması" yapısal olarak çıkarılamıyor:
+// aynı soyadı paylaşan çiftlerin çoğu akraba evliliği. Bilinen örneği
+// kimliğiyle doğruluyoruz; eşleri gerçekten aynı soyadı taşıyor mu diye.
+const kocaSoyadiAldi = ["s-yasemin-es"].map(i => idx.get(i));
+kontrol(
+  "Eşinin soyadını alan koca",
+  kocaSoyadiAldi.every(p => p && p.spouseIds.some(s => idx.get(s)?.lastName === p.lastName)),
+  kocaSoyadiAldi.map(p => p ? ad(p) : "eksik").join(", ")
+);
+
+// Kızlık soyadını koruyan kadın: eşiyle soyadı tutmayan evli kadınlar.
+// (Soyadı Kanunu öncesi kuşaklarda soyad zaten lakaptı, onları eliyoruz.)
+const kizlikSoyadi = P.filter(p => {
+  if (p.gender !== "female" || p.spouseIds.length === 0) return false;
+  const b = yil(p.birthDate);
+  if (!b || b < 1910) return false;
+  return p.spouseIds.every(sid => idx.get(sid)?.lastName !== p.lastName);
+});
+const ciftSoyad = P.filter(p => p.lastName.trim().includes(" "));
+kontrol("Kızlık soyadını koruyan kadın", kizlikSoyadi.length >= 1,
+  kizlikSoyadi.map(p => ad(p)).join(", "));
+kontrol("Çift soyad", ciftSoyad.length >= 1, ciftSoyad.map(p => ad(p)).join(", "));
+
+// --- Engellilik / sağlık notu ---
+const saglikNotu = P.filter(p => p.healthNote);
+const dogustan = saglikNotu.filter(p => /doğuştan|sendrom/i.test(p.healthNote!));
+kontrol("Sağlık / engellilik notu", saglikNotu.length >= 5,
+  saglikNotu.map(p => `${p.firstName}: ${p.healthNote}`).join(" · "));
+kontrol("Doğuştan gelen durumlar", dogustan.length >= 2,
+  dogustan.map(p => p.firstName).join(", "));
+
+// --- Erken yaşta ebeveynlik (18 yaş altı, kan bağı) ---
+const gencEbeveyn: string[] = [];
+for (const p of P) {
+  const b = yil(p.birthDate); if (!b) continue;
+  for (const pid of p.parentIds) {
+    const par = idx.get(pid); if (!par) continue;
+    const kanBagi = !p.parentLinks?.[pid]?.kind || p.parentLinks[pid].kind === "biological";
+    const pb = yil(par.birthDate);
+    if (kanBagi && pb && b - pb < 18) gencEbeveyn.push(`${ad(par)} ${b - pb} yaşında`);
+  }
+}
+kontrol("Erken yaşta ebeveynlik", gencEbeveyn.length >= 3, gencEbeveyn.join(", "));
 
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

@@ -114,7 +114,17 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 
 - **Gerçek dünya karmaşıklığı:** çok eşlilik, boşanma (`formerSpouseIds`),
   akraba evliliği, evlat edinme, ikili olmayan cinsiyet (`gender: "other"`),
-  bilinmeyen tarih ve cinsiyet
+  bilinmeyen tarih ve cinsiyet, erken yaşta ebeveynlik
+- **Soyadı çeşitliliği:** demo, kadının kızlık soyadını sürdürmesini, eşine
+  kendi soyadını vermesini ve çift soyad kullanmasını içerir. (Not: soyadın
+  kimden geldiği veri modelinde ayrı tutulmaz, biyografide anlatılır — GEDCOM
+  uyumu için `lastName` tek alan olarak kalır.)
+- **Sağlık / engellilik notu** (`healthNote`) — kalıtsal durumları izlemek
+  isteyen aileler için isteğe bağlı, tek satırlık bir alan; drawer'da ayrı ve
+  sade gösterilir. Demo Down sendromu, doğuştan görme/işitme engeli, uzuv
+  eksikliği, çocuk felci ve otizm örnekleri içerir. (GEDCOM'a henüz
+  yazılmıyor — din/dil/etnik/uyruk alanları gibi bu da dışa aktarımda
+  taşınmıyor; ileride `1 NOTE` etiketleriyle eklenebilir.)
 - **Ağaçta kuşak derinliği denetimi** — yüzlerce kişilik ağaçlarda okunabilirlik
 - **Evlat edinme / koruyucu aile / üvey bağ ayrımı** ve **kopan ilişkiler**
   (`parentLinks`): evlatlıktan reddetme ve ebeveyni reddetme bağı silmez,

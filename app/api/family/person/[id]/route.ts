@@ -31,6 +31,7 @@ export async function PUT(
     language: body.language ?? data.people[index].language,
     ethnicity: body.ethnicity ?? data.people[index].ethnicity,
     nationality: body.nationality ?? data.people[index].nationality,
+    healthNote: body.healthNote ?? data.people[index].healthNote,
     photo: body.photo ?? data.people[index].photo,
     bio: body.bio ?? data.people[index].bio,
     parentIds: Array.isArray(body.parentIds)

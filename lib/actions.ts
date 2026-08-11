@@ -21,6 +21,7 @@ export interface PersonPayload {
   language?: string;
   ethnicity?: string;
   nationality?: string;
+  healthNote?: string;
   photo?: string;
   bio?: string;
   parentIds?: string[];

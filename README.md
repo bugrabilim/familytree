@@ -27,9 +27,13 @@ Ancestry, FamilySearch, Gramps ve diğerleriyle uyumlu.
 
 **Gerçek hayat karmaşıktır.** Çok eşlilik, boşanma, akraba evliliği, evlat
 edinme, koruyucu aile, evlatlıktan reddetme, ikili olmayan cinsiyet
-kimlikleri ve bilinmeyen tarihler veri modelinde yerini bulur — hepsi
-zorlama olmadan. Kopan ilişkiler bağı silmez; ağaçta durur, yalnızca not
-düşülür.
+kimlikleri, erken yaşta ebeveynlik ve bilinmeyen tarihler veri modelinde
+yerini bulur — hepsi zorlama olmadan. Kopan ilişkiler bağı silmez; ağaçta
+durur, yalnızca not düşülür. Soyadı da tek kalıba sığmaz: kadın kızlık
+soyadını sürdürebilir, eşine kendi soyadını verebilir ya da çift soyad
+kullanabilir. Kalıtsal durumları izlemek isteyen aileler için isteğe bağlı
+bir **sağlık notu** alanı vardır — kişiyi tanımlayan değil, hakkında bilinen
+sade bir satır.
 
 Ayrıca: koyu/açık tema, `⌘K` ile anlık arama, mobilde alttan açılan paneller,
 Türkçe tarih girişi (`GG.AA.YYYY` ya da sadece `YYYY`) ve otomatik yaş hesabı.
@@ -53,7 +57,10 @@ reddedilenler ve ebeveynini reddedenler; Çanakkale ve Sakarya kayıpları;
 Selanik ve Filibe'den muhacirlik; Almanya'ya işçi göçü; **Somali, Venezuela
 ve Gana'dan düzensiz göçle gelenler ve memleketteki aileleri**; eşcinsel ve
 biseksüel hayatlar; interseks, trans ve ikili olmayan bireyler; bebek
-ölümleri.
+ölümleri; kızlık soyadını koruyan, eşine soyadını veren ve çift soyad taşıyan
+kadınlar; Down sendromu, doğuştan görme ve işitme engeli, uzuv eksikliği,
+çocuk felci ve otizm gibi durumlarla yaşayanlar; on dörtlü yaşlarda anne
+olanlar.
 
 Herkesin bir hikâyesi, herkesin bir avatarı var. Avatarlar gömülü SVG olarak
 üretilir — dış servise bağımlılık yok.

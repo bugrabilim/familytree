@@ -159,6 +159,7 @@ interface Seed {
   /** ana dil */ dil?: string;
   /** etnik köken */ etnik?: string;
   /** uyruk */ uyruk?: string;
+  /** sağlık / engellilik notu */ saglik?: string;
 }
 
 function build(seeds: Seed[]): Person[] {
@@ -176,6 +177,7 @@ function build(seeds: Seed[]): Person[] {
     language: s.dil,
     ethnicity: s.etnik,
     nationality: s.uyruk,
+    healthNote: s.saglik,
     parentIds: s.eb ?? [],
     parentLinks: s.bag,
     spouseIds: s.es ?? [],
@@ -1083,10 +1085,120 @@ const EK: Seed[] = [
   { id: "e11-derin2", ad: "Derin", soyad: "Uysal", c: "female", d: "2025-08-03", yer: "İstanbul", eb: ["k10-kaan", "k10-kaan-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Ailenin bilinen en genç üyesi. On altı kuşak öncesine, 1521 doğumlu Bali'ye kadar uzanan bir çizginin bugünkü ucu." },
 ];
 
+
+/* ================================================================
+   SOYADI TERCİHLERİ · ENGELLİLİK · ERKEN YAŞTA EBEVEYNLİK
+   ================================================================ */
+const EK2: Seed[] = [
+  /* --- 1) Kocası kadının soyadını aldı --- */
+  {
+    id: "s-yasemin", ad: "Yasemin", soyad: "Değirmencioğlu", c: "female", d: "1988-03-14", yer: "Kayseri",
+    eb: ["e8-ayhan", "e8-ayhan-es"], es: ["s-yasemin-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Ailenin en eski soyadını — 1934'te terk edilen \"Değirmencioğlu\"nu — mahkeme kararıyla geri aldı. \"Dedelerimin adı bir kanunla silindi, ben de bir kanunla geri aldım\" diyor.\n\nEvlenirken soyadını değiştirmedi; eşi Kaan onun soyadına geçti. Nüfus müdürlüğünde iki kez geri çevrildiler, üçüncüde oldu.",
+  },
+  {
+    id: "s-yasemin-es", ad: "Kaan", soyad: "Değirmencioğlu", c: "male", d: "1985-11-02", yer: "İzmir",
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Evlenirken eşinin soyadını aldı; doğuştan gelen soyadı Aksu'ydu. \"Benimki bir soyad, onunki bir tarih\" diye anlatıyor.\n\nAilesinin bir kısmı bunu hâlâ tuhaf buluyor, babası nikâhta espri yaptı, sonra alıştılar.",
+  },
+  { id: "s-cinar", ad: "Çınar", soyad: "Değirmencioğlu", c: "male", d: "2019-05-08", yer: "Kayseri", eb: ["s-yasemin", "s-yasemin-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Annesinin soyadını taşıyan ilk kuşak. On altı kuşak önceki Bali'nin adını taşıyan bir çizginin ucunda." },
+
+  /* --- 2) Kızlık soyadını korudu --- */
+  {
+    id: "s-nazli", ad: "Nazlı", soyad: "Erdemir", c: "female", d: "1991-07-19", yer: "Ankara",
+    es: ["e9-selcuk2"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "2016'da evlendi, soyadını hiç değiştirmedi. Akademisyen; on yıllık yayın listesi kendi adına, değiştirmek istemedi.\n\nÇocukları babalarının soyadını taşıyor — kanun başka türlüsüne izin vermiyor. \"Yarısı bende kaldı\" diyor.",
+  },
+  { id: "s-deniz-e", ad: "Deniz", soyad: "Demirtaş", c: "female", d: "2020-02-29", yer: "Ankara", eb: ["e9-selcuk2", "s-nazli"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "29 Şubat doğumlu; doğum gününü dört yılda bir kutluyor. Annesi Erdemir, babası Demirtaş — o babasının soyadını taşıyor." },
+
+  /* --- 3) Çift soyad kullanan kuşak --- */
+  {
+    id: "s-melike", ad: "Melike", soyad: "Toroslu Ergin", c: "female", d: "1986-09-25", yer: "Adana",
+    eb: ["e8-serdar", "e8-serdar-es"], es: ["s-melike-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Evlenince kızlık soyadını da kullanmayı sürdürdü: resmî kayıtta \"Toroslu Ergin\". 2014 öncesinde kadınların önündeki tek seçenekti — ya kocanın soyadı, ya ikisi birden.\n\nAnnesi \"Benim zamanımda böyle bir şey yoktu\" der; büyükannesi ise soyadsız doğmuştu.",
+  },
+  { id: "s-melike-es", ad: "Tuncay", soyad: "Ergin", c: "male", d: "1976-04-11", yer: "Kayseri", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye" },
+
+  /* --- 4) Engellilik --- */
+  {
+    id: "s-ozan", ad: "Ozan", soyad: "Demirtaş", c: "male", d: "2009-06-17", yer: "İstanbul",
+    eb: ["k9-mert", "k9-mert-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    saglik: "Down sendromu (Trizomi 21)",
+    bio: "Ailenin en sokulgan çocuğu. Kaynaştırma sınıfında okudu, şimdi bir belediye atölyesinde seramik yapıyor.\n\nDoğduğunda doktor aileye uzun bir liste okumuş; annesi \"listede gülmek yoktu, en çok onu yapıyor\" diyor. Bayramlarda herkesin elini ilk o öper.",
+  },
+  {
+    id: "s-elif-k", ad: "Elif", soyad: "Yıldırım", c: "female", d: "1994-11-30", yer: "İzmir",
+    eb: ["k8-ercan", "k8-ercan-es"], es: ["s-elif-es"],
+    din: "İslam", dil: "Türkçe, İngilizce", etnik: "Türk", uyruk: "Türkiye",
+    saglik: "Doğuştan görme engelli",
+    bio: "Hiç görmedi. Altı yaşında Braille öğrendi, on altısında piyanoyu kulaktan çaldı.\n\nBugün konservatuvarda öğretim görevlisi. Ailenin toplantılarında herkesin sesini kapıdan tanır; \"Ben sizi yüzünüzden değil, adımınızdan tanıyorum\" der.",
+  },
+  { id: "s-elif-es", ad: "Cenk", soyad: "Yıldırım", c: "male", d: "1991-08-05", yer: "İzmir", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Elif'in eşi. Ses mühendisi; tanışmaları bir stüdyo kaydında oldu." },
+  {
+    id: "s-mehmet-k", ad: "Mehmet", soyad: "Toroslu", c: "male", d: "1952-03-08", o: "2018-12-14", yer: "Adana",
+    eb: ["k7-vedat", "k7-vedat-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    saglik: "Sol kolu doğuştan yok",
+    bio: "Tek kolla traktör kullandı, tek kolla üç çocuk büyüttü. Köyde ona \"yarım Mehmet\" derlerdi, hiç alınmadı; \"yarısıyla sizin tamamınız kadar iş yaptım\" diye cevap verirdi.\n\nProtez takmayı hiç sevmedi, bir kez denedi, çekmecede kaldı.",
+  },
+  {
+    id: "s-hediye", ad: "Hediye", soyad: "Değirmencioğlu", c: "female", d: "1888", o: "1961", yer: "Kayseri",
+    eb: ["k5-halil", "k5-halil-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı / Türkiye",
+    saglik: "Çocuk felci (1893 salgını) — sağ bacağında kalıcı sekel",
+    bio: "Beş yaşında çocuk felci geçirdi, ömrü boyunca değnekle yürüdü. O dönem böyle çocuklar çoğu zaman evde saklanırdı; babası Halil onu okula gönderdi.\n\nKayseri'nin okuma yazma bilen ilk kadınlarından. Kırk yıl mahalle çocuklarına ders verdi.",
+  },
+  {
+    id: "s-berk-i", ad: "Berk", soyad: "Sarıkaya", c: "male", d: "2021-01-22", yer: "Kayseri",
+    eb: ["k9-burcu", "k9-burcu-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    saglik: "İşitme engelli — iki taraflı koklear implant",
+    bio: "İki yaşında implant takıldı, ilk duyduğu ses annesinin adıydı. Ev halkı işaret dilini birlikte öğrendi; en hızlı öğrenen ablası Eylül oldu.",
+  },
+  {
+    id: "s-ayten-o", ad: "Ayten", soyad: "Ergin", c: "female", d: "1963-04-19", yer: "Develi",
+    eb: ["k7-necati", "k7-necati-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    saglik: "Otizm spektrumu — tanı 2009'da, 46 yaşında konuldu",
+    bio: "Çocukken \"içine kapanık\" denip geçilmişti. Tanı ancak yeğeni için araştırma yapılırken, kırk altı yaşında konuldu.\n\nDevelide bir kütüphanede çalıştı; kırk yıl boyunca katalog düzenini kimse ondan iyi bilmedi. \"Adı olsa da olmasa da ben hep böyleydim\" diyor.",
+  },
+
+  /* --- 5) Erken yaşta ebeveynlik --- */
+  {
+    id: "s-hatice-g", ad: "Hatice", soyad: "Değirmencioğlu", c: "female", d: "1852", o: "1919", yer: "Develi",
+    eb: ["k4-ismail", "k4-nazli"], es: ["s-hatice-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı",
+    bio: "On dört yaşında evlendirildi, on beşinde ilk çocuğunu doğurdu. O yüzyılda köyde olağan sayılırdı; bugün bakınca çocuk yaşta evlilik.\n\nDokuz doğum yaptı, beşi büyüdü. Kızlarını daha geç evlendirdi — \"benim gördüğümü görmesinler\" derdi.",
+  },
+  { id: "s-hatice-es", ad: "Ahmet", soyad: "Değirmencioğlu", c: "male", d: "1840", o: "1901", yer: "Develi", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı" },
+  { id: "s-zeynep-g", ad: "Zeynep", soyad: "Değirmencioğlu", c: "female", d: "1867", o: "1941", yer: "Develi", eb: ["s-hatice-g", "s-hatice-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı", bio: "Annesi onu doğurduğunda on beş yaşındaydı. Kendisi yirmi üçünde evlendi; annesinin ısrarıydı." },
+
+  {
+    id: "s-sultan", ad: "Sultan", soyad: "Yıldırım", c: "female", d: "1938-02-11", o: "2016-09-03", yer: "Develi",
+    eb: ["k6-sadik", "k6-sadik-es"], es: ["s-sultan-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "On altı yaşında anne oldu. 1954'te köyde nikâh yaşı kâğıt üzerinde vardı, uygulamada esnetilirdi.\n\nİlk çocuğunu doğururken ebe yoktu, komşu kadınlar aldı. Sonraki dört doğumunu hastanede yaptı; \"birincisini unutamam\" derdi.",
+  },
+  { id: "s-sultan-es", ad: "Rıfat", soyad: "Yıldırım", c: "male", d: "1932-06-24", o: "2004-11-17", yer: "Develi", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye" },
+  { id: "s-kemal-g", ad: "Kemal", soyad: "Yıldırım", c: "male", d: "1954-08-30", o: "2021-03-12", yer: "Develi", eb: ["s-sultan", "s-sultan-es"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Annesi onu on altı yaşında doğurdu; aralarında sadece on altı yaş vardı, kardeş gibi büyüdüler." },
+
+  {
+    id: "s-derya", ad: "Derya", soyad: "Öztürk", c: "female", d: "2006-05-14", yer: "İstanbul",
+    eb: ["k9-ela", "k9-ela-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "On yedi yaşında anne oldu. Aile önce şok oldu, sonra sarıldı: annesi Ela okulunu bırakmamasında ısrar etti, bebeğe gündüzleri anneannesi baktı.\n\nBugün üniversitede; \"kolay olmadı ama yalnız da kalmadım\" diyor.",
+  },
+  { id: "s-derya-cocuk", ad: "Ada", soyad: "Öztürk", c: "female", d: "2023-10-07", yer: "İstanbul", eb: ["s-derya"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Annesi onu doğurduğunda on yedi yaşındaydı. Babası kayıtlarda yok. Evde üç kuşak birlikte büyütüyor." },
+];
+
 export const DEMO_PEOPLE: Person[] = build([
   ...K0A, ...K0B, ...K0C, ...K0D,
   ...K1, ...K1B, ...K2, ...K3, ...K4, ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
-  ...GOC, ...LGBT, ...EK,
+  ...GOC, ...LGBT, ...EK, ...EK2,
 ]);
 
 export const DEMO_FAMILY_NAME = "Demirtaş";
