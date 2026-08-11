@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "./ui/Button";
+import { useReadOnly } from "./ReadOnlyContext";
 
 interface Props {
   onAdd: () => void;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Props) {
+  const { readOnly } = useReadOnly();
   return (
     <div className="h-full grid place-items-center px-6 py-10 overflow-y-auto">
       <div className="w-full max-w-md text-center">
@@ -44,22 +46,41 @@ export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Pro
           düğmeleriyle anne, baba, eş ve çocuk ekleyerek ağacı büyüt.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-          <Button size="lg" onClick={onAdd}>
-            Kendimi ekle
-          </Button>
-          <Button size="lg" variant="secondary" onClick={onImport}>
-            GEDCOM dosyam var
-          </Button>
-        </div>
+        {readOnly ? (
+          // Görüntüleme modu açıkken ekleme/içe aktarma aksiyonları gizlenir.
+          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface border border-border text-sm text-text-muted">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
+            </svg>
+            Görüntüleme modu açık — düzenlemek için modu kapat.
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
+              <Button size="lg" onClick={onAdd}>
+                Kendimi ekle
+              </Button>
+              <Button size="lg" variant="secondary" onClick={onImport}>
+                GEDCOM dosyam var
+              </Button>
+            </div>
 
-        <button
-          onClick={onDemo}
-          disabled={demoLoading}
-          className="mt-4 text-xs text-text-muted hover:text-primary underline underline-offset-4 disabled:opacity-50"
-        >
-          {demoLoading ? "Demo yükleniyor…" : "Önce örnek bir ağaca göz at"}
-        </button>
+            <button
+              onClick={onDemo}
+              disabled={demoLoading}
+              className="mt-4 text-xs text-text-muted hover:text-primary underline underline-offset-4 disabled:opacity-50"
+            >
+              {demoLoading ? "Demo yükleniyor…" : "Önce örnek bir ağaca göz at"}
+            </button>
+          </>
+        )}
 
         <div className="mt-10 grid gap-3 text-left">
           {[

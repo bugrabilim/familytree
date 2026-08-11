@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 
 export type ViewKey = "agac" | "soy" | "yelpaze" | "liste" | "harita" | "panel";
 
@@ -37,6 +38,7 @@ export default function TopBar({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const { hideLiving, setHideLiving } = usePrivacy();
+  const { readOnly, setReadOnly } = useReadOnly();
 
   return (
     <header className="relative z-30 shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
@@ -146,6 +148,49 @@ export default function TopBar({
               )}
             </svg>
             <span className="hidden md:inline text-xs">Yaşayanları gizle</span>
+          </button>
+
+          {/* Görüntüleme modu — arayüz düzeyinde salt-okunur katman (sunucu izni değil) */}
+          <button
+            onClick={() => setReadOnly(!readOnly)}
+            aria-label="Görüntüleme modu"
+            aria-pressed={readOnly}
+            title={
+              readOnly
+                ? "Görüntüleme modu açık — düzenlemeyi geri açmak için tıkla"
+                : "Görüntüleme modu: yalnızca göz at, düzenlemeyi gizle"
+            }
+            className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+              readOnly
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              {readOnly ? (
+                // Göz — görüntüleme modu açık
+                <>
+                  <path
+                    d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
+                </>
+              ) : (
+                // Açık kilit — düzenleme serbest
+                <path
+                  d="M7 10V7a5 5 0 019.6-2M6 10h12v10H6V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            <span className="hidden md:inline text-xs">Görüntüleme modu</span>
           </button>
 
           <ThemeToggle />

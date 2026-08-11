@@ -17,6 +17,7 @@ import Modal from "@/components/ui/Modal";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider } from "@/components/PrivacyContext";
+import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { RELATION_LABELS, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 
@@ -42,7 +43,23 @@ interface EditorState {
   relation?: { type: RelationType; target: Person };
 }
 
-export default function Workspace({
+export default function Workspace(props: {
+  people: Person[];
+  familyName?: string;
+  initialSelectedId?: string;
+}) {
+  // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
+  // tüketebilsin diye asıl mantık sağlayıcıların içindeki bir bileşene taşındı.
+  return (
+    <ReadOnlyProvider>
+      <PrivacyProvider>
+        <WorkspaceInner {...props} />
+      </PrivacyProvider>
+    </ReadOnlyProvider>
+  );
+}
+
+function WorkspaceInner({
   people,
   familyName,
   initialSelectedId,
@@ -52,6 +69,7 @@ export default function Workspace({
   initialSelectedId?: string;
 }) {
   const router = useRouter();
+  const { readOnly } = useReadOnly();
 
   const [view, setView] = useState<ViewKey>("agac");
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
@@ -144,17 +162,29 @@ export default function Workspace({
     window.setTimeout(() => setToast(undefined), 3200);
   }, []);
 
-  const openAdd = useCallback(() => setEditor({}), []);
+  // Görüntüleme modunda düzenleyici hiç açılmamalı. Arayüzde tetikleyiciler
+  // zaten gizli; buradaki kontroller bir tetikleyici atlansa bile güvenlik ağı.
+  const openAdd = useCallback(() => {
+    if (readOnly) return;
+    setEditor({});
+  }, [readOnly]);
 
-  const openEdit = useCallback((id: string) => setEditor({ personId: id }), []);
+  const openEdit = useCallback(
+    (id: string) => {
+      if (readOnly) return;
+      setEditor({ personId: id });
+    },
+    [readOnly]
+  );
 
   const openQuickAdd = useCallback(
     (type: RelationType, targetId: string) => {
+      if (readOnly) return;
       const target = idx.get(targetId);
       if (!target) return;
       setEditor({ relation: { type, target } });
     },
-    [idx]
+    [idx, readOnly]
   );
 
   const handleSaved = useCallback(
@@ -218,7 +248,6 @@ export default function Workspace({
   const isEmpty = people.length === 0;
 
   return (
-    <PrivacyProvider>
     <div className="flex flex-col h-screen overflow-hidden">
       <TopBar
         familyName={familyName}
@@ -297,8 +326,8 @@ export default function Workspace({
           />
         )}
 
-        {/* Kayan ekle düğmesi — ağaç ve soy görünümünde */}
-        {!isEmpty && (view === "agac" || view === "soy") && (
+        {/* Kayan ekle düğmesi — ağaç ve soy görünümünde (görüntüleme modunda gizli) */}
+        {!readOnly && !isEmpty && (view === "agac" || view === "soy") && (
           <button
             onClick={openAdd}
             className="
@@ -391,7 +420,6 @@ export default function Workspace({
         </div>
       )}
     </div>
-    </PrivacyProvider>
   );
 }
 
