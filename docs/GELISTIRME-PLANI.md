@@ -119,7 +119,12 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 - **Evlat edinme / koruyucu aile / üvey bağ ayrımı** ve **kopan ilişkiler**
   (`parentLinks`): evlatlıktan reddetme ve ebeveyni reddetme bağı silmez,
   yalnızca not düşer. Evlat edinme GEDCOM'a `FAMC`/`PEDI` ile yazılır.
-- **11 kuşaklık demo ağacı** (194 kişi) ve gömülü avatar üretici
+- **Din / mezhep / ana dil / etnik köken / uyruk alanları** — soy ağaçlarında
+  yaygın olarak kaydedilen bilgiler; "ırk" yerine "etnik köken" terimi
+- **Otomatik avatar** — fotoğrafı olmayan hiçbir kart boş kalmaz; formda
+  24 alternatif arasından seçilebilir
+- **16 kuşaklık demo ağacı** (300'ü aşkın kişi, 1521'den bugüne)
+- **Ağaçta kapsam denetimi** — 2/3/4 kuşak · kişinin tüm akrabaları · herkes
 - **Şifresiz demo girişi** — ayrı bir NextAuth sağlayıcısı; her girişte
   ortak demo ağacı sıfırlanır
 
@@ -180,6 +185,19 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 
 - **`main` geçmişi squash edildi.** Yeni iş her zaman güncel `main`'den
   dallanmalı (süreç zaten böyle işliyor, not olarak).
+
+- **Kuzen evliliği + büyük ağaç = düzen bozulması.** Kuzen evliliği grafta
+  döngü yaratır: kişi hem kendi ata zincirine hem eşinin zincirine bağlıdır.
+  300 kişilik "herkes" görünümünde dagre bu döngüyü çiftleri (hatta kardeşleri)
+  ayırarak çözüyor. Kenar ağırlığını yükseltmek işe yaramadı — katmanlı
+  yerleşimin yapısal sınırı. Odaklı görünümlerde (2/3/4 kuşak) düzen doğru;
+  varsayılan da bu. Kalıcı çözüm için birlik düğümlerini aynı sıraya sabitleyen
+  bir yerleşim (ör. ELK ya da elle sıralama) gerekir.
+
+- **Giriş kimliği artık "ağaç adı".** Soyadıyla giriş yanlış bir varsayımdı:
+  kadınların soyadı değişir, 1934 öncesinde soyad yoktur, aynı ağaçta onlarca
+  soyadı bulunur. Alan adı (`familyName`) geriye dönük uyumluluk için korundu,
+  yalnızca arayüzdeki anlatım değişti.
 
 - **Ağaç ölçeklenmesi.** Dagre yerleşimi 172 kişide çok geniş bir tuval üretiyor;
   tamamı tek ekranda okunmuyor. Çözüm olarak odak kişinin çevresinde kum saati

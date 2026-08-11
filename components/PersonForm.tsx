@@ -8,6 +8,7 @@ import {
   type Person,
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
+import { generateAvatar } from "@/lib/avatar";
 import Button from "./ui/Button";
 import {
   calcAge,
@@ -60,6 +61,11 @@ export default function PersonForm({
     birthPlace: initial?.birthPlace ?? "",
     bio: initial?.bio ?? "",
     photo: initial?.photo ?? "",
+    religion: initial?.religion ?? "",
+    denomination: initial?.denomination ?? "",
+    language: initial?.language ?? "",
+    ethnicity: initial?.ethnicity ?? "",
+    nationality: initial?.nationality ?? "",
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
     formerSpouseIds: initial?.formerSpouseIds ?? [],
@@ -70,6 +76,7 @@ export default function PersonForm({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
+  const [avatarSecici, setAvatarSecici] = useState(false);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -88,6 +95,15 @@ export default function PersonForm({
     () => people.filter((p) => p.id !== personId),
     [people, personId]
   );
+
+  /** Avatar seçici için aynı kişinin farklı görünümleri */
+  const avatarSecenekleri = useMemo(() => {
+    const seed = personId || `${form.firstName} ${form.lastName}`.trim() || "yeni";
+    const yil = isValidDateInput(form.birthDate) && form.birthDate
+      ? Number(displayToStored(form.birthDate).slice(0, 4))
+      : undefined;
+    return Array.from({ length: 24 }, (_, i) => generateAvatar(seed, form.gender, yil, i));
+  }, [personId, form.firstName, form.lastName, form.gender, form.birthDate]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,6 +159,11 @@ export default function PersonForm({
       birthDate: form.birthDate ? displayToStored(form.birthDate) : undefined,
       deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
       birthPlace: form.birthPlace.trim() || undefined,
+      religion: form.religion.trim() || undefined,
+      denomination: form.denomination.trim() || undefined,
+      language: form.language.trim() || undefined,
+      ethnicity: form.ethnicity.trim() || undefined,
+      nationality: form.nationality.trim() || undefined,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
     };
@@ -174,10 +195,14 @@ export default function PersonForm({
   };
 
   const previewPerson = {
+    id: personId,
     firstName: form.firstName,
     lastName: form.lastName,
     gender: form.gender,
     photo: form.photo,
+    birthDate: isValidDateInput(form.birthDate) && form.birthDate
+      ? displayToStored(form.birthDate)
+      : undefined,
   };
 
   return (
@@ -199,32 +224,67 @@ export default function PersonForm({
         </div>
       )}
 
-      {/* Fotoğraf */}
-      <div className="flex items-center gap-4">
-        <Avatar person={previewPerson} size="lg" ring />
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-          >
-            {uploading ? "Yükleniyor…" : form.photo ? "Değiştir" : "Fotoğraf ekle"}
-          </Button>
-          {form.photo && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => set("photo", "")}>
-              Kaldır
+      {/* Fotoğraf ve avatar */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-4">
+          <Avatar person={previewPerson} size="lg" ring />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? "Yükleniyor…" : "Fotoğraf yükle"}
             </Button>
-          )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhoto}
-          />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setAvatarSecici((o) => !o)}
+            >
+              Avatar seç
+            </Button>
+            {form.photo && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => set("photo", "")}>
+                Kaldır
+              </Button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhoto}
+            />
+          </div>
         </div>
+
+        {avatarSecici && (
+          <div className="rounded-xl border border-border bg-surface-2 p-3">
+            <p className="text-[11px] text-text-muted mb-2.5">
+              Fotoğraf yoksa otomatik bir avatar kullanılır. Buradan farklı bir
+              görünüm seçebilirsin.
+            </p>
+            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+              {avatarSecenekleri.map((src, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => set("photo", src)}
+                  aria-label={`Avatar ${i + 1}`}
+                  className={`aspect-square rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                    form.photo === src ? "border-primary ring-2 ring-primary/30" : "border-border"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ad / Soyad */}
@@ -327,6 +387,45 @@ export default function PersonForm({
           placeholder="Trabzon, Türkiye"
         />
       </div>
+
+      {/* Kimlik ve aidiyet — katlanır, isteğe bağlı */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">Köken bilgileri</span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="pf-din">Din</label>
+              <input id="pf-din" className={field} value={form.religion}
+                onChange={(e) => set("religion", e.target.value)} placeholder="İslam, Hristiyanlık…" />
+            </div>
+            <div>
+              <label className={label} htmlFor="pf-mezhep">Mezhep / cemaat</label>
+              <input id="pf-mezhep" className={field} value={form.denomination}
+                onChange={(e) => set("denomination", e.target.value)} placeholder="Hanefi, Alevi, Ortodoks…" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="pf-dil">Ana dil</label>
+              <input id="pf-dil" className={field} value={form.language}
+                onChange={(e) => set("language", e.target.value)} placeholder="Türkçe, Kürtçe, Rumca…" />
+            </div>
+            <div>
+              <label className={label} htmlFor="pf-koken">Etnik köken</label>
+              <input id="pf-koken" className={field} value={form.ethnicity}
+                onChange={(e) => set("ethnicity", e.target.value)} placeholder="Türk, Çerkes, Arnavut…" />
+            </div>
+          </div>
+          <div>
+            <label className={label} htmlFor="pf-uyruk">Uyruk</label>
+            <input id="pf-uyruk" className={field} value={form.nationality}
+              onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
+          </div>
+        </div>
+      </details>
 
       {/* Notlar */}
       <div>

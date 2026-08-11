@@ -31,6 +31,18 @@ export interface Person {
   birthPlace?: string;
   photo?: string;
   bio?: string;
+  /* --- Kimlik ve aidiyet (hepsi isteğe bağlı) ---
+     Soy ağaçlarında sıkça kaydedilen bilgiler. "ırk" yerine "etnik köken"
+     kullanıyoruz: kayıtlarda karşılığı olan ve bugün doğru kabul edilen terim. */
+  religion?: string;
+  /** Mezhep / cemaat */
+  denomination?: string;
+  /** Ana dil — birden fazlaysa virgülle */
+  language?: string;
+  ethnicity?: string;
+  /** Uyruk / vatandaşlık — göçmen kuşaklarda ayırt edici */
+  nationality?: string;
+
   parentIds: string[];
   /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */
   parentLinks?: Record<string, ParentLink>;

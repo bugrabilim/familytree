@@ -26,6 +26,11 @@ export async function PUT(
     birthDate: body.birthDate || data.people[index].birthDate,
     deathDate: body.deathDate || data.people[index].deathDate,
     birthPlace: body.birthPlace || data.people[index].birthPlace,
+    religion: body.religion ?? data.people[index].religion,
+    denomination: body.denomination ?? data.people[index].denomination,
+    language: body.language ?? data.people[index].language,
+    ethnicity: body.ethnicity ?? data.people[index].ethnicity,
+    nationality: body.nationality ?? data.people[index].nationality,
     photo: body.photo ?? data.people[index].photo,
     bio: body.bio ?? data.people[index].bio,
     parentIds: Array.isArray(body.parentIds)

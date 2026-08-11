@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Gender, Person } from "@/types/family";
+import { generateAvatar } from "@/lib/avatar";
 
 const SIZES = {
   xs: "w-7 h-7 text-[10px]",
@@ -30,23 +31,37 @@ export function initials(person: Pick<Person, "firstName" | "lastName">) {
 }
 
 interface Props {
-  person: Pick<Person, "firstName" | "lastName" | "gender" | "photo">;
+  person: Pick<Person, "firstName" | "lastName" | "gender" | "photo"> &
+    Partial<Pick<Person, "id" | "birthDate">>;
   size?: AvatarSize;
   className?: string;
   ring?: boolean;
 }
 
 export default function Avatar({ person, size = "md", className = "", ring = false }: Props) {
-  // Fotoğraf yüklenemezse baş harflere düş — kırık resim simgesi gösterme
+  // Fotoğraf yüklenemezse üretilmiş portreye düş — kırık resim simgesi gösterme
   const [failed, setFailed] = useState(false);
   const tone = genderTone(person.gender);
   const ringCls = ring ? `ring-2 ${tone.ring}` : "";
 
-  if (person.photo && !failed) {
+  /* Fotoğrafı olmayan kart boş kalmasın: kimlikten deterministik portre.
+     Adı da soyadı da boşsa (form ilk açıldığında) baş harflere düşüyoruz. */
+  const uretilmis =
+    person.firstName?.trim() || person.lastName?.trim()
+      ? generateAvatar(
+          person.id ?? `${person.firstName} ${person.lastName}`,
+          person.gender,
+          person.birthDate ? Number(person.birthDate.slice(0, 4)) : undefined
+        )
+      : undefined;
+
+  const kaynak = (!failed && person.photo) || uretilmis;
+
+  if (kaynak) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={person.photo}
+        src={kaynak}
         alt={`${person.firstName} ${person.lastName}`}
         onError={() => setFailed(true)}
         className={`${SIZES[size]} rounded-full object-cover shrink-0 bg-surface-2 ${ringCls} ${className}`}

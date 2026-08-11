@@ -53,6 +53,14 @@ export default function PedigreeView({
 
   const root = (rootId ? idx.get(rootId) : undefined) ?? varsayilanKok;
 
+  /** Kök seçici için alfabetik liste */
+  const siraliKisiler = useMemo(() => {
+    const coll = new Intl.Collator("tr");
+    return [...people].sort(
+      (a, b) => coll.compare(a.firstName, b.firstName) || coll.compare(a.lastName, b.lastName)
+    );
+  }, [people]);
+
   /** Kuşak kuşak ata dizisi (Sosa sırası: her kuşakta 2^n yer) */
   const columns = useMemo(() => {
     if (!root) return [];
@@ -97,10 +105,22 @@ export default function PedigreeView({
         <div className="flex items-center gap-2 min-w-0">
           <Avatar person={root} size="sm" />
           <div className="min-w-0">
-            <p className="text-xs text-text-subtle leading-tight">Kök kişi</p>
-            <p className="text-sm font-medium text-text truncate leading-tight">
-              {root.firstName} {root.lastName}
-            </p>
+            <label className="text-xs text-text-subtle leading-tight block" htmlFor="kok-secici">
+              Kök kişi — değiştirmek için seç
+            </label>
+            <select
+              id="kok-secici"
+              value={root.id}
+              onChange={(e) => onSetRoot(e.target.value)}
+              className="max-w-[16rem] sm:max-w-xs h-7 -ml-1 px-1 rounded-lg bg-transparent hover:bg-surface-2 border border-transparent hover:border-border text-sm font-medium text-text cursor-pointer focus:outline-none focus:border-primary transition-colors"
+            >
+              {siraliKisiler.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.firstName} {p.lastName}
+                  {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

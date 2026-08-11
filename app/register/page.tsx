@@ -110,19 +110,21 @@ export default function RegisterPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="r-soyisim">Soyisim</label>
+          <label className={authLabel} htmlFor="r-soyisim">Ağaç adı</label>
           <input
             id="r-soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="Ailenizin soyadı"
+            placeholder="ör. Demirtaş Ailesi"
             minLength={2}
             autoComplete="username"
             required
           />
           <p className="text-[11px] text-text-subtle mt-1.5">
-            Aynı zamanda giriş kullanıcı adın olacak.
+            Giriş adın olacak. Soyadı olmak zorunda değil — ağacın nasıl
+            anılmasını istiyorsan öyle yaz. Kadınların soyadı değişir, eski
+            kuşaklarda soyad zaten yoktur; bu yüzden burası serbest bir ad.
           </p>
         </div>
 

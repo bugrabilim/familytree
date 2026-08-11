@@ -36,23 +36,27 @@ Türkçe tarih girişi (`GG.AA.YYYY` ya da sadece `YYYY`) ve otomatik yaş hesab
 
 ## Demo
 
-Giriş ekranındaki **"Demo ağacını şifresiz incele"** düğmesi, 11 kuşaklık
-örnek bir aileyle doğrudan uygulamaya sokar: 1730'lardan bugüne **194 kişi**.
-Hesap herkese açık ve ortaktır; her girişte ağaç baştan yüklendiği için
-serbestçe kurcalanabilir.
+Giriş ekranındaki **"Demo ağacını şifresiz incele"** düğmesi, 16 kuşaklık
+örnek bir aileyle doğrudan uygulamaya sokar: 1521'den bugüne **300'ü aşkın
+kişi**. Hesap herkese açık ve ortaktır; her girişte ağaç baştan yüklendiği
+için serbestçe kurcalanabilir.
 
 Kendi hesabına yüklemek istersen: menüden **GEDCOM aktar / al → Demo ağacını
 yükle**.
 
-İçinde neler var: Soyadı Kanunu öncesi lakaplar ve 1934'te farklı soyadı seçen
-kardeşler; dört ve üç eşli iki kuşak başı; altı kez evlenip beşinden boşanan
-biri ve beş evlilik yapan bir kadın; birinci, ikinci ve üçüncü dereceden kuzen
-evlilikleri; savaş yetimi ve deprem yetimi evlat edinmeleri; tarihsel
-"evlatlık" kurumu; evlatlıktan reddedilenler ve ebeveynini reddedenler;
-Çanakkale ve Sakarya kayıpları; Selanik ve Filibe'den muhacirlik; Almanya'ya
-işçi göçü; bebek ölümleri; interseks, trans ve ikili olmayan bireyler.
+İçinde neler var: Osmanlı klasik çağından tahrir defteri kayıtları; Soyadı
+Kanunu öncesi lakaplar ve 1934'te farklı soyadı seçen kardeşler; dört ve üç
+eşli iki kuşak başı; altı kez evlenip beşinden boşanan biri ve beş evlilik
+yapan bir kadın; birinci, ikinci ve üçüncü dereceden kuzen evlilikleri; savaş
+ve deprem yetimi evlat edinmeleri; tarihsel "evlatlık" kurumu; evlatlıktan
+reddedilenler ve ebeveynini reddedenler; Çanakkale ve Sakarya kayıpları;
+Selanik ve Filibe'den muhacirlik; Almanya'ya işçi göçü; **Somali, Venezuela
+ve Gana'dan düzensiz göçle gelenler ve memleketteki aileleri**; eşcinsel ve
+biseksüel hayatlar; interseks, trans ve ikili olmayan bireyler; bebek
+ölümleri.
 
-Avatarlar gömülü SVG olarak üretilir — dış servise bağımlılık yok.
+Herkesin bir hikâyesi, herkesin bir avatarı var. Avatarlar gömülü SVG olarak
+üretilir — dış servise bağımlılık yok.
 
 ## Teknoloji
 

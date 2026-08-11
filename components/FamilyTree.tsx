@@ -93,7 +93,7 @@ function layout(people: Person[], unions: Union[]) {
   for (const u of unions) g.setNode(u.id, { width: 8, height: 8 });
 
   for (const u of unions) {
-    for (const pid of u.parentIds) g.setEdge(pid, u.id, { weight: 3 });
+    for (const pid of u.parentIds) g.setEdge(pid, u.id, { weight: 12 });
     for (const cid of u.childIds) g.setEdge(u.id, cid, { weight: 2 });
   }
 
@@ -116,12 +116,13 @@ function layout(people: Person[], unions: Union[]) {
 interface Props {
   people: Person[];
   selectedId?: string;
+  focusId?: string;
   highlightIds?: Set<string>;
   onSelect: (id: string) => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
-function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Props) {
+function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAdd }: Props) {
   const { fitView, setCenter } = useReactFlow();
   const initialised = useRef(false);
 
@@ -134,6 +135,7 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
       const data: PersonNodeData = {
         person: p,
         selected: p.id === selectedId,
+        focused: p.id === focusId,
         dimmed: !!highlightIds && !highlightIds.has(p.id),
         canAddParent: p.parentIds.length < 2,
         onSelect,
@@ -158,7 +160,7 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
     })) as Node[];
 
     return [...unionNodes, ...personNodes];
-  }, [people, unions, positions, selectedId, highlightIds, onSelect, onQuickAdd]);
+  }, [people, unions, positions, selectedId, focusId, highlightIds, onSelect, onQuickAdd]);
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
