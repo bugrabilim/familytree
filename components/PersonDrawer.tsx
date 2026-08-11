@@ -24,6 +24,8 @@ import {
 import { deletePerson, type RelationType } from "@/lib/actions";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 interface Props {
   person: Person;
@@ -39,7 +41,7 @@ interface Props {
 }
 
 export default function PersonDrawer({
-  person,
+  person: rawPerson,
   people,
   referenceId,
   onClose,
@@ -53,12 +55,19 @@ export default function PersonDrawer({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
+  const { view, hideLiving } = usePrivacy();
+  // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
+  // akrabalık hesapları maskeli kişiyle de doğru çalışır.
+  const person = view(rawPerson);
+  const masked = isMasked(rawPerson, hideLiving);
+
   const idx = useMemo(() => indexPeople(people), [people]);
-  const parents = useMemo(() => getParents(person, idx), [person, idx]);
-  const spouses = useMemo(() => getSpouses(person, idx), [person, idx]);
-  const formerSpouses = useMemo(() => getFormerSpouses(person, idx), [person, idx]);
-  const children = useMemo(() => getChildren(person, people), [person, people]);
-  const siblings = useMemo(() => getSiblings(person, people), [person, people]);
+  // İlişkili kişiler ham veriden hesaplanır, gösterimden hemen önce maskelenir.
+  const parents = useMemo(() => getParents(person, idx).map(view), [person, idx, view]);
+  const spouses = useMemo(() => getSpouses(person, idx).map(view), [person, idx, view]);
+  const formerSpouses = useMemo(() => getFormerSpouses(person, idx).map(view), [person, idx, view]);
+  const children = useMemo(() => getChildren(person, people).map(view), [person, people, view]);
+  const siblings = useMemo(() => getSiblings(person, people).map(view), [person, people, view]);
 
   const kinship = useMemo(() => {
     if (!referenceId || referenceId === person.id) return null;
@@ -125,6 +134,11 @@ export default function PersonDrawer({
               </h2>
               {person.code && (
                 <p className="text-[11px] text-text-subtle tabular-nums font-mono mt-0.5">#{person.code}</p>
+              )}
+              {masked && (
+                <p className="inline-flex items-center gap-1 mt-1 text-[11px] text-text-subtle">
+                  🔒 Yaşayan — özel bilgiler gizli
+                </p>
               )}
               {years && (
                 <p className="text-sm text-text-muted mt-0.5 tabular-nums">

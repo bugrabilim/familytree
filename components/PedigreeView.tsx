@@ -8,6 +8,8 @@ import { primaryName, secondaryName, fullName } from "@/lib/name";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
 import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 interface Props {
   people: Person[];
@@ -34,6 +36,7 @@ export default function PedigreeView({
   onSetRoot,
 }: Props) {
   const [generations, setGenerations] = useState(4);
+  const { view } = usePrivacy();
   const idx = useMemo(() => indexPeople(people), [people]);
 
   /** Kök seçilmemişse en uzun ata zincirine sahip kişiyi al. */
@@ -96,12 +99,15 @@ export default function PedigreeView({
               onChange={(e) => onSetRoot(e.target.value)}
               className="max-w-[16rem] sm:max-w-xs h-7 -ml-1 px-1 rounded-lg bg-transparent hover:bg-surface-2 border border-transparent hover:border-border text-sm font-medium text-text cursor-pointer focus:outline-none focus:border-primary transition-colors"
             >
-              {siraliKisiler.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {fullName(p)}
-                  {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
-                </option>
-              ))}
+              {siraliKisiler.map((p) => {
+                const mp = view(p);
+                return (
+                  <option key={p.id} value={p.id}>
+                    {fullName(p)}
+                    {mp.birthDate ? ` · ${mp.birthDate.slice(0, 4)}` : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -225,12 +231,15 @@ function Connector({ count, side }: { count: number; side: "left" | "right" }) {
 }
 
 function PedigreeCard({
-  person,
+  person: rawPerson,
   isRoot,
   selectedId,
   onSelect,
   onSetRoot,
 }: { person: Person; isRoot?: boolean } & BranchProps) {
+  const { view, hideLiving } = usePrivacy();
+  const person = view(rawPerson);
+  const masked = isMasked(rawPerson, hideLiving);
   const selected = person.id === selectedId;
   const alt = secondaryName(person);
 
@@ -259,10 +268,14 @@ function PedigreeCard({
           ) : person.code ? (
             <p className="text-[10px] font-mono text-text-subtle/70 leading-tight">#{person.code}</p>
           ) : null}
-          {lifeSpan(person.birthDate, person.deathDate) && (
-            <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
-              {lifeSpan(person.birthDate, person.deathDate)}
-            </p>
+          {masked ? (
+            <p className="text-[10px] text-text-subtle leading-tight">🔒 Yaşayan</p>
+          ) : (
+            lifeSpan(person.birthDate, person.deathDate) && (
+              <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
+                {lifeSpan(person.birthDate, person.deathDate)}
+              </p>
+            )
           )}
         </div>
       </button>

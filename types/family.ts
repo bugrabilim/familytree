@@ -81,6 +81,13 @@ export interface Person {
    */
   healthNote?: string;
 
+  /**
+   * Gizli kayıt. İşaretliyse görüntü katmanında (yaşıyor/vefat fark etmeksizin)
+   * her zaman maskelenir. Yalnızca ekranda etkilidir; veri, API ve GEDCOM
+   * aktarımı bundan etkilenmez.
+   */
+  confidential?: boolean;
+
   parentIds: string[];
   /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */
   parentLinks?: Record<string, ParentLink>;

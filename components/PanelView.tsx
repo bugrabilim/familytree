@@ -17,6 +17,8 @@ import {
   possessive,
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
+import { usePrivacy } from "./PrivacyContext";
+import { isMasked } from "@/lib/privacy";
 
 interface Props {
   people: Person[];
@@ -26,6 +28,7 @@ interface Props {
 }
 
 export default function PanelView({ people, onSelect, onAdd, onImportExport }: Props) {
+  const { view, hideLiving } = usePrivacy();
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
@@ -130,8 +133,10 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             empty={birthdays.length === 0 ? "Bu dönemde doğum günü yok" : undefined}
           >
             <ul className="space-y-1">
-              {birthdays.map(({ person, days }) => {
-                const age = calcAge(person.birthDate);
+              {birthdays.map(({ person: rawPerson, days }) => {
+                const age = calcAge(rawPerson.birthDate);
+                const person = view(rawPerson);
+                const masked = isMasked(rawPerson, hideLiving);
                 return (
                   <li key={person.id}>
                     <button
@@ -143,11 +148,13 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                         <p className="text-sm text-text truncate leading-tight">
                           {fullName(person)}
                         </p>
-                        {age !== null && (
+                        {masked ? (
+                          <p className="text-[11px] text-text-subtle leading-tight">🔒 Yaşayan</p>
+                        ) : age !== null ? (
                           <p className="text-[11px] text-text-subtle leading-tight">
                             {age + (days === 0 ? 0 : 1)} yaşına giriyor
                           </p>
-                        )}
+                        ) : null}
                       </div>
                       <span
                         className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${
@@ -173,58 +180,66 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           {/* En eski kuşak */}
           <Card title="En eski kayıtlar" empty={eldest.length === 0 ? "Tarihli kayıt yok" : undefined}>
             <ul className="space-y-1">
-              {eldest.map((p) => (
-                <li key={p.id}>
-                  <button
-                    onClick={() => onSelect(p.id)}
-                    className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
-                  >
-                    <Avatar person={p} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-text truncate leading-tight">
-                        {fullName(p)}
-                      </p>
-                      {p.birthPlace && (
-                        <p className="text-[11px] text-text-subtle truncate leading-tight">
-                          {p.birthPlace}
+              {eldest.map((rawP) => {
+                const p = view(rawP);
+                const masked = isMasked(rawP, hideLiving);
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => onSelect(p.id)}
+                      className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <Avatar person={p} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-text truncate leading-tight">
+                          {fullName(p)}
                         </p>
-                      )}
-                    </div>
-                    <span className="text-xs text-text-muted tabular-nums shrink-0">
-                      {lifeSpan(p.birthDate, p.deathDate)}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                        {!masked && p.birthPlace && (
+                          <p className="text-[11px] text-text-subtle truncate leading-tight">
+                            {p.birthPlace}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-text-muted tabular-nums shrink-0">
+                        {masked ? "🔒 Yaşayan" : lifeSpan(p.birthDate, p.deathDate)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
 
           {/* En yeni kayıtlar */}
           <Card title="En yeni kayıtlar" hint="Doğuma göre" empty={newest.length === 0 ? "Tarihli kayıt yok" : undefined}>
             <ul className="space-y-1">
-              {newest.map((p) => (
-                <li key={p.id}>
-                  <button
-                    onClick={() => onSelect(p.id)}
-                    className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
-                  >
-                    <Avatar person={p} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-text truncate leading-tight">
-                        {fullName(p)}
-                      </p>
-                      {p.birthPlace && (
-                        <p className="text-[11px] text-text-subtle truncate leading-tight">
-                          {p.birthPlace}
+              {newest.map((rawP) => {
+                const p = view(rawP);
+                const masked = isMasked(rawP, hideLiving);
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => onSelect(p.id)}
+                      className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <Avatar person={p} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-text truncate leading-tight">
+                          {fullName(p)}
                         </p>
-                      )}
-                    </div>
-                    <span className="text-xs text-text-muted tabular-nums shrink-0">
-                      {lifeSpan(p.birthDate, p.deathDate)}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                        {!masked && p.birthPlace && (
+                          <p className="text-[11px] text-text-subtle truncate leading-tight">
+                            {p.birthPlace}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-text-muted tabular-nums shrink-0">
+                        {masked ? "🔒 Yaşayan" : lifeSpan(p.birthDate, p.deathDate)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
 
@@ -320,6 +335,7 @@ function RelativesFinder({
 }) {
   const [personId, setPersonId] = useState("");
   const [filter, setFilter] = useState("");
+  const { view } = usePrivacy();
 
   const sorted = useMemo(() => {
     const coll = new Intl.Collator("tr");
@@ -367,12 +383,15 @@ function RelativesFinder({
     <div className="space-y-3">
       <select value={personId} onChange={(e) => setPersonId(e.target.value)} className={selectCls} aria-label="Kişi seç">
         <option value="">Kişi seç…</option>
-        {sorted.map((p) => (
-          <option key={p.id} value={p.id}>
-            {fullName(p)}
-            {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
-          </option>
-        ))}
+        {sorted.map((p) => {
+          const mp = view(p);
+          return (
+            <option key={p.id} value={p.id}>
+              {fullName(p)}
+              {mp.birthDate ? ` · ${mp.birthDate.slice(0, 4)}` : ""}
+            </option>
+          );
+        })}
       </select>
 
       {personId && (
@@ -419,6 +438,7 @@ function PersonPicker({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { view } = usePrivacy();
   const sorted = useMemo(() => {
     const coll = new Intl.Collator("tr");
     return [...people].sort(
@@ -428,12 +448,15 @@ function PersonPicker({
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={pickerSelectCls} aria-label="Kişi seç">
       <option value="">Kişi seç…</option>
-      {sorted.map((p) => (
-        <option key={p.id} value={p.id}>
-          {fullName(p)}
-          {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
-        </option>
-      ))}
+      {sorted.map((p) => {
+        const mp = view(p);
+        return (
+          <option key={p.id} value={p.id}>
+            {fullName(p)}
+            {mp.birthDate ? ` · ${mp.birthDate.slice(0, 4)}` : ""}
+          </option>
+        );
+      })}
     </select>
   );
 }
