@@ -31,6 +31,10 @@ export async function PUT(
     parentIds: Array.isArray(body.parentIds)
       ? body.parentIds
       : data.people[index].parentIds,
+    parentLinks:
+      body.parentLinks && typeof body.parentLinks === "object"
+        ? body.parentLinks
+        : data.people[index].parentLinks,
     spouseIds: Array.isArray(body.spouseIds)
       ? body.spouseIds
       : data.people[index].spouseIds,

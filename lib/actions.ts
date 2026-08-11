@@ -1,4 +1,4 @@
-import type { Gender, Person } from "@/types/family";
+import type { Gender, ParentLink, Person } from "@/types/family";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
 
@@ -19,6 +19,7 @@ export interface PersonPayload {
   photo?: string;
   bio?: string;
   parentIds?: string[];
+  parentLinks?: Record<string, ParentLink>;
   spouseIds?: string[];
   formerSpouseIds?: string[];
   relation?: { type: RelationType; targetId: string };

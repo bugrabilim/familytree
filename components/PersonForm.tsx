@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type { Person } from "@/types/family";
+import {
+  ESTRANGEMENT_LABELS,
+  PARENT_KIND_LABELS,
+  type ParentLink,
+  type Person,
+} from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import {
@@ -58,6 +63,7 @@ export default function PersonForm({
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
     formerSpouseIds: initial?.formerSpouseIds ?? [],
+    parentLinks: (initial?.parentLinks ?? {}) as Record<string, ParentLink>,
   });
 
   const [errors, setErrors] = useState<Errors>({});
@@ -145,6 +151,13 @@ export default function PersonForm({
       payload.relation = { type: relation.type, targetId: relation.target.id };
     } else {
       payload.parentIds = form.parentIds;
+      // Yalnızca hâlâ seçili olan ebeveynlerin bağ bilgisini gönder
+      const links: Record<string, ParentLink> = {};
+      for (const pid of form.parentIds) {
+        const l = form.parentLinks[pid];
+        if (l && (l.kind || l.estranged || l.note)) links[pid] = l;
+      }
+      payload.parentLinks = Object.keys(links).length ? links : undefined;
       payload.spouseIds = form.spouseIds;
       payload.formerSpouseIds = form.formerSpouseIds;
     }
@@ -361,6 +374,58 @@ export default function PersonForm({
                 disabledWhenUnselected={form.parentIds.length >= 2}
                 onToggle={(id) => toggleLink("parentIds", id)}
               />
+
+              {form.parentIds.length > 0 && (
+                <div className="space-y-2">
+                  {form.parentIds.map((pid) => {
+                    const par = people.find((x) => x.id === pid);
+                    if (!par) return null;
+                    const link = form.parentLinks[pid] ?? {};
+                    const setLink = (patch: Partial<ParentLink>) =>
+                      setForm((f) => ({
+                        ...f,
+                        parentLinks: { ...f.parentLinks, [pid]: { ...f.parentLinks[pid], ...patch } },
+                      }));
+                    return (
+                      <div key={pid} className="rounded-lg bg-surface-2 p-2.5">
+                        <p className="text-[11px] font-medium text-text mb-1.5">
+                          {par.firstName} {par.lastName} ile bağ
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <select
+                            aria-label="Bağ türü"
+                            value={link.kind ?? "biological"}
+                            onChange={(e) =>
+                              setLink({ kind: e.target.value as ParentLink["kind"] })
+                            }
+                            className="h-8 px-2 rounded-lg bg-surface border border-border text-[11px] text-text focus:outline-none focus:border-primary"
+                          >
+                            <option value="biological">Kan bağı</option>
+                            {Object.entries(PARENT_KIND_LABELS).map(([k, l]) => (
+                              <option key={k} value={k}>{l}</option>
+                            ))}
+                          </select>
+                          <select
+                            aria-label="İlişki durumu"
+                            value={link.estranged ?? ""}
+                            onChange={(e) =>
+                              setLink({
+                                estranged: (e.target.value || undefined) as ParentLink["estranged"],
+                              })
+                            }
+                            className="h-8 px-2 rounded-lg bg-surface border border-border text-[11px] text-text focus:outline-none focus:border-primary"
+                          >
+                            <option value="">İlişki sürüyor</option>
+                            {Object.entries(ESTRANGEMENT_LABELS).map(([k, l]) => (
+                              <option key={k} value={k}>{l.child}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <LinkPicker
                 title="Eş / eşler"
                 people={others}

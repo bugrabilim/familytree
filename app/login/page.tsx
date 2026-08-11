@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
+import { demoGirisi } from "./actions";
 
 function LoginForm() {
   const [familyName, setFamilyName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/tree";
@@ -83,10 +85,42 @@ function LoginForm() {
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
-        <Button type="submit" size="lg" full disabled={loading}>
+        <Button type="submit" size="lg" full disabled={loading || demoLoading}>
           {loading ? "Giriş yapılıyor…" : "Giriş yap"}
         </Button>
       </form>
+
+      {/* Şifresiz demo */}
+      <div className="mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-[11px] text-text-subtle">ya da</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          full
+          disabled={loading || demoLoading}
+          onClick={() => {
+            setDemoLoading(true);
+            setError("");
+            demoGirisi().catch(() => {
+              setDemoLoading(false);
+              setError("Demo açılamadı. Lütfen tekrar deneyin.");
+            });
+          }}
+        >
+          {demoLoading ? "Demo hazırlanıyor…" : "Demo ağacını şifresiz incele"}
+        </Button>
+
+        <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
+          194 kişilik, 11 kuşaklık örnek bir aile. Herkese açık ve ortak —
+          her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.
+        </p>
+      </div>
     </AuthShell>
   );
 }

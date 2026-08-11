@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Person } from "@/types/family";
+import {
+  ESTRANGEMENT_LABELS,
+  PARENT_KIND_LABELS,
+  type Person,
+} from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
@@ -12,6 +16,7 @@ import {
   getChildren,
   getParents,
   getFormerSpouses,
+  parentLinkOf,
   getSiblings,
   getSpouses,
   indexPeople,
@@ -188,6 +193,14 @@ export default function PersonDrawer({
             title="Ebeveynler"
             people={parents}
             onSelect={onSelect}
+            badgeOf={(par) => {
+              const l = parentLinkOf(person, par.id);
+              if (!l) return undefined;
+              const parts: string[] = [];
+              if (l.kind && l.kind !== "biological") parts.push(PARENT_KIND_LABELS[l.kind]);
+              if (l.estranged) parts.push(ESTRANGEMENT_LABELS[l.estranged].child);
+              return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
+            }}
             emptyAction={
               parents.length < 2
                 ? { label: "Ebeveyn ekle", onClick: () => onQuickAdd("parent", person.id) }
@@ -205,6 +218,14 @@ export default function PersonDrawer({
             title="Çocuklar"
             people={children}
             onSelect={onSelect}
+            badgeOf={(ch) => {
+              const l = parentLinkOf(ch, person.id);
+              if (!l) return undefined;
+              const parts: string[] = [];
+              if (l.kind && l.kind !== "biological") parts.push(PARENT_KIND_LABELS[l.kind]);
+              if (l.estranged) parts.push(ESTRANGEMENT_LABELS[l.estranged].parent);
+              return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
+            }}
             emptyAction={{ label: "Çocuk ekle", onClick: () => onQuickAdd("child", person.id) }}
           />
           <RelationGroup
@@ -248,11 +269,13 @@ function RelationGroup({
   people,
   onSelect,
   emptyAction,
+  badgeOf,
 }: {
   title: string;
   people: Person[];
   onSelect: (id: string) => void;
   emptyAction?: { label: string; onClick: () => void };
+  badgeOf?: (p: Person) => { text: string; note?: string } | undefined;
 }) {
   if (people.length === 0 && !emptyAction) return null;
 
@@ -261,10 +284,13 @@ function RelationGroup({
       <SectionTitle>{title}</SectionTitle>
       {people.length > 0 ? (
         <ul className="space-y-0.5">
-          {people.map((p) => (
+          {people.map((p) => {
+            const badge = badgeOf?.(p);
+            return (
             <li key={p.id}>
               <button
                 onClick={() => onSelect(p.id)}
+                title={badge?.note}
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-2 rounded-lg hover:bg-surface-2 transition-colors text-left"
               >
                 <Avatar person={p} size="sm" />
@@ -272,7 +298,12 @@ function RelationGroup({
                   <p className="text-sm text-text truncate leading-tight">
                     {p.firstName} {p.lastName}
                   </p>
-                  {lifeSpan(p.birthDate, p.deathDate) && (
+                  {badge && (
+                    <span className="inline-block mt-0.5 px-1.5 py-px rounded bg-accent-soft text-accent text-[10px] font-medium">
+                      {badge.text}
+                    </span>
+                  )}
+                  {!badge && lifeSpan(p.birthDate, p.deathDate) && (
                     <p className="text-[11px] text-text-subtle tabular-nums leading-tight">
                       {lifeSpan(p.birthDate, p.deathDate)}
                     </p>
@@ -283,7 +314,8 @@ function RelationGroup({
                 </svg>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : null}
 

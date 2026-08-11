@@ -1,4 +1,4 @@
-import type { Person } from "@/types/family";
+import type { ParentLink, Person } from "@/types/family";
 
 /* ---------------------------------------------------------------- */
 /* Temel sorgular                                                    */
@@ -20,6 +20,17 @@ export function getChildren(person: Person, people: Person[]): Person[] {
 
 export function getSpouses(person: Person, idx: PersonIndex): Person[] {
   return person.spouseIds.map((id) => idx.get(id)).filter((p): p is Person => !!p);
+}
+
+/** Çocuğun belirli bir ebeveynle olan bağının niteliği. */
+export function parentLinkOf(child: Person, parentId: string): ParentLink | undefined {
+  return child.parentLinks?.[parentId];
+}
+
+/** Bağ kan bağı dışında bir şey mi (evlat edinme / üvey / koruyucu)? */
+export function isNonBiological(child: Person, parentId: string): boolean {
+  const k = parentLinkOf(child, parentId)?.kind;
+  return !!k && k !== "biological";
 }
 
 export function getFormerSpouses(person: Person, idx: PersonIndex): Person[] {

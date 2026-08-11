@@ -46,35 +46,6 @@ export function exportGedcom(people: Person[]): string {
   const idToGed = new Map<string, string>();
   people.forEach((p, i) => idToGed.set(p.id, `@I${String(i + 1).padStart(4, "0")}@`));
 
-  for (const p of people) {
-    lines.push(`0 ${idToGed.get(p.id)} INDI`);
-    lines.push(`1 NAME ${p.firstName} /${p.lastName}/`);
-    if (p.gender === "male") lines.push("1 SEX M");
-    else if (p.gender === "female") lines.push("1 SEX F");
-    else if (p.gender === "other") lines.push("1 SEX X");
-
-    const bd = dateToGedcom(p.birthDate);
-    if (bd || p.birthPlace) {
-      lines.push("1 BIRT");
-      if (bd) lines.push(`2 DATE ${bd}`);
-      if (p.birthPlace) lines.push(`2 PLAC ${p.birthPlace}`);
-    }
-
-    const dd = dateToGedcom(p.deathDate);
-    if (dd) {
-      lines.push("1 DEAT Y");
-      lines.push(`2 DATE ${dd}`);
-    }
-
-    if (p.bio) {
-      const bioLines = p.bio.split("\n");
-      lines.push(`1 NOTE ${bioLines[0]}`);
-      for (let i = 1; i < bioLines.length; i++) {
-        lines.push(`2 CONT ${bioLines[i]}`);
-      }
-    }
-  }
-
   type FamRec = { husb?: string; wife?: string; children: string[]; divorced?: boolean };
   const fams: FamRec[] = [];
   const famLookup = new Map<string, number>();
@@ -138,8 +109,68 @@ export function exportGedcom(people: Person[]): string {
     fams[fi].children.push(p.id);
   }
 
+  const famXref = (i: number) => `@F${String(i + 1).padStart(4, "0")}@`;
+
+  /* Kişi → ait olduğu aileler */
+  const cocukAile = new Map<string, number>();   // çocuk olarak
+  const esAile = new Map<string, number[]>();    // eş olarak
   fams.forEach((fam, i) => {
-    lines.push(`0 @F${String(i + 1).padStart(4, "0")}@ FAM`);
+    for (const cid of fam.children) cocukAile.set(cid, i);
+    for (const sid of [fam.husb, fam.wife]) {
+      if (!sid) continue;
+      const arr = esAile.get(sid);
+      if (arr) arr.push(i);
+      else esAile.set(sid, [i]);
+    }
+  });
+
+  /* ---- INDI kayıtları ---- */
+  for (const p of people) {
+    lines.push(`0 ${idToGed.get(p.id)} INDI`);
+    lines.push(`1 NAME ${p.firstName} /${p.lastName}/`);
+    if (p.gender === "male") lines.push("1 SEX M");
+    else if (p.gender === "female") lines.push("1 SEX F");
+    else if (p.gender === "other") lines.push("1 SEX X");
+
+    const bd = dateToGedcom(p.birthDate);
+    if (bd || p.birthPlace) {
+      lines.push("1 BIRT");
+      if (bd) lines.push(`2 DATE ${bd}`);
+      if (p.birthPlace) lines.push(`2 PLAC ${p.birthPlace}`);
+    }
+
+    const dd = dateToGedcom(p.deathDate);
+    if (dd) {
+      lines.push("1 DEAT Y");
+      lines.push(`2 DATE ${dd}`);
+    }
+
+    if (p.bio) {
+      const bioLines = p.bio.split("\n");
+      lines.push(`1 NOTE ${bioLines[0]}`);
+      for (let i = 1; i < bioLines.length; i++) {
+        lines.push(`2 CONT ${bioLines[i]}`);
+      }
+    }
+    // Ait olduğu aileler — evlat edinme burada PEDI ile belirtilir
+    const ci = cocukAile.get(p.id);
+    if (ci !== undefined) {
+      lines.push(`1 FAMC ${famXref(ci)}`);
+      const kinds = p.parentIds
+        .map((pid) => p.parentLinks?.[pid]?.kind)
+        .filter((k): k is NonNullable<typeof k> => !!k && k !== "biological");
+      if (kinds.length > 0) {
+        const pedi =
+          kinds[0] === "adoptive" ? "adopted" : kinds[0] === "foster" ? "foster" : "step";
+        lines.push(`2 PEDI ${pedi}`);
+      }
+    }
+    for (const fi of esAile.get(p.id) ?? []) lines.push(`1 FAMS ${famXref(fi)}`);
+  }
+
+  /* ---- FAM kayıtları ---- */
+  fams.forEach((fam, i) => {
+    lines.push(`0 ${famXref(i)} FAM`);
     if (fam.husb && idToGed.has(fam.husb)) lines.push(`1 HUSB ${idToGed.get(fam.husb)}`);
     if (fam.wife && idToGed.has(fam.wife)) lines.push(`1 WIFE ${idToGed.get(fam.wife)}`);
     for (const cid of fam.children) {
@@ -170,13 +201,15 @@ export function importGedcom(content: string): Person[] {
     children: string[];
     divorced?: boolean;
   }
+  /** gedId → ebeveyn bağı türü (FAMC/PEDI'den) */
+  const pedigree = new Map<string, "adoptive" | "foster" | "step">();
 
   const individuals = new Map<string, GedIndi>();
   const families: GedFam[] = [];
 
   let curIndi: GedIndi | null = null;
   let curFam: GedFam | null = null;
-  let ctx: "BIRT" | "DEAT" | "NOTE" | null = null;
+  let ctx: "BIRT" | "DEAT" | "NOTE" | "FAMC" | null = null;
 
   const flush = () => {
     if (curIndi) { individuals.set(curIndi.gedId, curIndi); curIndi = null; }
@@ -220,7 +253,8 @@ export function importGedcom(content: string): Person[] {
         } else if (tag === "SEX") {
           curIndi.gender =
             value === "M" ? "male" : value === "F" ? "female" : value === "X" ? "other" : "unknown";
-        } else if (tag === "BIRT") { ctx = "BIRT"; }
+        } else if (tag === "FAMC") { ctx = "FAMC"; }
+        else if (tag === "BIRT") { ctx = "BIRT"; }
         else if (tag === "DEAT") { ctx = "DEAT"; }
         else if (tag === "NOTE") { ctx = "NOTE"; curIndi.bio = value; }
       } else if (level === 2) {
@@ -229,6 +263,11 @@ export function importGedcom(content: string): Person[] {
           else if (tag === "PLAC") curIndi.birthPlace = value;
         } else if (ctx === "DEAT" && tag === "DATE") {
           curIndi.deathDate = gedcomToDate(value);
+        } else if (ctx === "FAMC" && tag === "PEDI") {
+          const v = value.toLowerCase();
+          if (v === "adopted") pedigree.set(curIndi.gedId, "adoptive");
+          else if (v === "foster") pedigree.set(curIndi.gedId, "foster");
+          else if (v === "step") pedigree.set(curIndi.gedId, "step");
         } else if (ctx === "NOTE" && (tag === "CONT" || tag === "CONC")) {
           curIndi.bio += (tag === "CONT" ? "\n" : "") + value;
         }
@@ -284,6 +323,11 @@ export function importGedcom(content: string): Person[] {
       if (hp && !cp.parentIds.includes(hp.id)) cp.parentIds.push(hp.id);
       if (wp && !cp.parentIds.includes(wp.id)) cp.parentIds.push(wp.id);
       if (cp.parentIds.length > 2) cp.parentIds = cp.parentIds.slice(0, 2);
+
+      const kind = pedigree.get(childGedId);
+      if (kind) {
+        cp.parentLinks = Object.fromEntries(cp.parentIds.map((pid) => [pid, { kind }]));
+      }
     }
   }
 

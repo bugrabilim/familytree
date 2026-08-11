@@ -4,6 +4,23 @@
  */
 export type Gender = "male" | "female" | "other" | "unknown";
 
+/** Ebeveyn bağının türü. Belirtilmezse kan bağı varsayılır. */
+export type ParentKind = "biological" | "adoptive" | "step" | "foster";
+
+/**
+ * İlişkinin kopukluğu ve kimin kopardığı.
+ * Bağ silinmez — evlatlıktan reddedilen kişi de, reddedilen ebeveyn de
+ * ağaçta durur; kopukluk yalnızca not düşülür.
+ */
+export type Estrangement = "by-parent" | "by-child" | "mutual";
+
+export interface ParentLink {
+  kind?: ParentKind;
+  estranged?: Estrangement;
+  /** "1999 depreminde ailesini kaybetti, teyzesi evlat edindi" gibi */
+  note?: string;
+}
+
 export interface Person {
   id: string;
   firstName: string;
@@ -15,6 +32,8 @@ export interface Person {
   photo?: string;
   bio?: string;
   parentIds: string[];
+  /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */
+  parentLinks?: Record<string, ParentLink>;
   /** Süregelen evlilikler. Aynı anda birden fazla olabilir. */
   spouseIds: string[];
   /** Boşanmayla biten evlilikler. Ortak çocuklar `parentIds` üzerinden korunur. */
@@ -25,3 +44,16 @@ export interface FamilyData {
   people: Person[];
   updatedAt: string;
 }
+
+export const PARENT_KIND_LABELS: Record<Exclude<ParentKind, "biological">, string> = {
+  adoptive: "Evlat edinen",
+  step: "Üvey",
+  foster: "Koruyucu aile",
+};
+
+export const ESTRANGEMENT_LABELS: Record<Estrangement, { child: string; parent: string }> = {
+  // child: çocuğun kartında ebeveyn için ・ parent: ebeveynin kartında çocuk için
+  "by-parent": { child: "Kendisini reddetti", parent: "Evlatlıktan reddedildi" },
+  "by-child": { child: "Reddettiği ebeveyn", parent: "Kendisini reddetti" },
+  mutual: { child: "İlişki kopuk", parent: "İlişki kopuk" },
+};
