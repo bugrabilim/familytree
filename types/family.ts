@@ -43,9 +43,21 @@ export interface Person {
   /** Uyruk / vatandaşlık — göçmen kuşaklarda ayırt edici */
   nationality?: string;
   /**
-   * Sağlık / engellilik notu. Soy ağaçlarında kalıtsal durumları izlemek
-   * için tutulur. Kişiyi tanımlayan değil, hakkında bilinen bir bilgidir;
-   * arayüzde ayrı ve sade bir satırda gösterilir.
+   * Doğuştan gelen sağlık durumu / engellilik (Down sendromu, doğuştan görme
+   * engeli, uzuv eksikliği…). Kalıtsal durumları izlemek isteyen aileler için.
+   */
+  congenitalCondition?: string;
+  /**
+   * Yaşarken edinilen sağlık sorunu (bel fıtığı, diyabet, çocuk felci…).
+   * Doğuştan olandan ayrı tutulur; ikisi farklı şeylerdir.
+   */
+  healthCondition?: string;
+  /** Ölüm nedeni. Yalnızca vefat edenlerde anlamlı. */
+  deathCause?: string;
+  /**
+   * @deprecated Eski, ayrışmamış sağlık notu. Yeni kayıtlar
+   * `congenitalCondition` / `healthCondition` kullanır; bu alan yalnızca
+   * eski verilerle uyum için okunur.
    */
   healthNote?: string;
 

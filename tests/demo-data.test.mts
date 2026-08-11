@@ -9,6 +9,10 @@ let hata = 0;
 const err = (m: string) => { hata++; console.log("✗ " + m); };
 const ad = (p: { firstName: string; lastName: string }) => `${p.firstName} ${p.lastName}`;
 
+// Çocuğu, annesi çok erken yaşta (14 altı) doğurmuş bilinçli örnekler.
+// Yaş-farkı taban kontrolünden muaf; kimlikle işaretlenerek niyet belgeleniyor.
+const COK_GENC_ANNE = new Set(["s-fadime-cocuk", "s-yagmur-cocuk"]);
+
 // --- Referans bütünlüğü ---
 for (const p of P) {
   const ad = `${p.firstName} ${p.lastName} (${p.id})`;
@@ -41,9 +45,16 @@ for (const p of P) {
     const pb = yil(par.birthDate);
     if (kanBagi && pb && b) {
       const fark = b - pb;
-      // 14 tabanı bilinçli: demoda erken yaşta ebeveynlik örnekleri var
-      // (en genci 15), ama altına inen her şey veri hatasıdır.
-      if (fark < 14) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı`);
+      // 14 tabanı bilinçli: sıradan kayıtlarda bunun altı veri hatasıdır.
+      // Çok erken yaşta annelik (11/13) bilinçli örnekler; ayrı allowlist ile
+      // muaf tutulur, ama anne kadın ve gerçekçi bir alt sınırın (10) üstünde
+      // olmalı — yoksa yine hata.
+      if (COK_GENC_ANNE.has(p.id)) {
+        if (par.gender !== "female" || fark < 10)
+          err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): erken annelik istisnası geçersiz (${fark} yaş, ${par.gender})`);
+      } else {
+        if (fark < 14) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı`);
+      }
       if (fark > 65) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı fazla`);
     }
     const pd = yil(par.deathDate);
@@ -168,13 +179,22 @@ kontrol("Kızlık soyadını koruyan kadın", kizlikSoyadi.length >= 1,
   kizlikSoyadi.map(p => ad(p)).join(", "));
 kontrol("Çift soyad", ciftSoyad.length >= 1, ciftSoyad.map(p => ad(p)).join(", "));
 
-// --- Engellilik / sağlık notu ---
-const saglikNotu = P.filter(p => p.healthNote);
-const dogustan = saglikNotu.filter(p => /doğuştan|sendrom/i.test(p.healthNote!));
-kontrol("Sağlık / engellilik notu", saglikNotu.length >= 5,
-  saglikNotu.map(p => `${p.firstName}: ${p.healthNote}`).join(" · "));
-kontrol("Doğuştan gelen durumlar", dogustan.length >= 2,
-  dogustan.map(p => p.firstName).join(", "));
+// --- Engellilik / doğuştan durum / sonradan rahatsızlık / ölüm nedeni ---
+const dogustan = P.filter(p => p.congenitalCondition);
+const sonradan = P.filter(p => p.healthCondition);
+const olumNedeni = P.filter(p => p.deathCause);
+kontrol("Doğuştan sağlık durumu", dogustan.length >= 4,
+  dogustan.map(p => `${p.firstName}: ${p.congenitalCondition}`).join(" · "));
+kontrol("Yaşarken sağlık sorunu", sonradan.length >= 1,
+  sonradan.map(p => `${p.firstName}: ${p.healthCondition}`).join(" · "));
+kontrol("Ölüm nedeni bilinen", olumNedeni.length >= 3,
+  olumNedeni.map(p => `${p.firstName}: ${p.deathCause}`).join(" · "));
+// Eski, ayrışmamış healthNote alanı artık kullanılmıyor olmalı
+kontrol("Eski healthNote alanı boş", P.every(p => !p.healthNote), "tüm kayıtlar yeni alanlarda");
+// Ölüm nedeni yalnızca vefat edenlerde
+kontrol("Ölüm nedeni yalnızca vefat edende",
+  olumNedeni.every(p => p.deathDate),
+  olumNedeni.filter(p => !p.deathDate).map(p => p.firstName).join(", ") || "tutarlı");
 
 // --- Erken yaşta ebeveynlik (18 yaş altı, kan bağı) ---
 const gencEbeveyn: string[] = [];
@@ -188,5 +208,18 @@ for (const p of P) {
   }
 }
 kontrol("Erken yaşta ebeveynlik", gencEbeveyn.length >= 3, gencEbeveyn.join(", "));
+
+// --- Çok erken yaşta annelik, evlilik dışı (14 altı, tek ebeveyn, kadın) ---
+const cokGencAnne: string[] = [];
+for (const cid of COK_GENC_ANNE) {
+  const c = idx.get(cid);
+  if (!c) { cokGencAnne.push(`${cid}?`); continue; }
+  const anne = c.parentIds.map(i => idx.get(i)).find(x => x?.gender === "female");
+  const yas = anne && yil(anne.birthDate) && yil(c.birthDate) ? yil(c.birthDate)! - yil(anne.birthDate)! : NaN;
+  const tekEbeveyn = c.parentIds.length === 1;
+  const evlilikYok = anne ? anne.spouseIds.length === 0 : false;
+  if (anne && tekEbeveyn && evlilikYok && yas < 14) cokGencAnne.push(`${anne.firstName} ${yas} yaşında`);
+}
+kontrol("Çok erken yaşta annelik (evlilik dışı)", cokGencAnne.length >= 2, cokGencAnne.join(", "));
 
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

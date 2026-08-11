@@ -66,7 +66,9 @@ export default function PersonForm({
     language: initial?.language ?? "",
     ethnicity: initial?.ethnicity ?? "",
     nationality: initial?.nationality ?? "",
-    healthNote: initial?.healthNote ?? "",
+    congenitalCondition: initial?.congenitalCondition ?? "",
+    healthCondition: initial?.healthCondition ?? "",
+    deathCause: initial?.deathCause ?? "",
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
     formerSpouseIds: initial?.formerSpouseIds ?? [],
@@ -165,7 +167,9 @@ export default function PersonForm({
       language: form.language.trim() || undefined,
       ethnicity: form.ethnicity.trim() || undefined,
       nationality: form.nationality.trim() || undefined,
-      healthNote: form.healthNote.trim() || undefined,
+      congenitalCondition: form.congenitalCondition.trim() || undefined,
+      healthCondition: form.healthCondition.trim() || undefined,
+      deathCause: form.deathCause.trim() || undefined,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
     };
@@ -378,6 +382,20 @@ export default function PersonForm({
         </div>
       </div>
 
+      {/* Ölüm nedeni — yalnızca vefat tarihi varsa göster */}
+      {form.deathDate.trim() && (
+        <div>
+          <label className={label} htmlFor="pf-olum-neden">Ölüm nedeni</label>
+          <input
+            id="pf-olum-neden"
+            className={field}
+            value={form.deathCause}
+            onChange={(e) => set("deathCause", e.target.value)}
+            placeholder="Kalp yetmezliği, trafik kazası…"
+          />
+        </div>
+      )}
+
       {/* Doğum yeri */}
       <div>
         <label className={label} htmlFor="pf-yer">Doğum yeri</label>
@@ -426,15 +444,23 @@ export default function PersonForm({
             <input id="pf-uyruk" className={field} value={form.nationality}
               onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
           </div>
-          <div>
-            <label className={label} htmlFor="pf-saglik">Sağlık / engellilik notu</label>
-            <input id="pf-saglik" className={field} value={form.healthNote}
-              onChange={(e) => set("healthNote", e.target.value)}
-              placeholder="Down sendromu, doğuştan görme engeli…" />
-            <p className="text-[11px] text-text-subtle mt-1">
-              Kalıtsal durumları izlemek isteyen aileler için. Boş bırakabilirsin.
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="pf-dogustan">Doğuştan sağlık durumu</label>
+              <input id="pf-dogustan" className={field} value={form.congenitalCondition}
+                onChange={(e) => set("congenitalCondition", e.target.value)}
+                placeholder="Down sendromu, doğuştan görme engeli…" />
+            </div>
+            <div>
+              <label className={label} htmlFor="pf-hastalik">Yaşarken sağlık sorunu</label>
+              <input id="pf-hastalik" className={field} value={form.healthCondition}
+                onChange={(e) => set("healthCondition", e.target.value)}
+                placeholder="Bel fıtığı, diyabet, çocuk felci…" />
+            </div>
           </div>
+          <p className="text-[11px] text-text-subtle -mt-1">
+            Kalıtsal ve sonradan gelen durumları izlemek isteyen aileler için. Boş bırakabilirsin.
+          </p>
         </div>
       </details>
 

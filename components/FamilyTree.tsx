@@ -260,14 +260,22 @@ function Canvas({ people, selectedId, focusId, highlightIds, onSelect, onQuickAd
     return () => clearTimeout(t);
   }, [nodeCount, fitView]);
 
-  // Seçili kişiyi görünür alana getir
+  // Seçili kişiyi görünür alanın ortasına getir.
+  // Masaüstünde sağdaki 380px'lik detay paneli tuvalin üstüne biniyor;
+  // kartı gerçek görünür alanın ortasına koymak için yatayda kaydırıyoruz.
+  // `positions` bağımlılıkta: yeniden yerleşim olursa efekt tekrar çalışıp
+  // doğru konuma ortalıyor (ilk çalışmada eski konum ölçülse bile).
   useEffect(() => {
     if (!selectedId) return;
     const pos = positions.get(selectedId);
     if (!pos) return;
+    const zoom = 0.9;
+    const drawerAcik =
+      typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+    const kaydir = drawerAcik ? 190 / zoom : 0; // panelin yarısı kadar dünya birimi
     const t = setTimeout(
-      () => setCenter(pos.x + NODE_W / 2, pos.y + NODE_H / 2, { zoom: 0.9, duration: 420 }),
-      120
+      () => setCenter(pos.x + NODE_W / 2 + kaydir, pos.y + NODE_H / 2, { zoom, duration: 420 }),
+      140
     );
     return () => clearTimeout(t);
   }, [selectedId, positions, setCenter]);

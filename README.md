@@ -9,7 +9,7 @@ farklı açıdan bakarsın:
 
 | Görünüm | Ne gösterir |
 |---|---|
-| **Ağaç** | Tüm aile; eşler yan yana, çocuklar altta (dagre + birlik düğümü yerleşimi) |
+| **Ağaç** | Seçili kişinin çevresi; eşler yan yana, çocuklar altta (dagre + birlik düğümü). Kuşak derinliği ayarlanır: 2–8 kuşak, tüm akrabalar ya da herkes |
 | **Soy** | Seçilen kişinin doğrudan ata çizgisi, klasik şecere tablosu (2–6 kuşak) |
 | **Liste** | Herkes; arama, sıralama ve "yaşayan / vefat / bağsız" süzgeçleri |
 | **Panel** | Özet sayılar, yaklaşan doğum günleri, akrabalık hesaplayıcı |
@@ -31,9 +31,10 @@ kimlikleri, erken yaşta ebeveynlik ve bilinmeyen tarihler veri modelinde
 yerini bulur — hepsi zorlama olmadan. Kopan ilişkiler bağı silmez; ağaçta
 durur, yalnızca not düşülür. Soyadı da tek kalıba sığmaz: kadın kızlık
 soyadını sürdürebilir, eşine kendi soyadını verebilir ya da çift soyad
-kullanabilir. Kalıtsal durumları izlemek isteyen aileler için isteğe bağlı
-bir **sağlık notu** alanı vardır — kişiyi tanımlayan değil, hakkında bilinen
-sade bir satır.
+kullanabilir. Sağlık alanları ayrışmıştır — **doğuştan durum**, **yaşarken
+edinilen rahatsızlık** ve **ölüm nedeni** ayrı ayrı tutulur ve listede
+süzgeç olarak kullanılır; kişiyi tanımlayan değil, hakkında bilinen sade
+birer satır.
 
 Ayrıca: koyu/açık tema, `⌘K` ile anlık arama, mobilde alttan açılan paneller,
 Türkçe tarih girişi (`GG.AA.YYYY` ya da sadece `YYYY`) ve otomatik yaş hesabı.
@@ -60,7 +61,8 @@ biseksüel hayatlar; interseks, trans ve ikili olmayan bireyler; bebek
 ölümleri; kızlık soyadını koruyan, eşine soyadını veren ve çift soyad taşıyan
 kadınlar; Down sendromu, doğuştan görme ve işitme engeli, uzuv eksikliği,
 çocuk felci ve otizm gibi durumlarla yaşayanlar; on dörtlü yaşlarda anne
-olanlar.
+olanlar; ve insanın karanlık gerçeklerinden biri — evlilik dışı, çok küçük
+yaşta annelik — sükûnetle, gerçeğe sadık kalınarak.
 
 Herkesin bir hikâyesi, herkesin bir avatarı var. Avatarlar gömülü SVG olarak
 üretilir — dış servise bağımlılık yok.

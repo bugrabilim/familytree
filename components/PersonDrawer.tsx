@@ -177,6 +177,7 @@ export default function PersonDrawer({
               )}
               {person.birthPlace && <Fact icon="📍" label="Doğum yeri" value={person.birthPlace} />}
               {person.deathDate && <Fact icon="🕯️" label="Vefat" value={formatLong(person.deathDate)} />}
+              {person.deathCause && <Fact icon="🩶" label="Ölüm nedeni" value={person.deathCause} />}
             </section>
           )}
 
@@ -202,10 +203,25 @@ export default function PersonDrawer({
             </section>
           )}
 
-          {person.healthNote && (
-            <section>
-              <SectionTitle>Sağlık notu</SectionTitle>
-              <p className="text-sm text-text-muted leading-relaxed">{person.healthNote}</p>
+          {(person.congenitalCondition || person.healthCondition || person.healthNote) && (
+            <section className="space-y-2">
+              <SectionTitle>Sağlık</SectionTitle>
+              {person.congenitalCondition && (
+                <div>
+                  <p className="text-[11px] font-medium text-text-subtle">Doğuştan</p>
+                  <p className="text-sm text-text-muted leading-relaxed">{person.congenitalCondition}</p>
+                </div>
+              )}
+              {person.healthCondition && (
+                <div>
+                  <p className="text-[11px] font-medium text-text-subtle">Yaşarken</p>
+                  <p className="text-sm text-text-muted leading-relaxed">{person.healthCondition}</p>
+                </div>
+              )}
+              {/* Eski, ayrışmamış kayıtlar için */}
+              {!person.congenitalCondition && !person.healthCondition && person.healthNote && (
+                <p className="text-sm text-text-muted leading-relaxed">{person.healthNote}</p>
+              )}
             </section>
           )}
 

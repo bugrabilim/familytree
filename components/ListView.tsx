@@ -7,7 +7,14 @@ import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
-type Filter = "hepsi" | "yasayan" | "vefat" | "bagsiz";
+type Filter =
+  | "hepsi"
+  | "yasayan"
+  | "vefat"
+  | "bagsiz"
+  | "dogustan"
+  | "hastalik"
+  | "olum-neden";
 
 interface Props {
   people: Person[];
@@ -38,11 +45,17 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
           p.parentIds.length > 0 || p.spouseIds.length > 0 || childIds.has(p.id);
         if (linked) return false;
       }
+      if (filter === "dogustan" && !p.congenitalCondition) return false;
+      if (filter === "hastalik" && !p.healthCondition) return false;
+      if (filter === "olum-neden" && !p.deathCause) return false;
       if (!q) return true;
       return (
         `${p.firstName} ${p.lastName}`.toLocaleLowerCase("tr").includes(q) ||
         (p.birthPlace ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.bio ?? "").toLocaleLowerCase("tr").includes(q) ||
+        (p.congenitalCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
+        (p.healthCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
+        (p.deathCause ?? "").toLocaleLowerCase("tr").includes(q) ||
         (p.birthDate ?? "").includes(q)
       );
     });
@@ -69,6 +82,9 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
     { k: "yasayan", l: "Yaşayan" },
     { k: "vefat", l: "Vefat" },
     { k: "bagsiz", l: "Bağsız" },
+    { k: "dogustan", l: "Doğuştan durum" },
+    { k: "hastalik", l: "Sonradan rahatsızlık" },
+    { k: "olum-neden", l: "Ölüm nedeni" },
   ];
 
   return (
@@ -169,6 +185,15 @@ export default function ListView({ people, selectedId, onSelect, onAdd }: Props)
                       {p.birthPlace && (
                         <p className="text-[11px] text-text-subtle truncate leading-tight mt-0.5">
                           📍 {p.birthPlace}
+                        </p>
+                      )}
+                      {(p.congenitalCondition || p.healthCondition || p.deathCause) && (
+                        <p className="text-[11px] text-text-subtle truncate leading-tight mt-0.5">
+                          {p.congenitalCondition
+                            ? `🧬 ${p.congenitalCondition}`
+                            : p.healthCondition
+                            ? `🩺 ${p.healthCondition}`
+                            : `🩶 ${p.deathCause}`}
                         </p>
                       )}
                     </div>
