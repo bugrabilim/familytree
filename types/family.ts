@@ -42,6 +42,12 @@ export interface Person {
   ethnicity?: string;
   /** Uyruk / vatandaşlık — göçmen kuşaklarda ayırt edici */
   nationality?: string;
+  /**
+   * Sağlık / engellilik notu. Soy ağaçlarında kalıtsal durumları izlemek
+   * için tutulur. Kişiyi tanımlayan değil, hakkında bilinen bir bilgidir;
+   * arayüzde ayrı ve sade bir satırda gösterilir.
+   */
+  healthNote?: string;
 
   parentIds: string[];
   /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */

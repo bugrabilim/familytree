@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     language: body.language || undefined,
     ethnicity: body.ethnicity || undefined,
     nationality: body.nationality || undefined,
+    healthNote: body.healthNote || undefined,
     photo: body.photo || undefined,
     bio: body.bio || undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],

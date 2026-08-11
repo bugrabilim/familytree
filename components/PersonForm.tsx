@@ -66,6 +66,7 @@ export default function PersonForm({
     language: initial?.language ?? "",
     ethnicity: initial?.ethnicity ?? "",
     nationality: initial?.nationality ?? "",
+    healthNote: initial?.healthNote ?? "",
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
     formerSpouseIds: initial?.formerSpouseIds ?? [],
@@ -164,6 +165,7 @@ export default function PersonForm({
       language: form.language.trim() || undefined,
       ethnicity: form.ethnicity.trim() || undefined,
       nationality: form.nationality.trim() || undefined,
+      healthNote: form.healthNote.trim() || undefined,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
     };
@@ -423,6 +425,15 @@ export default function PersonForm({
             <label className={label} htmlFor="pf-uyruk">Uyruk</label>
             <input id="pf-uyruk" className={field} value={form.nationality}
               onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
+          </div>
+          <div>
+            <label className={label} htmlFor="pf-saglik">Sağlık / engellilik notu</label>
+            <input id="pf-saglik" className={field} value={form.healthNote}
+              onChange={(e) => set("healthNote", e.target.value)}
+              placeholder="Down sendromu, doğuştan görme engeli…" />
+            <p className="text-[11px] text-text-subtle mt-1">
+              Kalıtsal durumları izlemek isteyen aileler için. Boş bırakabilirsin.
+            </p>
           </div>
         </div>
       </details>

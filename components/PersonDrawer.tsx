@@ -202,6 +202,13 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {person.healthNote && (
+            <section>
+              <SectionTitle>Sağlık notu</SectionTitle>
+              <p className="text-sm text-text-muted leading-relaxed">{person.healthNote}</p>
+            </section>
+          )}
+
           {person.bio && (
             <section>
               <SectionTitle>Hikâyesi</SectionTitle>
