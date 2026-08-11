@@ -3,7 +3,7 @@ import { isValidDateInput, displayToStored, storedToDisplay, calcAge } from "../
 import type { Person } from "../types/family.ts";
 
 const people: Person[] = [
-  { id:"a", firstName:"Mehmet", lastName:"Yılmaz", gender:"male", birthDate:"1920-03-12", deathDate:"1994-11-02", deathCause:"Kalp yetmezliği", birthPlace:"Trabzon", bio:"Balıkçıydı.\nİki satır.", parentIds:[], spouseIds:["b"] },
+  { id:"a", firstName:"Mehmet", lastName:"Yılmaz", gender:"male", birthDate:"1920-03-12", deathDate:"1994-11-02", deathCause:"Kalp yetmezliği", birthPlace:"Trabzon", bio:"Balıkçıydı.\nİki satır.", events:[{ id:"ev1", type:"evlilik", title:"Fatma ile evlendi", date:"1944-06", place:"Rize", note:"Köy düğünü." }], parentIds:[], spouseIds:["b"] },
   { id:"b", firstName:"Fatma", lastName:"Yılmaz", gender:"female", birthDate:"1925", parentIds:[], spouseIds:["a"] },
   { id:"c", firstName:"Ali", lastName:"Yılmaz", gender:"male", birthDate:"1948-01-25", parentIds:["a","b"], spouseIds:["d"] },
   { id:"d", firstName:"Ayşe", lastName:"Yılmaz", gender:"female", birthDate:"1952-09", parentIds:[], spouseIds:["c"] },
@@ -33,6 +33,14 @@ check("evlilik", m && f && m.spouseIds.includes(f.id) && f.spouseIds.includes(m.
 check("ebeveyn bağı", a && m && f && a.parentIds.includes(m.id) && a.parentIds.includes(f.id), JSON.stringify(a?.parentIds.length));
 check("torun bağı", e && a && y && e.parentIds.includes(a.id) && e.parentIds.includes(y.id));
 check("tarihsiz kişi", e?.birthDate === undefined);
+
+// Yaşam olayı gidiş-dönüş (1 EVEN)
+check("olay sayısı", m?.events?.length === 1, `(${m?.events?.length})`);
+check("olay başlığı", m?.events?.[0]?.title === "Fatma ile evlendi", JSON.stringify(m?.events?.[0]?.title));
+check("olay türü", m?.events?.[0]?.type === "evlilik", `(${m?.events?.[0]?.type})`);
+check("olay tarihi", m?.events?.[0]?.date === "1944-06", `(${m?.events?.[0]?.date})`);
+check("olay yeri", m?.events?.[0]?.place === "Rize", `(${m?.events?.[0]?.place})`);
+check("olay notu", m?.events?.[0]?.note === "Köy düğünü.", JSON.stringify(m?.events?.[0]?.note));
 
 // Tarih doğrulama
 check("gecerli GG.AA.YYYY", isValidDateInput("29.02.2024"));

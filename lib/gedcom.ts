@@ -1,4 +1,4 @@
-import type { Person } from "@/types/family";
+import type { LifeEvent, Person } from "@/types/family";
 import { nanoid } from "nanoid";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -153,6 +153,22 @@ export function exportGedcom(people: Person[]): string {
         lines.push(`2 CONT ${bioLines[i]}`);
       }
     }
+
+    // Yaşam olayları — genel EVEN blokları. Başlık NOTE'un ilk satırında,
+    // varsa serbest not sonraki CONT satırlarında.
+    for (const ev of p.events ?? []) {
+      lines.push("1 EVEN");
+      lines.push(`2 TYPE ${ev.type}`);
+      const ed = dateToGedcom(ev.date);
+      if (ed) lines.push(`2 DATE ${ed}`);
+      if (ev.place) lines.push(`2 PLAC ${ev.place}`);
+      if (ev.title || ev.note) {
+        lines.push(`2 NOTE ${ev.title ?? ""}`);
+        if (ev.note) {
+          for (const nl of ev.note.split("\n")) lines.push(`3 CONT ${nl}`);
+        }
+      }
+    }
     // Ait olduğu aileler — evlat edinme burada PEDI ile belirtilir
     const ci = cocukAile.get(p.id);
     if (ci !== undefined) {
@@ -196,6 +212,7 @@ export function importGedcom(content: string): Person[] {
     deathCause?: string;
     birthPlace?: string;
     bio: string;
+    events: Array<{ type: string; date?: string; title: string; place?: string; note: string }>;
   }
   interface GedFam {
     husb?: string;
@@ -211,12 +228,17 @@ export function importGedcom(content: string): Person[] {
 
   let curIndi: GedIndi | null = null;
   let curFam: GedFam | null = null;
-  let ctx: "BIRT" | "DEAT" | "NOTE" | "FAMC" | null = null;
+  let ctx: "BIRT" | "DEAT" | "NOTE" | "FAMC" | "EVEN" | null = null;
+  // EVEN bloğunda işlenen olay ve NOTE alt-bağlamı (level 3 CONT için)
+  let curEvent: GedIndi["events"][number] | null = null;
+  let inEvenNote = false;
 
   const flush = () => {
     if (curIndi) { individuals.set(curIndi.gedId, curIndi); curIndi = null; }
     if (curFam) { families.push(curFam); curFam = null; }
     ctx = null;
+    curEvent = null;
+    inEvenNote = false;
   };
 
   for (const rawLine of content.split(/\r?\n/)) {
@@ -234,7 +256,7 @@ export function importGedcom(content: string): Person[] {
     if (level === 0) {
       flush();
       if (tag === "INDI" && xref) {
-        curIndi = { gedId: xref, ourId: nanoid(), firstName: "", lastName: "", gender: "unknown", bio: "" };
+        curIndi = { gedId: xref, ourId: nanoid(), firstName: "", lastName: "", gender: "unknown", bio: "", events: [] };
       } else if (tag === "FAM") {
         curFam = { children: [] };
       }
@@ -244,7 +266,13 @@ export function importGedcom(content: string): Person[] {
     if (curIndi) {
       if (level === 1) {
         ctx = null;
-        if (tag === "NAME") {
+        curEvent = null;
+        inEvenNote = false;
+        if (tag === "EVEN") {
+          ctx = "EVEN";
+          curEvent = { type: "diger", title: "", note: "" };
+          curIndi.events.push(curEvent);
+        } else if (tag === "NAME") {
           const nm = value.match(/^(.*?)\s*\/([^/]*)\//);
           if (nm) { curIndi.firstName = nm[1].trim(); curIndi.lastName = nm[2].trim(); }
           else {
@@ -260,6 +288,7 @@ export function importGedcom(content: string): Person[] {
         else if (tag === "DEAT") { ctx = "DEAT"; }
         else if (tag === "NOTE") { ctx = "NOTE"; curIndi.bio = value; }
       } else if (level === 2) {
+        inEvenNote = false;
         if (ctx === "BIRT") {
           if (tag === "DATE") curIndi.birthDate = gedcomToDate(value);
           else if (tag === "PLAC") curIndi.birthPlace = value;
@@ -272,8 +301,21 @@ export function importGedcom(content: string): Person[] {
           if (v === "adopted") pedigree.set(curIndi.gedId, "adoptive");
           else if (v === "foster") pedigree.set(curIndi.gedId, "foster");
           else if (v === "step") pedigree.set(curIndi.gedId, "step");
+        } else if (ctx === "EVEN" && curEvent) {
+          if (tag === "TYPE") curEvent.type = value || "diger";
+          else if (tag === "DATE") curEvent.date = gedcomToDate(value);
+          else if (tag === "PLAC") curEvent.place = value || undefined;
+          else if (tag === "NOTE") { curEvent.title = value; inEvenNote = true; }
         } else if (ctx === "NOTE" && (tag === "CONT" || tag === "CONC")) {
           curIndi.bio += (tag === "CONT" ? "\n" : "") + value;
+        }
+      } else if (level === 3) {
+        // EVEN → NOTE altındaki çok satırlı serbest not
+        if (ctx === "EVEN" && curEvent && inEvenNote && (tag === "CONT" || tag === "CONC")) {
+          // İlk satırda baştan newline eklenmez; sonraki CONT'lar satır kırar
+          curEvent.note = curEvent.note
+            ? curEvent.note + (tag === "CONT" ? "\n" : "") + value
+            : value;
         }
       }
     }
@@ -289,6 +331,14 @@ export function importGedcom(content: string): Person[] {
 
   const people: Person[] = [];
   for (const [, gi] of individuals) {
+    const events: LifeEvent[] = gi.events.map((e) => ({
+      id: nanoid(),
+      type: e.type || "diger",
+      title: e.title,
+      date: e.date,
+      place: e.place,
+      note: e.note || undefined,
+    }));
     people.push({
       id: gi.ourId,
       firstName: gi.firstName || "?",
@@ -299,6 +349,7 @@ export function importGedcom(content: string): Person[] {
       deathCause: gi.deathCause,
       birthPlace: gi.birthPlace,
       bio: gi.bio || undefined,
+      events: events.length ? events : undefined,
       parentIds: [],
       spouseIds: [],
       formerSpouseIds: [],

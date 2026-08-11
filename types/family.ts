@@ -21,6 +21,22 @@ export interface ParentLink {
   note?: string;
 }
 
+/**
+ * Yaşam olayı — kişinin ömründeki tekil bir an (evlilik, mezuniyet, göç…).
+ * `bio` serbest metin iken bunlar yapısal ve zaman çizelgesinde sıralanır.
+ */
+export interface LifeEvent {
+  id: string;
+  /** "YYYY" | "YYYY-MM" | "YYYY-MM-DD" — `birthDate` ile aynı depolama biçimi */
+  date?: string;
+  /** `LIFE_EVENT_TYPES` anahtarı ya da serbest metin */
+  type: string;
+  /** Kısa etiket, ör. "İlkokul mezuniyeti" */
+  title: string;
+  place?: string;
+  note?: string;
+}
+
 export interface Person {
   id: string;
   /**
@@ -95,12 +111,32 @@ export interface Person {
   spouseIds: string[];
   /** Boşanmayla biten evlilikler. Ortak çocuklar `parentIds` üzerinden korunur. */
   formerSpouseIds?: string[];
+
+  /** Yapısal yaşam olayları — drawer'da zaman çizelgesi olarak gösterilir. */
+  events?: LifeEvent[];
 }
 
 export interface FamilyData {
   people: Person[];
   updatedAt: string;
 }
+
+/**
+ * Yaşam olayı türleri — Türkçe etiket + emoji simge. Anahtar, `LifeEvent.type`
+ * alanında saklanır; listede olmayan (serbest metin) türler de geçerlidir.
+ */
+export const LIFE_EVENT_TYPES: Record<string, { label: string; icon: string }> = {
+  evlilik: { label: "Evlilik", icon: "💍" },
+  bosanma: { label: "Boşanma", icon: "💔" },
+  cocuk: { label: "Çocuk doğumu", icon: "👶" },
+  mezuniyet: { label: "Mezuniyet", icon: "🎓" },
+  is: { label: "İş / kariyer", icon: "💼" },
+  "goc-tasinma": { label: "Göç / taşınma", icon: "🧳" },
+  askerlik: { label: "Askerlik", icon: "🎖️" },
+  hastalik: { label: "Hastalık", icon: "🏥" },
+  odul: { label: "Ödül", icon: "🏆" },
+  diger: { label: "Diğer", icon: "✨" },
+};
 
 export const PARENT_KIND_LABELS: Record<Exclude<ParentKind, "biological">, string> = {
   adoptive: "Evlat edinen",

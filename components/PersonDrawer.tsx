@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   ESTRANGEMENT_LABELS,
+  LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
   type Person,
 } from "@/types/family";
@@ -77,6 +78,46 @@ export default function PersonDrawer({
   const referencePerson = referenceId ? idx.get(referenceId) : undefined;
   const age = calcAge(person.birthDate, person.deathDate);
   const years = lifeSpan(person.birthDate, person.deathDate);
+
+  // Zaman çizelgesi: doğum + yaşam olayları + vefat tek bir dikey akışta.
+  // Maskeli (yaşayan) kişide `events`/`birthDate` taşınmadığı için doğal olarak boş kalır.
+  const timeline = useMemo(() => {
+    type Item = { key: string; date?: string; icon: string; label: string; sub?: string };
+    const items: Item[] = [];
+    if (person.birthDate) {
+      items.push({
+        key: "birth",
+        date: person.birthDate,
+        icon: "🎂",
+        label: "Doğum",
+        sub: person.birthPlace,
+      });
+    }
+    for (const ev of person.events ?? []) {
+      const meta = LIFE_EVENT_TYPES[ev.type];
+      items.push({
+        key: ev.id,
+        date: ev.date,
+        icon: meta?.icon ?? "✨",
+        label: ev.title || meta?.label || ev.type,
+        sub: ev.place,
+      });
+    }
+    if (person.deathDate) {
+      items.push({
+        key: "death",
+        date: person.deathDate,
+        icon: "🕯️",
+        label: "Vefat",
+        sub: person.deathCause,
+      });
+    }
+    const dated = items
+      .filter((it) => it.date)
+      .sort((a, b) => a.date!.localeCompare(b.date!));
+    const undated = items.filter((it) => !it.date);
+    return { dated, undated, hasEvents: (person.events ?? []).length > 0 };
+  }, [person.birthDate, person.birthPlace, person.deathDate, person.deathCause, person.events]);
 
   useEscapeKey(onClose);
 
@@ -254,6 +295,44 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {timeline.hasEvents && (timeline.dated.length > 0 || timeline.undated.length > 0) && (
+            <section>
+              <SectionTitle>Zaman çizelgesi</SectionTitle>
+              {timeline.dated.length > 0 && (
+                <ol>
+                  {timeline.dated.map((it, i) => (
+                    <TimelineRow
+                      key={it.key}
+                      year={it.date!.slice(0, 4)}
+                      icon={it.icon}
+                      label={it.label}
+                      sub={it.sub}
+                      last={i === timeline.dated.length - 1 && timeline.undated.length === 0}
+                    />
+                  ))}
+                </ol>
+              )}
+              {timeline.undated.length > 0 && (
+                <div className="mt-1">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-text-subtle mb-1 pl-[3.25rem]">
+                    Tarihsiz
+                  </p>
+                  <ol>
+                    {timeline.undated.map((it, i) => (
+                      <TimelineRow
+                        key={it.key}
+                        icon={it.icon}
+                        label={it.label}
+                        sub={it.sub}
+                        last={i === timeline.undated.length - 1}
+                      />
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </section>
+          )}
+
           <RelationGroup
             title="Ebeveynler"
             people={parents}
@@ -314,6 +393,39 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <h3 className="text-[10px] font-semibold uppercase tracking-wider text-text-subtle mb-2">
       {children}
     </h3>
+  );
+}
+
+function TimelineRow({
+  year,
+  icon,
+  label,
+  sub,
+  last,
+}: {
+  year?: string;
+  icon: string;
+  label: string;
+  sub?: string;
+  last?: boolean;
+}) {
+  return (
+    <li className="flex gap-2.5 items-stretch">
+      {/* Yıl — solda belirgin */}
+      <div className="w-9 shrink-0 pt-0.5 text-right">
+        <span className="text-sm font-semibold text-text tabular-nums">{year ?? "—"}</span>
+      </div>
+      {/* İşaret + dikey çizgi */}
+      <div className="flex flex-col items-center shrink-0">
+        <span className="text-sm leading-none grid place-items-center w-5 h-5" aria-hidden>{icon}</span>
+        {!last && <span className="w-px flex-1 bg-border mt-0.5" />}
+      </div>
+      {/* İçerik — sağda */}
+      <div className={`min-w-0 pt-0.5 ${last ? "pb-0.5" : "pb-3"}`}>
+        <p className="text-sm text-text leading-tight">{label}</p>
+        {sub && <p className="text-[11px] text-text-subtle leading-tight mt-0.5">{sub}</p>}
+      </div>
+    </li>
   );
 }
 
