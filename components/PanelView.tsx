@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
-import { calcAge, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
+import { calcAge, daysUntilAnniversary, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
 import {
   ancestorDepths,
   bloodDegrees,
@@ -32,14 +32,74 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
-  const birthdays = useMemo(() => {
-    return people
-      .filter((p) => !p.deathDate && p.birthDate)
-      .map((p) => ({ person: p, days: daysUntilBirthday(p.birthDate) }))
-      .filter((x): x is { person: Person; days: number } => x.days !== null && x.days <= 60)
-      .sort((a, b) => a.days - b.days)
-      .slice(0, 6);
-  }, [people]);
+  // 🎂 Doğum günleri · 💍 evlilik yıldönümleri · 🕯️ anma günleri — tek liste.
+  // Yıldönümleri, gizlilik için maskeli kopyadan türetilir: gizli yaşayan bir
+  // kişinin evlilik tarihi (maskeli kopyada `events` yok) sızmaz.
+  const upcoming = useMemo(() => {
+    type Ev = {
+      key: string;
+      kind: "birthday" | "anniversary" | "memorial";
+      rawPerson: Person;
+      days: number;
+      icon: string;
+      label: string;
+    };
+    const out: Ev[] = [];
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const occYearOf = (days: number) => {
+      const occ = new Date(startOfToday);
+      occ.setDate(occ.getDate() + days);
+      return occ.getFullYear();
+    };
+
+    for (const p of people) {
+      // 🎂 Doğum günü — yalnızca yaşayanlar (mevcut davranış korunur)
+      if (!p.deathDate && p.birthDate) {
+        const days = daysUntilBirthday(p.birthDate);
+        if (days !== null && days <= 60) {
+          out.push({ key: `b-${p.id}`, kind: "birthday", rawPerson: p, days, icon: "🎂", label: "" });
+        }
+      }
+
+      // 🕯️ Anma günü — vefat edenler. Gizli (confidential) kayıtlar hariç.
+      if (p.deathDate && !isMasked(p, hideLiving)) {
+        const days = daysUntilAnniversary(p.deathDate);
+        if (days !== null && days <= 60) {
+          const years = occYearOf(days) - Number(p.deathDate.slice(0, 4));
+          out.push({
+            key: `m-${p.id}`,
+            kind: "memorial",
+            rawPerson: p,
+            days,
+            icon: "🕯️",
+            label: years >= 1 ? `${years}. yıl anması` : "Ölüm yıldönümü",
+          });
+        }
+      }
+
+      // 💍 Evlilik yıldönümü — maskeli kopyadan okunur (gizli tarih sızmaz).
+      const events = view(p).events;
+      if (events) {
+        for (const ev of events) {
+          if (ev.type !== "evlilik" || !ev.date) continue;
+          const days = daysUntilAnniversary(ev.date);
+          if (days === null || days > 60) continue;
+          const years = occYearOf(days) - Number(ev.date.slice(0, 4));
+          out.push({
+            key: `a-${p.id}-${ev.id}`,
+            kind: "anniversary",
+            rawPerson: p,
+            days,
+            icon: "💍",
+            label: years >= 1 ? `${years}. evlilik yıldönümü` : "Evlilik yıldönümü",
+          });
+        }
+      }
+    }
+
+    return out.sort((a, b) => a.days - b.days).slice(0, 8);
+  }, [people, view, hideLiving]);
 
   const eldest = useMemo(() => {
     return [...people]
@@ -126,19 +186,37 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
-          {/* Doğum günleri */}
+          {/* Yaklaşan olaylar — doğum günü 🎂 · evlilik yıldönümü 💍 · anma 🕯️ */}
           <Card
-            title="Yaklaşan doğum günleri"
+            title="Yaklaşan olaylar"
             hint="Önümüzdeki 60 gün"
-            empty={birthdays.length === 0 ? "Bu dönemde doğum günü yok" : undefined}
+            empty={upcoming.length === 0 ? "Bu dönemde yaklaşan olay yok" : undefined}
           >
             <ul className="space-y-1">
-              {birthdays.map(({ person: rawPerson, days }) => {
-                const age = calcAge(rawPerson.birthDate);
-                const person = view(rawPerson);
-                const masked = isMasked(rawPerson, hideLiving);
+              {upcoming.map((ev) => {
+                const person = view(ev.rawPerson);
+                const masked = isMasked(ev.rawPerson, hideLiving);
+                let subtext: React.ReactNode = null;
+                if (ev.kind === "birthday") {
+                  const age = calcAge(ev.rawPerson.birthDate);
+                  subtext = masked ? (
+                    <p className="text-[11px] text-text-subtle leading-tight">🔒 Yaşayan</p>
+                  ) : age !== null ? (
+                    <p className="text-[11px] text-text-subtle leading-tight">
+                      🎂 {age + (ev.days === 0 ? 0 : 1)} yaşına giriyor
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-text-subtle leading-tight">🎂 Doğum günü</p>
+                  );
+                } else {
+                  subtext = (
+                    <p className="text-[11px] text-text-subtle leading-tight">
+                      {ev.icon} {ev.label}
+                    </p>
+                  );
+                }
                 return (
-                  <li key={person.id}>
+                  <li key={ev.key}>
                     <button
                       onClick={() => onSelect(person.id)}
                       className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
@@ -148,22 +226,16 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                         <p className="text-sm text-text truncate leading-tight">
                           {fullName(person)}
                         </p>
-                        {masked ? (
-                          <p className="text-[11px] text-text-subtle leading-tight">🔒 Yaşayan</p>
-                        ) : age !== null ? (
-                          <p className="text-[11px] text-text-subtle leading-tight">
-                            {age + (days === 0 ? 0 : 1)} yaşına giriyor
-                          </p>
-                        ) : null}
+                        {subtext}
                       </div>
                       <span
                         className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${
-                          days <= 1
+                          ev.days <= 1
                             ? "bg-accent-soft text-accent"
                             : "bg-surface-2 text-text-muted"
                         }`}
                       >
-                        {humanizeDays(days)}
+                        {humanizeDays(ev.days)}
                       </span>
                     </button>
                   </li>

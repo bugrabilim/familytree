@@ -118,6 +118,29 @@ export function daysUntilBirthday(birth?: string): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86400000);
 }
 
+/**
+ * Bugünden itibaren kaç gün sonra bir tarihin ay/gün yıldönümü?
+ * "YYYY-MM-DD" ya da "YYYY-MM" kabul eder; gün yoksa ayın 1'i varsayılır.
+ * Ay bilgisi yoksa (yalnızca "YYYY") null.
+ *
+ * `daysUntilBirthday` ile aynı anlamı taşır (bugün = 0) ve hem evlilik
+ * yıldönümleri hem de anma günleri için yeniden kullanılır.
+ */
+export function daysUntilAnniversary(stored?: string): number | null {
+  if (!stored) return null;
+  const parts = stored.split("-");
+  if (parts.length < 2) return null;
+  const [, m, d] = parts.map(Number);
+  if (!m) return null;
+  const day = d || 1;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(today.getFullYear(), m - 1, day);
+  if (next < today) next = new Date(today.getFullYear() + 1, m - 1, day);
+  return Math.round((next.getTime() - today.getTime()) / 86400000);
+}
+
 /** "12 gün sonra" / "Bugün!" / "Yarın" */
 export function humanizeDays(days: number): string {
   if (days === 0) return "Bugün";
