@@ -65,13 +65,13 @@ export default function ForgotPasswordPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="f-soyisim">Soyisim</label>
+          <label className={authLabel} htmlFor="f-soyisim">Ağaç adı</label>
           <input
             id="f-soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="Hesabındaki soyisim"
+            placeholder="Hesabındaki ağaç adı"
             required
           />
         </div>

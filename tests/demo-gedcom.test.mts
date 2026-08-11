@@ -21,8 +21,9 @@ c("çok eşlilik: 4 güncel eş", !!ahmet && ahmet.spouseIds.length === 4, `${ah
 const denizS = back.find(p => p.firstName === "Deniz" && p.birthDate === "1958-07-04");
 c("interseks cinsiyet (SEX X)", denizS?.gender === "other", String(denizS?.gender));
 
-const veli = back.find(p => p.firstName === "Veli");
-c("tarihsiz kişi korundu", !!veli && !veli.birthDate && !veli.deathDate);
+const tarihsiz = back.find(p => p.firstName === "Mehmed" && p.lastName === "Değirmencioğlu");
+c("tarihsiz kişi korundu", !!tarihsiz && !tarihsiz.birthDate && !tarihsiz.deathDate,
+  JSON.stringify({ d: tarihsiz?.birthDate, o: tarihsiz?.deathDate }));
 
 const mehmet = back.find(p => p.firstName === "Mehmet" && p.lastName === "Demirtaş");
 c("çok satırlı biyografi", !!mehmet?.bio?.includes("\n"), JSON.stringify(mehmet?.bio?.slice(0,30)));
@@ -44,7 +45,7 @@ const cases: Array<[string,string,string]> = [
   ["k10-poyraz", "k9-cem", "Amca"],
   ["k10-poyraz", "k9-selin", "Hala"],
   ["k8-orhan", "k10-poyraz", "Torun"],
-  ["k9-deniz", "k8-orhan-es2", "Baba eşi"],
+  ["k9-deniz", "k8-orhan-es2", "Babasının eski eşi"],
   ["k6-mehmet", "k6-naz", "Eş"],
   ["k9-cem", "k9-cem-es1", "Eski eş"],
   ["k11-lina", "k7-kemal", "Büyük büyük dede"],

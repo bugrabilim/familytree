@@ -1,5 +1,6 @@
 import { DEMO_PEOPLE } from "../lib/demo-data.ts";
 import { computeStats, indexPeople, ancestorDepths } from "../lib/relations.ts";
+import { generateAvatar } from "../lib/avatar.ts";
 
 const P = DEMO_PEOPLE;
 const idx = indexPeople(P);
@@ -77,7 +78,10 @@ const tarihsiz = P.filter(p => !p.birthDate);
 const bebekOlum = P.filter(p => { const b=yil(p.birthDate),d=yil(p.deathDate); return b&&d&&d-b<=1; });
 const interseks = P.filter(p => p.gender === "other");
 const bilinmeyenC = P.filter(p => p.gender === "unknown");
-const fotolu = P.filter(p => p.photo);
+// Avatar artık arayüzde üretiliyor; herkese bir portre düştüğünü doğrula
+const avatarlar = P.map(p =>
+  generateAvatar(p.id, p.gender, p.birthDate ? Number(p.birthDate.slice(0, 4)) : undefined)
+);
 const biyografili = P.filter(p => p.bio);
 const soyadlar = new Set(P.map(p => p.lastName));
 const tekEbeveyn = P.filter(p => p.parentIds.length === 1);
@@ -93,7 +97,8 @@ kontrol("Tarihi bilinmeyenler", tarihsiz.length >= 3, `${tarihsiz.length} kişi`
 kontrol("Bebek/doğum ölümleri", bebekOlum.length >= 4, `${bebekOlum.length} kişi`);
 kontrol("İnterseks / ikili olmayan", interseks.length >= 2, interseks.map(p=>p.firstName).join(", "));
 kontrol("Cinsiyeti bilinmeyen", bilinmeyenC.length >= 2, `${bilinmeyenC.length} kişi`);
-kontrol("Fotoğraflı", fotolu.length >= 60, `${fotolu.length} kişi`);
+kontrol("Herkese avatar üretiliyor", avatarlar.every(a => a.startsWith("data:image/svg+xml,")), `${P.length} kişi`);
+kontrol("Avatar çeşitliliği", new Set(avatarlar).size >= P.length * 0.8, `${new Set(avatarlar).size} farklı görünüm`);
 kontrol("Biyografili", biyografili.length >= 40, `${biyografili.length} kişi`);
 kontrol("Farklı soyadı (Soyadı Kanunu)", soyadlar.size >= 10, `${soyadlar.size} soyadı`);
 kontrol("Tek ebeveynli çocuk", tekEbeveyn.length >= 2, `${tekEbeveyn.length} kişi`);
@@ -119,6 +124,20 @@ kontrol("Evlat edinme", bagli("adoptive").length >= 3, bagli("adoptive").map(p=>
 kontrol("Koruyucu / evlatlık", bagli("foster").length >= 1, bagli("foster").map(p=>p.firstName).join(", "));
 kontrol("Evlatlıktan reddedilen", kopuk("by-parent").length >= 2, kopuk("by-parent").map(p=>p.firstName).join(", "));
 kontrol("Ebeveynini reddeden", kopuk("by-child").length >= 1, kopuk("by-child").map(p=>p.firstName).join(", "));
+const kokenli = P.filter(p => p.religion || p.language || p.ethnicity || p.nationality);
+const yabanci = P.filter(p => p.nationality && !p.nationality.startsWith("Türkiye") && p.nationality !== "Osmanlı");
+const escinsel = P.filter(p => {
+  const es = p.spouseIds.map(i => idx.get(i)!).filter(Boolean);
+  return es.some(e => e.gender === p.gender && p.gender !== "unknown");
+});
+const uvey = P.filter(p => Object.values(p.parentLinks ?? {}).some(l => l.kind === "step"));
+const enEski = P.map(p => p.birthDate).filter(Boolean).sort()[0]!;
+
+kontrol("1600 öncesine uzanıyor", Number(enEski.slice(0,4)) < 1600, `en eski doğum ${enEski}`);
+kontrol("Köken bilgisi", kokenli.length >= 100, `${kokenli.length} kişide`);
+kontrol("Yurt dışı aileler", yabanci.length >= 12, [...new Set(yabanci.map(p=>p.nationality))].join(" · "));
+kontrol("Eşcinsel evlilik/birliktelik", escinsel.length >= 4, escinsel.map(p=>p.firstName).join(", "));
+kontrol("Üvey ebeveyn", uvey.length >= 1, uvey.map(p=>p.firstName).join(", "));
 kontrol("Akraba evliliği", akrabaEvlilik.length >= 2, akrabaEvlilik.join(", "));
 
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

@@ -13,6 +13,7 @@ import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
 import PedigreeView from "@/components/PedigreeView";
 import Modal from "@/components/ui/Modal";
+import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { RELATION_LABELS, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
@@ -52,7 +53,12 @@ export default function Workspace({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
-  /** Ağaçta odak kişinin kaç kuşak çevresi gösterilsin — 0 = tümü */
+  /**
+   * Ağaçta ne gösterilsin:
+   *  n > 0 → odak kişinin n kuşak atası + n kuşak soyu
+   *  -1    → odak kişinin TÜM atası ve TÜM soyu (bağlı olduğu herkes)
+   *   0    → ağaçtaki herkes
+   */
   const [treeDepth, setTreeDepth] = useState(3);
   const [toast, setToast] = useState<string>();
 
@@ -91,9 +97,25 @@ export default function Workspace({
   const treePeople = useMemo(() => {
     if (treeDepth === 0 || !treeFocusId) return people;
 
+    const sinirsiz = treeDepth < 0;
     const keep = new Set<string>([treeFocusId]);
-    for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (d <= treeDepth) keep.add(id);
-    for (const [id, d] of descendantDepths(treeFocusId, people)) if (d <= treeDepth) keep.add(id);
+    for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (sinirsiz || d <= treeDepth) keep.add(id);
+    for (const [id, d] of descendantDepths(treeFocusId, people)) if (sinirsiz || d <= treeDepth) keep.add(id);
+
+    // Tüm soy modunda ataların diğer çocukları da (kardeşler, amcalar, kuzenler)
+    if (sinirsiz) {
+      let buyudu = true;
+      while (buyudu) {
+        buyudu = false;
+        for (const p of people) {
+          if (keep.has(p.id)) continue;
+          if (p.parentIds.some((pid) => keep.has(pid))) {
+            keep.add(p.id);
+            buyudu = true;
+          }
+        }
+      }
+    }
 
     // Odak kişinin kardeşleri
     const focus = idx.get(treeFocusId);
@@ -229,6 +251,7 @@ export default function Workspace({
             <FamilyTree
               people={treePeople}
               selectedId={selectedId}
+              focusId={treeFocusId}
               onSelect={setSelectedId}
               onQuickAdd={openQuickAdd}
             />
@@ -237,9 +260,8 @@ export default function Workspace({
               onChange={setTreeDepth}
               shown={treePeople.length}
               total={people.length}
-              focusName={
-                treeFocusId ? idx.get(treeFocusId)?.firstName : undefined
-              }
+              focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
+              onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
             />
           </>
         ) : view === "soy" ? (
@@ -371,34 +393,54 @@ function TreeDepthControl({
   onChange,
   shown,
   total,
-  focusName,
+  focusPerson,
+  onGoToFocus,
 }: {
   depth: number;
   onChange: (d: number) => void;
   shown: number;
   total: number;
-  focusName?: string;
+  focusPerson?: Person;
+  onGoToFocus: () => void;
 }) {
   if (total <= 25) return null;
 
+  const secenekler: Array<{ d: number; l: string; ipucu: string }> = [
+    { d: 2, l: "2", ipucu: "2 kuşak yukarı ve aşağı" },
+    { d: 3, l: "3", ipucu: "3 kuşak yukarı ve aşağı" },
+    { d: 4, l: "4", ipucu: "4 kuşak yukarı ve aşağı" },
+    { d: -1, l: "Tüm akrabaları", ipucu: "Bu kişinin bağlı olduğu herkes — bütün atalar, tüm soy ve aradaki dallar" },
+    { d: 0, l: "Herkes", ipucu: "Ağaçtaki bütün kayıtlar" },
+  ];
+
   return (
-    <div className="absolute top-4 left-4 z-10 flex items-center gap-2.5 h-9 pl-3 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
-      <span className="text-[11px] text-text-muted whitespace-nowrap">
-        {focusName ? `${focusName} çevresi` : "Kuşak"}
-      </span>
+    <div className="absolute top-4 left-4 z-10 flex items-center gap-2 h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+      {focusPerson && (
+        <button
+          onClick={onGoToFocus}
+          title="Odak kişiye dön"
+          className="flex items-center gap-1.5 h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors"
+        >
+          <Avatar person={focusPerson} size="xs" />
+          <span className="text-[11px] font-medium text-text whitespace-nowrap">
+            {focusPerson.firstName}
+          </span>
+        </button>
+      )}
+      <span className="h-4 w-px bg-border" />
       <div className="flex items-center gap-0.5">
-        {[2, 3, 4, 0].map((d) => (
+        {secenekler.map((o) => (
           <button
-            key={d}
-            onClick={() => onChange(d)}
-            title={d === 0 ? "Herkesi göster" : `${d} kuşak yukarı ve aşağı`}
-            className={`h-6 min-w-6 px-1.5 rounded-md text-[11px] font-medium transition-colors ${
-              depth === d
+            key={o.d}
+            onClick={() => onChange(o.d)}
+            title={o.ipucu}
+            className={`h-6 px-1.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
+              depth === o.d
                 ? "bg-primary text-primary-text"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
             }`}
           >
-            {d === 0 ? "Tümü" : d}
+            {o.l}
           </button>
         ))}
       </div>

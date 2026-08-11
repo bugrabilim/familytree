@@ -262,38 +262,56 @@ export function describeRelation(
     return "Eş";
   }
 
+  /** İki kişi arasındaki eş bağı boşanmayla mı bitmiş? */
+  const eskiEsMi = (aId: string, bId: string) =>
+    !!idx.get(aId)?.formerSpouseIds?.includes(bId);
+
   // Evlilik adımı içeriyor mu?
   const spouseAt = moves.indexOf("spouse");
   if (spouseAt !== -1) {
     // "X'in eşi" biçiminde tarif et
+    // "X'in eşi" — son adım evlilikse
     if (spouseAt === moves.length - 1) {
       const araId = path[spouseAt - 1].personId;
       const araRel = describeRelation(fromId, araId, people, idx);
-      if (araRel) {
-        const ara = idx.get(araId);
-        if (ara) {
-          // Yaygın Türkçe karşılıklar
-          const araLower = araRel.toLocaleLowerCase("tr");
-          if (araLower === "kız" || araLower === "oğul") {
-            return g === "female" ? "Gelin" : g === "male" ? "Damat" : `${araRel} eşi`;
-          }
-          if (araLower.includes("kardeş") || araLower === "abi" || araLower === "abla") {
-            return g === "female" ? "Yenge" : g === "male" ? "Enişte" : `${araRel} eşi`;
-          }
-          return `${araRel} eşi`;
+      const ara = idx.get(araId);
+      if (araRel && ara) {
+        const eski = eskiEsMi(araId, toId);
+        const araLower = araRel.toLocaleLowerCase("tr");
+
+        if (araLower === "kız" || araLower === "oğul") {
+          const t = g === "female" ? "Gelin" : g === "male" ? "Damat" : `${possessive(araLower)} eşi`;
+          return eski ? `Eski ${t.toLocaleLowerCase("tr")}` : t;
         }
+        if (araLower.includes("kardeş")) {
+          const t = g === "female" ? "Yenge" : g === "male" ? "Enişte" : `${possessive(araLower)} eşi`;
+          return eski ? `Eski ${t.toLocaleLowerCase("tr")}` : t;
+        }
+        return `${capitalize(genitiveCommon(possessive(araLower)))} ${eski ? "eski eşi" : "eşi"}`;
       }
     }
+
+    // "Eşinin X'i" — ilk adım evlilikse
     if (spouseAt === 0) {
-      const kalan = describeRelation(path[0].personId, toId, people, idx);
+      const esId = path[0].personId;
+      const eski = eskiEsMi(fromId, esId);
+      const kalan = describeRelation(esId, toId, people, idx);
       if (kalan) {
         const kalanLower = kalan.toLocaleLowerCase("tr");
-        if (kalanLower === "anne") return "Kayınvalide";
-        if (kalanLower === "baba") return "Kayınpeder";
-        if (kalanLower.includes("kardeş") || kalanLower === "abi" || kalanLower === "abla") {
-          return g === "female" ? "Baldız / Görümce" : "Kayınbirader";
+
+        if (!eski) {
+          if (kalanLower === "anne") return "Kayınvalide";
+          if (kalanLower === "baba") return "Kayınpeder";
+          if (kalanLower.includes("kardeş")) {
+            return g === "female" ? "Baldız / Görümce" : "Kayınbirader";
+          }
         }
-        return `Eşinin ${kalanLower}`;
+        // Üvey çocuk: eşinin (ya da eski eşinin) çocuğu
+        if (kalanLower === "kız" || kalanLower === "oğul") {
+          const t = g === "female" ? "Üvey kız" : g === "male" ? "Üvey oğul" : "Üvey çocuk";
+          return t;
+        }
+        return `${eski ? "Eski eşinin" : "Eşinin"} ${possessive(kalanLower)}`;
       }
     }
     return "Evlilik yoluyla akraba";
@@ -430,6 +448,21 @@ export function possessive(term: string): string {
       return kelimeler.join(" ");
     })
     .join(" / ");
+}
+
+/**
+ * Ortak ada ilgi hâli eki (kesme işaretsiz): "babası" → "babasının".
+ * Tamlama kurarken kullanılır: "babasının eski eşi".
+ */
+export function genitiveCommon(word: string): string {
+  const w = word.trim();
+  if (!w) return w;
+  const alt = w.toLocaleLowerCase("tr");
+  let sonUnlu = "";
+  for (const ch of alt) if (UNLU.includes(ch)) sonUnlu = ch;
+  const ek = UYUM[sonUnlu] ?? "i";
+  const son = alt[alt.length - 1];
+  return UNLU.includes(son) ? `${w}n${ek}n` : `${w}${ek}n`;
 }
 
 /**

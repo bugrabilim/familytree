@@ -26,7 +26,7 @@ function LoginForm() {
     const res = await signIn("credentials", { familyName, password, redirect: false });
 
     if (res?.error) {
-      setError("Soyisim veya şifre hatalı.");
+      setError("Ağaç adı veya şifre hatalı.");
       setLoading(false);
     } else {
       router.push(callbackUrl);
@@ -55,13 +55,13 @@ function LoginForm() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="soyisim">Soyisim</label>
+          <label className={authLabel} htmlFor="soyisim">Ağaç adı</label>
           <input
             id="soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="Aile soyadınız"
+            placeholder="ör. Demirtaş Ailesi"
             autoComplete="username"
             required
           />
@@ -117,8 +117,8 @@ function LoginForm() {
         </Button>
 
         <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
-          194 kişilik, 11 kuşaklık örnek bir aile. Herkese açık ve ortak —
-          her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.
+          300&apos;ü aşkın kişilik, 16 kuşaklık örnek bir aile. Herkese açık ve
+          ortak — her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.
         </p>
       </div>
     </AuthShell>

@@ -9,7 +9,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        familyName: { label: "Soyisim", type: "text" },
+        familyName: { label: "Ağaç adı", type: "text" },
         password: { label: "Şifre", type: "password" },
       },
       async authorize(credentials) {

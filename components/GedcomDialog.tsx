@@ -152,9 +152,10 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
         <section>
           <h3 className="text-sm font-semibold text-text mb-1">Demo ağacı</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
-            11 kuşaklık örnek bir aile: 1730&apos;lardan bugüne 172 kişi. Soyadı
-            Kanunu öncesi lakaplar, çok eşlilik, boşanmalar, akraba evlilikleri,
-            göç ve savaş kayıpları — uygulamanın tüm özelliklerini gösterir.
+            16 kuşaklık örnek bir aile: 1521&apos;den bugüne 300&apos;ü aşkın kişi.
+            Soyadı Kanunu öncesi lakaplar, çok eşlilik, boşanmalar, akraba
+            evlilikleri, evlat edinme, göç ve savaş kayıpları — uygulamanın tüm
+            özelliklerini gösterir.
           </p>
 
           {demoOnay || peopleCount === 0 ? (

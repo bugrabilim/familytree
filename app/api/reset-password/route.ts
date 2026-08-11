@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const user = await findUserByFamilyName(familyName.trim());
     if (!user) {
-      return NextResponse.json({ error: "Bu soyisimle bir hesap bulunamadı." }, { status: 404 });
+      return NextResponse.json({ error: "Bu adla bir hesap bulunamadı." }, { status: 404 });
     }
 
     const codeClean = recoveryCode.replace(/-/g, "").toUpperCase();

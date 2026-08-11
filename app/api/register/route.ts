@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const { familyName, password } = await req.json();
 
     if (!familyName || typeof familyName !== "string" || familyName.trim().length < 2) {
-      return NextResponse.json({ error: "Soyisim en az 2 karakter olmalı." }, { status: 400 });
+      return NextResponse.json({ error: "Ağaç adı en az 2 karakter olmalı." }, { status: 400 });
     }
 
     if (!password || typeof password !== "string" || password.length < 6) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const existing = await findUserByFamilyName(familyName.trim());
     if (existing) {
       return NextResponse.json(
-        { error: "Bu soyisimle zaten bir hesap var." },
+        { error: "Bu adla zaten bir hesap var." },
         { status: 409 }
       );
     }

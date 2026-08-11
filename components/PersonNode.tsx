@@ -10,6 +10,8 @@ import type { RelationType } from "@/lib/actions";
 export interface PersonNodeData extends Record<string, unknown> {
   person: Person;
   selected: boolean;
+  /** Ağacın odaklandığı kişi — kalabalıkta başlangıç noktası */
+  focused?: boolean;
   dimmed: boolean;
   canAddParent: boolean;
   onSelect: (id: string) => void;
@@ -56,7 +58,7 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person, selected, dimmed, canAddParent, onSelect, onQuickAdd } =
+  const { person, selected, focused, dimmed, canAddParent, onSelect, onQuickAdd } =
     data as unknown as PersonNodeData;
 
   const tone = genderTone(person.gender);
@@ -81,11 +83,21 @@ function PersonNode({ data }: NodeProps) {
           bg-surface rounded-2xl px-3 py-2.5
           border-2 transition-all duration-200
           ${selected
-            ? "border-primary shadow-float -translate-y-0.5"
+            ? "border-primary shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/25 z-10"
             : `${tone.border} shadow-card hover:shadow-float hover:-translate-y-0.5`}
           ${dimmed ? "opacity-30" : "opacity-100"}
         `}
       >
+        {/* Odak rozeti — ağaçta nereden başladığını gösterir */}
+        {focused && !selected && (
+          <span
+            className="absolute -top-2 -left-2 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft"
+            title="Ağacın odak noktası"
+          >
+            odak
+          </span>
+        )}
+
         {/* Cinsiyet şeridi */}
         <span
           className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
@@ -116,6 +128,11 @@ function PersonNode({ data }: NodeProps) {
             {years && (
               <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums">
                 {years}
+              </p>
+            )}
+            {person.birthPlace && (
+              <p className="text-[10px] leading-tight text-text-subtle truncate">
+                {person.birthPlace}
               </p>
             )}
           </div>

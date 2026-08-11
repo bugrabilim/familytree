@@ -180,6 +180,28 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {(person.religion || person.denomination || person.language ||
+            person.ethnicity || person.nationality) && (
+            <section>
+              <SectionTitle>Köken</SectionTitle>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  person.religion,
+                  person.denomination,
+                  person.language,
+                  person.ethnicity,
+                  person.nationality,
+                ]
+                  .filter(Boolean)
+                  .map((v, i) => (
+                    <span key={i} className="px-2 py-1 rounded-lg bg-surface-2 text-[11px] text-text-muted">
+                      {v}
+                    </span>
+                  ))}
+              </div>
+            </section>
+          )}
+
           {person.bio && (
             <section>
               <SectionTitle>Hikâyesi</SectionTitle>

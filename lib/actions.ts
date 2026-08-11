@@ -16,6 +16,11 @@ export interface PersonPayload {
   birthDate?: string;
   deathDate?: string;
   birthPlace?: string;
+  religion?: string;
+  denomination?: string;
+  language?: string;
+  ethnicity?: string;
+  nationality?: string;
   photo?: string;
   bio?: string;
   parentIds?: string[];
