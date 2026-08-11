@@ -55,6 +55,7 @@ export default function PersonDrawer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   const { view, hideLiving } = usePrivacy();
   // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
@@ -295,6 +296,27 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {/* Galeri — maskeli (yaşayan) kişide `photos` taşınmadığı için boş kalır */}
+          {person.photos && person.photos.length > 0 && (
+            <section>
+              <SectionTitle>Galeri</SectionTitle>
+              <div className="grid grid-cols-3 gap-1.5">
+                {person.photos.map((src) => (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setLightbox(src)}
+                    aria-label="Fotoğrafı büyüt"
+                    className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {timeline.hasEvents && (timeline.dated.length > 0 || timeline.undated.length > 0) && (
             <section>
               <SectionTitle>Zaman çizelgesi</SectionTitle>
@@ -384,7 +406,44 @@ export default function PersonDrawer({
           />
         </div>
       </aside>
+
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </>
+  );
+}
+
+/**
+ * Basit ışık kutusu. Yalnızca açıkken monte edilir; böylece kendi
+ * `useEscapeKey` kaydı yığının en üstünde olur ve ESC önce ışık kutusunu,
+ * kapandığında ise drawer'ı kapatır.
+ */
+function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  useEscapeKey(onClose);
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 animate-fade-in"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Fotoğraf"
+    >
+      <button
+        onClick={onClose}
+        aria-label="Kapat"
+        className="absolute right-3 top-3 w-9 h-9 grid place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+      >
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        onClick={(e) => e.stopPropagation()}
+        className="max-w-full max-h-full object-contain rounded-lg shadow-modal"
+      />
+    </div>
   );
 }
 

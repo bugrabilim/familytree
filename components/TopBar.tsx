@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import { usePrivacy } from "./PrivacyContext";
 
-export type ViewKey = "agac" | "soy" | "liste" | "panel";
+export type ViewKey = "agac" | "soy" | "yelpaze" | "liste" | "panel";
 
 export const VIEWS: Array<{ key: ViewKey; label: string; icon: string; hint: string }> = [
   { key: "agac", label: "Ağaç", icon: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3", hint: "Tüm aile ağacı" },
   { key: "soy", label: "Soy", icon: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8", hint: "Doğrudan ata çizgisi" },
+  { key: "yelpaze", label: "Yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4", hint: "Ata yelpazesi" },
   { key: "liste", label: "Liste", icon: "M4 6h16M4 12h16M4 18h16", hint: "Herkesi listele" },
   { key: "panel", label: "Panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z", hint: "Özet ve doğum günleri" },
 ];

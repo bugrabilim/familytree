@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
 import PedigreeView from "@/components/PedigreeView";
+import FanChart from "@/components/FanChart";
 import Modal from "@/components/ui/Modal";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
@@ -267,6 +268,14 @@ export default function Workspace({
             onSelect={setSelectedId}
             onSetRoot={setRootId}
             onQuickAdd={openQuickAdd}
+          />
+        ) : view === "yelpaze" ? (
+          <FanChart
+            people={people}
+            rootId={effectiveRoot}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onSetRoot={setRootId}
           />
         ) : view === "liste" ? (
           <ListView
