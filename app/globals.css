@@ -27,12 +27,12 @@
   --accent: #a8763e;
   --accent-soft: #f6efe4;
 
-  --male: #4f7fb8;
-  --male-soft: #e8f0f9;
-  --female: #c06585;
-  --female-soft: #fbecf1;
-  --other: #7d6aa8;
-  --other-soft: #efebf8;
+  --male: #1f6fd0;
+  --male-soft: #e3eefb;
+  --female: #db2f7d;
+  --female-soft: #fce7f0;
+  --other: #8a3fd4;
+  --other-soft: #f1e9fb;
   --neutral: #8b8478;
   --neutral-soft: #eeece6;
 
@@ -66,12 +66,12 @@
   --accent: #d0a065;
   --accent-soft: #2e2619;
 
-  --male: #7aa8db;
-  --male-soft: #1c2733;
-  --female: #dd90ab;
-  --female-soft: #31202a;
-  --other: #a892d6;
-  --other-soft: #262135;
+  --male: #5aa2f0;
+  --male-soft: #16273a;
+  --female: #f56aa6;
+  --female-soft: #3a1a2a;
+  --other: #b98cf0;
+  --other-soft: #2a1d3d;
   --neutral: #9a9384;
   --neutral-soft: #262a21;
 
@@ -171,6 +171,14 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle);
   background-clip: content-box;
+}
+
+/* Kaydırılabilir ama çubuğu gizli — dar denetimler için */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* --------------------------------------------------------------- */

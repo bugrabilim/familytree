@@ -159,7 +159,9 @@ interface Seed {
   /** ana dil */ dil?: string;
   /** etnik köken */ etnik?: string;
   /** uyruk */ uyruk?: string;
-  /** sağlık / engellilik notu */ saglik?: string;
+  /** doğuştan sağlık durumu / engellilik */ dogustan?: string;
+  /** yaşarken edinilen sağlık sorunu */ saglik?: string;
+  /** ölüm nedeni */ olum?: string;
 }
 
 function build(seeds: Seed[]): Person[] {
@@ -177,7 +179,9 @@ function build(seeds: Seed[]): Person[] {
     language: s.dil,
     ethnicity: s.etnik,
     nationality: s.uyruk,
-    healthNote: s.saglik,
+    congenitalCondition: s.dogustan,
+    healthCondition: s.saglik,
+    deathCause: s.olum,
     parentIds: s.eb ?? [],
     parentLinks: s.bag,
     spouseIds: s.es ?? [],
@@ -1127,14 +1131,14 @@ const EK2: Seed[] = [
     id: "s-ozan", ad: "Ozan", soyad: "Demirtaş", c: "male", d: "2009-06-17", yer: "İstanbul",
     eb: ["k9-mert", "k9-mert-es"],
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
-    saglik: "Down sendromu (Trizomi 21)",
+    dogustan: "Down sendromu (Trizomi 21)",
     bio: "Ailenin en sokulgan çocuğu. Kaynaştırma sınıfında okudu, şimdi bir belediye atölyesinde seramik yapıyor.\n\nDoğduğunda doktor aileye uzun bir liste okumuş; annesi \"listede gülmek yoktu, en çok onu yapıyor\" diyor. Bayramlarda herkesin elini ilk o öper.",
   },
   {
     id: "s-elif-k", ad: "Elif", soyad: "Yıldırım", c: "female", d: "1994-11-30", yer: "İzmir",
     eb: ["k8-ercan", "k8-ercan-es"], es: ["s-elif-es"],
     din: "İslam", dil: "Türkçe, İngilizce", etnik: "Türk", uyruk: "Türkiye",
-    saglik: "Doğuştan görme engelli",
+    dogustan: "Doğuştan görme engelli",
     bio: "Hiç görmedi. Altı yaşında Braille öğrendi, on altısında piyanoyu kulaktan çaldı.\n\nBugün konservatuvarda öğretim görevlisi. Ailenin toplantılarında herkesin sesini kapıdan tanır; \"Ben sizi yüzünüzden değil, adımınızdan tanıyorum\" der.",
   },
   { id: "s-elif-es", ad: "Cenk", soyad: "Yıldırım", c: "male", d: "1991-08-05", yer: "İzmir", din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Elif'in eşi. Ses mühendisi; tanışmaları bir stüdyo kaydında oldu." },
@@ -1142,7 +1146,8 @@ const EK2: Seed[] = [
     id: "s-mehmet-k", ad: "Mehmet", soyad: "Toroslu", c: "male", d: "1952-03-08", o: "2018-12-14", yer: "Adana",
     eb: ["k7-vedat", "k7-vedat-es"],
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
-    saglik: "Sol kolu doğuştan yok",
+    dogustan: "Sol kolu doğuştan yok",
+    olum: "Kalp krizi",
     bio: "Tek kolla traktör kullandı, tek kolla üç çocuk büyüttü. Köyde ona \"yarım Mehmet\" derlerdi, hiç alınmadı; \"yarısıyla sizin tamamınız kadar iş yaptım\" diye cevap verirdi.\n\nProtez takmayı hiç sevmedi, bir kez denedi, çekmecede kaldı.",
   },
   {
@@ -1150,20 +1155,21 @@ const EK2: Seed[] = [
     eb: ["k5-halil", "k5-halil-es"],
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Osmanlı / Türkiye",
     saglik: "Çocuk felci (1893 salgını) — sağ bacağında kalıcı sekel",
+    olum: "Zatürre",
     bio: "Beş yaşında çocuk felci geçirdi, ömrü boyunca değnekle yürüdü. O dönem böyle çocuklar çoğu zaman evde saklanırdı; babası Halil onu okula gönderdi.\n\nKayseri'nin okuma yazma bilen ilk kadınlarından. Kırk yıl mahalle çocuklarına ders verdi.",
   },
   {
     id: "s-berk-i", ad: "Berk", soyad: "Sarıkaya", c: "male", d: "2021-01-22", yer: "Kayseri",
     eb: ["k9-burcu", "k9-burcu-es"],
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
-    saglik: "İşitme engelli — iki taraflı koklear implant",
+    dogustan: "Doğuştan işitme engelli — iki taraflı koklear implant",
     bio: "İki yaşında implant takıldı, ilk duyduğu ses annesinin adıydı. Ev halkı işaret dilini birlikte öğrendi; en hızlı öğrenen ablası Eylül oldu.",
   },
   {
     id: "s-ayten-o", ad: "Ayten", soyad: "Ergin", c: "female", d: "1963-04-19", yer: "Develi",
     eb: ["k7-necati", "k7-necati-es"],
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
-    saglik: "Otizm spektrumu — tanı 2009'da, 46 yaşında konuldu",
+    dogustan: "Otizm spektrumu — tanı 2009'da, 46 yaşında konuldu",
     bio: "Çocukken \"içine kapanık\" denip geçilmişti. Tanı ancak yeğeni için araştırma yapılırken, kırk altı yaşında konuldu.\n\nDevelide bir kütüphanede çalıştı; kırk yıl boyunca katalog düzenini kimse ondan iyi bilmedi. \"Adı olsa da olmasa da ben hep böyleydim\" diyor.",
   },
 
@@ -1195,10 +1201,50 @@ const EK2: Seed[] = [
   { id: "s-derya-cocuk", ad: "Ada", soyad: "Öztürk", c: "female", d: "2023-10-07", yer: "İstanbul", eb: ["s-derya"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Annesi onu doğurduğunda on yedi yaşındaydı. Babası kayıtlarda yok. Evde üç kuşak birlikte büyütüyor." },
 ];
 
+
+/* ================================================================
+   ÇOK ERKEN YAŞTA ANNELİK — EVLİLİK DIŞI
+   İnsanın karanlık gerçeklerinden biri: çocuk yaşta, çoğu zaman
+   istismar sonucu annelik. Zorlama örnekler değil; onurla, sükûnetle
+   ve gerçeğe sadık kalınarak yazıldı. Bu kayıtlar saklanan değil,
+   açıkça yazılan hikâyelerdir.
+   ================================================================ */
+const EK3: Seed[] = [
+  /* --- Tarihsel: 11 yaşında --- */
+  {
+    id: "s-fadime-e", ad: "Fadime", soyad: "Yıldırım", c: "female", d: "1913", o: "1994", yer: "Develi",
+    eb: ["k6-sadik", "k6-sadik-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    olum: "Yaşlılık",
+    bio: "On bir yaşında, evlilik olmadan anne oldu — o çağın köylerinde konuşulmayan, örtülen bir gerçeğin içinden geçti. Kızını nüfusa kendi kardeşi gibi yazdırdılar; yıllarca abla-kardeş bilindiler.\n\nBüyükannesi çocuğa annelik etti. Fadime bir daha evlenmedi, ömrünü kızının yanında geçirdi. Ailede uzun süre fısıltıyla anıldı; bugün adı açıkça yazılıyor.",
+  },
+  {
+    id: "s-fadime-cocuk", ad: "Zeynep", soyad: "Yıldırım", c: "female", d: "1924", o: "2008", yer: "Develi",
+    eb: ["s-fadime-e"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    olum: "İnme",
+    bio: "Annesi onu on bir yaşında doğurdu. Uzun yıllar gerçek annesini ablası sandı; doğruyu yetişkinken öğrendi. \"Beni iki kadın büyüttü, ikisini de çok sevdim\" derdi.",
+  },
+
+  /* --- Çağdaş: 13 yaşında --- */
+  {
+    id: "s-yagmur", ad: "Yağmur", soyad: "Sarıkaya", c: "female", d: "2009-03-30", yer: "Kayseri",
+    eb: ["k9-burcu", "k9-burcu-es"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "On üç yaşında, evlilik olmadan anne oldu. Bir istismarın sonucuydu; aile hukuki süreci işletti, onu korudu ve okuldan koparmadı.\n\nBebeğe gündüzleri anneannesi bakıyor. Yağmur okuluna devam ediyor. Ailesi bu satırların açıkça yazılmasında ısrar etti — \"saklanacak olan biz değiliz\" dediler.",
+  },
+  {
+    id: "s-yagmur-cocuk", ad: "Poyraz", soyad: "Sarıkaya", c: "male", d: "2022-11-12", yer: "Kayseri",
+    eb: ["s-yagmur"],
+    din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
+    bio: "Annesi onu on üç yaşında doğurdu. Üç kuşak bir arada büyütüyor; evin en çok korunan, en çok sevilen üyesi.",
+  },
+];
+
 export const DEMO_PEOPLE: Person[] = build([
   ...K0A, ...K0B, ...K0C, ...K0D,
   ...K1, ...K1B, ...K2, ...K3, ...K4, ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
-  ...GOC, ...LGBT, ...EK, ...EK2,
+  ...GOC, ...LGBT, ...EK, ...EK2, ...EK3,
 ]);
 
 export const DEMO_FAMILY_NAME = "Demirtaş";

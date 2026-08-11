@@ -140,9 +140,10 @@ export function exportGedcom(people: Person[]): string {
     }
 
     const dd = dateToGedcom(p.deathDate);
-    if (dd) {
+    if (p.deathDate || p.deathCause) {
       lines.push("1 DEAT Y");
-      lines.push(`2 DATE ${dd}`);
+      if (dd) lines.push(`2 DATE ${dd}`);
+      if (p.deathCause) lines.push(`2 CAUS ${p.deathCause}`);
     }
 
     if (p.bio) {
@@ -192,6 +193,7 @@ export function importGedcom(content: string): Person[] {
     gender: Person["gender"];
     birthDate?: string;
     deathDate?: string;
+    deathCause?: string;
     birthPlace?: string;
     bio: string;
   }
@@ -263,6 +265,8 @@ export function importGedcom(content: string): Person[] {
           else if (tag === "PLAC") curIndi.birthPlace = value;
         } else if (ctx === "DEAT" && tag === "DATE") {
           curIndi.deathDate = gedcomToDate(value);
+        } else if (ctx === "DEAT" && tag === "CAUS") {
+          curIndi.deathCause = value || undefined;
         } else if (ctx === "FAMC" && tag === "PEDI") {
           const v = value.toLowerCase();
           if (v === "adopted") pedigree.set(curIndi.gedId, "adoptive");
@@ -292,6 +296,7 @@ export function importGedcom(content: string): Person[] {
       gender: gi.gender,
       birthDate: gi.birthDate,
       deathDate: gi.deathDate,
+      deathCause: gi.deathCause,
       birthPlace: gi.birthPlace,
       bio: gi.bio || undefined,
       parentIds: [],

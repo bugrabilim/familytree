@@ -405,31 +405,43 @@ function TreeDepthControl({
 }) {
   if (total <= 25) return null;
 
-  const secenekler: Array<{ d: number; l: string; ipucu: string }> = [
-    { d: 2, l: "2", ipucu: "2 kuşak yukarı ve aşağı" },
-    { d: 3, l: "3", ipucu: "3 kuşak yukarı ve aşağı" },
-    { d: 4, l: "4", ipucu: "4 kuşak yukarı ve aşağı" },
-    { d: -1, l: "Tüm akrabaları", ipucu: "Bu kişinin bağlı olduğu herkes — bütün atalar, tüm soy ve aradaki dallar" },
-    { d: 0, l: "Herkes", ipucu: "Ağaçtaki bütün kayıtlar" },
+  const sayilar = [2, 3, 4, 5, 6, 7, 8];
+  const metinler: Array<{ d: number; l: string; ipucu: string }> = [
+    { d: -1, l: "Tümü", ipucu: "Bu kişinin bağlı olduğu herkes — bütün atalar, tüm soy ve aradaki dallar" },
+    { d: 0, l: "Herkes", ipucu: "Ağaçtaki bütün kayıtlar, bağlı olmayanlar dahil" },
   ];
 
   return (
-    <div className="absolute top-4 left-4 z-10 flex items-center gap-2 h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex items-center gap-1.5 h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card overflow-x-auto no-scrollbar">
       {focusPerson && (
         <button
           onClick={onGoToFocus}
           title="Odak kişiye dön"
-          className="flex items-center gap-1.5 h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors"
+          className="flex items-center gap-1.5 h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
         >
           <Avatar person={focusPerson} size="xs" />
-          <span className="text-[11px] font-medium text-text whitespace-nowrap">
+          <span className="text-[11px] font-medium text-text whitespace-nowrap max-w-20 truncate">
             {focusPerson.firstName}
           </span>
         </button>
       )}
-      <span className="h-4 w-px bg-border" />
-      <div className="flex items-center gap-0.5">
-        {secenekler.map((o) => (
+      <span className="h-4 w-px bg-border shrink-0" />
+      <div className="flex items-center gap-0.5 shrink-0">
+        {sayilar.map((d) => (
+          <button
+            key={d}
+            onClick={() => onChange(d)}
+            title={`${d} kuşak yukarı ve aşağı`}
+            className={`h-6 w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
+              depth === d
+                ? "bg-primary text-primary-text"
+                : "text-text-muted hover:text-text hover:bg-surface-2"
+            }`}
+          >
+            {d}
+          </button>
+        ))}
+        {metinler.map((o) => (
           <button
             key={o.d}
             onClick={() => onChange(o.d)}
@@ -444,7 +456,7 @@ function TreeDepthControl({
           </button>
         ))}
       </div>
-      <span className="text-[11px] text-text-subtle tabular-nums whitespace-nowrap border-l border-border pl-2">
+      <span className="text-[11px] text-text-subtle tabular-nums whitespace-nowrap border-l border-border pl-2 shrink-0">
         {shown}/{total}
       </span>
     </div>

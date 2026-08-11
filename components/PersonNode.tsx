@@ -100,7 +100,7 @@ function PersonNode({ data }: NodeProps) {
 
         {/* Cinsiyet şeridi */}
         <span
-          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
+          className="absolute left-0 top-2 bottom-2 w-[5px] rounded-r-full"
           style={{ background: tone.css }}
           aria-hidden
         />

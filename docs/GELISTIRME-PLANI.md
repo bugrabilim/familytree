@@ -119,12 +119,20 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
   kendi soyadını vermesini ve çift soyad kullanmasını içerir. (Not: soyadın
   kimden geldiği veri modelinde ayrı tutulmaz, biyografide anlatılır — GEDCOM
   uyumu için `lastName` tek alan olarak kalır.)
-- **Sağlık / engellilik notu** (`healthNote`) — kalıtsal durumları izlemek
-  isteyen aileler için isteğe bağlı, tek satırlık bir alan; drawer'da ayrı ve
-  sade gösterilir. Demo Down sendromu, doğuştan görme/işitme engeli, uzuv
-  eksikliği, çocuk felci ve otizm örnekleri içerir. (GEDCOM'a henüz
-  yazılmıyor — din/dil/etnik/uyruk alanları gibi bu da dışa aktarımda
-  taşınmıyor; ileride `1 NOTE` etiketleriyle eklenebilir.)
+- **Ayrışmış sağlık alanları** — `congenitalCondition` (doğuştan),
+  `healthCondition` (yaşarken edinilen) ve `deathCause` (ölüm nedeni) ayrı
+  tutulur; eski tek alan `healthNote` yalnızca geriye dönük okuma için
+  bırakıldı. Üçü de listede süzgeç olarak var. Demo Down sendromu, doğuştan
+  görme/işitme engeli, uzuv eksikliği, çocuk felci ve otizm içerir. **Ölüm
+  nedeni GEDCOM'a `DEAT.CAUS` ile yazılır ve içe aktarımda geri okunur**
+  (5.5.1 standardı). Doğuştan/yaşarken durumlar GEDCOM'da standart bir
+  karşılığı olmadığından dışa aktarılmaz — din/dil/etnik/uyruk gibi.
+- **Ayarlanabilir kuşak derinliği** — ağaçta 2'den 8'e kadar kuşak, "tüm
+  akrabalar" ve "herkes"; dar ekranda yatay kaydırılır.
+- **Belirgin cinsiyet renkleri** — kadın/erkek/diğer/bilinmiyor açık ve koyu
+  temada net ayrışır; karttaki cinsiyet şeridi genişletildi.
+- **Seçili kart ortalanır** — ağaçta bir kart seçilince görünür alanın
+  (detay paneli hariç) ortasına kayar.
 - **Ağaçta kuşak derinliği denetimi** — yüzlerce kişilik ağaçlarda okunabilirlik
 - **Evlat edinme / koruyucu aile / üvey bağ ayrımı** ve **kopan ilişkiler**
   (`parentLinks`): evlatlıktan reddetme ve ebeveyni reddetme bağı silmez,
