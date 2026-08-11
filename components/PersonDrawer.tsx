@@ -5,6 +5,7 @@ import {
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
+  SOURCE_KINDS,
   type Person,
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
@@ -26,6 +27,7 @@ import { deletePerson, type RelationType } from "@/lib/actions";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 
 interface Props {
@@ -58,6 +60,7 @@ export default function PersonDrawer({
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   const { view, hideLiving } = usePrivacy();
+  const { readOnly } = useReadOnly();
   // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
   // akrabalık hesapları maskeli kişiyle de doğru çalışır.
   const person = view(rawPerson);
@@ -200,30 +203,34 @@ export default function PersonDrawer({
             </div>
           </div>
 
-          {/* Hızlı aksiyonlar */}
+          {/* Hızlı aksiyonlar — görüntüleme modunda yalnızca "Merkeze al" kalır */}
           <div className="flex flex-wrap gap-1.5 mt-4">
-            <Button size="sm" variant="secondary" onClick={() => onEdit(person.id)}>
-              Düzenle
-            </Button>
+            {!readOnly && (
+              <Button size="sm" variant="secondary" onClick={() => onEdit(person.id)}>
+                Düzenle
+              </Button>
+            )}
             <Button size="sm" variant="secondary" onClick={() => onFocus(person.id)}>
               Merkeze al
             </Button>
-            <div className="ml-auto">
-              {confirmDelete ? (
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? "Siliniyor…" : "Eminim, sil"}
+            {!readOnly && (
+              <div className="ml-auto">
+                {confirmDelete ? (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
+                      {deleting ? "Siliniyor…" : "Eminim, sil"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+                      Vazgeç
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
+                    Sil
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
-                    Vazgeç
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                  Sil
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
           {error && <p className="text-[11px] text-danger mt-2">{error}</p>}
         </div>
@@ -317,6 +324,44 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {/* Kaynaklar — maskeli (yaşayan) kişide `sources` taşınmadığı için boş kalır */}
+          {person.sources && person.sources.length > 0 && (
+            <section>
+              <SectionTitle>Kaynaklar</SectionTitle>
+              <ul className="space-y-2.5">
+                {person.sources.map((s) => {
+                  const meta = SOURCE_KINDS[s.kind ?? ""];
+                  return (
+                    <li key={s.id} className="flex gap-2.5">
+                      <span className="text-sm w-5 text-center shrink-0" aria-hidden>
+                        {meta?.icon ?? "✨"}
+                      </span>
+                      <div className="min-w-0">
+                        {s.url ? (
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline leading-tight break-words"
+                          >
+                            {s.title}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-text leading-tight break-words">{s.title}</p>
+                        )}
+                        {s.note && (
+                          <p className="text-[11px] text-text-subtle leading-snug mt-0.5 whitespace-pre-wrap">
+                            {s.note}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           {timeline.hasEvents && (timeline.dated.length > 0 || timeline.undated.length > 0) && (
             <section>
               <SectionTitle>Zaman çizelgesi</SectionTitle>
@@ -368,7 +413,7 @@ export default function PersonDrawer({
               return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
             }}
             emptyAction={
-              parents.length < 2
+              !readOnly && parents.length < 2
                 ? { label: "Ebeveyn ekle", onClick: () => onQuickAdd("parent", person.id) }
                 : undefined
             }
@@ -377,7 +422,11 @@ export default function PersonDrawer({
             title="Eş"
             people={spouses}
             onSelect={onSelect}
-            emptyAction={{ label: "Eş ekle", onClick: () => onQuickAdd("spouse", person.id) }}
+            emptyAction={
+              readOnly
+                ? undefined
+                : { label: "Eş ekle", onClick: () => onQuickAdd("spouse", person.id) }
+            }
           />
           <RelationGroup title="Eski eş" people={formerSpouses} onSelect={onSelect} />
           <RelationGroup
@@ -392,14 +441,18 @@ export default function PersonDrawer({
               if (l.estranged) parts.push(ESTRANGEMENT_LABELS[l.estranged].parent);
               return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
             }}
-            emptyAction={{ label: "Çocuk ekle", onClick: () => onQuickAdd("child", person.id) }}
+            emptyAction={
+              readOnly
+                ? undefined
+                : { label: "Çocuk ekle", onClick: () => onQuickAdd("child", person.id) }
+            }
           />
           <RelationGroup
             title="Kardeşler"
             people={siblings}
             onSelect={onSelect}
             emptyAction={
-              parents.length > 0
+              !readOnly && parents.length > 0
                 ? { label: "Kardeş ekle", onClick: () => onQuickAdd("sibling", person.id) }
                 : undefined
             }

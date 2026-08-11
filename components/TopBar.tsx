@@ -5,14 +5,16 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 
-export type ViewKey = "agac" | "soy" | "yelpaze" | "liste" | "panel";
+export type ViewKey = "agac" | "soy" | "yelpaze" | "liste" | "harita" | "panel";
 
 export const VIEWS: Array<{ key: ViewKey; label: string; icon: string; hint: string }> = [
   { key: "agac", label: "Ağaç", icon: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3", hint: "Tüm aile ağacı" },
   { key: "soy", label: "Soy", icon: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8", hint: "Doğrudan ata çizgisi" },
   { key: "yelpaze", label: "Yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4", hint: "Ata yelpazesi" },
   { key: "liste", label: "Liste", icon: "M4 6h16M4 12h16M4 18h16", hint: "Herkesi listele" },
+  { key: "harita", label: "Harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z", hint: "Doğum yerleri haritası" },
   { key: "panel", label: "Panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z", hint: "Özet ve doğum günleri" },
 ];
 
@@ -36,6 +38,7 @@ export default function TopBar({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const { hideLiving, setHideLiving } = usePrivacy();
+  const { readOnly, setReadOnly } = useReadOnly();
 
   return (
     <header className="relative z-30 shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
@@ -145,6 +148,49 @@ export default function TopBar({
               )}
             </svg>
             <span className="hidden md:inline text-xs">Yaşayanları gizle</span>
+          </button>
+
+          {/* Görüntüleme modu — arayüz düzeyinde salt-okunur katman (sunucu izni değil) */}
+          <button
+            onClick={() => setReadOnly(!readOnly)}
+            aria-label="Görüntüleme modu"
+            aria-pressed={readOnly}
+            title={
+              readOnly
+                ? "Görüntüleme modu açık — düzenlemeyi geri açmak için tıkla"
+                : "Görüntüleme modu: yalnızca göz at, düzenlemeyi gizle"
+            }
+            className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+              readOnly
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              {readOnly ? (
+                // Göz — görüntüleme modu açık
+                <>
+                  <path
+                    d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
+                </>
+              ) : (
+                // Açık kilit — düzenleme serbest
+                <path
+                  d="M7 10V7a5 5 0 019.6-2M6 10h12v10H6V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            <span className="hidden md:inline text-xs">Görüntüleme modu</span>
           </button>
 
           <ThemeToggle />

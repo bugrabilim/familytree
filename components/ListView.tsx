@@ -7,6 +7,7 @@ import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
@@ -33,6 +34,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
   const [filter, setFilter] = useState<Filter>("hepsi");
 
   const { view, hideLiving } = usePrivacy();
+  const { readOnly } = useReadOnly();
   // Süzme, arama ve gösterim maskeli görünüm üzerinden yapılır — böylece
   // arama gizlenmiş alanlarla eşleşmez ve gizli bilgi listelenmez.
   const people = useMemo(() => rawPeople.map(view), [rawPeople, view]);
@@ -155,12 +157,14 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             <option value="yeni">Son eklenen</option>
           </select>
 
-          <Button size="sm" onClick={onAdd} className="shrink-0">
-            <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
-              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span className="hidden sm:inline">Kişi ekle</span>
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={onAdd} className="shrink-0">
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <span className="hidden sm:inline">Kişi ekle</span>
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">

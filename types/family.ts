@@ -37,6 +37,22 @@ export interface LifeEvent {
   note?: string;
 }
 
+/**
+ * Kaynak / atıf — "bu bilgiyi nereden biliyoruz?". Belge, fotoğraf, nüfus
+ * kaydı, mezar taşı, sözlü anlatım, kitap… Kişinin bilgisini dayandırdığı yer.
+ */
+export interface Source {
+  id: string;
+  /** "1927 Nüfus Sayımı", "Mezar taşı", "Dedemin anlatımı" */
+  title: string;
+  /** `SOURCE_KINDS` anahtarı ya da serbest metin */
+  kind?: string;
+  /** İsteğe bağlı bağlantı */
+  url?: string;
+  /** İsteğe bağlı ayrıntı / atıf metni */
+  note?: string;
+}
+
 export interface Person {
   id: string;
   /**
@@ -120,6 +136,9 @@ export interface Person {
 
   /** Yapısal yaşam olayları — drawer'da zaman çizelgesi olarak gösterilir. */
   events?: LifeEvent[];
+
+  /** Kaynaklar / atıflar — bilginin nereden bilindiği. */
+  sources?: Source[];
 }
 
 export interface FamilyData {
@@ -141,6 +160,21 @@ export const LIFE_EVENT_TYPES: Record<string, { label: string; icon: string }> =
   askerlik: { label: "Askerlik", icon: "🎖️" },
   hastalik: { label: "Hastalık", icon: "🏥" },
   odul: { label: "Ödül", icon: "🏆" },
+  diger: { label: "Diğer", icon: "✨" },
+};
+
+/**
+ * Kaynak türleri — Türkçe etiket + emoji simge. Anahtar, `Source.kind`
+ * alanında saklanır; listede olmayan (serbest metin) türler de geçerlidir.
+ */
+export const SOURCE_KINDS: Record<string, { label: string; icon: string }> = {
+  belge: { label: "Belge", icon: "📄" },
+  nufus: { label: "Nüfus kaydı", icon: "🗂️" },
+  foto: { label: "Fotoğraf", icon: "🖼️" },
+  mezar: { label: "Mezar taşı", icon: "🪦" },
+  kitap: { label: "Kitap", icon: "📚" },
+  sozlu: { label: "Sözlü anlatım", icon: "🗣️" },
+  web: { label: "Web", icon: "🔗" },
   diger: { label: "Diğer", icon: "✨" },
 };
 

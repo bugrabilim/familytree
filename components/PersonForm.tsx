@@ -5,9 +5,11 @@ import {
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
+  SOURCE_KINDS,
   type LifeEvent,
   type ParentLink,
   type Person,
+  type Source,
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { generateAvatar } from "@/lib/avatar";
@@ -46,6 +48,15 @@ interface EventRow {
   type: string;
   title: string;
   place: string;
+}
+
+/** Formda düzenlenen kaynak satırı. */
+interface SourceRow {
+  id: string;
+  kind: string;
+  title: string;
+  url: string;
+  note: string;
 }
 
 const field =
@@ -98,6 +109,16 @@ export default function PersonForm({
       type: e.type || "diger",
       title: e.title ?? "",
       place: e.place ?? "",
+    }))
+  );
+
+  const [sources, setSources] = useState<SourceRow[]>(
+    (initial?.sources ?? []).map((s) => ({
+      id: s.id,
+      kind: s.kind || "belge",
+      title: s.title ?? "",
+      url: s.url ?? "",
+      note: s.note ?? "",
     }))
   );
 
@@ -187,6 +208,16 @@ export default function PersonForm({
     if (errors.events) setErrors((prev) => ({ ...prev, events: undefined }));
   };
 
+  const addSource = () =>
+    setSources((ss) => [
+      ...ss,
+      { id: crypto.randomUUID(), kind: "belge", title: "", url: "", note: "" },
+    ]);
+  const removeSource = (id: string) =>
+    setSources((ss) => ss.filter((s) => s.id !== id));
+  const updateSource = (id: string, patch: Partial<SourceRow>) =>
+    setSources((ss) => ss.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+
   const toggleLink = (kind: "parentIds" | "spouseIds" | "formerSpouseIds", id: string) => {
     setForm((f) => {
       const arr = f[kind];
@@ -234,6 +265,17 @@ export default function PersonForm({
         place: ev.place.trim() || undefined,
       }));
 
+    // Başlıksız (boş) satırları at; kaynağı temiz biçimde kur
+    const builtSources: Source[] = sources
+      .filter((s) => s.title.trim())
+      .map((s) => ({
+        id: s.id,
+        title: s.title.trim(),
+        kind: s.kind || undefined,
+        url: s.url.trim() || undefined,
+        note: s.note.trim() || undefined,
+      }));
+
     const payload: PersonPayload = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
@@ -256,6 +298,7 @@ export default function PersonForm({
       photo: form.photo || undefined,
       photos: form.photos.length ? form.photos : undefined,
       events: builtEvents,
+      sources: builtSources.length ? builtSources : undefined,
     };
 
     if (relation) {
@@ -727,6 +770,84 @@ export default function PersonForm({
               <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
             Olay ekle
+          </button>
+        </div>
+      </details>
+
+      {/* Kaynaklar — katlanır, isteğe bağlı */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">
+            Kaynaklar
+            {sources.length > 0 && <span className="ml-1.5 text-primary">· {sources.length}</span>}
+          </span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          {sources.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">
+              Bu bilgiyi nereden biliyoruz? Belge, nüfus kaydı, fotoğraf, mezar
+              taşı, kitap, sözlü anlatım… Kaynağı ekleyip kişi panelinde gösterebilirsin.
+            </p>
+          ) : (
+            sources.map((s) => (
+              <div key={s.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
+                <div className="flex gap-1.5">
+                  <select
+                    aria-label="Kaynak türü"
+                    value={s.kind in SOURCE_KINDS ? s.kind : "diger"}
+                    onChange={(e) => updateSource(s.id, { kind: e.target.value })}
+                    className="h-10 px-2 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary flex-1 min-w-0"
+                  >
+                    {Object.entries(SOURCE_KINDS).map(([k, v]) => (
+                      <option key={k} value={k}>{v.icon} {v.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeSource(s.id)}
+                    aria-label="Kaynağı kaldır"
+                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+                <input
+                  aria-label="Kaynak başlığı"
+                  className={field}
+                  value={s.title}
+                  onChange={(e) => updateSource(s.id, { title: e.target.value })}
+                  placeholder="Başlık — ör. 1927 Nüfus Sayımı"
+                />
+                <input
+                  aria-label="Kaynak bağlantısı"
+                  className={field}
+                  value={s.url}
+                  onChange={(e) => updateSource(s.id, { url: e.target.value })}
+                  placeholder="Bağlantı (isteğe bağlı)"
+                />
+                <input
+                  aria-label="Kaynak notu"
+                  className={field}
+                  value={s.note}
+                  onChange={(e) => updateSource(s.id, { note: e.target.value })}
+                  placeholder="Not / atıf (isteğe bağlı)"
+                />
+              </div>
+            ))
+          )}
+
+          <button
+            type="button"
+            onClick={addSource}
+            className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Kaynak ekle
           </button>
         </div>
       </details>

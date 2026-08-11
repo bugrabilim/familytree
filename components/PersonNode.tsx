@@ -8,6 +8,7 @@ import { calcAge, lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName } from "@/lib/name";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 
 export interface PersonNodeData extends Record<string, unknown> {
@@ -71,6 +72,7 @@ function PersonNode({ data }: NodeProps) {
     data as unknown as PersonNodeData;
 
   const { view, hideLiving } = usePrivacy();
+  const { readOnly } = useReadOnly();
   const person = view(rawPerson);
   const masked = isMasked(rawPerson, hideLiving);
 
@@ -186,12 +188,16 @@ function PersonNode({ data }: NodeProps) {
         </div>
       </button>
 
-      {/* Hızlı ekleme düğmeleri */}
-      {canAddParent && (
-        <AddNub label="Ebeveyn ekle" position="top" onClick={stop(() => onQuickAdd("parent", person.id))} />
+      {/* Hızlı ekleme düğmeleri — görüntüleme modunda gizli */}
+      {!readOnly && (
+        <>
+          {canAddParent && (
+            <AddNub label="Ebeveyn ekle" position="top" onClick={stop(() => onQuickAdd("parent", person.id))} />
+          )}
+          <AddNub label="Çocuk ekle" position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
+          <AddNub label="Eş ekle" position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
+        </>
       )}
-      <AddNub label="Çocuk ekle" position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
-      <AddNub label="Eş ekle" position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
     </div>
   );
 }

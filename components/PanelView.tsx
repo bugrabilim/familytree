@@ -18,6 +18,7 @@ import {
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
+import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 
 interface Props {
@@ -29,6 +30,7 @@ interface Props {
 
 export default function PanelView({ people, onSelect, onAdd, onImportExport }: Props) {
   const { view, hideLiving } = usePrivacy();
+  const { readOnly } = useReadOnly();
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
@@ -125,7 +127,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             İlk kişiyi ekleyince burada ailenin özeti, doğum günleri ve akrabalık
             araçları belirecek.
           </p>
-          <Button onClick={onAdd}>İlk kişiyi ekle</Button>
+          {!readOnly && <Button onClick={onAdd}>İlk kişiyi ekle</Button>}
         </div>
       </div>
     );
@@ -345,9 +347,11 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
               <Button size="sm" variant="secondary" onClick={onImportExport}>
                 GEDCOM aktar / al
               </Button>
-              <Button size="sm" variant="secondary" onClick={onAdd}>
-                Kişi ekle
-              </Button>
+              {!readOnly && (
+                <Button size="sm" variant="secondary" onClick={onAdd}>
+                  Kişi ekle
+                </Button>
+              )}
             </div>
           </Card>
         </div>
