@@ -5,7 +5,17 @@ import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
-import { computeStats, describeRelation, findRelationPath, genitive, indexPeople, possessive } from "@/lib/relations";
+import {
+  ancestorDepths,
+  bloodDegrees,
+  computeStats,
+  describeRelation,
+  descendantDepths,
+  findRelationPath,
+  genitive,
+  indexPeople,
+  possessive,
+} from "@/lib/relations";
 import { fullName } from "@/lib/name";
 
 interface Props {
@@ -101,6 +111,16 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
           <Card title="Kişinin akrabaları" hint="Örn. birinin halası kim?">
             <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
+          </Card>
+
+          {/* Kuşak görüntüleyici */}
+          <Card title="Kuşak görüntüleyici" hint="N. kuşaktaki herkes">
+            <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
+          </Card>
+
+          {/* Yakınlık derecesi */}
+          <Card title="Yakınlık derecesi" hint="1° · 2° · 10°…">
+            <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* Doğum günleri */}
@@ -379,6 +399,210 @@ function RelativesFinder({
             ))}
             {shown.length === 0 && (
               <li className="text-sm text-text-subtle py-2 text-center">Eşleşen akraba yok</li>
+            )}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+const pickerSelectCls =
+  "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
+
+function PersonPicker({
+  people,
+  value,
+  onChange,
+}: {
+  people: Person[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const sorted = useMemo(() => {
+    const coll = new Intl.Collator("tr");
+    return [...people].sort(
+      (x, y) => coll.compare(x.firstName, y.firstName) || coll.compare(x.lastName, y.lastName)
+    );
+  }, [people]);
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={pickerSelectCls} aria-label="Kişi seç">
+      <option value="">Kişi seç…</option>
+      {sorted.map((p) => (
+        <option key={p.id} value={p.id}>
+          {fullName(p)}
+          {p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function ResultRow({
+  person,
+  badge,
+  onSelect,
+}: {
+  person: Person;
+  badge: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <li>
+      <button
+        onClick={() => onSelect(person.id)}
+        className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
+      >
+        <Avatar person={person} size="xs" />
+        <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(person)}</span>
+        <span className="text-[11px] font-medium text-primary shrink-0">{badge}</span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Bir kişiyi ve bir kuşak numarasını seç, o kişiden tam N kuşak uzaktaki
+ * herkesi (yukarı atalar ve aşağı torunlar) tek listede gör.
+ */
+function GenerationViewer({
+  people,
+  idx,
+  onSelect,
+}: {
+  people: Person[];
+  idx: ReturnType<typeof indexPeople>;
+  onSelect: (id: string) => void;
+}) {
+  const [personId, setPersonId] = useState("");
+  const [gen, setGen] = useState(1);
+
+  const { up, down, gens } = useMemo(() => {
+    if (!personId) return { up: new Map<string, number>(), down: new Map<string, number>(), gens: [] as number[] };
+    const up = ancestorDepths(personId, idx);
+    const down = descendantDepths(personId, people);
+    const set = new Set<number>([0]);
+    for (const d of up.values()) set.add(d);
+    for (const d of down.values()) set.add(d);
+    return { up, down, gens: [...set].sort((a, b) => a - b) };
+  }, [personId, people, idx]);
+
+  const results = useMemo(() => {
+    if (!personId) return [];
+    const out: Array<{ person: Person; badge: string }> = [];
+    if (gen === 0) {
+      const self = idx.get(personId);
+      if (self) out.push({ person: self, badge: "Kendisi" });
+      return out;
+    }
+    for (const [id, d] of up) if (d === gen) {
+      const p = idx.get(id);
+      if (p) out.push({ person: p, badge: `↑ ${describeRelation(personId, id, people, idx) ?? "ata"}` });
+    }
+    for (const [id, d] of down) if (d === gen) {
+      const p = idx.get(id);
+      if (p) out.push({ person: p, badge: `↓ ${describeRelation(personId, id, people, idx) ?? "torun"}` });
+    }
+    const coll = new Intl.Collator("tr");
+    return out.sort((a, b) => coll.compare(a.person.firstName, b.person.firstName));
+  }, [personId, gen, up, down, people, idx]);
+
+  return (
+    <div className="space-y-3">
+      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setGen(1); }} />
+      {personId && (
+        <>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted shrink-0" htmlFor="gen-sec">Kuşak</label>
+            <select
+              id="gen-sec"
+              value={gen}
+              onChange={(e) => setGen(Number(e.target.value))}
+              className={pickerSelectCls}
+            >
+              {gens.map((g) => (
+                <option key={g} value={g}>
+                  {g}. kuşak{g === 0 ? " (kişinin kendisi)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[11px] text-text-subtle">{results.length} kişi</p>
+          <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
+            {results.map((r) => (
+              <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
+            ))}
+            {results.length === 0 && (
+              <li className="text-sm text-text-subtle py-2 text-center">Bu kuşakta kimse yok</li>
+            )}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bir kişiyi ve bir yakınlık derecesini seç, o kişiye tam N. dereceden kan
+ * hısımı olan herkesi gör (1° anne/çocuk, 2° kardeş/dede/torun, 4° birinci
+ * kuzen…).
+ */
+function DegreeViewer({
+  people,
+  idx,
+  onSelect,
+}: {
+  people: Person[];
+  idx: ReturnType<typeof indexPeople>;
+  onSelect: (id: string) => void;
+}) {
+  const [personId, setPersonId] = useState("");
+  const [degree, setDegree] = useState(1);
+
+  const { degrees, dist } = useMemo(() => {
+    if (!personId) return { degrees: [] as number[], dist: new Map<string, number>() };
+    const dist = bloodDegrees(personId, people, idx);
+    const set = new Set<number>();
+    for (const d of dist.values()) if (d > 0) set.add(d);
+    return { degrees: [...set].sort((a, b) => a - b), dist };
+  }, [personId, people, idx]);
+
+  const results = useMemo(() => {
+    if (!personId) return [];
+    const out: Array<{ person: Person; badge: string }> = [];
+    for (const [id, d] of dist) if (d === degree) {
+      const p = idx.get(id);
+      if (p) out.push({ person: p, badge: describeRelation(personId, id, people, idx) ?? `${d}°` });
+    }
+    const coll = new Intl.Collator("tr");
+    return out.sort((a, b) => coll.compare(a.person.firstName, b.person.firstName));
+  }, [personId, degree, dist, people, idx]);
+
+  return (
+    <div className="space-y-3">
+      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setDegree(1); }} />
+      {personId && (
+        <>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted shrink-0" htmlFor="deg-sec">Derece</label>
+            <select
+              id="deg-sec"
+              value={degree}
+              onChange={(e) => setDegree(Number(e.target.value))}
+              className={pickerSelectCls}
+            >
+              {degrees.map((d) => (
+                <option key={d} value={d}>{d}. derece ({d}°)</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[11px] text-text-subtle">{results.length} kişi · yalnızca kan hısımlığı</p>
+          <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
+            {results.map((r) => (
+              <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
+            ))}
+            {results.length === 0 && (
+              <li className="text-sm text-text-subtle py-2 text-center">Bu derecede kimse yok</li>
             )}
           </ul>
         </>

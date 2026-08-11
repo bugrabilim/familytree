@@ -118,6 +118,40 @@ export function descendantDepths(startId: string, people: Person[]): Map<string,
   return depths;
 }
 
+/**
+ * Kan hısımlığı derecesi (medeni hukuk): iki kişi arasındaki en kısa
+ * doğum (ebeveyn-çocuk) zincirinin halka sayısı. Kendisi = 0, anne/çocuk = 1,
+ * kardeş / dede / torun = 2, amca-yeğen = 3, birinci kuzen = 4…
+ * Yalnızca kan bağı kenarları (parentIds ve çocuklar) üzerinden BFS.
+ * Evlilik kenarları sayılmaz.
+ */
+export function bloodDegrees(startId: string, people: Person[], idx: PersonIndex): Map<string, number> {
+  const childrenOf = new Map<string, string[]>();
+  for (const p of people) {
+    for (const pid of p.parentIds) {
+      const arr = childrenOf.get(pid);
+      if (arr) arr.push(p.id);
+      else childrenOf.set(pid, [p.id]);
+    }
+  }
+
+  const dist = new Map<string, number>([[startId, 0]]);
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift()!;
+    const d = dist.get(id)!;
+    const person = idx.get(id);
+    const nbrs = [...(person?.parentIds ?? []), ...(childrenOf.get(id) ?? [])];
+    for (const n of nbrs) {
+      if (!dist.has(n) && idx.has(n)) {
+        dist.set(n, d + 1);
+        queue.push(n);
+      }
+    }
+  }
+  return dist;
+}
+
 /** Bir kişiye bağlı tüm graf bileşeni (izole kişileri bulmak için). */
 export function connectedComponent(startId: string, people: Person[], idx: PersonIndex): Set<string> {
   const seen = new Set<string>([startId]);

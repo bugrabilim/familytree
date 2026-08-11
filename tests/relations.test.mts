@@ -1,4 +1,4 @@
-import { describeRelation, indexPeople, computeStats } from "../lib/relations.ts";
+import { describeRelation, indexPeople, computeStats, bloodDegrees } from "../lib/relations.ts";
 import type { Gender, Person } from "../types/family.ts";
 
 const P = (
@@ -61,6 +61,30 @@ for (const [a,b,beklenen] of cases) {
   else { fail++; console.log(`✗ ${a} → ${b}: bekl "${beklenen}", geldi "${got}"`); }
 }
 console.log(`\n${ok}/${cases.length} geçti${fail?`, ${fail} başarısız`:" ✓"}`);
+
+// --- Kan hısımlığı dereceleri (medeni hukuk) ---
+const deg = bloodDegrees("ben", people, idx);
+const dcases: Array<[string, number]> = [
+  ["ben", 0],       // kendisi
+  ["babaM", 1],     // baba
+  ["anneF", 1],     // anne
+  ["oglumM", 1],    // oğul
+  ["ablaF", 2],     // kardeş
+  ["dedeM", 2],     // dede
+  ["amcaM", 3],     // amca
+  ["dayiM", 3],     // dayı
+  ["kuzenF", 4],    // birinci kuzen
+  ["yegenF", 3],    // kardeşin çocuğu
+];
+for (const [id, bekl] of dcases) {
+  const got = deg.get(id);
+  if (got === bekl) { ok++; }
+  else { fail++; console.log(`✗ derece ben→${id}: bekl ${bekl}, geldi ${got}`); }
+}
+// Eş kan hısmı değildir → derecesi yok
+if (deg.get("esimF") === undefined) ok++;
+else { fail++; console.log(`✗ eş kan hısmı sayılmamalı, derece ${deg.get("esimF")}`); }
+console.log(`derece testleri: ${dcases.length + 1} kontrol`);
 
 const st = computeStats(people);
 console.log(`istatistik: ${st.total} kişi, ${st.generations} kuşak, ${st.male}E/${st.female}K`);

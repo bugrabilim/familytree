@@ -147,6 +147,11 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
   kod; kartlarda görünür, aramada kullanılır (`lib/code.ts`).
 - **Panelde en yeni kayıtlar** ve "kişinin akrabaları" listesinde **en yakın
   akraba en üstte** (yol uzunluğuna göre).
+- **Kuşak görüntüleyici** — kişi + kuşak numarası seçilir; o kişiden tam N
+  kuşak uzaktaki herkes (yukarı atalar ve aşağı torunlar) tek listede.
+- **Yakınlık derecesi** — kişi + derece seçilir; medeni hukuk kan hısımlığı
+  derecesine göre (1° anne/çocuk, 2° kardeş/dede, 4° birinci kuzen…) herkes
+  listelenir (`bloodDegrees`, kan bağı BFS'i).
 - **Ad gösterimi** — soyadsız eski kayıtlarda baba adı adın önünde:
   "Turgud oğlu Mehmed", "Bali kızı Rabia".
 - **Ayrışmış cinsiyet renkleri** — kadın/erkek/diğer/bilinmiyor iki temada net.
