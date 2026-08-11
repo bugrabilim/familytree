@@ -116,7 +116,12 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
   akraba evliliği, evlat edinme, ikili olmayan cinsiyet (`gender: "other"`),
   bilinmeyen tarih ve cinsiyet
 - **Ağaçta kuşak derinliği denetimi** — yüzlerce kişilik ağaçlarda okunabilirlik
-- **11 kuşaklık demo ağacı** (172 kişi) ve gömülü avatar üretici
+- **Evlat edinme / koruyucu aile / üvey bağ ayrımı** ve **kopan ilişkiler**
+  (`parentLinks`): evlatlıktan reddetme ve ebeveyni reddetme bağı silmez,
+  yalnızca not düşer. Evlat edinme GEDCOM'a `FAMC`/`PEDI` ile yazılır.
+- **11 kuşaklık demo ağacı** (194 kişi) ve gömülü avatar üretici
+- **Şifresiz demo girişi** — ayrı bir NextAuth sağlayıcısı; her girişte
+  ortak demo ağacı sıfırlanır
 
 ### ❌ Eksik olan (piyasa standardı)
 - Yaşayan kişi gizliliği
@@ -184,6 +189,15 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 - **`fitView` zamanlaması.** Düğümler mount sonrası bir effect ile yerleştiği
   için `onInit` içindeki tek `fitView` eksik bir kümeyi ölçüyordu; görünür kişi
   sayısı değiştikçe yeniden sığdırmak gerekiyor.
+
+- **`parentLinks` GEDCOM'da kısmen taşınır.** Evlat edinme/koruyucu/üvey
+  bağları `FAMC`/`PEDI` ile yazılıp okunuyor, ama ilişki kopukluğunun
+  (`estranged`) GEDCOM 5.5.1'de karşılığı yok — dışa aktarımda kayboluyor.
+  Uygulamaya özel veri olarak kalıyor.
+
+- **Ortak demo hesabı.** Şifresiz demo tek bir hesabı paylaşır ve her girişte
+  sıfırlanır. Aynı anda iki ziyaretçi girerse biri diğerinin değişikliklerini
+  görebilir; ziyaretçi başına ayrı hesap açmak depolamayı büyütürdü.
 
 - **Katmanlı ESC yönetimi.** `keydown` React'te senkron flush eden bir olay
   olduğu için, her katman kendi `document` dinleyicisini kaydettiğinde alttaki

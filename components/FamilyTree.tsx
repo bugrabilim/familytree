@@ -160,6 +160,8 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
     return [...unionNodes, ...personNodes];
   }, [people, unions, positions, selectedId, highlightIds, onSelect, onQuickAdd]);
 
+  const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+
   const edges = useMemo<Edge[]>(() => {
     const out: Edge[] = [];
     const dim = (a: string, b: string) =>
@@ -182,15 +184,24 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
       }
       for (const cid of u.childIds) {
         const faded = highlightIds ? !highlightIds.has(cid) : false;
+        const child = byId.get(cid);
+        const links = u.parentIds.map((pid) => child?.parentLinks?.[pid]);
+        // Bu birliğe bağlı tüm bağlar kan bağı dışıysa kesikli çiz
+        const evlatlik =
+          links.length > 0 &&
+          links.every((l) => l?.kind && l.kind !== "biological");
+        const kopuk = links.some((l) => !!l?.estranged);
+
         out.push({
           id: `${u.id}->${cid}`,
           source: u.id,
           target: cid,
           type: "smoothstep",
           style: {
-            stroke: "var(--primary)",
+            stroke: kopuk ? "var(--text-subtle)" : "var(--primary)",
             strokeWidth: 1.8,
-            opacity: faded ? 0.2 : 0.85,
+            strokeDasharray: evlatlik ? "6 4" : kopuk ? "2 6" : undefined,
+            opacity: faded ? 0.2 : kopuk ? 0.4 : 0.85,
           },
         });
       }
@@ -223,7 +234,7 @@ function Canvas({ people, selectedId, highlightIds, onSelect, onQuickAdd }: Prop
     }
 
     return out;
-  }, [people, unions, ids, highlightIds]);
+  }, [people, unions, ids, byId, highlightIds]);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(nodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(edges);

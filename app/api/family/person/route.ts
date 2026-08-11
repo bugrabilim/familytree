@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     photo: body.photo || undefined,
     bio: body.bio || undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],
+    parentLinks: body.parentLinks && typeof body.parentLinks === "object" ? body.parentLinks : undefined,
     spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
     formerSpouseIds: Array.isArray(body.formerSpouseIds) ? [...body.formerSpouseIds] : [],
   };

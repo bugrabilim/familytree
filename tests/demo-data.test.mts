@@ -6,6 +6,7 @@ const idx = indexPeople(P);
 const ids = new Set(P.map(p => p.id));
 let hata = 0;
 const err = (m: string) => { hata++; console.log("✗ " + m); };
+const ad = (p: { firstName: string; lastName: string }) => `${p.firstName} ${p.lastName}`;
 
 // --- Referans bütünlüğü ---
 for (const p of P) {
@@ -34,17 +35,30 @@ for (const p of P) {
   if (b && d && d < b) err(`${p.firstName} ${p.lastName}: ölüm (${d}) doğumdan (${b}) önce`);
   for (const pid of p.parentIds) {
     const par = idx.get(pid); if (!par) continue;
+    // Evlat edinme/koruyucu bağlarında biyolojik kısıtlar geçerli değil
+    const kanBagi = !p.parentLinks?.[pid]?.kind || p.parentLinks[pid].kind === "biological";
     const pb = yil(par.birthDate);
-    if (pb && b) {
+    if (kanBagi && pb && b) {
       const fark = b - pb;
-      if (fark < 13) err(`${par.firstName} ${par.lastName} (${pb}) → ${p.firstName} ${p.lastName} (${b}): ${fark} yaş farkı`);
-      if (fark > 65) err(`${par.firstName} ${par.lastName} (${pb}) → ${p.firstName} ${p.lastName} (${b}): ${fark} yaş farkı fazla`);
+      if (fark < 13) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı`);
+      if (fark > 65) err(`${ad(par)} (${pb}) → ${ad(p)} (${b}): ${fark} yaş farkı fazla`);
     }
     const pd = yil(par.deathDate);
     // Anne öldükten sonra doğum olamaz; baba için 1 yıl tolerans
-    if (pd && b && b > pd + (par.gender === "female" ? 0 : 1))
-      err(`${par.firstName} ${par.lastName} ${pd}'de öldü ama çocuk ${p.firstName} ${b}'de doğmuş`);
+    if (kanBagi && pd && b && b > pd + (par.gender === "female" ? 0 : 1))
+      err(`${ad(par)} ${pd}'de öldü ama çocuk ${ad(p)} ${b}'de doğmuş`);
   }
+}
+
+// --- Ortak çocuğu olan iki kişi eş ya da eski eş olarak bağlı mı? ---
+for (const p of P) {
+  if (p.parentIds.length !== 2) continue;
+  const [a, b] = p.parentIds.map(id => idx.get(id)!);
+  if (!a || !b) continue;
+  const bagli = a.spouseIds.includes(b.id) || (a.formerSpouseIds ?? []).includes(b.id);
+  const evlatlik = p.parentLinks?.[a.id]?.kind && p.parentLinks[a.id].kind !== "biological";
+  if (!bagli && !evlatlik)
+    err(`${ad(a)} ile ${ad(b)} ortak çocuğu var (${ad(p)}) ama eş bağı yok`);
 }
 
 // --- Döngü kontrolü: kimse kendi atası olamaz ---
@@ -99,6 +113,12 @@ for (const p of P) {
     }
   }
 }
+const bagli = (k: string) => P.filter(p => Object.values(p.parentLinks ?? {}).some(l => l.kind === k));
+const kopuk = (e: string) => P.filter(p => Object.values(p.parentLinks ?? {}).some(l => l.estranged === e));
+kontrol("Evlat edinme", bagli("adoptive").length >= 3, bagli("adoptive").map(p=>p.firstName).join(", "));
+kontrol("Koruyucu / evlatlık", bagli("foster").length >= 1, bagli("foster").map(p=>p.firstName).join(", "));
+kontrol("Evlatlıktan reddedilen", kopuk("by-parent").length >= 2, kopuk("by-parent").map(p=>p.firstName).join(", "));
+kontrol("Ebeveynini reddeden", kopuk("by-child").length >= 1, kopuk("by-child").map(p=>p.firstName).join(", "));
 kontrol("Akraba evliliği", akrabaEvlilik.length >= 2, akrabaEvlilik.join(", "));
 
 console.log(`\n${hata === 0 ? "✓ Veri bütünlüğü temiz" : `✗ ${hata} bütünlük hatası`}`);

@@ -26,20 +26,31 @@ anneanne mi — uygulama iki kişi arasındaki en kısa yolu bulup doğru terimi
 Ancestry, FamilySearch, Gramps ve diğerleriyle uyumlu.
 
 **Gerçek hayat karmaşıktır.** Çok eşlilik, boşanma, akraba evliliği, evlat
-edinme, ikili olmayan cinsiyet kimlikleri ve bilinmeyen tarihler veri
-modelinde yerini bulur — hepsi zorlama olmadan.
+edinme, koruyucu aile, evlatlıktan reddetme, ikili olmayan cinsiyet
+kimlikleri ve bilinmeyen tarihler veri modelinde yerini bulur — hepsi
+zorlama olmadan. Kopan ilişkiler bağı silmez; ağaçta durur, yalnızca not
+düşülür.
 
 Ayrıca: koyu/açık tema, `⌘K` ile anlık arama, mobilde alttan açılan paneller,
 Türkçe tarih girişi (`GG.AA.YYYY` ya da sadece `YYYY`) ve otomatik yaş hesabı.
 
 ## Demo
 
-Menüden **GEDCOM aktar / al → Demo ağacını yükle** ile 11 kuşaklık örnek bir
-aile yüklenir: 1730'lardan bugüne 172 kişi. Soyadı Kanunu öncesi lakaplar,
-1934'te farklı soyadı seçen kardeşler, dört eşli bir dede, altı kez evlenmiş
-bir torun, birinci ve ikinci dereceden kuzen evlilikleri, Çanakkale ve Sakarya
-kayıpları, Selanik'ten muhacirlik, Almanya'ya işçi göçü, bebek ölümleri,
-interseks ve trans bireyler.
+Giriş ekranındaki **"Demo ağacını şifresiz incele"** düğmesi, 11 kuşaklık
+örnek bir aileyle doğrudan uygulamaya sokar: 1730'lardan bugüne **194 kişi**.
+Hesap herkese açık ve ortaktır; her girişte ağaç baştan yüklendiği için
+serbestçe kurcalanabilir.
+
+Kendi hesabına yüklemek istersen: menüden **GEDCOM aktar / al → Demo ağacını
+yükle**.
+
+İçinde neler var: Soyadı Kanunu öncesi lakaplar ve 1934'te farklı soyadı seçen
+kardeşler; dört ve üç eşli iki kuşak başı; altı kez evlenip beşinden boşanan
+biri ve beş evlilik yapan bir kadın; birinci, ikinci ve üçüncü dereceden kuzen
+evlilikleri; savaş yetimi ve deprem yetimi evlat edinmeleri; tarihsel
+"evlatlık" kurumu; evlatlıktan reddedilenler ve ebeveynini reddedenler;
+Çanakkale ve Sakarya kayıpları; Selanik ve Filibe'den muhacirlik; Almanya'ya
+işçi göçü; bebek ölümleri; interseks, trans ve ikili olmayan bireyler.
 
 Avatarlar gömülü SVG olarak üretilir — dış servise bağımlılık yok.
 
@@ -81,6 +92,7 @@ lib/
   gedcom.ts               GEDCOM ayrıştırıcı ve üretici
   actions.ts              İstemci API sarmalayıcıları
   demo-data.ts            11 kuşaklık demo ağacı + avatar üretici
+  demo-account.ts         Şifresiz demo hesabı
   useEscapeKey.ts         Katmanlı ESC yönetimi
 tests/                    node --experimental-strip-types ile çalışır
 ```

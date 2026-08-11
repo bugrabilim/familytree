@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { findUserByFamilyName } from "@/lib/users";
+import { prepareDemoAccount } from "@/lib/demo-account";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -22,6 +23,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await compare(password, user.passwordHash);
         if (!valid) return null;
 
+        return { id: user.id, name: user.familyName };
+      },
+    }),
+
+    /**
+     * Şifresiz demo girişi.
+     *
+     * Ayrı bir sağlayıcı olması bilinçli: normal giriş yolunda şifre
+     * denetimini gevşetmek yerine, demo tamamen kendi kapısından geçer.
+     * Yalnızca sunucu tarafından `signIn("demo")` ile çağrılabilir.
+     */
+    Credentials({
+      id: "demo",
+      name: "demo",
+      credentials: {},
+      async authorize() {
+        const user = await prepareDemoAccount();
         return { id: user.id, name: user.familyName };
       },
     }),

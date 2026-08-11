@@ -1,4 +1,4 @@
-import type { Gender, Person } from "@/types/family";
+import type { Gender, ParentLink, Person } from "@/types/family";
 
 /**
  * Kapsamlı demo soy ağacı — 11 kuşak (8 geri, ego, 2 ileri).
@@ -87,8 +87,8 @@ export function demoAvatar(seed: string, gender: Gender, birthYear?: number): st
     parcalar.push(`<ellipse cx="50" cy="46" rx="15" ry="18" fill="${ten}"/>`);
   } else {
     parcalar.push(`<ellipse cx="50" cy="45" rx="17" ry="20" fill="${ten}"/>`);
-    // Saç biçimleri
-    const sacTipi = erkek ? b2 % 4 : b2 % 5;
+    // Saç biçimleri — uzun saç ve topuz erkeklerde kullanılmıyor
+    const sacTipi = erkek ? [0, 1, 4][b2 % 3] : b2 % 5;
     if (sacTipi === 0) {
       parcalar.push(`<path d="M33 42a17 19 0 0 1 34 0c0-13-7-19-17-19s-17 6-17 19z" fill="${sac}"/>`);
     } else if (sacTipi === 1) {
@@ -137,6 +137,8 @@ interface Seed {
   /** ebeveynler */ eb?: string[];
   /** eşler */ es?: string[];
   /** eski eşler */ eski?: string[];
+  /** ebeveyn bağının niteliği — evlat edinme, üvey, kopukluk */
+  bag?: Record<string, ParentLink>;
   /** fotoğraf ata */ f?: boolean;
 }
 
@@ -154,6 +156,7 @@ function build(seeds: Seed[]): Person[] {
       ? demoAvatar(s.id, s.c, s.d ? Number(s.d.slice(0, 4)) : undefined)
       : undefined,
     parentIds: s.eb ?? [],
+    parentLinks: s.bag,
     spouseIds: s.es ?? [],
     formerSpouseIds: s.eski ?? [],
   }));
@@ -243,15 +246,25 @@ const K3: Seed[] = [
   {
     id: "k3-huseyin", ad: "Hüseyin", soyad: "Değirmencioğlu", c: "male", d: "1806", o: "1878", yer: "Develi",
     eb: ["k2-ibrahim", "k2-meryem"],
-    bio: "Meryem'den olan ilk çocuk. Ağabeyi Mustafa ile değirmen yüzünden yıllarca küs kaldılar.",
+    es: ["k3-huseyin-es", "k3-huseyin-es2", "k3-huseyin-es3"],
+    bio: "Meryem'den olan ilk çocuk. Ağabeyi Mustafa ile değirmen yüzünden yıllarca küs kaldılar.\n\nÜç eşi vardı; ailedeki ikinci çok eşli kuşak başı. Üçünden de çocukları oldu.",
   },
   {
     id: "k3-havva", ad: "Havva", soyad: "Değirmencioğlu", c: "female", d: "1809", o: "1884",
-    eb: ["k2-ibrahim", "k2-meryem"], es: ["k3-huseyin-es"],
+    eb: ["k2-ibrahim", "k2-meryem"], es: ["k3-havva-es"],
   },
+  { id: "k3-havva-es", ad: "Bekir", soyad: "Tokmakçı", c: "male", d: "1804", o: "1869", yer: "Develi" },
   {
     id: "k3-huseyin-es", ad: "Zeynep", soyad: "Kadıoğlu", c: "female", d: "1812", o: "1889", yer: "Talas",
-    bio: "Hüseyin'in eşi.",
+    bio: "Hüseyin'in ilk eşi.",
+  },
+  {
+    id: "k3-huseyin-es2", ad: "Ümmühan", soyad: "Değirmencioğlu", c: "female", d: "1818", o: "1871", yer: "Develi",
+    bio: "Hüseyin'in ikinci eşi.",
+  },
+  {
+    id: "k3-huseyin-es3", ad: "Elif", soyad: "Değirmencioğlu", c: "female", d: "1826", o: "1902", yer: "Develi",
+    bio: "Hüseyin'in üçüncü eşi. Kocasından 20 yaş küçüktü.",
   },
 ];
 
@@ -282,6 +295,11 @@ const K4: Seed[] = [
     bio: "Hüseyin kolundan. Bu dal Adana'ya göç etti.",
   },
   { id: "k4-hatice", ad: "Hatice", soyad: "Kozanoğlu", c: "female", d: "1845", o: "1918", yer: "Kozan", es: ["k4-osman"] },
+
+  // Hüseyin'in ikinci ve üçüncü eşlerinden
+  { id: "k4-veli-h", ad: "Veli", soyad: "Değirmencioğlu", c: "male", d: "1843", o: "1901", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es2"], bio: "Adını, ailenin bilinen ilk atası Veli'den aldı — kuşak atlayan ad tekrarının ilk örneği." },
+  { id: "k4-guller", ad: "Güller", soyad: "Değirmencioğlu", c: "female", d: "1849", o: "1912", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es2"] },
+  { id: "k4-mahmut", ad: "Mahmut", soyad: "Değirmencioğlu", c: "male", d: "1855", o: "1923", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es3"] },
 ];
 
 /* ================================================================
@@ -301,6 +319,16 @@ const K5: Seed[] = [
   { id: "k5-emine", ad: "Emine", soyad: "Değirmencioğlu", c: "female", d: "1867", o: "1949", yer: "Kayseri", eb: ["k4-ahmet", "k4-serife"] },
   { id: "k5-yakup", ad: "Yakup", soyad: "Değirmencioğlu", c: "male", d: "1871", o: "1876", yer: "Kayseri", eb: ["k4-ahmet", "k4-serife"], bio: "Beş yaşında kızamıktan vefat etti." },
   { id: "k5-kizi", ad: "Adı bilinmeyen", soyad: "Değirmencioğlu", c: "unknown", d: "1874", o: "1874", yer: "Kayseri", eb: ["k4-ahmet", "k4-serife"], bio: "Ölü doğdu; nüfusa kaydedilmedi. Aile defterinde yalnızca tarih var." },
+
+  {
+    id: "k5-hayriye", ad: "Hayriye", soyad: "Değirmencioğlu", c: "female", d: "1869", o: "1934", yer: "Yozgat",
+    eb: ["k4-ahmet", "k4-serife"],
+    bag: {
+      "k4-ahmet": { kind: "foster", note: "Yedi yaşında konağa evlatlık verildi; resmî evlat edinme yapılmadı." },
+      "k4-serife": { kind: "foster", note: "Yedi yaşında konağa evlatlık verildi; resmî evlat edinme yapılmadı." },
+    },
+    bio: "Yozgat'tan, kıtlık yıllarında konağa \"evlatlık\" verildi. Dönemin yaygın ama ağır bir uygulamasıydı: ev işlerine bakar, aileden sayılır ama miras alamazdı.\n\nHiç evlenmedi. Şerife Hanım'ın ölümüne dek onunla kaldı, aynı mezarlığa gömüldü.",
+  },
 
   // Eşler
   { id: "k5-omer-es", ad: "Saliha", soyad: "Selanikli", c: "female", d: "1858", o: "1929", yer: "Selanik", es: ["k5-omer"], bio: "Selanik'ten muhacir olarak gelen bir ailenin kızı. Türkçeyi sonradan öğrendi, evde Rumeli şivesiyle konuşurdu." },
@@ -359,6 +387,17 @@ const K6: Seed[] = [
   // Halil kolu
   { id: "k6-turgut", ad: "Turgut", soyad: "Demirtaş", c: "male", d: "1895-06-17", o: "1968-03-22", yer: "Kayseri", eb: ["k5-halil", "k5-halil-es"], f: true },
   { id: "k6-turgut-es", ad: "Nermin", soyad: "Demirtaş", c: "female", d: "1902-10-08", o: "1988-01-30", yer: "İstanbul", es: ["k6-turgut"], f: true },
+  {
+    id: "k6-sitki", ad: "Sıtkı", soyad: "Demirtaş", c: "male", d: "1908-05-02", o: "1979-04-17", yer: "Manastır", f: true,
+    eb: ["k5-halil", "k5-halil-es"],
+    bag: {
+      "k5-halil": { kind: "adoptive", note: "Balkan Savaşı yetimi; 1913'te evlat edinildi." },
+      "k5-halil-es": { kind: "adoptive", note: "Balkan Savaşı yetimi; 1913'te evlat edinildi." },
+    },
+    bio: "Balkan Savaşı'nda ailesini kaybetti, Manastır'dan gelen muhacir kafilesiyle Kayseri'ye ulaştı. 1913'te Halil ve Melek tarafından evlat edinildi.\n\nÖz soyadını hiç öğrenemedi; 1934'te ailesinin soyadını aldı. \"Beni bulan aile benim ailemdir\" derdi.",
+  },
+  { id: "k6-sitki-es", ad: "Refika", soyad: "Demirtaş", c: "female", d: "1915-08-11", o: "1988-02-20", yer: "Kayseri", es: ["k6-sitki"], f: true },
+
   // Süleyman kolu
   { id: "k6-zekiye", ad: "Zekiye", soyad: "Demirtaş", c: "female", d: "1900-08-25", o: "2003-05-14", yer: "Develi", eb: ["k5-suleyman", "k5-suleyman-es"], f: true, bio: "102 yaşında vefat etti. Ailenin en uzun yaşayan ferdi; dört kuşağı bir arada gördü." },
   { id: "k6-zekiye-es", ad: "Kâzım", soyad: "Ergin", c: "male", d: "1894-12-19", o: "1970-08-08", es: ["k6-zekiye"] },
@@ -411,7 +450,11 @@ const K7: Seed[] = [
 
   // Zekiye kolu
   { id: "k7-necati", ad: "Necati", soyad: "Ergin", c: "male", d: "1926-02-11", o: "2001-12-05", yer: "Develi", eb: ["k6-zekiye", "k6-zekiye-es"], f: true },
-  { id: "k7-necati-es", ad: "Fitnat", soyad: "Ergin", c: "female", d: "1933-05-08", o: "2015-06-20", es: ["k7-necati"] },
+  {
+    id: "k7-necati-es", ad: "Fitnat", soyad: "Ergin", c: "female", d: "1933-05-08", o: "2015-06-20", yer: "Develi", f: true,
+    eb: ["k6-sadik", "k6-sadik-es"], es: ["k7-necati"],
+    bio: "Evlenmeden önceki soyadı Yıldırım'dı. Eşi Necati ile üçüncü dereceden kuzenler — ortak ataları Mustafa Değirmencioğlu (1793).\n\nDevelii'de iki kolun birbirini bulması olağandı; \"zaten hepimiz akrabayız\" derdi.",
+  },
 
   // Sadık (Yıldırım) kolu
   { id: "k7-hulusi", ad: "Hulusi", soyad: "Yıldırım", c: "male", d: "1923-08-03", o: "1996-10-14", yer: "Develi", eb: ["k6-sadik", "k6-sadik-es"], f: true },
@@ -455,7 +498,8 @@ const K8: Seed[] = [
   {
     id: "k8-deniz-s", ad: "Deniz", soyad: "Demirtaş", c: "other", d: "1958-07-04", yer: "Kayseri", f: true,
     eb: ["k7-sabri", "k7-sabri-es"],
-    bio: "İnterseks doğdu. 1958'de nüfusa \"erkek\" olarak kaydedildi; 1994'te açtığı davayla kaydını değiştirdi. Ailede uzun süre konuşulmayan, son yıllarda açıkça anlatılan bir hikâye.\n\nSeramik sanatçısı. Bodrum'da atölyesi var.",
+    bag: { "k7-sabri": { estranged: "by-parent", note: "1994'teki kayıt değişikliğinden sonra babası görüşmeyi kesti; 1997'de vefat edene dek barışmadılar." } },
+    bio: "İnterseks doğdu. 1958'de nüfusa \"erkek\" olarak kaydedildi; 1994'te açtığı davayla kaydını değiştirdi. Babası bunu kabul etmedi ve ölene dek görüşmediler; annesi ise hep aradı.\n\nSeramik sanatçısı. Bodrum'da atölyesi var. 1999'da Umut'u evlat edindi.",
   },
   { id: "k8-nurhan", ad: "Nurhan", soyad: "Demirtaş", c: "female", d: "1961-12-09", yer: "Kayseri", eb: ["k7-sabri", "k7-sabri-es"], es: ["k8-nurhan-es"], f: true },
   { id: "k8-nurhan-es", ad: "Selçuk", soyad: "Demirtaş", c: "male", d: "1958-05-27", yer: "Kayseri", f: true },
@@ -490,6 +534,18 @@ const K8: Seed[] = [
   // Yıldırım (Develi) kolu
   { id: "k8-serpil", ad: "Serpil", soyad: "Yıldırım", c: "female", d: "1958-12-01", yer: "Develi", eb: ["k7-hulusi", "k7-hulusi-es"], es: ["k8-serpil-es"], f: true },
   { id: "k8-serpil-es", ad: "İlhan", soyad: "Yıldırım", c: "male", d: "1954-04-22", yer: "Develi", f: true },
+
+  {
+    id: "k8-aysel", ad: "Aysel", soyad: "Toroslu", c: "female", d: "1957-04-30", yer: "Adana", f: true,
+    eb: ["k7-vedat", "k7-vedat-es"],
+    es: ["k8-aysel-es5"], eski: ["k8-aysel-es2", "k8-aysel-es3", "k8-aysel-es4"],
+    bio: "Beş kez evlendi: ilk eşi genç yaşta vefat etti, üçünden boşandı, beşincisiyle otuz yıldır birlikte. İki farklı evliliğinden çocukları var.\n\n\"Her seferinde doğru olduğunu düşündüm, üçünde yanıldım\" diyor.",
+  },
+  { id: "k8-aysel-es1", ad: "Kenan", soyad: "Toroslu", c: "male", d: "1953-09-14", o: "1981-06-03", yer: "Adana", es: ["k8-aysel"], f: true, bio: "Aysel'in ilk eşi. 1981'de trafik kazasında vefat etti; Aysel 24 yaşında dul kaldı." },
+  { id: "k8-aysel-es2", ad: "Nedim", soyad: "Alkan", c: "male", d: "1950-11-21", yer: "Mersin", f: true, bio: "Aysel'in ikinci eşi. 1983-1987." },
+  { id: "k8-aysel-es3", ad: "Yılmaz", soyad: "Duran", c: "male", d: "1955-03-07", yer: "Adana", f: true, bio: "Aysel'in üçüncü eşi. 1989-1992." },
+  { id: "k8-aysel-es4", ad: "Sinan", soyad: "Kaptan", c: "male", d: "1961-07-19", yer: "İskenderun", f: true, bio: "Aysel'in dördüncü eşi. 1993-1995." },
+  { id: "k8-aysel-es5", ad: "Cahit", soyad: "Toroslu", c: "male", d: "1954-01-08", yer: "Adana", f: true, bio: "Aysel'in beşinci eşi. 1996'dan beri evliler." },
 
   // Adana kolu
   { id: "k8-levent", ad: "Levent", soyad: "Toroslu", c: "male", d: "1962-08-08", yer: "Adana", eb: ["k7-vedat", "k7-vedat-es"], es: ["k8-levent-es"], f: true },
@@ -548,7 +604,18 @@ const K9: Seed[] = [
   {
     id: "k9-umut", ad: "Umut", soyad: "Demirtaş", c: "other", d: "1996-04-23", yer: "Bodrum", f: true,
     eb: ["k8-deniz-s"],
+    bag: { "k8-deniz-s": { kind: "adoptive", note: "1999'da tek başına evlat edinildi." } },
     bio: "Deniz tarafından tek başına evlat edinildi. Kendini ikili cinsiyet tanımlarının dışında görüyor; nüfus kaydında \"diğer\" olarak geçiyor.\n\nDeniz'in seramik atölyesini birlikte işletiyorlar.",
+  },
+
+  {
+    id: "k9-kaya", ad: "Kaya", soyad: "Demirtaş", c: "male", d: "1994-03-19", yer: "Gölcük", f: true,
+    eb: ["k8-nurhan", "k8-nurhan-es"],
+    bag: {
+      "k8-nurhan": { kind: "adoptive", note: "1999 Marmara depreminde öz ailesini kaybetti; teyzesi evlat edindi." },
+      "k8-nurhan-es": { kind: "adoptive", note: "1999 Marmara depreminde öz ailesini kaybetti; 2000'de evlat edinildi." },
+    },
+    bio: "17 Ağustos 1999'da Gölcük'te anne ve babasını kaybetti; beş yaşındaydı. Annesinin kuzeni Nurhan ve eşi Selçuk tarafından evlat edinildi.\n\nJeoloji mühendisi oldu. \"Mesleğimi seçerken kimseye sormadım\" diyor.",
   },
 
   // Nurhan kolu
@@ -567,6 +634,14 @@ const K9: Seed[] = [
   { id: "k9-sinan", ad: "Sinan", soyad: "Şensoy", c: "male", d: "1988-03-09", yer: "Duisburg, Almanya", eb: ["k8-hulya-a", "k8-hulya-es"], es: ["k9-sinan-es"], f: true },
   { id: "k9-sinan-es", ad: "Merve", soyad: "Şensoy", c: "female", d: "1991-05-14", yer: "Köln, Almanya", f: true },
 
+  {
+    id: "k9-murat", ad: "Murat", soyad: "Yıldırım", c: "male", d: "1979-05-08", yer: "İzmir", f: true,
+    eb: ["k8-ercan", "k8-ercan-es"], es: ["k9-murat-es"],
+    bag: { "k8-ercan": { estranged: "by-parent", note: "1999'daki evliliği sonrası babası tarafından reddedildi." } },
+    bio: "1999'da ailesinin karşı çıktığı bir evlilik yaptı; babası \"benim oğlum yok\" deyip bağını kesti, bir daha görüşmediler. Annesi gizlice görüşmeyi sürdürdü.\n\nDeniz biyoloğu. Çocuklarına dedelerini hiç tanıtamadı.",
+  },
+  { id: "k9-murat-es", ad: "Rana", soyad: "Yıldırım", c: "female", d: "1981-02-26", yer: "Diyarbakır", f: true },
+
   // Ankara kolu
   { id: "k9-tolga", ad: "Tolga", soyad: "Soydan", c: "male", d: "1976-08-22", yer: "Ankara", eb: ["k8-mualla", "k8-mualla-es"], es: ["k9-tolga-es"], eski: ["k9-tolga-eski"], f: true, bio: "Bir kez boşandı, ikinci evliliğini yaptı." },
   { id: "k9-tolga-eski", ad: "Gamze", soyad: "Kılıç", c: "female", d: "1979-02-03", yer: "Ankara", f: true, bio: "Tolga'nın ilk eşi. 2002-2008." },
@@ -581,6 +656,10 @@ const K9: Seed[] = [
   { id: "k9-seda", ad: "Seda", soyad: "Ergin", c: "female", d: "1982-06-11", yer: "Develi", eb: ["k8-fatos", "k8-fatos-es"], es: ["k9-seda-es"], f: true },
   { id: "k9-seda-es", ad: "Volkan", soyad: "Ergin", c: "male", d: "1978-10-26", yer: "Kayseri", f: true },
   { id: "k9-gokhan", ad: "Gökhan", soyad: "Yıldırım", c: "male", d: "1985-03-16", yer: "Develi", eb: ["k8-serpil", "k8-serpil-es"], f: true },
+
+  { id: "k9-tunc", ad: "Tunç", soyad: "Toroslu", c: "male", d: "1980-02-11", yer: "Adana", eb: ["k8-aysel", "k8-aysel-es1"], f: true, bio: "Aysel'in ilk evliliğinden. Babası o bir yaşındayken öldü, hiç hatırlamıyor." },
+  { id: "k9-pelin", ad: "Pelin", soyad: "Alkan", c: "female", d: "1985-06-24", yer: "Mersin", eb: ["k8-aysel", "k8-aysel-es2"], f: true, bio: "Aysel'in ikinci evliliğinden." },
+  { id: "k9-koray", ad: "Koray", soyad: "Toroslu", c: "male", d: "1998-10-05", yer: "Adana", eb: ["k8-aysel", "k8-aysel-es5"], f: true, bio: "Aysel'in beşinci evliliğinden. En büyük ağabeyi Tunç'tan 18 yaş küçük." },
 
   // Adana kolu
   { id: "k9-ebru", ad: "Ebru", soyad: "Toroslu", c: "female", d: "1991-07-24", yer: "Adana", eb: ["k8-levent", "k8-levent-es"], es: ["k9-ebru-es"], f: true },
@@ -601,7 +680,12 @@ const K10: Seed[] = [
   { id: "k10-asli", ad: "Aslı", soyad: "Uysal", c: "female", d: "2004-12-06", yer: "İstanbul", eb: ["k9-pinar", "k9-pinar-es"], f: true },
 
   // Cem'in dört farklı evliliğinden çocukları
-  { id: "k10-can", ad: "Can", soyad: "Demirtaş", c: "male", d: "2004-06-18", yer: "Ankara", eb: ["k9-cem", "k9-cem-es1"], f: true, bio: "Cem'in ilk evliliğinden. Babasının altı evliliğini sayarken \"ben birincinin oğluyum\" diye takılır." },
+  {
+    id: "k10-can", ad: "Can", soyad: "Demirtaş", c: "male", d: "2004-06-18", yer: "Ankara", f: true,
+    eb: ["k9-cem", "k9-cem-es1"],
+    bag: { "k9-cem": { estranged: "by-child", note: "2022'den beri babasıyla görüşmüyor." } },
+    bio: "Cem'in ilk evliliğinden. 2022'de babasıyla bağını kendi kesti — \"altı evlilik saydım, hiçbirinde ben yoktum\" diyor. Annesi Esra ile yakın.",
+  },
   { id: "k10-ipek", ad: "İpek", soyad: "Demirtaş", c: "female", d: "2008-02-27", yer: "İstanbul", eb: ["k9-cem", "k9-cem-es2"], f: true, bio: "Cem'in ikinci evliliğinden." },
   { id: "k10-tuna", ad: "Tuna", soyad: "Demirtaş", c: "male", d: "2015-10-14", yer: "Antalya", eb: ["k9-cem", "k9-cem-es4"], f: true, bio: "Cem'in dördüncü evliliğinden." },
   { id: "k10-mira", ad: "Mira", soyad: "Demirtaş", c: "female", d: "2022-03-08", yer: "İstanbul", eb: ["k9-cem", "k9-cem-es6"], f: true, bio: "Cem'in altıncı evliliğinden. En büyük ağabeyi Can'dan 18 yaş küçük." },
@@ -617,6 +701,12 @@ const K10: Seed[] = [
 
   // Umut
   { id: "k10-rüzgar", ad: "Rüzgâr", soyad: "Demirtaş", c: "unknown", d: "2024-06-02", yer: "Bodrum", eb: ["k9-umut"], f: true, bio: "Henüz çok küçük; aile cinsiyet ataması yapmadan büyütmeyi tercih ediyor." },
+
+  {
+    id: "k10-nil", ad: "Nil", soyad: "Sarıkaya", c: "female", d: "2006-11-12", yer: "Kayseri", f: true,
+    eb: ["k9-burcu", "k9-burcu-es"],
+    bio: "Doğumda erkek olarak kaydedildi. 2024'te geçiş sürecini tamamladı, adını Nil olarak değiştirdi.\n\nAilenin tepkisi kuşaktan kuşağa farklı oldu: büyük halası Deniz'in 1994'te yaşadıklarını bilenler için bu sefer daha kolaydı.",
+  },
 
   // Burcu + Emre
   { id: "k10-eylul", ad: "Eylül", soyad: "Sarıkaya", c: "female", d: "2011-09-08", yer: "Kayseri", eb: ["k9-burcu", "k9-burcu-es"], f: true },
