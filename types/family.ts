@@ -23,6 +23,11 @@ export interface ParentLink {
 
 export interface Person {
   id: string;
+  /**
+   * İnsan-okur benzersiz kimlik: 6 haneli, "289" ile başlar (289001…).
+   * Kartlarda gösterilir. İç `id`'den ayrıdır; kalıcı ve paylaşılabilir.
+   */
+  code?: string;
   firstName: string;
   lastName: string;
   gender: Gender;

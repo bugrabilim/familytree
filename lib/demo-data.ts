@@ -1,5 +1,8 @@
 import type { Gender, ParentLink, Person } from "@/types/family";
 
+/** İnsan-okur kod: 6 haneli, "289" ile başlar (bkz. lib/code.ts). */
+const formatCode = (n: number): string => "289" + String(n).padStart(3, "0");
+
 /**
  * Kapsamlı demo soy ağacı — 11 kuşak (8 geri, ego, 2 ileri).
  *
@@ -188,8 +191,9 @@ function build(seeds: Seed[]): Person[] {
     return `${babaAd} ${s.c === "female" ? "kızı" : "oğlu"}`;
   };
 
-  const people: Person[] = seeds.map((s) => ({
+  const people: Person[] = seeds.map((s, i) => ({
     id: s.id,
+    code: formatCode(i + 1),
     firstName: s.ad,
     lastName: s.soyad,
     nickname: s.lakap,

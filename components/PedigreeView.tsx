@@ -18,11 +18,13 @@ interface Props {
   onQuickAdd: (relation: RelationType, targetId: string) => void;
 }
 
-/* Sabit kart genişliği, bağlantı çizgilerinin hesabını mümkün kılar */
-const CARD_W = 172;
-const HALF = CARD_W / 2;
-const GAP = 28;
-const STUB = 18;
+/* Sabit kart yüksekliği, yatay yerleşimde bağlantı çizgilerinin hesabını
+   mümkün kılar (kartlar dikey yığılır, çizgi merkezleri sabit). */
+const CARD_W = 176;
+const CARD_H = 64;
+const HALF_H = CARD_H / 2;
+const GAP = 16;
+const STUB = 24;
 
 export default function PedigreeView({
   people,
@@ -120,10 +122,10 @@ export default function PedigreeView({
         </div>
       </div>
 
-      {/* Kum saati: merkez kişi ortada, atalar üstte, soy altta */}
+      {/* Kum saati (yatay): atalar solda, merkez ortada, soy sağda */}
       <div className="flex-1 overflow-auto p-8 sm:p-12">
         <div className="min-w-max min-h-full flex items-center justify-center">
-          <div className="flex flex-col items-center">
+          <div className="flex items-center">
             <AncestorFan person={root} depth={generations} {...cardProps} />
             <PedigreeCard person={root} isRoot {...cardProps} />
             <DescendantFan person={root} depth={generations} {...cardProps} />
@@ -153,28 +155,28 @@ function ataSirasi(parents: Person[]): Person[] {
   return [father, mother].filter((p): p is Person => !!p);
 }
 
-/** Bir kişinin atalarını (yukarı doğru) çizen fan — kişinin kendi kartı hariç */
+/** Bir kişinin atalarını (solda) çizen fan — kişinin kendi kartı hariç */
 function AncestorFan({ person, depth, ...props }: { person: Person; depth: number } & BranchProps) {
   if (depth <= 0) return null;
   const parents = ataSirasi(getParents(person, props.idx));
   if (parents.length === 0) return null;
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="flex items-end justify-center" style={{ gap: GAP }}>
+    <div className="flex items-center">
+      <div className="flex flex-col justify-center" style={{ gap: GAP }}>
         {parents.map((par) => (
-          <div key={par.id} className="flex flex-col items-center">
+          <div key={par.id} className="flex items-center">
             <AncestorFan person={par} depth={depth - 1} {...props} />
             <PedigreeCard person={par} {...props} />
           </div>
         ))}
       </div>
-      <Connector count={parents.length} side="top" />
+      <Connector count={parents.length} side="left" />
     </div>
   );
 }
 
-/** Bir kişinin soyunu (aşağı doğru) çizen fan — kişinin kendi kartı hariç */
+/** Bir kişinin soyunu (sağda) çizen fan — kişinin kendi kartı hariç */
 function DescendantFan({ person, depth, ...props }: { person: Person; depth: number } & BranchProps) {
   if (depth <= 0) return null;
   const kids = getChildren(person, props.people).sort((a, b) =>
@@ -183,11 +185,11 @@ function DescendantFan({ person, depth, ...props }: { person: Person; depth: num
   if (kids.length === 0) return null;
 
   return (
-    <div className="flex flex-col items-center">
-      <Connector count={kids.length} side="bottom" />
-      <div className="flex items-start justify-center" style={{ gap: GAP }}>
+    <div className="flex items-center">
+      <Connector count={kids.length} side="right" />
+      <div className="flex flex-col justify-center" style={{ gap: GAP }}>
         {kids.map((c) => (
-          <div key={c.id} className="flex flex-col items-center">
+          <div key={c.id} className="flex items-center">
             <PedigreeCard person={c} {...props} />
             <DescendantFan person={c} depth={depth - 1} {...props} />
           </div>
@@ -198,25 +200,25 @@ function DescendantFan({ person, depth, ...props }: { person: Person; depth: num
 }
 
 /**
- * Bağlantı bölgesi: bir kart ile onun ebeveyn/çocuk satırı arasındaki çizgiler.
- * `side="top"` → üstteki satırı (atalar) alttaki karta bağlar.
- * `side="bottom"` → üstteki kartı alttaki satıra (soy) bağlar.
- * Kart genişliği sabit olduğundan yatay bar, satırın uçlarındaki kart
- * merkezleri arasına (HALF içeriden) yerleştirilir.
+ * Bağlantı bölgesi (yatay): bir kart ile onun ebeveyn/çocuk sütunu arasındaki
+ * çizgiler. `side="left"` → soldaki atalar sütununu sağdaki karta bağlar;
+ * `side="right"` → soldaki kartı sağdaki soy sütununa bağlar. Kart yüksekliği
+ * sabit olduğundan dikey bar, sütunun uçlarındaki kart merkezleri arasına
+ * (HALF_H içeriden) yerleştirilir.
  */
-function Connector({ count, side }: { count: number; side: "top" | "bottom" }) {
-  const barPos = side === "top" ? { top: 0 } : { bottom: 0 };
+function Connector({ count, side }: { count: number; side: "left" | "right" }) {
+  const barPos = side === "left" ? { right: 0 } : { left: 0 };
   return (
-    <div className="relative self-stretch" style={{ height: STUB }} aria-hidden>
+    <div className="relative self-stretch" style={{ width: STUB }} aria-hidden>
       {count > 1 && (
         <span
-          className="absolute h-px"
-          style={{ left: HALF, right: HALF, background: "var(--tree-edge)", ...barPos }}
+          className="absolute w-px"
+          style={{ top: HALF_H, bottom: HALF_H, background: "var(--tree-edge)", ...barPos }}
         />
       )}
       <span
-        className="absolute left-1/2 -translate-x-1/2"
-        style={{ width: 1, height: STUB, top: 0, background: "var(--tree-edge)" }}
+        className="absolute top-1/2 -translate-y-1/2"
+        style={{ height: 1, width: STUB, left: 0, background: "var(--tree-edge)" }}
       />
     </div>
   );
@@ -252,7 +254,11 @@ function PedigreeCard({
           <p className="text-[13px] font-medium text-text truncate leading-tight">
             {primaryName(person)}
           </p>
-          {alt && <p className="text-[11px] text-text-muted truncate leading-tight">{alt}</p>}
+          {alt ? (
+            <p className="text-[11px] text-text-muted truncate leading-tight">{alt}</p>
+          ) : person.code ? (
+            <p className="text-[10px] font-mono text-text-subtle/70 leading-tight">#{person.code}</p>
+          ) : null}
           {lifeSpan(person.birthDate, person.deathDate) && (
             <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
               {lifeSpan(person.birthDate, person.deathDate)}

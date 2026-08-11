@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
 
   const person: Person = {
     id: crypto.randomUUID(),
+    code: nextCode(data.people),
     firstName: (body.firstName ?? "").trim(),
     lastName: (body.lastName ?? "").trim(),
     gender: body.gender ?? "unknown",

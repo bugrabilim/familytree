@@ -138,8 +138,17 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
   böylece derin ağaçlarda okunur kalır.
 - **Nötr soybağı / sıcak evlilik çizgileri** — ağaç bağlantıları iki temada
   da net; kendine ait renk belirteçleriyle (yeşil/soluk karmaşası giderildi).
-- **Çift yönlü şecere (Soy)** — merkez kişi ortada, atalar yukarı, torunlar
-  aşağı; özyinelemeli kum saati yerleşimi, seçilen kuşak kadar iki yön.
+- **Çift yönlü yatay şecere (Soy)** — merkez kişi ortada, atalar solda,
+  torunlar sağda; özyinelemeli kum saati, seçilen kuşak kadar iki yön.
+- **Ağaçta gezinme** — tek tık merkeze alır (panel açılmaz), çift tık detay
+  açar; kuşak derinliği 0'dan başlar; yakınlaştırma gizlenen bilgiyi geri
+  getirir; "Merkeze al" artık Soy'a atlamaz, olduğun görünümde merkezler.
+- **Benzersiz kimlik kodu** — her kişiye 6 haneli, 289 ile başlayan kalıcı
+  kod; kartlarda görünür, aramada kullanılır (`lib/code.ts`).
+- **Panelde en yeni kayıtlar** ve "kişinin akrabaları" listesinde **en yakın
+  akraba en üstte** (yol uzunluğuna göre).
+- **Ad gösterimi** — soyadsız eski kayıtlarda baba adı adın önünde:
+  "Turgud oğlu Mehmed", "Bali kızı Rabia".
 - **Ayrışmış cinsiyet renkleri** — kadın/erkek/diğer/bilinmiyor iki temada net.
 - **Lakap + patronim + cinsel yönelim alanları** — Soyadı Kanunu öncesi
   kuşaklar soyadsız gösterilir, baba adından türetilen patronim ve lakapla

@@ -30,6 +30,9 @@ const FamilyTree = dynamic(() => import("@/components/FamilyTree"), {
   ),
 });
 
+/** "Tümü" seçeneği için kuşak sınırı sentineli — 0..8 gerçek derinlikler */
+const HERKES = 999;
+
 interface EditorState {
   personId?: string;
   relation?: { type: RelationType; target: Person };
@@ -48,6 +51,8 @@ export default function Workspace({
 
   const [view, setView] = useState<ViewKey>("agac");
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
+  /** Ağaçta gezinirken merkeze alınan/vurgulanan kişi — detay panelinden ayrı */
+  const [treeFocus, setTreeFocus] = useState<string | undefined>(initialSelectedId);
   const [rootId, setRootId] = useState<string | undefined>(initialSelectedId);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -55,9 +60,8 @@ export default function Workspace({
   const [demoLoading, setDemoLoading] = useState(false);
   /**
    * Ağaçta ne gösterilsin:
-   *  n > 0 → odak kişinin n kuşak atası + n kuşak soyu
-   *  -1    → odak kişinin TÜM atası ve TÜM soyu (bağlı olduğu herkes)
-   *   0    → ağaçtaki herkes
+   *  0..8      → odak kişinin n kuşak atası + n kuşak soyu (0 = yalnız yakın çevre)
+   *  HERKES    → ağaçtaki herkes (kuşak sınırı yok)
    */
   const [treeDepth, setTreeDepth] = useState(3);
   const [toast, setToast] = useState<string>();
@@ -92,30 +96,14 @@ export default function Workspace({
    * Yüzlerce kişilik bir ağacın tamamı tek ekranda okunmuyor; olgun soy
    * ağacı araçları da bu yüzden kuşak sınırı sunuyor.
    */
-  const treeFocusId = selectedId && idx.has(selectedId) ? selectedId : effectiveRoot;
+  const treeFocusId = treeFocus && idx.has(treeFocus) ? treeFocus : effectiveRoot;
 
   const treePeople = useMemo(() => {
-    if (treeDepth === 0 || !treeFocusId) return people;
+    if (treeDepth >= HERKES || !treeFocusId) return people;
 
-    const sinirsiz = treeDepth < 0;
     const keep = new Set<string>([treeFocusId]);
-    for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (sinirsiz || d <= treeDepth) keep.add(id);
-    for (const [id, d] of descendantDepths(treeFocusId, people)) if (sinirsiz || d <= treeDepth) keep.add(id);
-
-    // Tüm soy modunda ataların diğer çocukları da (kardeşler, amcalar, kuzenler)
-    if (sinirsiz) {
-      let buyudu = true;
-      while (buyudu) {
-        buyudu = false;
-        for (const p of people) {
-          if (keep.has(p.id)) continue;
-          if (p.parentIds.some((pid) => keep.has(pid))) {
-            keep.add(p.id);
-            buyudu = true;
-          }
-        }
-      }
-    }
+    for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (d <= treeDepth) keep.add(id);
+    for (const [id, d] of descendantDepths(treeFocusId, people)) if (d <= treeDepth) keep.add(id);
 
     // Odak kişinin kardeşleri
     const focus = idx.get(treeFocusId);
@@ -216,9 +204,11 @@ export default function Workspace({
     }
   }, [handleDemoLoaded, notify]);
 
+  // "Merkeze al": ağaçta kişiyi merkeze alır ve şecere kökü yapar; görünüm
+  // değiştirmez (eskiden Soy sayfasına atlıyordu).
   const focusPerson = useCallback((id: string) => {
     setRootId(id);
-    setView("soy");
+    setTreeFocus(id);
   }, []);
 
   const isEmpty = people.length === 0;
@@ -250,11 +240,12 @@ export default function Workspace({
           <>
             <FamilyTree
               people={treePeople}
-              selectedId={selectedId}
-              focusId={treeFocusId}
+              selectedId={treeFocus}
+              focusId={effectiveRoot}
               depth={treeDepth}
-              onSelect={setSelectedId}
-              onDeselect={() => setSelectedId(undefined)}
+              onSelect={setTreeFocus}
+              onOpen={setSelectedId}
+              onDeselect={() => setTreeFocus(undefined)}
               onQuickAdd={openQuickAdd}
             />
             <TreeDepthControl
@@ -407,9 +398,9 @@ function TreeDepthControl({
 }) {
   if (total <= 25) return null;
 
-  const sayilar = [2, 3, 4, 5, 6, 7, 8];
+  const sayilar = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   const metinler: Array<{ d: number; l: string; ipucu: string }> = [
-    { d: 0, l: "Tümü", ipucu: "Ağaçtaki bütün kayıtlar — kuşak sınırı olmadan herkes" },
+    { d: HERKES, l: "Tümü", ipucu: "Ağaçtaki bütün kayıtlar — kuşak sınırı olmadan herkes" },
   ];
 
   return (

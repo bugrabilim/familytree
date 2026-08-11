@@ -123,6 +123,9 @@ export default function PersonDrawer({
               <h2 className="font-serif text-xl font-semibold text-text leading-tight">
                 {fullName(person)}
               </h2>
+              {person.code && (
+                <p className="text-[11px] text-text-subtle tabular-nums font-mono mt-0.5">#{person.code}</p>
+              )}
               {years && (
                 <p className="text-sm text-text-muted mt-0.5 tabular-nums">
                   {years}
