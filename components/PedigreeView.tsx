@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
-import Avatar from "./ui/Avatar";
+import Avatar, { genderTone } from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName, fullName } from "@/lib/name";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
@@ -286,6 +286,7 @@ function PedigreeCard({
   const masked = isMasked(rawPerson, hideLiving);
   const selected = person.id === selectedId;
   const alt = secondaryName(person);
+  const tone = genderTone(person.gender);
 
   return (
     <div className="group relative shrink-0" style={{ width: CARD_W }}>
@@ -293,13 +294,12 @@ function PedigreeCard({
         onClick={() => onSelect(person.id)}
         className={`
           w-full h-[64px] flex items-center gap-2.5 px-2.5 rounded-xl text-left
-          border-2 transition-all duration-150
-          ${isRoot ? "bg-primary-soft" : "bg-surface"}
+          ${tone.bg} transition-all duration-150
           ${selected
-            ? "border-primary shadow-float ring-2 ring-primary/25"
+            ? "shadow-float ring-2 ring-primary/40"
             : isRoot
-            ? "border-primary/50 shadow-card"
-            : "border-border hover:border-border-strong shadow-soft hover:shadow-card"}
+            ? "shadow-card ring-2 ring-primary/50"
+            : "shadow-soft hover:shadow-card"}
         `}
       >
         <Avatar person={person} size="sm" />
