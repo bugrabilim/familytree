@@ -18,7 +18,7 @@ import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider } from "@/components/PrivacyContext";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
-import { type RelationType } from "@/lib/actions";
+import { setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 import { useT } from "@/lib/i18n";
 
@@ -51,6 +51,7 @@ interface EditorState {
 
 export default function Workspace(props: {
   people: Person[];
+  version: string;
   familyName?: string;
   initialSelectedId?: string;
 }) {
@@ -67,16 +68,25 @@ export default function Workspace(props: {
 
 function WorkspaceInner({
   people,
+  version,
   familyName,
   initialSelectedId,
 }: {
   people: Person[];
+  version: string;
   familyName?: string;
   initialSelectedId?: string;
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
   const t = useT();
+
+  // Madde 9 — İyimser kilitleme: değiştirme istekleri, düzenlemenin dayandığı
+  // sürümü taşısın diye güncel sürümü aksiyon katmanına bildir. router.refresh()
+  // sonrası bu prop tazelenir; başka biri kaydettiyse bizim yazmamız 409 alır.
+  useEffect(() => {
+    setBaseVersion(version);
+  }, [version]);
 
   const [view, setView] = useState<ViewKey>("agac");
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);

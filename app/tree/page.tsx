@@ -13,7 +13,7 @@ export default async function TreePage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [{ people }, { kisi }] = await Promise.all([
+  const [{ people, updatedAt }, { kisi }] = await Promise.all([
     getFamilyData(session.user.id),
     searchParams,
   ]);
@@ -21,6 +21,7 @@ export default async function TreePage({
   return (
     <Workspace
       people={people}
+      version={updatedAt}
       familyName={session.user.name ?? undefined}
       initialSelectedId={kisi}
     />

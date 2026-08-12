@@ -19,9 +19,9 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import dagre from "dagre";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
 import { genderTone } from "./ui/Avatar";
+import { buildUnions, layout } from "@/lib/tree-layout";
 import type { Person } from "@/types/family";
 import type { RelationType } from "@/lib/actions";
 
@@ -67,72 +67,8 @@ function UnionNode() {
 
 const nodeTypes = { person: PersonNode, union: UnionNode as unknown as React.FC<NodeProps> };
 
-interface Union {
-  id: string;
-  parentIds: string[];
-  childIds: string[];
-}
-
-/**
- * Aynı ebeveyn kümesini paylaşan çocukları bir "birlik" altında toplar;
- * çocuğu olmayan çiftler için de birlik üretir ki eşler aynı sırada dursun.
- */
-function buildUnions(people: Person[], ids: Set<string>): Union[] {
-  const byKey = new Map<string, Union>();
-
-  for (const p of people) {
-    const parents = p.parentIds.filter((id) => ids.has(id));
-    if (parents.length === 0) continue;
-    const sorted = [...parents].sort();
-    const key = sorted.join("|");
-    let u = byKey.get(key);
-    if (!u) {
-      u = { id: `u:${key}`, parentIds: sorted, childIds: [] };
-      byKey.set(key, u);
-    }
-    u.childIds.push(p.id);
-  }
-
-  // Çocuksuz evlilikler
-  for (const p of people) {
-    for (const sid of p.spouseIds) {
-      if (!ids.has(sid)) continue;
-      const sorted = [p.id, sid].sort();
-      const key = sorted.join("|");
-      if (byKey.has(key)) continue;
-      byKey.set(key, { id: `u:${key}`, parentIds: sorted, childIds: [] });
-    }
-  }
-
-  return [...byKey.values()];
-}
-
-function layout(people: Person[], unions: Union[], dim: { w: number; h: number; gap: number; nodesep: number }) {
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", ranksep: dim.gap / 2, nodesep: dim.nodesep, marginx: 60, marginy: 60 });
-
-  for (const p of people) g.setNode(p.id, { width: dim.w, height: dim.h });
-  for (const u of unions) g.setNode(u.id, { width: 8, height: 8 });
-
-  for (const u of unions) {
-    for (const pid of u.parentIds) g.setEdge(pid, u.id, { weight: 12 });
-    for (const cid of u.childIds) g.setEdge(u.id, cid, { weight: 2 });
-  }
-
-  dagre.layout(g);
-
-  const pos = new Map<string, { x: number; y: number }>();
-  for (const p of people) {
-    const n = g.node(p.id);
-    if (n) pos.set(p.id, { x: n.x - dim.w / 2, y: n.y - dim.h / 2 });
-  }
-  for (const u of unions) {
-    const n = g.node(u.id);
-    if (n) pos.set(u.id, { x: n.x - 4, y: n.y - 4 });
-  }
-  return pos;
-}
+/* Birlik (union) mantığı ve dagre yerleşimi test edilebilir olsun diye saf
+   modülde: `lib/tree-layout.ts`. */
 
 /* ---------------------------------------------------------------- */
 
@@ -334,6 +270,10 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       minZoom={0.15}
       maxZoom={1.8}
       proOptions={{ hideAttribution: true }}
+      /* Madde 12 — Büyük ağaçta sanallaştırma: yalnızca görünür alandaki
+         düğüm/kenarlar render edilir. Küçük ağaçlarda kapalı tutuyoruz (mount
+         sonrası ölçüm ve fitView davranışı aynı kalsın, gereksiz risk yok). */
+      onlyRenderVisibleElements={people.length > 150}
       nodesConnectable={false}
       panOnScroll
       selectionOnDrag={false}

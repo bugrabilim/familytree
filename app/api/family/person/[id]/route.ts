@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
+
+const conflict = () =>
+  NextResponse.json(
+    { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
+    { status: 409 }
+  );
 
 export async function PUT(
   req: NextRequest,
@@ -12,7 +18,8 @@ export async function PUT(
   const userId = session.user.id;
   const { id } = await params;
   const body = await req.json();
-  const data = await getFamilyData(userId);
+  const data = await getFamilyData(userId, { skipCache: true });
+  if (versionMismatch(req, data.updatedAt)) return conflict();
 
   const index = data.people.findIndex((p) => p.id === id);
   if (index === -1)
@@ -92,7 +99,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -100,7 +107,8 @@ export async function DELETE(
 
   const userId = session.user.id;
   const { id } = await params;
-  const data = await getFamilyData(userId);
+  const data = await getFamilyData(userId, { skipCache: true });
+  if (versionMismatch(req, data.updatedAt)) return conflict();
 
   const person = data.people.find((p) => p.id === id);
   if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });

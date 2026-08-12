@@ -40,6 +40,22 @@ export interface PersonPayload {
   relation?: { type: RelationType; targetId: string };
 }
 
+/* Madde 9 — İyimser kilitleme (istemci tarafı).
+   Workspace, sunucudan gelen güncel sürümü (`updatedAt`) buraya bildirir;
+   her değiştirme isteği bu sürümü `x-base-version` başlığıyla taşır. Sunucu
+   sürüm uyuşmazsa 409 döner ve `parseError` mesajı kullanıcıya gösterilir. */
+let baseVersion: string | null = null;
+
+export function setBaseVersion(version: string | null): void {
+  baseVersion = version;
+}
+
+function mutationHeaders(json = true): Record<string, string> {
+  const h: Record<string, string> = json ? { "Content-Type": "application/json" } : {};
+  if (baseVersion) h["x-base-version"] = baseVersion;
+  return h;
+}
+
 async function parseError(res: Response, fallback: string): Promise<string> {
   try {
     const data = await res.json();
@@ -52,7 +68,7 @@ async function parseError(res: Response, fallback: string): Promise<string> {
 export async function createPerson(payload: PersonPayload): Promise<Person> {
   const res = await fetch("/api/family/person", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: mutationHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseError(res, "Kişi eklenemedi."));
@@ -62,7 +78,7 @@ export async function createPerson(payload: PersonPayload): Promise<Person> {
 export async function updatePerson(id: string, payload: PersonPayload): Promise<Person> {
   const res = await fetch(`/api/family/person/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: mutationHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseError(res, "Kişi güncellenemedi."));
@@ -70,7 +86,10 @@ export async function updatePerson(id: string, payload: PersonPayload): Promise<
 }
 
 export async function deletePerson(id: string): Promise<void> {
-  const res = await fetch(`/api/family/person/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/family/person/${id}`, {
+    method: "DELETE",
+    headers: mutationHeaders(false),
+  });
   if (!res.ok) throw new Error(await parseError(res, "Kişi silinemedi."));
 }
 
