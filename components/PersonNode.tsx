@@ -109,11 +109,11 @@ function PersonNode({ data }: NodeProps) {
         style={{ width, height }}
         className={`
           relative text-left overflow-hidden
-          bg-surface rounded-2xl ${pad}
-          border-2 transition-all duration-200
+          ${tone.bg} rounded-2xl ${pad}
+          transition-all duration-200
           ${selected
-            ? "border-primary shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/25 z-10"
-            : `${tone.border} shadow-card hover:shadow-float hover:-translate-y-0.5`}
+            ? "shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/30 z-10"
+            : "shadow-card hover:shadow-float hover:-translate-y-0.5"}
           ${dimmed ? "opacity-30" : "opacity-100"}
         `}
       >
