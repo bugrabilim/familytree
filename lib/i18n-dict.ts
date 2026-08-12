@@ -435,6 +435,15 @@ export const tr: Dict = {
 
   /* --- Liste görünümü --- */
   "list.searchPlaceholder": "İsim, yer, hikâye…",
+  "list.advanced": "Gelişmiş",
+  "list.adv.birthYears": "Doğum yılı",
+  "list.adv.from": "Baş.",
+  "list.adv.to": "Bit.",
+  "list.adv.place": "Doğum yeri",
+  "list.adv.placePlaceholder": "Şehir / ülke…",
+  "list.adv.occupationPlaceholder": "Öğretmen, çiftçi…",
+  "list.adv.any": "Hepsi",
+  "list.adv.clear": "Temizle",
   "list.sortAria": "Sırala",
   "list.sortSurname": "Soyada göre",
   "list.sortName": "Ada göre",
@@ -1034,6 +1043,15 @@ export const en: Dict = {
 
   /* --- List view --- */
   "list.searchPlaceholder": "Name, place, story…",
+  "list.advanced": "Advanced",
+  "list.adv.birthYears": "Birth year",
+  "list.adv.from": "From",
+  "list.adv.to": "To",
+  "list.adv.place": "Birthplace",
+  "list.adv.placePlaceholder": "City / country…",
+  "list.adv.occupationPlaceholder": "Teacher, farmer…",
+  "list.adv.any": "All",
+  "list.adv.clear": "Clear",
   "list.sortAria": "Sort",
   "list.sortSurname": "By last name",
   "list.sortName": "By first name",
