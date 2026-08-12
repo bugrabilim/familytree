@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     language: body.language || undefined,
     ethnicity: body.ethnicity || undefined,
     nationality: body.nationality || undefined,
+    occupation: body.occupation || undefined,
     congenitalCondition: body.congenitalCondition || undefined,
     healthCondition: body.healthCondition || undefined,
     deathCause: body.deathCause || undefined,

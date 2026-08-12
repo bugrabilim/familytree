@@ -165,6 +165,7 @@ interface Seed {
   /** ana dil */ dil?: string;
   /** etnik köken */ etnik?: string;
   /** uyruk */ uyruk?: string;
+  /** meslek / uğraş */ meslek?: string;
   /** doğuştan sağlık durumu / engellilik */ dogustan?: string;
   /** yaşarken edinilen sağlık sorunu */ saglik?: string;
   /** ölüm nedeni */ olum?: string;
@@ -210,6 +211,7 @@ function build(seeds: Seed[]): Person[] {
     language: s.dil,
     ethnicity: s.etnik,
     nationality: s.uyruk,
+    occupation: s.meslek,
     congenitalCondition: s.dogustan,
     healthCondition: s.saglik,
     deathCause: s.olum,
@@ -246,7 +248,7 @@ function build(seeds: Seed[]): Person[] {
 const K0A: Seed[] = [
   {
     id: "k0a-bali", ad: "Bali", soyad: "Karamanoğlu", c: "male", d: "1521", o: "1589", yer: "Larende",
-    din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
+    din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı", meslek: "Sipahi",
     bio: "Ailenin yazılı kayda geçen ilk atası. Adı 1584 tahrir defterinde \"Bali bin Turgud, sipahi\" olarak geçiyor. Karaman'dan Develi'ye tımar sahibi olarak gönderilmiş.\n\nDoğum ve ölüm yılları defterdeki yaş kayıtlarından hesaplandı; kesin değil.",
   },
   {
@@ -311,7 +313,7 @@ const K0D: Seed[] = [
     eb: ["k0c-mehmed", "k0c-dilsad"], es: ["k0d-hatice-es"], din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
     bio: "Kayseri'ye gelin gitti. Kardeşleriyle mektuplaşırdı; mektupları torunlarına kaldı.",
   },
-  { id: "k0d-hatice-es", ad: "Yusuf", soyad: "Bezirgânoğlu", c: "male", d: "1630", o: "1699", yer: "Kayseri", din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı", bio: "Kayserili bir bez tüccarı. Halep'e kadar kervan yürüttü." },
+  { id: "k0d-hatice-es", ad: "Yusuf", soyad: "Bezirgânoğlu", c: "male", d: "1630", o: "1699", yer: "Kayseri", din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı", meslek: "Bez tüccarı", bio: "Kayserili bir bez tüccarı. Halep'e kadar kervan yürüttü." },
 ];
 
 /* ================================================================
@@ -593,12 +595,12 @@ const K7: Seed[] = [
       { id: "ev-kemal-emekli", type: "is", title: "Sümerbank'tan emekli oldu", date: "1978", place: "İstanbul" },
     ],
   },
-  { id: "k7-kemal-es", ad: "Muazzez", soyad: "Demirtaş", c: "female", d: "1924-05-16", o: "2009-08-03", yer: "İstanbul", es: ["k7-kemal"], bio: "İlkokul öğretmeni. Emekli olduktan sonra da mahalledeki çocuklara ücretsiz ders verdi." },
+  { id: "k7-kemal-es", ad: "Muazzez", soyad: "Demirtaş", c: "female", d: "1924-05-16", o: "2009-08-03", yer: "İstanbul", es: ["k7-kemal"], meslek: "İlkokul öğretmeni", bio: "İlkokul öğretmeni. Emekli olduktan sonra da mahalledeki çocuklara ücretsiz ders verdi." },
 
   { id: "k7-sabri", ad: "Sabri", soyad: "Demirtaş", c: "male", d: "1920-10-11", o: "1997-04-19", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"] },
   { id: "k7-sabri-es", ad: "Ayten", soyad: "Demirtaş", c: "female", d: "1927-02-14", o: "2011-01-25", es: ["k7-sabri"] },
 
-  { id: "k7-nesrin", ad: "Nesrin", soyad: "Demirtaş", c: "female", d: "1922-07-19", o: "2016-03-30", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], bio: "Hiç evlenmedi. Ailenin ilk üniversite mezunu kadını; eczacılık okudu, Kadıköy'de kırk yıl eczane işletti." },
+  { id: "k7-nesrin", ad: "Nesrin", soyad: "Demirtaş", c: "female", d: "1922-07-19", o: "2016-03-30", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], meslek: "Eczacı", bio: "Hiç evlenmedi. Ailenin ilk üniversite mezunu kadını; eczacılık okudu, Kadıköy'de kırk yıl eczane işletti." },
 
   { id: "k7-bebek", ad: "Ömer", soyad: "Demirtaş", c: "male", d: "1925-01-30", o: "1925-06-12", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], bio: "Dört buçuk aylıkken boğmacadan vefat etti. Dedesi Ömer'in adı verilmişti." },
   { id: "k7-bebek2", ad: "Naz", soyad: "Demirtaş", c: "female", d: "1928-11-04", o: "1929-02-08", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], bio: "Üç aylıkken zatürreden vefat etti. Annesiyle aynı adı taşıyordu." },
@@ -667,7 +669,7 @@ const K8: Seed[] = [
 
   {
     id: "k8-gulten", ad: "Gülten", soyad: "Demirtaş", c: "female", d: "1953-04-06", yer: "İstanbul",
-    eb: ["k7-kemal", "k7-kemal-es"],
+    eb: ["k7-kemal", "k7-kemal-es"], meslek: "Avukat",
     bio: "Evlenmedi, çocuğu olmadı. Ailenin ilk kadın avukatı. Yeğenlerinin hepsinin hukuk danışmanı.",
   },
 
@@ -1055,13 +1057,13 @@ const LGBT: Seed[] = [
   /* --- Kayda geçmemiş bir ömür --- */
   {
     id: "l-nuri-t", ad: "Nuri", soyad: "Demirtaş", c: "male", d: "1931-03-08", o: "2007-11-19", yer: "Kayseri",
-    eb: ["k6-turgut", "k6-turgut-es"], yonelim: "Eşcinsel",
+    eb: ["k6-turgut", "k6-turgut-es"], yonelim: "Eşcinsel", meslek: "Öğretmen",
     din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Orhan'ın kardeşi. Hiç evlenmedi. Kırk üç yıl aynı evi Rauf Bey'le paylaştı; aile ona hep \"Nuri'nin arkadaşı\" dedi.\n\nİkisi de öğretmendi, birlikte emekli oldular, yan yana gömüldüler. Kimse yüksek sesle söylemedi ama herkes biliyordu.\n\nBu ağaçta ilk kez, olduğu gibi yazılıyor.",
   },
   {
     id: "l-rauf", ad: "Rauf", soyad: "Kandemir", c: "male", d: "1929-07-22", o: "2009-04-03", yer: "Sivas",
-    es: ["l-nuri-t"], yonelim: "Eşcinsel", olum: "Kalp yetmezliği",
+    es: ["l-nuri-t"], yonelim: "Eşcinsel", olum: "Kalp yetmezliği", meslek: "Edebiyat öğretmeni",
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Nuri'nin ömürlük arkadaşı. Edebiyat öğretmeniydi. Nuri'nin ölümünden sonra iki yıl daha yaşadı; vasiyeti üzerine yan yana gömüldüler.",
   },

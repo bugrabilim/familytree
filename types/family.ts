@@ -100,6 +100,8 @@ export interface Person {
   ethnicity?: string;
   /** Uyruk / vatandaşlık — göçmen kuşaklarda ayırt edici */
   nationality?: string;
+  /** Meslek / uğraş — "Öğretmen", "Balıkçı", "Terzi"… (isteğe bağlı) */
+  occupation?: string;
   /**
    * Doğuştan gelen sağlık durumu / engellilik (Down sendromu, doğuştan görme
    * engeli, uzuv eksikliği…). Kalıtsal durumları izlemek isteyen aileler için.
