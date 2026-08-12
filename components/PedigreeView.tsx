@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
@@ -75,6 +75,40 @@ export default function PedigreeView({
     return { up: Math.min(up, generations), down: Math.min(down, generations) };
   }, [root, idx, people, generations]);
 
+  /**
+   * Madde 3 — "Tümünü sığdır": kuşak derinliği arttıkça büyüyen kum saatini
+   * viewport'a ölçekleyerek sığdırır (React Flow'daki fitView'e benzer). Kuşak,
+   * kök veya kişi kümesi değişince ve pencere yeniden boyutlanınca hesaplanır.
+   * Ölçek yalnızca küçültür (≤ 1). scrollWidth/Height CSS transform'dan
+   * etkilenmediği için içeriğin doğal boyutunu verir.
+   */
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const vp = viewportRef.current;
+    const content = contentRef.current;
+    const box = boxRef.current;
+    if (!vp || !content || !box) return;
+
+    const fit = () => {
+      const w = content.scrollWidth;
+      const h = content.scrollHeight;
+      if (!w || !h) return;
+      const availW = Math.max(vp.clientWidth - 48, 0);
+      const availH = Math.max(vp.clientHeight - 48, 0);
+      const s = Math.min(1, availW / w, availH / h);
+      content.style.transform = `scale(${s})`;
+      box.style.width = `${w * s}px`;
+      box.style.height = `${h * s}px`;
+    };
+
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [generations, root?.id, people]);
+
   if (!root) {
     return (
       <div className="h-full grid place-items-center text-text-subtle text-sm">
@@ -130,13 +164,20 @@ export default function PedigreeView({
         </div>
       </div>
 
-      {/* Kum saati (yatay): atalar solda, merkez ortada, soy sağda */}
-      <div className="flex-1 overflow-auto p-8 sm:p-12">
-        <div className="min-w-max min-h-full flex items-center justify-center">
-          <div className="flex items-center">
-            <AncestorFan person={root} depth={generations} {...cardProps} />
-            <PedigreeCard person={root} isRoot {...cardProps} />
-            <DescendantFan person={root} depth={generations} {...cardProps} />
+      {/* Kum saati (yatay): atalar solda, merkez ortada, soy sağda.
+          Kuşak derinliği arttıkça içerik büyür; görünür kümeyi ekrana sığdırmak
+          için ölçüp ölçekliyoruz (boxRef ölçekli boyutu ayırır, contentRef
+          absolute olarak onu doldurur). */}
+      <div ref={viewportRef} className="flex-1 overflow-auto p-8 sm:p-12">
+        <div className="min-w-full min-h-full flex items-center justify-center">
+          <div ref={boxRef} className="relative">
+            <div ref={contentRef} className="absolute top-0 left-0 origin-top-left">
+              <div className="flex items-center">
+                <AncestorFan person={root} depth={generations} {...cardProps} />
+                <PedigreeCard person={root} isRoot {...cardProps} />
+                <DescendantFan person={root} depth={generations} {...cardProps} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

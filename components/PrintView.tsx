@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
@@ -31,6 +31,13 @@ interface Props {
 export default function PrintView({ people, familyName, onClose }: Props) {
   const { view } = usePrivacy();
   const t = useT();
+
+  // Kitap yazdırma modunu işaretle — @media print yalnız .print-root'u basar
+  // (görünüm yazdırma modundan `body.print-view` ile ayrılır).
+  useEffect(() => {
+    document.body.classList.add("print-book");
+    return () => document.body.classList.remove("print-book");
+  }, []);
 
   // Maskeli kopyalar üzerinden sırala ve indeksle.
   const masked = useMemo(() => people.map((p) => view(p)), [people, view]);

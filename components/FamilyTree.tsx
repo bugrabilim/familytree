@@ -90,6 +90,7 @@ interface Props {
 function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd }: Props) {
   const { fitView, setCenter } = useReactFlow();
   const initialised = useRef(false);
+  const prevDepth = useRef(depth);
   const [zoom, setZoom] = useState(1);
 
   // Temel ayrıntı kuşak/kalabalıktan; yakınlaştırma bunu yükseltebilir.
@@ -237,7 +238,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       initialised.current = true;
     }, 60);
     return () => clearTimeout(t);
-  }, [nodeCount, fitView]);
+  }, [nodeCount, depth, fitView]);
 
   // Seçili kişiyi görünür alanın ortasına getir.
   // Masaüstünde sağdaki 380px'lik detay paneli tuvalin üstüne biniyor;
@@ -245,6 +246,12 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   // `positions` bağımlılıkta: yeniden yerleşim olursa efekt tekrar çalışıp
   // doğru konuma ortalıyor (ilk çalışmada eski konum ölçülse bile).
   useEffect(() => {
+    // Madde 3 — Kuşak derinliği değiştiğinde seçili kişiye ortalama; bunun
+    // yerine tüm görünür kümeyi sığdır (yukarıdaki fitView efekti devrede).
+    const depthChanged = prevDepth.current !== depth;
+    prevDepth.current = depth;
+    if (depthChanged) return;
+
     if (!selectedId) return;
     const pos = positions.get(selectedId);
     if (!pos) return;
@@ -257,7 +264,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       140
     );
     return () => clearTimeout(t);
-  }, [selectedId, positions, setCenter, dim.w, dim.h]);
+  }, [selectedId, positions, depth, setCenter, dim.w, dim.h]);
 
   return (
     <ReactFlow
@@ -275,7 +282,8 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
          sonrası ölçüm ve fitView davranışı aynı kalsın, gereksiz risk yok). */
       onlyRenderVisibleElements={people.length > 150}
       nodesConnectable={false}
-      panOnScroll
+      /* Madde 4 — Fare tekerleği ile ZOOM: panOnScroll kaldırıldı; React Flow'un
+         varsayılanı olan zoomOnScroll etkin. Panlama sürükleyerek yapılır. */
       selectionOnDrag={false}
       onPaneClick={onDeselect}
       onMoveEnd={(_, vp) => setZoom(vp.zoom)}
@@ -303,7 +311,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       />
       <button
         onClick={() => fitView({ padding: 0.18, duration: 400 })}
-        className="absolute top-4 right-4 z-10 h-9 px-3 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
+        className="no-print absolute top-4 right-4 z-10 h-9 px-3 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
       >
         Tümünü sığdır
       </button>

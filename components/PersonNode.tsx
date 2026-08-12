@@ -105,7 +105,7 @@ function PersonNode({ data }: NodeProps) {
       <button
         onClick={() => onSelect(person.id)}
         onDoubleClick={() => onOpen?.(person.id)}
-        title="Tık: merkeze al · Çift tık: detay"
+        title="Tıkla: profili aç ve merkeze al"
         style={{ width, height }}
         className={`
           relative text-left overflow-hidden

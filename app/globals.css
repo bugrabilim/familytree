@@ -279,13 +279,19 @@ body {
 .react-flow__edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
 
 /* ----------------------------------------------------------------------
- * Yazdırma (Madde 11) — yalnızca "aile kitabı" (.print-root) basılır.
- * PrintView document.body'ye portallanır; uygulama gövdesi (.app-shell)
- * yazdırmada gizlenir, böylece kitap sayfalara serbestçe akar.
+ * Yazdırma — iki mod (globals):
+ *  · body.print-book  → yalnız "aile kitabı" (.print-root) basılır (Madde 11).
+ *  · body.print-view  → yalnız açık görünüm (ağaç/harita/soy/panel) basılır
+ *    (Madde 8). Uygulama çerçevesi (TopBar, kontroller, kayan düğmeler) gizlenir.
+ * `.no-print` her modda gizli.
  * -------------------------------------------------------------------- */
 @media print {
-  .app-shell { display: none !important; }
-  .print-root {
+  .no-print { display: none !important; }
+  @page { margin: 14mm; }
+
+  /* — Aile kitabı — */
+  body.print-book .app-shell { display: none !important; }
+  body.print-book .print-root {
     position: static !important;
     overflow: visible !important;
     height: auto !important;
@@ -294,5 +300,21 @@ body {
   }
   .print-entry { break-inside: avoid; }
   .print-cover { break-after: page; }
-  @page { margin: 16mm; }
+
+  /* — Açık görünümü yazdır (ağaç/harita/soy/panel) — */
+  body.print-view header,
+  body.print-view .print-root { display: none !important; }
+  body.print-view .app-shell {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body.print-view main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  /* Etkileşim süsleri basılmaz */
+  body.print-view .react-flow__controls,
+  body.print-view .react-flow__minimap,
+  body.print-view .react-flow__background,
+  body.print-view .react-flow__attribution { display: none !important; }
 }
