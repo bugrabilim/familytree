@@ -22,7 +22,9 @@ export default async function TreePage({
     <Workspace
       people={people}
       version={updatedAt}
-      familyName={session.user.name ?? undefined}
+      familyName={session.user.treeName ?? session.user.name ?? undefined}
+      displayName={session.user.name ?? undefined}
+      role={session.user.role ?? "admin"}
       initialSelectedId={kisi}
     />
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
+import { canEdit } from "@/lib/roles";
 
 const conflict = () =>
   NextResponse.json(
@@ -8,12 +9,16 @@ const conflict = () =>
     { status: 409 }
   );
 
+const forbidden = () =>
+  NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canEdit(session.user.role)) return forbidden();
 
   const userId = session.user.id;
   const { id } = await params;
@@ -106,6 +111,7 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canEdit(session.user.role)) return forbidden();
 
   const userId = session.user.id;
   const { id } = await params;

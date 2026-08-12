@@ -28,6 +28,8 @@ interface Props {
   onSearch: () => void;
   onImportExport: () => void;
   onPrint: () => void;
+  /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
+  onManageMembers?: () => void;
   peopleCount: number;
 }
 
@@ -38,13 +40,14 @@ export default function TopBar({
   onSearch,
   onImportExport,
   onPrint,
+  onManageMembers,
   peopleCount,
 }: Props) {
   const router = useRouter();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const { hideLiving, setHideLiving } = usePrivacy();
-  const { readOnly, setReadOnly } = useReadOnly();
+  const { readOnly, setReadOnly, forced } = useReadOnly();
 
   return (
     <header className="relative z-30 shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
@@ -154,7 +157,20 @@ export default function TopBar({
             <span className="hidden md:inline text-xs">{t("topbar.hideLiving")}</span>
           </button>
 
-          {/* Görüntüleme modu — arayüz düzeyinde salt-okunur katman (sunucu izni değil) */}
+          {/* Görüntüleyen rolü: salt-okunur zorunlu — değiştirilemez rozet. */}
+          {forced ? (
+            <span
+              title={t("role.viewer")}
+              className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary bg-primary-soft text-primary"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
+              </svg>
+              <span className="hidden md:inline text-xs">{t("role.viewer")}</span>
+            </span>
+          ) : (
+          /* Görüntüleme modu — arayüz düzeyinde salt-okunur katman */
           <button
             onClick={() => setReadOnly(!readOnly)}
             aria-label={t("topbar.readOnly")}
@@ -192,6 +208,7 @@ export default function TopBar({
             </svg>
             <span className="hidden md:inline text-xs">{t("topbar.readOnly")}</span>
           </button>
+          )}
 
           <LanguageSwitch />
 
@@ -227,6 +244,20 @@ export default function TopBar({
                     </svg>
                     {t("common.gedcom")}
                   </button>
+                  {onManageMembers && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onManageMembers();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                        <path d="M16 20v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 8v6M22 11h-6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {t("members.menu")}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setMenuOpen(false);

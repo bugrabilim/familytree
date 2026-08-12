@@ -29,6 +29,8 @@ interface ReadOnlyValue {
   /** Uygulama salt-okunur (görüntüleme) modunda mı? */
   readOnly: boolean;
   setReadOnly: (v: boolean) => void;
+  /** Rol "viewer" olduğu için zorunlu mu? (kullanıcı kapatamaz) */
+  forced: boolean;
 }
 
 const ReadOnlyContext = createContext<ReadOnlyValue | null>(null);
@@ -56,22 +58,34 @@ function readSnapshot(): boolean {
   }
 }
 
-export function ReadOnlyProvider({ children }: { children: React.ReactNode }) {
-  const readOnly = useSyncExternalStore(subscribe, readSnapshot, () => false);
+export function ReadOnlyProvider({
+  children,
+  forced = false,
+}: {
+  children: React.ReactNode;
+  /** Rol "viewer" ise true — salt-okunur zorlanır, kullanıcı açamaz. */
+  forced?: boolean;
+}) {
+  const stored = useSyncExternalStore(subscribe, readSnapshot, () => false);
+  const readOnly = forced || stored;
 
-  const setReadOnly = useCallback((v: boolean) => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
-    } catch {
-      // yazılamıyorsa yoksay
-    }
-    // Aynı sekmedeki dinleyicileri uyandır (storage olayı yalnız diğer sekmelere gider)
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }, []);
+  const setReadOnly = useCallback(
+    (v: boolean) => {
+      if (forced) return; // viewer: değiştirilemez
+      try {
+        window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+      } catch {
+        // yazılamıyorsa yoksay
+      }
+      // Aynı sekmedeki dinleyicileri uyandır (storage olayı yalnız diğer sekmelere gider)
+      window.dispatchEvent(new Event(CHANGE_EVENT));
+    },
+    [forced]
+  );
 
   const value = useMemo<ReadOnlyValue>(
-    () => ({ readOnly, setReadOnly }),
-    [readOnly, setReadOnly]
+    () => ({ readOnly, setReadOnly, forced }),
+    [readOnly, setReadOnly, forced]
   );
 
   return <ReadOnlyContext.Provider value={value}>{children}</ReadOnlyContext.Provider>;
