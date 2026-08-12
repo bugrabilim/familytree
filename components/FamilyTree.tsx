@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
 import { genderTone } from "./ui/Avatar";
 import { buildUnions, layout } from "@/lib/tree-layout";
+import { compareSiblings } from "@/lib/siblings";
 import type { Person } from "@/types/family";
 import type { RelationType } from "@/lib/actions";
 
@@ -101,7 +102,15 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   const dim = DIMS[detail];
 
   const ids = useMemo(() => new Set(people.map((p) => p.id)), [people]);
-  const unions = useMemo(() => buildUnions(people, ids), [people, ids]);
+  const byIdAll = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const unions = useMemo(() => {
+    const u = buildUnions(people, ids);
+    // Manuel kardeş sırasını uygula: her birliğin çocuklarını sırala.
+    for (const un of u) {
+      un.childIds.sort((a, b) => compareSiblings(byIdAll.get(a), byIdAll.get(b)));
+    }
+    return u;
+  }, [people, ids, byIdAll]);
   const positions = useMemo(() => layout(people, unions, dim), [people, unions, dim]);
 
   const nodes = useMemo<Node[]>(() => {

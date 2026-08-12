@@ -22,7 +22,9 @@ import {
   getSpouses,
   indexPeople,
 } from "@/lib/relations";
-import { deletePerson, type RelationType } from "@/lib/actions";
+import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions";
+import { moveInList, siblingGroup } from "@/lib/siblings";
+import { useRouter } from "next/navigation";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
@@ -62,6 +64,27 @@ export default function PersonDrawer({
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
   const t = useT();
+  const router = useRouter();
+  const [reordering, setReordering] = useState(false);
+
+  // Kardeş grubu HAM veriden (siblingOrder maskede taşınmaz) — sıralama doğru olsun.
+  const orderGroup = useMemo(() => siblingGroup(rawPerson, people), [rawPerson, people]);
+  const orderIndex = orderGroup.findIndex((p) => p.id === rawPerson.id);
+
+  const moveSibling = async (dir: -1 | 1) => {
+    const cur = orderGroup.map((p) => p.id);
+    const newIds = moveInList(cur, rawPerson.id, dir);
+    if (newIds === cur) return; // sınırda: değişiklik yok
+    setReordering(true);
+    try {
+      await reorderSiblings(newIds);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReordering(false);
+    }
+  };
   // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
   // akrabalık hesapları maskeli kişiyle de doğru çalışır.
   const person = view(rawPerson);
@@ -233,6 +256,37 @@ export default function PersonDrawer({
               </div>
             )}
           </div>
+
+          {/* Kardeş sırası — aynı ebeveynli ≥2 kardeş varken (düzenleme modunda) */}
+          {!readOnly && orderGroup.length >= 2 && orderIndex >= 0 && (
+            <div className="flex items-center gap-2 mt-3 text-xs text-text-muted">
+              <span>{t("drawer.siblingOrder", { pos: orderIndex + 1, total: orderGroup.length })}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => moveSibling(-1)}
+                  disabled={reordering || orderIndex === 0}
+                  aria-label={t("drawer.siblingUp")}
+                  title={t("drawer.siblingUp")}
+                  className="w-7 h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => moveSibling(1)}
+                  disabled={reordering || orderIndex === orderGroup.length - 1}
+                  aria-label={t("drawer.siblingDown")}
+                  title={t("drawer.siblingDown")}
+                  className="w-7 h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
           {error && <p className="text-[11px] text-danger mt-2">{error}</p>}
         </div>
 
