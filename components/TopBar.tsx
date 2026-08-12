@@ -9,13 +9,15 @@ import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
 
-export type ViewKey = "agac" | "soy" | "yelpaze" | "liste" | "harita" | "panel";
+export type ViewKey = "agac" | "soy" | "torunlar" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
 
 /** Simgeler ve anahtarlar sabit; etiket/ipucu metinleri i18n sözlüğünden okunur. */
 export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
   { key: "agac", icon: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3" },
   { key: "soy", icon: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8" },
+  { key: "torunlar", icon: "M12 3v18M12 16l-6 4M12 16l6 4M6 8V4M18 8V4M6 6h12" },
   { key: "yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4" },
+  { key: "zaman", icon: "M4 7h11M4 12h16M4 17h7M18 15l3 2-3 2" },
   { key: "liste", icon: "M4 6h16M4 12h16M4 18h16" },
   { key: "harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" },
   { key: "panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z" },
