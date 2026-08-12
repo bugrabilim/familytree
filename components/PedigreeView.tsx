@@ -10,6 +10,7 @@ import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
@@ -37,6 +38,7 @@ export default function PedigreeView({
 }: Props) {
   const [generations, setGenerations] = useState(4);
   const { view } = usePrivacy();
+  const t = useT();
   const idx = useMemo(() => indexPeople(people), [people]);
 
   /** Kök seçilmemişse en uzun ata zincirine sahip kişiyi al. */
@@ -91,7 +93,7 @@ export default function PedigreeView({
           <Avatar person={root} size="sm" />
           <div className="min-w-0">
             <label className="text-xs text-text-subtle leading-tight block" htmlFor="kok-secici">
-              Merkez kişi — {kapsam.up} kuşak geri, {kapsam.down} kuşak ileri
+              {t("pedigree.centerLabel", { up: kapsam.up, down: kapsam.down })}
             </label>
             <select
               id="kok-secici"
@@ -114,7 +116,7 @@ export default function PedigreeView({
 
         <div className="ml-auto flex items-center gap-2">
           <label className="hidden sm:flex items-center gap-2 text-xs text-text-muted">
-            Kuşak
+            {t("pedigree.generation")}
             <input
               type="range"
               min={1}
@@ -238,6 +240,7 @@ function PedigreeCard({
   onSetRoot,
 }: { person: Person; isRoot?: boolean } & BranchProps) {
   const { view, hideLiving } = usePrivacy();
+  const t = useT();
   const person = view(rawPerson);
   const masked = isMasked(rawPerson, hideLiving);
   const selected = person.id === selectedId;
@@ -269,7 +272,7 @@ function PedigreeCard({
             <p className="text-[10px] font-mono text-text-subtle/70 leading-tight">#{person.code}</p>
           ) : null}
           {masked ? (
-            <p className="text-[10px] text-text-subtle leading-tight">🔒 Yaşayan</p>
+            <p className="text-[10px] text-text-subtle leading-tight">{t("common.living")}</p>
           ) : (
             lifeSpan(person.birthDate, person.deathDate) && (
               <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
@@ -283,7 +286,7 @@ function PedigreeCard({
       {!isRoot && (
         <button
           onClick={() => onSetRoot(person.id)}
-          title="Bu kişiyi merkeze al"
+          title={t("pedigree.setRoot")}
           className="
             absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
             grid place-items-center text-text-subtle hover:text-primary hover:border-primary

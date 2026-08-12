@@ -6,6 +6,7 @@ import { indexPeople } from "@/lib/relations";
 import { primaryName } from "@/lib/name";
 import { genderTone } from "./ui/Avatar";
 import { usePrivacy } from "./PrivacyContext";
+import { useT } from "@/lib/i18n";
 import {
   buildFanNodes,
   fanExtent,
@@ -38,6 +39,7 @@ export default function FanChart({
 }: Props) {
   const [generations, setGenerations] = useState(6);
   const { view } = usePrivacy();
+  const t = useT();
   const idx = useMemo(() => indexPeople(people), [people]);
 
   /** Kök seçilmemişse en uzun ata zincirine sahip kişiyi al (PedigreeView gibi). */
@@ -99,14 +101,14 @@ export default function FanChart({
       {/* Kontrol çubuğu — merkez kişi + kuşak sayısı */}
       <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-bg-elevated/60">
         <div className="min-w-0">
-          <p className="text-xs text-text-subtle leading-tight">Yelpaze — atalar</p>
+          <p className="text-xs text-text-subtle leading-tight">{t("fan.header")}</p>
           <p className="text-sm font-medium text-text truncate max-w-[16rem] sm:max-w-xs">
             {primaryName(rootView)}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <label className="hidden sm:flex items-center gap-2 text-xs text-text-muted">
-            Kuşak
+            {t("fan.generation")}
             <input
               type="range"
               min={4}
@@ -127,7 +129,7 @@ export default function FanChart({
             viewBox={`0 0 ${size} ${size}`}
             className="w-full h-auto max-w-[860px]"
             role="img"
-            aria-label={`${primaryName(rootView)} için ata yelpazesi`}
+            aria-label={t("fan.ariaLabel", { name: primaryName(rootView) })}
           >
             {nodes.map((node) => (
               <Wedge
