@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Person } from "@/types/family";
+import type { Gender, Person } from "@/types/family";
+import { EDUCATION_LEVELS } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
@@ -9,6 +10,13 @@ import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
+import {
+  activeFieldCount,
+  emptyFieldFilters,
+  matchesFields,
+  matchesQuery,
+  type FieldFilters,
+} from "@/lib/search";
 import { useT } from "@/lib/i18n";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
@@ -29,10 +37,17 @@ interface Props {
   onAdd: () => void;
 }
 
+const advLabel = "block text-[11px] font-medium text-text-muted mb-1";
+const advField =
+  "w-full h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary";
+
 export default function ListView({ people: rawPeople, selectedId, onSelect, onAdd }: Props) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("soyad");
   const [filter, setFilter] = useState<Filter>("hepsi");
+  const [adv, setAdv] = useState<FieldFilters>(emptyFieldFilters());
+  const [showAdv, setShowAdv] = useState(false);
+  const advCount = activeFieldCount(adv);
 
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
@@ -70,9 +85,8 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
   }, [people]);
 
   const rows = useMemo(() => {
-    const q = query.toLocaleLowerCase("tr").trim();
-
     let out = people.filter((p) => {
+      // Kategori çipi (tekli)
       if (filter === "yasayan" && p.deathDate) return false;
       if (filter === "vefat" && !p.deathDate) return false;
       if (filter === "bagsiz") {
@@ -84,18 +98,8 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
       if (filter === "dogustan" && !p.congenitalCondition) return false;
       if (filter === "hastalik" && !p.healthCondition) return false;
       if (filter === "olum-neden" && !p.deathCause) return false;
-      if (!q) return true;
-      return (
-        fullName(p).toLocaleLowerCase("tr").includes(q) ||
-        (p.code ?? "").includes(q) ||
-        (p.birthPlace ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.bio ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.orientation ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.congenitalCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.healthCondition ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.deathCause ?? "").toLocaleLowerCase("tr").includes(q) ||
-        (p.birthDate ?? "").includes(q)
-      );
+      // Gelişmiş alan süzgeçleri + serbest metin (hepsi VE)
+      return matchesFields(p, adv) && matchesQuery(p, query);
     });
 
     const coll = new Intl.Collator("tr");
@@ -113,7 +117,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
     });
     if (sort === "yeni") out.reverse();
     return out;
-  }, [people, query, sort, filter, childIds, lgbtIds]);
+  }, [people, query, sort, filter, adv, childIds, lgbtIds]);
 
   const FILTERS: Array<{ k: Filter; l: string }> = [
     { k: "hepsi", l: t("list.filter.all") },
@@ -159,6 +163,26 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             <option value="yeni">{t("list.sortNewest")}</option>
           </select>
 
+          <button
+            onClick={() => setShowAdv((s) => !s)}
+            aria-expanded={showAdv}
+            className={`h-9 px-2.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              showAdv || advCount > 0
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border bg-surface text-text-muted hover:text-text"
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            </svg>
+            <span className="hidden sm:inline">{t("list.advanced")}</span>
+            {advCount > 0 && (
+              <span className="ml-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-text text-[10px] grid place-items-center tabular-nums">
+                {advCount}
+              </span>
+            )}
+          </button>
+
           {!readOnly && (
             <Button size="sm" onClick={onAdd} className="shrink-0">
               <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -187,6 +211,118 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             {t("common.peopleCount", { count: rows.length })}
           </span>
         </div>
+
+        {/* Gelişmiş süzgeç paneli (Madde 7) — birleştirilebilir alan filtreleri */}
+        {showAdv && (
+          <div className="rounded-xl border border-border bg-surface p-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Cinsiyet (çoklu) */}
+            <div>
+              <label className={advLabel}>{t("form.gender")}</label>
+              <div className="flex flex-wrap gap-1">
+                {(["female", "male", "other", "unknown"] as Gender[]).map((g) => {
+                  const on = adv.genders.includes(g);
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() =>
+                        setAdv((f) => ({
+                          ...f,
+                          genders: on ? f.genders.filter((x) => x !== g) : [...f.genders, g],
+                        }))
+                      }
+                      className={`h-7 px-2 rounded-lg text-[11px] border transition-colors ${
+                        on
+                          ? "border-primary bg-primary-soft text-primary"
+                          : "border-border bg-surface-2 text-text-muted hover:text-text"
+                      }`}
+                    >
+                      {t(`form.gender.${g}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Doğum yılı aralığı */}
+            <div>
+              <label className={advLabel}>{t("list.adv.birthYears")}</label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder={t("list.adv.from")}
+                  value={adv.birthYearMin ?? ""}
+                  onChange={(e) =>
+                    setAdv((f) => ({ ...f, birthYearMin: e.target.value ? Number(e.target.value) : undefined }))
+                  }
+                  className={advField}
+                />
+                <span className="text-text-subtle">–</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder={t("list.adv.to")}
+                  value={adv.birthYearMax ?? ""}
+                  onChange={(e) =>
+                    setAdv((f) => ({ ...f, birthYearMax: e.target.value ? Number(e.target.value) : undefined }))
+                  }
+                  className={advField}
+                />
+              </div>
+            </div>
+
+            {/* Doğum yeri */}
+            <div>
+              <label className={advLabel}>{t("list.adv.place")}</label>
+              <input
+                value={adv.place}
+                onChange={(e) => setAdv((f) => ({ ...f, place: e.target.value }))}
+                placeholder={t("list.adv.placePlaceholder")}
+                className={advField}
+              />
+            </div>
+
+            {/* Meslek */}
+            <div>
+              <label className={advLabel}>{t("drawer.occupation")}</label>
+              <input
+                value={adv.occupation}
+                onChange={(e) => setAdv((f) => ({ ...f, occupation: e.target.value }))}
+                placeholder={t("list.adv.occupationPlaceholder")}
+                className={advField}
+              />
+            </div>
+
+            {/* Eğitim */}
+            <div>
+              <label className={advLabel}>{t("form.education")}</label>
+              <select
+                value={adv.education}
+                onChange={(e) => setAdv((f) => ({ ...f, education: e.target.value }))}
+                className={advField}
+              >
+                <option value="">{t("list.adv.any")}</option>
+                {EDUCATION_LEVELS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(`education.${k}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Temizle */}
+            <div className="flex items-end">
+              <button
+                onClick={() => setAdv(emptyFieldFilters())}
+                disabled={advCount === 0}
+                className="h-8 px-3 rounded-lg border border-border text-xs text-text-muted hover:text-text disabled:opacity-40 transition-colors"
+              >
+                {t("list.adv.clear")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kartlar */}
