@@ -16,6 +16,7 @@ import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
 import PedigreeView from "@/components/PedigreeView";
 import FanChart from "@/components/FanChart";
+import TimelineView from "@/components/TimelineView";
 import Modal from "@/components/ui/Modal";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
@@ -227,6 +228,19 @@ function WorkspaceInner({
     return people.filter((p) => keep.has(p.id));
   }, [people, idx, treeFocusId, treeDepth]);
 
+  /* Madde 4 — Torunlar görünümü: kök + tüm soyundan gelenler + eşleri
+     (çiftler bölünmesin). Aşağı-yönlü ağaç bu alt kümeyle çizilir. */
+  const descPeople = useMemo(() => {
+    if (!effectiveRoot) return people;
+    const keep = new Set<string>([effectiveRoot]);
+    for (const [id] of descendantDepths(effectiveRoot, people)) keep.add(id);
+    for (const id of [...keep]) {
+      const p = idx.get(id);
+      if (p) for (const s of p.spouseIds) if (idx.has(s)) keep.add(s);
+    }
+    return people.filter((p) => keep.has(p.id));
+  }, [people, idx, effectiveRoot]);
+
   /* Klavye kısayolları */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -415,6 +429,22 @@ function WorkspaceInner({
             onSetRoot={setRootId}
             onQuickAdd={openQuickAdd}
           />
+        ) : view === "torunlar" ? (
+          /* Madde 4 — Torunlar (descendancy): mevcut dinamik ağaç render'ı,
+             yalnızca kökün soyundan gelenlerle (aşağı-yönlü) beslenir. */
+          <FamilyTree
+            people={descPeople}
+            selectedId={treeFocus}
+            focusId={effectiveRoot}
+            depth={3}
+            onSelect={(id) => {
+              setTreeFocus(id);
+              setSelectedId(id);
+            }}
+            onOpen={setSelectedId}
+            onDeselect={() => setTreeFocus(undefined)}
+            onQuickAdd={openQuickAdd}
+          />
         ) : view === "yelpaze" ? (
           <FanChart
             people={people}
@@ -423,6 +453,8 @@ function WorkspaceInner({
             onSelect={setSelectedId}
             onSetRoot={setRootId}
           />
+        ) : view === "zaman" ? (
+          <TimelineView people={people} selectedId={selectedId} onSelect={setSelectedId} />
         ) : view === "liste" ? (
           <ListView
             people={people}
@@ -442,7 +474,7 @@ function WorkspaceInner({
         )}
 
         {/* Kayan ekle düğmesi — ağaç ve soy görünümünde (görüntüleme modunda gizli) */}
-        {!readOnly && !isEmpty && (view === "agac" || view === "soy") && (
+        {!readOnly && !isEmpty && (view === "agac" || view === "soy" || view === "torunlar") && (
           <button
             onClick={openAdd}
             className="

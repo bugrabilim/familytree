@@ -56,6 +56,14 @@ export const tr: Dict = {
   "view.harita.hint": "Doğum yerleri haritası",
   "view.panel.label": "Panel",
   "view.panel.hint": "Özet ve doğum günleri",
+  "view.torunlar.label": "Torunlar",
+  "view.torunlar.hint": "Seçili kişinin soyundan gelenler",
+  "view.zaman.label": "Zaman",
+  "view.zaman.hint": "Kim hangi yıllarda yaşadı",
+  "timeline.title": "Zaman çizelgesi",
+  "timeline.emptyTitle": "Tarih yok",
+  "timeline.emptyBody": "Doğum tarihi girilmiş kişi olunca yaşam çizelgesi burada belirir.",
+  "timeline.hiddenNote": "{count} kişi doğum tarihi olmadığından gösterilmiyor.",
 
   /* --- Kimlik ekranları (AuthShell + login/register/forgot) --- */
   "auth.brand": "Soy Ağacı",
@@ -664,6 +672,14 @@ export const en: Dict = {
   "view.harita.hint": "Map of birthplaces",
   "view.panel.label": "Dashboard",
   "view.panel.hint": "Summary and birthdays",
+  "view.torunlar.label": "Descendants",
+  "view.torunlar.hint": "Descendants of the selected person",
+  "view.zaman.label": "Timeline",
+  "view.zaman.hint": "Who lived in which years",
+  "timeline.title": "Timeline",
+  "timeline.emptyTitle": "No dates",
+  "timeline.emptyBody": "Once people have birth dates, their lifespans appear here.",
+  "timeline.hiddenNote": "{count} people are hidden (no birth date).",
 
   /* --- Auth screens --- */
   "auth.brand": "Family Tree",
