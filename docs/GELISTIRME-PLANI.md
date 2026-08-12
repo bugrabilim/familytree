@@ -5,7 +5,7 @@
 > haritası önerir. **Hiçbir özellik hemen eklenmek zorunda değil** — bu bir
 > tartışma ve referans belgesidir.
 >
-> Tarih: 2026-08 · Durum: Kademe 1 tamamlandı, Kademe 2 kısmen
+> Tarih: 2026-08 · Durum: Kademe 1–3 tamamlandı; Kademe 4 (rapor/PDF · sesli hikâye · gerçek rol) sırada
 >
 > **Güncelleme (2026-08):** Uygulama arayüzü sektör liderleri (MyHeritage,
 > Ancestry, FamilySearch) örnek alınarak baştan tasarlandı. Aşağıdaki bölüm 4
@@ -174,13 +174,34 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 - **Şifresiz demo girişi** — ayrı bir NextAuth sağlayıcısı; her girişte
   ortak demo ağacı sıfırlanır
 
-### ❌ Eksik olan (piyasa standardı)
-- Yaşayan kişi gizliliği
-- Yaşam olayı zaman çizelgesi (doğum/ölüm dışı olaylar)
-- Kaynak/atıf & çoklu medya galerisi
-- Rol ayrımı (görüntüleyen vs düzenleyen)
-- Harita üzerinde doğum yerleri
-- Yelpaze (fan) grafiği
+### ✅ Sonradan kapatılan eksikler (2026-08 güncellemesi)
+İlk boşluk analizindeki 6 eksik madde artık tamamlandı: yaşayan kişi gizliliği,
+yaşam-olayı zaman çizelgesi, kaynak/atıf, çoklu medya galerisi, rol ayrımı
+(görüntüleyen/düzenleyen), doğum yeri haritası ve yelpaze grafiği. Ayrıca:
+İngilizce (i18n), meslek, eğitim seviyesi, eşzamanlı yazma koruması, blob
+önbelleği, yerleşim iyileştirmesi ve büyük ağaç sanallaştırması eklendi.
+
+### ❌ Hâlâ eksik olan (piyasa standardı) — öncelik sırasıyla
+**Yüksek getiri:**
+- **Rapor / yazdırma / PDF dışa aktarım** — ağaç ve kişi kartını yazdırılabilir /
+  PDF olarak alma. Ticari araçların ve webtrees'in hepsinde var; bizde yok.
+- **Rehberli anı + sözlü/sesli hikâye** — rehberli anı soruları ve sesli anı
+  kaydı. Şu an yalnız serbest `bio` + yapısal olaylar var (iç görü #4).
+- **Gerçek rol/davet sistemi** — kişiye özel hesap + rol (yönetici/editör/üye/
+  misafir) + davet bağlantısı. Şimdiki "görüntüleyen/düzenleyen" bir istemci
+  anahtarı, gerçek yetkilendirme değil (iç görü #8).
+
+**Olgunlaştırır:**
+- **Ek grafik türleri** — torunlar (descendancy), belirgin kum saati, aile
+  geneli tarihsel zaman çizelgesi. (webtrees ~12 grafik; bizde 6 görünüm.)
+- **İnce ayrımlı gizlilik** — alan-bazlı / role göre görünürlük (şimdi yalnız
+  global "yaşayan" maskesi + kayıt-bazlı `confidential`).
+- **Çoklu ağaç** — tek aile hesabı; birden fazla ağaç yönetimi yok.
+- **Gelişmiş arama/filtre** — tarih aralığı / yer / etiket bazlı sorgu.
+
+**Bilinçli sınırlı / kapsam dışı:**
+- Gezilebilir gerçek harita (tile) — CSP/çevrimdışı nedeniyle bilinçli olarak yok.
+- DNA eşleştirme ve devasa kayıt arşivi — devlerin işi, kapsam dışı.
 
 ---
 
@@ -188,26 +209,29 @@ tartışırken "webtrees bunu nasıl yapıyor?" iyi bir pusula.
 
 Efor/getiri dengesine göre kademeler. Bir kademe komple yapılmak zorunda değil.
 
-### 🟢 Kademe 1 — Yüksek getiri, makul efor
-1. ~~**GEDCOM import/export**~~ ✅ `lib/gedcom.ts` — 5.5.1 uyumlu ayrıştırıcı
-   ve üretici, `/api/family/export` ve `/api/family/import`.
-2. **Yaşayan kişi gizliliği** — Kişiye `isLiving` / `deathDate` mantığı; yaşayan
-   kişilerin detayını isteğe bağlı gizle. KVKK açısından da doğru. *(sıradaki)*
-3. **Yaşam olayı zaman çizelgesi** — Profile serbest olay listesi (yıl + tür +
-   açıklama): evlilik, mezuniyet, göç, iş… Veri modeline `events[]` alanı.
+### 🟢 Kademe 1 — Yüksek getiri, makul efor ✅ tamamlandı
+1. ~~**GEDCOM import/export**~~ ✅ `lib/gedcom.ts` — 5.5.1 uyumlu.
+2. ~~**Yaşayan kişi gizliliği**~~ ✅ `lib/privacy.ts` + `PrivacyContext`.
+3. ~~**Yaşam olayı zaman çizelgesi**~~ ✅ `events[]` + kişi panelinde zaman çizelgesi.
 
-### 🟡 Kademe 2 — Deneyimi zenginleştirir
-4. ~~**İlişki hesaplayıcı**~~ ✅ `lib/relations.ts` — BFS + Türkçe akrabalık
-   terimleri ve ek çekimi. Panel görünümünde ve kişi panelinde.
-5. **Çoklu medya galerisi** — Kişi başına birden çok foto/belge (şu an tek
-   avatar). Cloudinary zaten hazır.
-6. ~~**Yaklaşan olaylar paneli**~~ ✅ Panel görünümünde 60 günlük doğum günü akışı.
-7. ~~**Alternatif grafik**~~ ✅ Soy (pedigree) tablosu eklendi. Fan chart hâlâ açık.
+### 🟡 Kademe 2 — Deneyimi zenginleştirir ✅ tamamlandı
+4. ~~**İlişki hesaplayıcı**~~ ✅ `lib/relations.ts`.
+5. ~~**Çoklu medya galerisi**~~ ✅ `photos[]` galeri.
+6. ~~**Yaklaşan olaylar paneli**~~ ✅ 30 günlük akış (doğum günü + yıldönümü + anma).
+7. ~~**Alternatif grafik**~~ ✅ Soy (pedigree) + yelpaze (fan) grafiği.
 
-### 🔵 Kademe 3 — Olgunlaşma
-8. **Rol ayrımı** — Aile hesabı içinde "düzenleyen" vs "görüntüleyen" davetleri.
-9. **Kaynak/atıf** — Bilgilere belge bağlama.
-10. **Harita** — Doğum yerlerini haritada gösterme.
+### 🔵 Kademe 3 — Olgunlaşma ✅ tamamlandı
+8. ~~**Rol ayrımı (görüntüleme modu)**~~ ✅ `ReadOnlyContext` (istemci anahtarı).
+9. ~~**Kaynak/atıf**~~ ✅ `sources[]`.
+10. ~~**Harita**~~ ✅ `PlacesMap` + gerçek kara zemini (`lib/world-map.ts`).
+
+### 🟣 Kademe 4 — Sıradaki (bu döngü)
+11. **Rapor / yazdırma / PDF** — yazdırılabilir "aile kitabı" + kişi profili;
+    `@media print` + `window.print()` (bağımlılık yok, CSP güvenli).
+12. **Rehberli anı + sesli hikâye** — rehberli anı soruları; sesli anı kaydı
+    (Cloudinary'ye yükleme).
+13. **Gerçek rol/davet sistemi** — kişiye özel hesap + rol + davet bağlantısı;
+    Kademe 3'teki istemci anahtarının yerini alır.
 
 ### ⛔ Kapsam dışı (bilinçli)
 - **DNA eşleştirme** ve **kayıt arşivi** — Devlerin işi, bizim alanımız değil.
@@ -281,13 +305,13 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 
 ## 7. Öneri / Karar
 
-GEDCOM ve akrabalık hesaplayıcı tamamlandı; arayüz sektör liderleri seviyesine
-çekildi. Sıradaki tek adım için önerim:
+Kademe 1–3 tamamlandı; arayüz sektör liderleri seviyesinde. Sıradaki üçlü
+(Kademe 4) için önerim, getiri sırasıyla:
 
-> **Yaşayan kişi gizliliği** + **yaşam olayı zaman çizelgesi**.
+> **(11) Rapor/PDF · (12) Rehberli + sesli hikâye · (13) Gerçek rol/davet.**
 
-Birincisi KVKK/GDPR açısından doğru olan, ikincisi "kuru veri"yi hikâyeye
-çeviren adım. Gerisi talep geldikçe eklenebilir.
+Birincisi evrensel beklenen ve bağımlılıksız; ikincisi ürünü "aile hikâyesi"ne
+dönüştürür; üçüncüsü çok kullanıcılı olgunluğu getirir. Sırayla ele alınıyor.
 
 ---
 

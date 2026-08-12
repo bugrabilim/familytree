@@ -27,6 +27,7 @@ interface Props {
   onViewChange: (v: ViewKey) => void;
   onSearch: () => void;
   onImportExport: () => void;
+  onPrint: () => void;
   peopleCount: number;
 }
 
@@ -36,6 +37,7 @@ export default function TopBar({
   onViewChange,
   onSearch,
   onImportExport,
+  onPrint,
   peopleCount,
 }: Props) {
   const router = useRouter();
@@ -224,6 +226,18 @@ export default function TopBar({
                       <path d="M12 3v12M12 15l-4-4M12 15l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     {t("common.gedcom")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onPrint();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                      <path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t("print.menu")}
                   </button>
                   <div className="h-px bg-border" />
                   <button

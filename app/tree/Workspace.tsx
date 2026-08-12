@@ -8,6 +8,7 @@ import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
+import PrintView from "@/components/PrintView";
 import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
@@ -95,6 +96,7 @@ function WorkspaceInner({
   const [rootId, setRootId] = useState<string | undefined>(initialSelectedId);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
@@ -265,13 +267,14 @@ function WorkspaceInner({
   const isEmpty = people.length === 0;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="app-shell flex flex-col h-screen overflow-hidden">
       <TopBar
         familyName={familyName}
         view={view}
         onViewChange={setView}
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
+        onPrint={() => setPrintOpen(true)}
         peopleCount={people.length}
       />
 
@@ -425,6 +428,10 @@ function WorkspaceInner({
           onImported={handleImported}
           onDemoLoaded={handleDemoLoaded}
         />
+      )}
+
+      {printOpen && (
+        <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
       )}
 
       {/* Bildirim */}
