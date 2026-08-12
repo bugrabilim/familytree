@@ -1,5 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import ThemeToggle from "./ThemeToggle";
+import LanguageSwitch from "./LanguageSwitch";
+import { useT } from "@/lib/i18n";
 
 export const authField =
   "w-full h-11 px-3.5 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-subtle " +
@@ -7,11 +11,12 @@ export const authField =
 
 export const authLabel = "block text-xs font-medium text-text-muted mb-1.5";
 
+/** Simge + i18n anahtarı; metinler render sırasında çevrilir. */
 const HIGHLIGHTS = [
-  { icon: "🌳", title: "Dört görünüm", body: "Ağaç, soy çizgisi, liste ve özet paneli." },
-  { icon: "👨‍👩‍👧‍👦", title: "Türkçe akrabalık", body: "Amca mı dayı mı — uygulama hesaplar." },
-  { icon: "📄", title: "GEDCOM uyumlu", body: "Verini dilediğin an dışa aktar." },
-];
+  { icon: "🌳", key: "views" },
+  { icon: "👨‍👩‍👧‍👦", key: "kinship" },
+  { icon: "📄", key: "gedcom" },
+] as const;
 
 export default function AuthShell({
   title,
@@ -26,6 +31,7 @@ export default function AuthShell({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Tanıtım paneli */}
@@ -57,27 +63,26 @@ export default function AuthShell({
                 <circle cx="18.5" cy="9" r="2.4" stroke="currentColor" strokeWidth="2" />
               </svg>
             </div>
-            <span className="font-serif text-lg font-semibold">Soy Ağacı</span>
+            <span className="font-serif text-lg font-semibold">{t("auth.brand")}</span>
           </div>
 
           <h2 className="font-serif text-4xl font-semibold leading-[1.15] max-w-md">
-            Ailenin hikâyesi,
+            {t("auth.heroTitle1")}
             <br />
-            kuşaklar boyu.
+            {t("auth.heroTitle2")}
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed opacity-80 max-w-sm">
-            Adları, tarihleri ve anıları tek bir yerde topla. Ağacı birlikte büyütün,
-            hiçbir hikâye kaybolmasın.
+            {t("auth.heroBody")}
           </p>
         </div>
 
         <ul className="relative space-y-4 mt-12">
           {HIGHLIGHTS.map((h) => (
-            <li key={h.title} className="flex items-start gap-3">
+            <li key={h.key} className="flex items-start gap-3">
               <span className="text-lg shrink-0 leading-none mt-0.5" aria-hidden>{h.icon}</span>
               <div>
-                <p className="text-sm font-medium leading-tight">{h.title}</p>
-                <p className="text-[13px] opacity-70 leading-snug mt-0.5">{h.body}</p>
+                <p className="text-sm font-medium leading-tight">{t(`auth.highlight.${h.key}.title`)}</p>
+                <p className="text-[13px] opacity-70 leading-snug mt-0.5">{t(`auth.highlight.${h.key}.body`)}</p>
               </div>
             </li>
           ))}
@@ -86,7 +91,8 @@ export default function AuthShell({
 
       {/* Form paneli */}
       <main className="flex-1 flex flex-col bg-bg">
-        <div className="flex justify-end p-4">
+        <div className="flex justify-end items-center gap-2 p-4">
+          <LanguageSwitch />
           <ThemeToggle />
         </div>
 

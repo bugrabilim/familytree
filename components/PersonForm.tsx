@@ -24,10 +24,10 @@ import {
   createPerson,
   updatePerson,
   uploadPhoto,
-  RELATION_LABELS,
   type PersonPayload,
   type RelationType,
 } from "@/lib/actions";
+import { useT, type TFunction } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
@@ -72,6 +72,7 @@ export default function PersonForm({
   onCancel,
   onSaved,
 }: Props) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -229,19 +230,19 @@ export default function PersonForm({
 
   const validate = (): boolean => {
     const e: Errors = {};
-    if (!form.firstName.trim()) e.firstName = "Ad gerekli";
-    if (!form.lastName.trim()) e.lastName = "Soyad gerekli";
-    if (!isValidDateInput(form.birthDate)) e.birthDate = "GG.AA.YYYY veya YYYY";
-    if (!isValidDateInput(form.deathDate)) e.deathDate = "GG.AA.YYYY veya YYYY";
+    if (!form.firstName.trim()) e.firstName = t("form.errFirstName");
+    if (!form.lastName.trim()) e.lastName = t("form.errLastName");
+    if (!isValidDateInput(form.birthDate)) e.birthDate = t("form.errDate");
+    if (!isValidDateInput(form.deathDate)) e.deathDate = t("form.errDate");
 
     if (!e.birthDate && !e.deathDate && form.birthDate && form.deathDate) {
       if (displayToStored(form.deathDate) < displayToStored(form.birthDate)) {
-        e.deathDate = "Doğumdan önce olamaz";
+        e.deathDate = t("form.errDeathBeforeBirth");
       }
     }
 
     if (events.some((ev) => !isValidDateInput(ev.date))) {
-      e.events = "Olay tarihi GG.AA.YYYY veya YYYY olmalı";
+      e.events = t("form.eventDateError");
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -344,15 +345,18 @@ export default function PersonForm({
       {relation && (
         <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary-soft border border-primary/15">
           <Avatar person={relation.target} size="sm" />
+          {/* Dile göre sıralama: TR "<ad> kişisinin <ilişki> olarak eklenecek",
+              EN "Adding as <ad>'s <ilişki>". Önek/bağlaç/sonek sözlükten gelir. */}
           <p className="text-xs text-text leading-snug">
+            {t("form.relCtxPrefix")}
             <span className="font-semibold">
               {relation.target.firstName} {relation.target.lastName}
-            </span>{" "}
-            kişisinin{" "}
+            </span>
+            {t("form.relCtxConnector")}
             <span className="font-semibold text-primary">
-              {RELATION_LABELS[relation.type].verb}
-            </span>{" "}
-            olarak eklenecek
+              {t(`relation.${relation.type}.verb`)}
+            </span>
+            {t("form.relCtxSuffix")}
           </p>
         </div>
       )}
@@ -369,7 +373,7 @@ export default function PersonForm({
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? "Yükleniyor…" : "Fotoğraf yükle"}
+              {uploading ? t("form.uploading") : t("form.uploadPhoto")}
             </Button>
             <Button
               type="button"
@@ -377,11 +381,11 @@ export default function PersonForm({
               size="sm"
               onClick={() => setAvatarSecici((o) => !o)}
             >
-              Avatar seç
+              {t("form.chooseAvatar")}
             </Button>
             {form.photo && (
               <Button type="button" variant="ghost" size="sm" onClick={() => set("photo", "")}>
-                Kaldır
+                {t("form.remove")}
               </Button>
             )}
             <input
@@ -397,8 +401,7 @@ export default function PersonForm({
         {avatarSecici && (
           <div className="rounded-xl border border-border bg-surface-2 p-3">
             <p className="text-[11px] text-text-muted mb-2.5">
-              Fotoğraf yoksa otomatik bir avatar kullanılır. Buradan farklı bir
-              görünüm seçebilirsin.
+              {t("form.avatarHint")}
             </p>
             <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
               {avatarSecenekleri.map((src, i) => (
@@ -406,7 +409,7 @@ export default function PersonForm({
                   key={i}
                   type="button"
                   onClick={() => set("photo", src)}
-                  aria-label={`Avatar ${i + 1}`}
+                  aria-label={t("form.avatarAria", { n: i + 1 })}
                   className={`aspect-square rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
                     form.photo === src ? "border-primary ring-2 ring-primary/30" : "border-border"
                   }`}
@@ -423,7 +426,7 @@ export default function PersonForm({
         <div className="rounded-xl border border-border bg-surface-2 p-3">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-xs font-medium text-text">
-              Galeri
+              {t("form.gallery")}
               {form.photos.length > 0 && (
                 <span className="ml-1.5 text-primary">· {form.photos.length}</span>
               )}
@@ -435,14 +438,13 @@ export default function PersonForm({
               onClick={() => galleryRef.current?.click()}
               disabled={galleryUploading}
             >
-              {galleryUploading ? "Yükleniyor…" : "Fotoğraf ekle"}
+              {galleryUploading ? t("form.uploading") : t("form.addPhoto")}
             </Button>
           </div>
 
           {form.photos.length === 0 ? (
             <p className="text-[11px] text-text-subtle">
-              Kişiye ait birden fazla fotoğraf ekleyebilirsin. Herhangi birini
-              kapak (avatar) yapabilirsin.
+              {t("form.galleryEmpty")}
             </p>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -460,7 +462,7 @@ export default function PersonForm({
                     <button
                       type="button"
                       onClick={() => removeGalleryPhoto(src)}
-                      aria-label="Fotoğrafı kaldır"
+                      aria-label={t("form.removePhoto")}
                       className="absolute top-0.5 right-0.5 w-5 h-5 grid place-items-center rounded-md bg-black/55 text-white hover:bg-danger transition-colors"
                     >
                       <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -469,7 +471,7 @@ export default function PersonForm({
                     </button>
                     {isCover ? (
                       <span className="absolute bottom-0 inset-x-0 bg-primary/85 text-white text-[9px] font-medium text-center py-0.5">
-                        Kapak
+                        {t("form.cover")}
                       </span>
                     ) : (
                       <button
@@ -477,7 +479,7 @@ export default function PersonForm({
                         onClick={() => setCover(src)}
                         className="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[9px] font-medium text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
                       >
-                        Kapak yap
+                        {t("form.makeCover")}
                       </button>
                     )}
                   </div>
@@ -499,26 +501,26 @@ export default function PersonForm({
 
       {/* Lakap — eski kuşaklar için */}
       <div>
-        <label className={label} htmlFor="pf-lakap">Lakap</label>
+        <label className={label} htmlFor="pf-lakap">{t("form.nickname")}</label>
         <input
           id="pf-lakap"
           className={field}
           value={form.nickname}
           onChange={(e) => set("nickname", e.target.value)}
-          placeholder="Topal, Avcı, Kör… (adın önünde görünür)"
+          placeholder={t("form.nicknamePlaceholder")}
         />
       </div>
 
       {/* Ad / Soyad */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={label} htmlFor="pf-ad">Ad *</label>
+          <label className={label} htmlFor="pf-ad">{t("form.firstName")}</label>
           <input
             id="pf-ad"
             className={`${field} ${errors.firstName ? "border-danger ring-2 ring-danger/15" : ""}`}
             value={form.firstName}
             onChange={(e) => set("firstName", e.target.value)}
-            placeholder="Ayşe"
+            placeholder={t("form.firstNamePlaceholder")}
             autoFocus
           />
           {errors.firstName && <p className="text-[11px] text-danger mt-1">{errors.firstName}</p>}

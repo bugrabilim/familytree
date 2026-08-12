@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
+import { useT } from "@/lib/i18n";
 
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [step, setStep] = useState<"form" | "done">("form");
   const [familyName, setFamilyName] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
@@ -21,7 +23,7 @@ export default function ForgotPasswordPage() {
     setError("");
 
     if (newPassword !== confirm) {
-      setError("Şifreler eşleşmiyor.");
+      setError(t("forgot.passwordMismatch"));
       return;
     }
 
@@ -33,10 +35,10 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ familyName, recoveryCode, newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Bir hata oluştu.");
+      if (!res.ok) setError(data.error ?? t("forgot.genericError"));
       else setStep("done");
     } catch {
-      setError("Bağlantı hatası. Lütfen tekrar deneyin.");
+      setError(t("forgot.connError"));
     } finally {
       setLoading(false);
     }
@@ -44,9 +46,9 @@ export default function ForgotPasswordPage() {
 
   if (step === "done") {
     return (
-      <AuthShell icon="✅" title="Şifren güncellendi" subtitle="Yeni şifrenle giriş yapabilirsin.">
+      <AuthShell icon="✅" title={t("forgot.doneTitle")} subtitle={t("forgot.doneSubtitle")}>
         <Button size="lg" full onClick={() => router.push("/login")}>
-          Giriş yap
+          {t("forgot.signIn")}
         </Button>
       </AuthShell>
     );
@@ -55,29 +57,29 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       icon="🔑"
-      title="Şifreni sıfırla"
-      subtitle="Kayıt sırasında verilen kurtarma kodunu kullan"
+      title={t("forgot.title")}
+      subtitle={t("forgot.subtitle")}
       footer={
         <Link href="/login" className="text-primary font-medium hover:underline">
-          Giriş sayfasına dön
+          {t("forgot.backToLogin")}
         </Link>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="f-soyisim">Ağaç adı</label>
+          <label className={authLabel} htmlFor="f-soyisim">{t("forgot.treeName")}</label>
           <input
             id="f-soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="Hesabındaki ağaç adı"
+            placeholder={t("forgot.treeNamePlaceholder")}
             required
           />
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="f-kod">Kurtarma kodu</label>
+          <label className={authLabel} htmlFor="f-kod">{t("forgot.recoveryCode")}</label>
           <input
             id="f-kod"
             className={`${authField} font-mono tracking-wider`}
@@ -89,14 +91,14 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="f-sifre">Yeni şifre</label>
+          <label className={authLabel} htmlFor="f-sifre">{t("forgot.newPassword")}</label>
           <input
             id="f-sifre"
             type="password"
             className={authField}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="En az 6 karakter"
+            placeholder={t("forgot.newPasswordPlaceholder")}
             minLength={6}
             autoComplete="new-password"
             required
@@ -104,14 +106,14 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="f-sifre2">Şifre tekrar</label>
+          <label className={authLabel} htmlFor="f-sifre2">{t("forgot.confirm")}</label>
           <input
             id="f-sifre2"
             type="password"
             className={authField}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Şifreni tekrar gir"
+            placeholder={t("forgot.confirmPlaceholder")}
             autoComplete="new-password"
             required
           />
@@ -122,7 +124,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <Button type="submit" size="lg" full disabled={loading}>
-          {loading ? "Güncelleniyor…" : "Şifreyi sıfırla"}
+          {loading ? t("forgot.updating") : t("forgot.reset")}
         </Button>
       </form>
     </AuthShell>

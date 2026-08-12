@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
+import { useT } from "@/lib/i18n";
 
 export default function RegisterPage() {
+  const t = useT();
   const [step, setStep] = useState<"form" | "recovery">("form");
   const [familyName, setFamilyName] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +25,7 @@ export default function RegisterPage() {
     setError("");
 
     if (password !== confirm) {
-      setError("Şifreler eşleşmiyor.");
+      setError(t("register.passwordMismatch"));
       return;
     }
 
@@ -36,13 +38,13 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Kayıt başarısız.");
+        setError(data.error ?? t("register.failed"));
         return;
       }
       setRecoveryCode(data.recoveryCode);
       setStep("recovery");
     } catch {
-      setError("Bağlantı hatası. Lütfen tekrar deneyin.");
+      setError(t("register.connError"));
     } finally {
       setLoading(false);
     }
@@ -68,12 +70,12 @@ export default function RegisterPage() {
     return (
       <AuthShell
         icon="🔑"
-        title="Kurtarma kodun"
-        subtitle="Şifreni unutursan hesabına yalnızca bu kodla erişebilirsin."
+        title={t("register.recoveryTitle")}
+        subtitle={t("register.recoverySubtitle")}
       >
         <div className="rounded-2xl border-2 border-accent/40 bg-accent-soft p-4 mb-4">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-2.5">
-            Güvenli bir yere kaydet
+            {t("register.recoverySave")}
           </p>
           <p className="font-mono text-lg font-semibold text-center text-text tracking-[0.15em] break-all">
             {recoveryCode}
@@ -81,15 +83,15 @@ export default function RegisterPage() {
         </div>
 
         <Button variant="secondary" full onClick={copyCode} className="mb-2.5">
-          {copied ? "✓ Kopyalandı" : "Kodu kopyala"}
+          {copied ? t("register.copied") : t("register.copyCode")}
         </Button>
 
         <Button size="lg" full onClick={handleContinue} disabled={loading}>
-          {loading ? "Giriş yapılıyor…" : "Ağacıma git"}
+          {loading ? t("register.signingIn") : t("register.goToTree")}
         </Button>
 
         <p className="text-[11px] text-text-subtle text-center mt-3.5 leading-relaxed">
-          Bu sayfayı kapatınca kod bir daha gösterilmez.
+          {t("register.recoveryWarning")}
         </p>
       </AuthShell>
     );
@@ -97,46 +99,44 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Ailenin ağacını kur"
-      subtitle="Bir hesap aç, herkes birlikte doldursun"
+      title={t("register.title")}
+      subtitle={t("register.subtitle")}
       footer={
         <p>
-          Zaten hesabın var mı?{" "}
+          {t("register.haveAccount")}{" "}
           <Link href="/login" className="text-primary font-medium hover:underline">
-            Giriş yap
+            {t("register.signIn")}
           </Link>
         </p>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="r-soyisim">Ağaç adı</label>
+          <label className={authLabel} htmlFor="r-soyisim">{t("register.treeName")}</label>
           <input
             id="r-soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="ör. Demirtaş Ailesi"
+            placeholder={t("register.treeNamePlaceholder")}
             minLength={2}
             autoComplete="username"
             required
           />
           <p className="text-[11px] text-text-subtle mt-1.5">
-            Giriş adın olacak. Soyadı olmak zorunda değil — ağacın nasıl
-            anılmasını istiyorsan öyle yaz. Kadınların soyadı değişir, eski
-            kuşaklarda soyad zaten yoktur; bu yüzden burası serbest bir ad.
+            {t("register.treeNameHelp")}
           </p>
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="r-sifre">Şifre</label>
+          <label className={authLabel} htmlFor="r-sifre">{t("register.password")}</label>
           <input
             id="r-sifre"
             type="password"
             className={authField}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="En az 6 karakter"
+            placeholder={t("register.passwordPlaceholder")}
             minLength={6}
             autoComplete="new-password"
             required
@@ -144,14 +144,14 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="r-sifre2">Şifre tekrar</label>
+          <label className={authLabel} htmlFor="r-sifre2">{t("register.confirm")}</label>
           <input
             id="r-sifre2"
             type="password"
             className={authField}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Şifreni tekrar gir"
+            placeholder={t("register.confirmPlaceholder")}
             autoComplete="new-password"
             required
           />
@@ -162,7 +162,7 @@ export default function RegisterPage() {
         )}
 
         <Button type="submit" size="lg" full disabled={loading}>
-          {loading ? "Oluşturuluyor…" : "Hesap oluştur"}
+          {loading ? t("register.creating") : t("register.create")}
         </Button>
       </form>
     </AuthShell>
