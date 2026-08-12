@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { canManage } from "@/lib/roles";
+import { createInvite, getTreeAccess, removeMember, revokeInvite } from "@/lib/members";
+import type { TreeRole } from "@/types/user";
+
+const ROLES: TreeRole[] = ["viewer", "editor", "admin"];
+
+/** Yalnızca yönetici (admin) üye/davet yönetebilir. */
+async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
+  if (!canManage(session.user.role))
+    return { error: NextResponse.json({ error: "Bu işlem için yönetici olmalısınız." }, { status: 403 }) };
+  return { treeId: session.user.id, actorName: session.user.name ?? "" };
+}
+
+/** Üyeleri ve bekleyen davetleri listeler (şifre hash'i sızdırılmaz). */
+export async function GET() {
+  const g = await requireAdmin();
+  if ("error" in g) return g.error;
+  const access = await getTreeAccess(g.treeId);
+  return NextResponse.json({
+    members: access.members.map((m) => ({
+      id: m.id,
+      displayName: m.displayName,
+      role: m.role,
+      joinedAt: m.joinedAt,
+    })),
+    invites: access.invites
+      .filter((iv) => !iv.usedAt && new Date(iv.expiresAt).getTime() > Date.now())
+      .map((iv) => ({ tokenHash: iv.tokenHash, role: iv.role, expiresAt: iv.expiresAt })),
+  });
+}
+
+/** Yeni davet oluşturur → ham jeton döner (bağlantı istemcide kurulur). */
+export async function POST(req: NextRequest) {
+  const g = await requireAdmin();
+  if ("error" in g) return g.error;
+  const body = await req.json().catch(() => ({}));
+  const role = body.role as TreeRole;
+  if (!ROLES.includes(role))
+    return NextResponse.json({ error: "Geçersiz rol." }, { status: 400 });
+  const { token } = await createInvite(g.treeId, role, g.actorName);
+  return NextResponse.json({ token }, { status: 201 });
+}
+
+/** Üye çıkar (memberId) ya da bekleyen daveti iptal et (tokenHash). */
+export async function DELETE(req: NextRequest) {
+  const g = await requireAdmin();
+  if ("error" in g) return g.error;
+  const body = await req.json().catch(() => ({}));
+  if (typeof body.memberId === "string") {
+    await removeMember(g.treeId, body.memberId);
+    return NextResponse.json({ success: true });
+  }
+  if (typeof body.tokenHash === "string") {
+    await revokeInvite(g.treeId, body.tokenHash);
+    return NextResponse.json({ success: true });
+  }
+  return NextResponse.json({ error: "memberId ya da tokenHash gerekli." }, { status: 400 });
+}

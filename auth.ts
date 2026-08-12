@@ -2,7 +2,9 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { findUserByFamilyName } from "@/lib/users";
+import { findMemberByPassword } from "@/lib/members";
 import { prepareDemoAccount } from "@/lib/demo-account";
+import type { TreeRole } from "@/types/user";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -20,10 +22,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await findUserByFamilyName(familyName);
         if (!user) return null;
 
-        const valid = await compare(password, user.passwordHash);
-        if (!valid) return null;
+        // Founder (ağacı kuran) → admin. Kimlik = treeId (veri blob'u buna bağlı).
+        if (await compare(password, user.passwordHash)) {
+          return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName };
+        }
 
-        return { id: user.id, name: user.familyName };
+        // Aksi hâlde: aynı ağaca davetle katılmış bir üye mi? (rol üyeden gelir)
+        const member = await findMemberByPassword(user.id, password);
+        if (member) {
+          return { id: user.id, name: member.displayName, role: member.role, treeName: user.familyName };
+        }
+
+        return null;
       },
     }),
 
@@ -40,7 +50,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {},
       async authorize() {
         const user = await prepareDemoAccount();
-        return { id: user.id, name: user.familyName };
+        // Demo ortak oyun alanı: ziyaretçiler serbestçe ekler/düzenler → admin.
+        return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName };
       },
     }),
   ],
@@ -56,12 +67,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.name = user.name;
+        // Girişte rol + ağaç adı jetona işlenir.
+        const u = user as { role?: TreeRole; treeName?: string };
+        token.role = u.role ?? "admin";
+        token.treeName = u.treeName ?? (user.name as string | undefined);
       }
       return token;
     },
     async session({ session, token }) {
       if (token.id) session.user.id = token.id as string;
       if (token.name) session.user.name = token.name as string;
+      // Eski jetonlar (bu değişiklikten önce giriş yapanlar) rol taşımaz;
+      // onlar zaten ağaç şifresiyle giren founder'lardı → admin varsayılır.
+      session.user.role = (token.role as TreeRole | undefined) ?? "admin";
+      session.user.treeName = (token.treeName as string | undefined) ?? session.user.name ?? undefined;
       return session;
     },
   },

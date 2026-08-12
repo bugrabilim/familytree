@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Person } from "@/types/family";
+import type { TreeRole } from "@/types/user";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
 import PrintView from "@/components/PrintView";
+import MembersDialog from "@/components/MembersDialog";
 import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
@@ -54,12 +56,15 @@ export default function Workspace(props: {
   people: Person[];
   version: string;
   familyName?: string;
+  displayName?: string;
+  role?: TreeRole;
   initialSelectedId?: string;
 }) {
   // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
   // tüketebilsin diye asıl mantık sağlayıcıların içindeki bir bileşene taşındı.
+  // Rol "viewer" ise salt-okunur zorlanır (sunucu da yazmayı reddeder).
   return (
-    <ReadOnlyProvider>
+    <ReadOnlyProvider forced={props.role === "viewer"}>
       <PrivacyProvider>
         <WorkspaceInner {...props} />
       </PrivacyProvider>
@@ -71,11 +76,14 @@ function WorkspaceInner({
   people,
   version,
   familyName,
+  role = "admin",
   initialSelectedId,
 }: {
   people: Person[];
   version: string;
   familyName?: string;
+  displayName?: string;
+  role?: TreeRole;
   initialSelectedId?: string;
 }) {
   const router = useRouter();
@@ -97,6 +105,7 @@ function WorkspaceInner({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
@@ -275,6 +284,7 @@ function WorkspaceInner({
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
         onPrint={() => setPrintOpen(true)}
+        onManageMembers={role === "admin" ? () => setMembersOpen(true) : undefined}
         peopleCount={people.length}
       />
 
@@ -432,6 +442,10 @@ function WorkspaceInner({
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+      )}
+
+      {membersOpen && role === "admin" && (
+        <MembersDialog treeName={familyName} onClose={() => setMembersOpen(false)} />
       )}
 
       {/* Bildirim */}

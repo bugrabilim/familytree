@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
+import { canEdit } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -9,6 +10,8 @@ export type RelationType = "parent" | "child" | "spouse" | "sibling";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
+  if (!canEdit(session.user.role))
+    return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const userId = session.user.id;
   const body = await req.json();
