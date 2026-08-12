@@ -5,7 +5,7 @@
 > haritası önerir. **Hiçbir özellik hemen eklenmek zorunda değil** — bu bir
 > tartışma ve referans belgesidir.
 >
-> Tarih: 2026-08 · Durum: Kademe 1–5 tamamlandı; yalnız çoklu ağaç (auth) ile gerçek harita tile / DB-ELK bilinçli ertelendi
+> Tarih: 2026-08 · Durum: Kademe 1–5 tamamlandı; çoklu ağaç (auth) + gerçek harita tile / DB-ELK ertelendi · Gelecek notları: §8 (mobil app, hesapsız→e-posta giriş, kardeş sıralama)
 >
 > **Güncelleme (2026-08):** Uygulama arayüzü sektör liderleri (MyHeritage,
 > Ancestry, FamilySearch) örnek alınarak baştan tasarlandı. Aşağıdaki bölüm 4
@@ -205,6 +205,9 @@ yaşam-olayı zaman çizelgesi, kaynak/atıf, çoklu medya galerisi, rol ayrım�
 - Gerçek DB'ye geçiş + ELK ile tam yerleşim — teknik borç, ertelendi.
 - DNA eşleştirme ve devasa kayıt arşivi — devlerin işi, kapsam dışı.
 
+**Gelecek notları (bkz. §8):** native mobil uygulama · hesapsız giriş +
+e-posta ile bağlama · manuel kardeş sıralaması · cihaz-arası/offline paylaşım.
+
 ---
 
 ## 5. Önceliklendirilmiş Yol Haritası
@@ -321,7 +324,39 @@ dönüştürür; üçüncüsü çok kullanıcılı olgunluğu getirir. Sırayla 
 
 ---
 
+## 8. Gelecek Notları & Rakip Analizi (2026-08)
+
+> Bu bölüm, ileride ele alınacak fikirleri **not** olarak tutar; hiçbiri şu an
+> uygulanmıyor. Kaynak: **Quick Family Tree — Digital Gene** (mobil-öncelikli,
+> hesapsız, ücretsiz) uygulamasının incelemesinden çıkan farklar.
+
+### 📱 Mobil uygulama (planlandı)
+- **Gelecekte native mobil uygulama (Android/iOS) yapılacak.** Şu an responsive
+  web var; mağaza uygulaması, ana ekrana kurulum ve tam çevrimdışı deneyim yok.
+- Rakip mobil-native ve "tek dokunuşla ekleme/sadeleştirme" hissi güçlü; mobil
+  sürümde bu akıcılık hedeflenmeli.
+
+### 🚪 Hesapsız giriş + e-posta ile bağlama (onboarding)
+- **Hesapsız başlama:** ziyaretçi kayıt olmadan hemen kendi ağacını kurabilsin
+  (yalnızca ortak/sıfırlanan demo değil — kişiye özel geçici/yerel ağaç).
+- **E-posta ile kendine bağlama:** isterse veriyi kaybetmemek için ağacı bir
+  e-postaya bağlayıp kalıcılaştırabilsin (guest → hesap dönüşümü).
+- **Sonraki girişler hesaplı olsun.** Hesaplı giriş (ağaç adı + şifre + roller/
+  davet) **zaten var ve DEĞİŞMEYECEK**; bu akış yalnızca onun önüne bir
+  "sürtünmesiz başlangıç + isteğe bağlı kalıcılaştırma" katmanı ekler.
+
+### 🌿 Rakipten çıkan diğer farklar (bizde eksik / kısıtlı)
+- **Manuel kardeş sıralaması** — kardeşlerin görüntü sırasını sürükle-bırak ile
+  elle değiştirme. Bizde sıra tamamen dagre'ye bağlı (en düşük eforlu kazanç).
+- **Çoklu ağaç** — bir kişinin birden çok (ör. tarihsel) ağaç tutması. Auth
+  yeniden mimarisi gerektirdiğinden ertelendi (bkz. §5-madde 17).
+- **Cihaz-arası / offline-first paylaşım** — telefondan telefona doğrudan
+  aktarım / çevrimdışı yerel kayıt. Bizimki sunucu + roller/davet + GEDCOM.
+
+---
+
 ### Kaynaklar
+- Rakip inceleme — Quick Family Tree (digital-gene.com), Google Play (2026)
 - Genealogy site karşılaştırmaları — Family Tree Magazine, YourRoots (2025)
 - Açık kaynak alternatifler — Ithy, awesome-selfhosted, opensource.com
 - webtrees özellik listesi — webtrees.net/features
