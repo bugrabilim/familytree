@@ -38,6 +38,17 @@ async function readFromBlob(userId: string): Promise<FamilyData> {
   return JSON.parse(text) as FamilyData;
 }
 
+/** Sağlık kontrolü: Blob deposuna (token) ulaşılıyor mu? (sır sızdırmaz) */
+export async function pingBlob(): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return { ok: false, error: "env eksik" };
+  try {
+    await list({ limit: 1 });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
 export async function getFamilyData(
   userId: string,
   opts?: { skipCache?: boolean }
