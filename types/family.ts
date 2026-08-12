@@ -53,6 +53,22 @@ export interface Source {
   note?: string;
 }
 
+/**
+ * Anı / hikâye — rehberli bir soruya yanıt ya da serbest bir hatıra. Metin
+ * ve/veya sesli kayıt taşıyabilir. "Kuru veri"yi aile hikâyesine çevirir.
+ */
+export interface Memory {
+  id: string;
+  /** Rehberli soru: `MEMORY_PROMPTS` anahtarı ya da serbest metin. Boş olabilir. */
+  prompt?: string;
+  /** Yazılı yanıt / hatıra metni. */
+  text?: string;
+  /** Sesli anı — Cloudinary URL (ses "video" kaynağı olarak yüklenir). */
+  audio?: string;
+  /** "YYYY" | "YYYY-MM" | "YYYY-MM-DD" — anının ilgili olduğu tarih (isteğe bağlı). */
+  date?: string;
+}
+
 export interface Person {
   id: string;
   /**
@@ -147,6 +163,9 @@ export interface Person {
 
   /** Kaynaklar / atıflar — bilginin nereden bilindiği. */
   sources?: Source[];
+
+  /** Anılar / hikâyeler — rehberli soru yanıtları ve sesli kayıtlar. */
+  memories?: Memory[];
 }
 
 export interface FamilyData {
@@ -200,6 +219,22 @@ export const EDUCATION_LEVELS = [
   "lisansustu",
   "doktora",
   "profesor",
+] as const;
+
+/**
+ * Rehberli anı soruları — anahtarlar. Etiketler dile göre `memoryPrompt.<anahtar>`
+ * sözlüğünden gelir. Kişinin hikâyesini çıkarmak için ipuçları; serbest anı da
+ * eklenebilir.
+ */
+export const MEMORY_PROMPTS = [
+  "childhood",
+  "firstHome",
+  "proudest",
+  "tradition",
+  "hardship",
+  "love",
+  "work",
+  "advice",
 ] as const;
 
 export const PARENT_KIND_LABELS: Record<Exclude<ParentKind, "biological">, string> = {

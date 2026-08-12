@@ -5,13 +5,16 @@ import {
   EDUCATION_LEVELS,
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
+  MEMORY_PROMPTS,
   PARENT_KIND_LABELS,
   SOURCE_KINDS,
   type LifeEvent,
+  type Memory,
   type ParentLink,
   type Person,
   type Source,
 } from "@/types/family";
+import AudioRecorder from "./AudioRecorder";
 import Avatar from "./ui/Avatar";
 import { generateAvatar } from "@/lib/avatar";
 import Button from "./ui/Button";
@@ -126,6 +129,16 @@ export default function PersonForm({
     }))
   );
 
+  const [memories, setMemories] = useState<Memory[]>(
+    (initial?.memories ?? []).map((m) => ({
+      id: m.id,
+      prompt: m.prompt,
+      text: m.text ?? "",
+      audio: m.audio,
+      date: m.date,
+    }))
+  );
+
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
   const [galleryUploading, setGalleryUploading] = useState(false);
@@ -222,6 +235,13 @@ export default function PersonForm({
   const updateSource = (id: string, patch: Partial<SourceRow>) =>
     setSources((ss) => ss.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
+  const addMemory = (prompt?: string) =>
+    setMemories((ms) => [...ms, { id: crypto.randomUUID(), prompt, text: "" }]);
+  const removeMemory = (id: string) =>
+    setMemories((ms) => ms.filter((m) => m.id !== id));
+  const updateMemory = (id: string, patch: Partial<Memory>) =>
+    setMemories((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
   const toggleLink = (kind: "parentIds" | "spouseIds" | "formerSpouseIds", id: string) => {
     setForm((f) => {
       const arr = f[kind];
@@ -280,6 +300,17 @@ export default function PersonForm({
         note: s.note.trim() || undefined,
       }));
 
+    // Anılar: en az metni ya da sesi olanları tut (boş satırları at).
+    const builtMemories: Memory[] = memories
+      .filter((m) => (m.text ?? "").trim() || m.audio)
+      .map((m) => ({
+        id: m.id,
+        prompt: m.prompt || undefined,
+        text: (m.text ?? "").trim() || undefined,
+        audio: m.audio || undefined,
+        date: m.date || undefined,
+      }));
+
     const payload: PersonPayload = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
@@ -305,6 +336,7 @@ export default function PersonForm({
       photos: form.photos.length ? form.photos : undefined,
       events: builtEvents,
       sources: builtSources.length ? builtSources : undefined,
+      memories: builtMemories.length ? builtMemories : undefined,
     };
 
     if (relation) {
@@ -876,6 +908,90 @@ export default function PersonForm({
               <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
             Kaynak ekle
+          </button>
+        </div>
+      </details>
+
+      {/* Anılar — rehberli sorular + sesli hikâye (katlanır, isteğe bağlı) */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">
+            {t("memory.section")}
+            {memories.length > 0 && <span className="ml-1.5 text-primary">· {memories.length}</span>}
+          </span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          <p className="text-[11px] text-text-subtle">{t("memory.hint")}</p>
+
+          {/* Rehberli soru çipleri — tıklayınca o soruyla bir anı ekler */}
+          <div className="flex flex-wrap gap-1.5">
+            {MEMORY_PROMPTS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => addMemory(t(`memoryPrompt.${k}`))}
+                className="px-2.5 py-1 rounded-lg bg-surface-2 border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
+              >
+                + {t(`memoryPrompt.${k}`)}
+              </button>
+            ))}
+          </div>
+
+          {memories.map((m) => (
+            <div key={m.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <input
+                  aria-label={t("memory.promptLabel")}
+                  className={`${field} h-9 font-medium`}
+                  value={m.prompt ?? ""}
+                  onChange={(e) => updateMemory(m.id, { prompt: e.target.value })}
+                  placeholder={t("memory.promptPlaceholder")}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeMemory(m.id)}
+                  aria-label={t("memory.remove")}
+                  className="w-9 h-9 shrink-0 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+              <textarea
+                aria-label={t("memory.textLabel")}
+                className={`${field} h-20 py-2 resize-none leading-relaxed`}
+                value={m.text ?? ""}
+                onChange={(e) => updateMemory(m.id, { text: e.target.value })}
+                placeholder={t("memory.textPlaceholder")}
+              />
+              {m.audio ? (
+                <div className="flex items-center gap-2">
+                  <audio controls src={m.audio} className="h-8 max-w-full" />
+                  <button
+                    type="button"
+                    onClick={() => updateMemory(m.id, { audio: undefined })}
+                    className="text-[11px] text-text-subtle hover:text-danger"
+                  >
+                    {t("memory.removeAudio")}
+                  </button>
+                </div>
+              ) : (
+                <AudioRecorder onUploaded={(url) => updateMemory(m.id, { audio: url })} />
+              )}
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => addMemory()}
+            className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            {t("memory.add")}
           </button>
         </div>
       </details>

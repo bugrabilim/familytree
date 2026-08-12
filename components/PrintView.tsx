@@ -163,6 +163,21 @@ export default function PrintView({ people, familyName, onClose }: Props) {
                     })}
                   </ul>
                 )}
+
+                {/* Yazılı anılar — ses basılamaz, bu yüzden yalnız metin. */}
+                {p.memories?.some((m) => m.text) && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-xs font-semibold text-neutral-500">{t("print.memories")}</p>
+                    {p.memories
+                      .filter((m) => m.text)
+                      .map((m) => (
+                        <div key={m.id} className="text-sm">
+                          {m.prompt && <p className="text-neutral-500 italic leading-snug">{m.prompt}</p>}
+                          <p className="text-neutral-700 whitespace-pre-line leading-snug">{m.text}</p>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </article>
             );
           })}
