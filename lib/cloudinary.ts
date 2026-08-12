@@ -6,6 +6,19 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+/** Sağlık kontrolü: Cloudinary hesabına ulaşılıyor mu? (sır sızdırmaz) */
+export async function pingCloudinary(): Promise<{ ok: boolean; error?: string }> {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    return { ok: false, error: "env eksik" };
+  }
+  try {
+    const r = (await cloudinary.api.ping()) as { status?: string };
+    return { ok: r?.status === "ok" };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
 export type UploadKind = "photo" | "audio";
 
 export async function uploadToCloudinary(
