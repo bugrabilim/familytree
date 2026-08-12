@@ -97,6 +97,16 @@ export async function deletePerson(id: string): Promise<void> {
   if (!res.ok) throw new Error(await parseError(res, "Kişi silinemedi."));
 }
 
+/** Kardeş grubunun yeni sırasını (id listesi) sunucuya bildirir. */
+export async function reorderSiblings(ids: string[]): Promise<void> {
+  const res = await fetch("/api/family/reorder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Sıra güncellenemedi."));
+}
+
 export async function uploadPhoto(file: File): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);

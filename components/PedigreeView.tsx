@@ -6,6 +6,7 @@ import Avatar, { genderTone } from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName, fullName } from "@/lib/name";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
+import { compareSiblings } from "@/lib/siblings";
 import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
@@ -228,9 +229,7 @@ function AncestorFan({ person, depth, ...props }: { person: Person; depth: numbe
 /** Bir kişinin soyunu (sağda) çizen fan — kişinin kendi kartı hariç */
 function DescendantFan({ person, depth, ...props }: { person: Person; depth: number } & BranchProps) {
   if (depth <= 0) return null;
-  const kids = getChildren(person, props.people).sort((a, b) =>
-    (a.birthDate ?? "9999").localeCompare(b.birthDate ?? "9999")
-  );
+  const kids = getChildren(person, props.people).sort(compareSiblings);
   if (kids.length === 0) return null;
 
   return (

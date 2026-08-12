@@ -159,6 +159,12 @@ export interface Person {
   privateFields?: string[];
 
   parentIds: string[];
+  /**
+   * Kardeşler arası görüntü sırası (manuel). Aynı ebeveyn kümesini paylaşan
+   * kardeşler bu değere göre sıralanır; yoksa doğum tarihine, o da yoksa ada
+   * göre. Yalnız `/api/family/reorder` ile atanır (bkz. `lib/siblings.ts`).
+   */
+  siblingOrder?: number;
   /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */
   parentLinks?: Record<string, ParentLink>;
   /** Süregelen evlilikler. Aynı anda birden fazla olabilir. */
