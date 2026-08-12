@@ -27,7 +27,7 @@ import {
   type PersonPayload,
   type RelationType,
 } from "@/lib/actions";
-import { useT, type TFunction } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
