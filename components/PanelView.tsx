@@ -40,6 +40,9 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   // Yıldönümleri, gizlilik için maskeli kopyadan türetilir: gizli yaşayan bir
   // kişinin evlilik tarihi (maskeli kopyada `events` yok) sızmaz.
   const upcoming = useMemo(() => {
+    // Yaklaşan olaylar penceresi (gün). Etiket metniyle (i18n
+    // "panel.card.upcomingHint") uyumlu tutulmalı.
+    const WINDOW_DAYS = 30;
     type Ev = {
       key: string;
       kind: "birthday" | "anniversary" | "memorial";
@@ -61,7 +64,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       // 🎂 Doğum günü — yalnızca yaşayanlar (mevcut davranış korunur)
       if (!p.deathDate && p.birthDate) {
         const days = daysUntilBirthday(p.birthDate);
-        if (days !== null && days <= 60) {
+        if (days !== null && days <= WINDOW_DAYS) {
           out.push({ key: `b-${p.id}`, kind: "birthday", rawPerson: p, days, icon: "🎂", label: "" });
         }
       }
@@ -69,7 +72,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       // 🕯️ Anma günü — vefat edenler. Gizli (confidential) kayıtlar hariç.
       if (p.deathDate && !isMasked(p, hideLiving)) {
         const days = daysUntilAnniversary(p.deathDate);
-        if (days !== null && days <= 60) {
+        if (days !== null && days <= WINDOW_DAYS) {
           const years = occYearOf(days) - Number(p.deathDate.slice(0, 4));
           out.push({
             key: `m-${p.id}`,
@@ -88,7 +91,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
         for (const ev of events) {
           if (ev.type !== "evlilik" || !ev.date) continue;
           const days = daysUntilAnniversary(ev.date);
-          if (days === null || days > 60) continue;
+          if (days === null || days > WINDOW_DAYS) continue;
           const years = occYearOf(days) - Number(ev.date.slice(0, 4));
           out.push({
             key: `a-${p.id}-${ev.id}`,

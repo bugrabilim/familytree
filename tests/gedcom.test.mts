@@ -3,7 +3,7 @@ import { isValidDateInput, displayToStored, storedToDisplay, calcAge } from "../
 import type { Person } from "../types/family.ts";
 
 const people: Person[] = [
-  { id:"a", firstName:"Mehmet", lastName:"Yılmaz", gender:"male", birthDate:"1920-03-12", deathDate:"1994-11-02", deathCause:"Kalp yetmezliği", birthPlace:"Trabzon", occupation:"Balıkçı", bio:"Balıkçıydı.\nİki satır.", events:[{ id:"ev1", type:"evlilik", title:"Fatma ile evlendi", date:"1944-06", place:"Rize", note:"Köy düğünü." }], parentIds:[], spouseIds:["b"] },
+  { id:"a", firstName:"Mehmet", lastName:"Yılmaz", gender:"male", birthDate:"1920-03-12", deathDate:"1994-11-02", deathCause:"Kalp yetmezliği", birthPlace:"Trabzon", occupation:"Balıkçı", education:"lise", bio:"Balıkçıydı.\nİki satır.", events:[{ id:"ev1", type:"evlilik", title:"Fatma ile evlendi", date:"1944-06", place:"Rize", note:"Köy düğünü." }], parentIds:[], spouseIds:["b"] },
   { id:"b", firstName:"Fatma", lastName:"Yılmaz", gender:"female", birthDate:"1925", parentIds:[], spouseIds:["a"] },
   { id:"c", firstName:"Ali", lastName:"Yılmaz", gender:"male", birthDate:"1948-01-25", parentIds:["a","b"], spouseIds:["d"] },
   { id:"d", firstName:"Ayşe", lastName:"Yılmaz", gender:"female", birthDate:"1952-09", parentIds:[], spouseIds:["c"] },
@@ -26,6 +26,7 @@ check("tam tarih", m?.birthDate === "1920-03-12", `(${m?.birthDate})`);
 check("ölüm tarihi", m?.deathDate === "1994-11-02", `(${m?.deathDate})`);
 check("ölüm nedeni (CAUS)", m?.deathCause === "Kalp yetmezliği", `(${m?.deathCause})`);
 check("meslek (OCCU)", m?.occupation === "Balıkçı", `(${m?.occupation})`);
+check("eğitim (EDUC)", m?.education === "lise", `(${m?.education})`);
 check("sadece yıl", f?.birthDate === "1925", `(${f?.birthDate})`);
 check("yıl-ay", y?.birthDate === "1952-09", `(${y?.birthDate})`);
 check("doğum yeri", m?.birthPlace === "Trabzon", `(${m?.birthPlace})`);
