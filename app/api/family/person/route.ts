@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -12,7 +12,13 @@ export async function POST(req: NextRequest) {
 
   const userId = session.user.id;
   const body = await req.json();
-  const data = await getFamilyData(userId);
+  const data = await getFamilyData(userId, { skipCache: true });
+  if (versionMismatch(req, data.updatedAt)) {
+    return NextResponse.json(
+      { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
+  }
 
   const person: Person = {
     id: crypto.randomUUID(),

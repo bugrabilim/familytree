@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (mode === "replace") {
     await saveFamilyData(session.user.id, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
   } else {
-    const { people: existing } = await getFamilyData(session.user.id);
+    const { people: existing } = await getFamilyData(session.user.id, { skipCache: true });
     await saveFamilyData(session.user.id, {
       people: ensureCodes([...existing, ...imported]),
       updatedAt: new Date().toISOString(),

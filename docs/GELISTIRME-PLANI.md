@@ -218,27 +218,33 @@ Efor/getiri dengesine göre kademeler. Bir kademe komple yapılmak zorunda deği
 
 Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 
-- **Eşzamanlı yazma riski (önemli).** Veri akışı `oku → değiştir → yaz`
-  (`getFamilyData` → `saveFamilyData`) ve kilitleme yok. "Giriş yapan herkes
-  düzenler" olduğundan, iki kişi aynı anda düzenlerse biri diğerinin
-  değişikliğini eziyor (last-write-wins). Küçük ailede nadir, ama büyüdükçe
-  gerçek veri kaybı. Çözüm seçenekleri: optimistic locking (`updatedAt`
-  kontrolü), alan-bazlı güncelleme, ya da ileride gerçek bir DB (Postgres).
+- ~~**Eşzamanlı yazma riski (önemli).**~~ ✅ **İyimser kilitleme eklendi.**
+  İstemci, düzenlemeye başladığı sürümü (`updatedAt`) `x-base-version`
+  başlığıyla gönderir; sunucudaki güncel sürümle uyuşmuyorsa yazma 409 ile
+  reddedilir ve kullanıcıdan sayfayı yenilemesi istenir (`lib/blob.ts`
+  `versionMismatch`, POST/PUT/DELETE rotaları, `lib/actions.ts`). Böylece iki
+  kişi aynı anda düzenlese de biri diğerinin değişikliğini sessizce ezmez.
 
-- **Tüm veri tek JSON.** Küçük aileler için mükemmel; yüzlerce kişi + medyada
-  her istekte tüm dosyayı okuma/yazma verimsizleşir. GEDCOM'a geçiş, ileride
-  daha yapılandırılmış bir modele (ör. Vercel Postgres / SQLite) doğal köprü.
+- ~~**Tüm veri tek JSON.**~~ ⚠️ **Kod içi ölçekleme iyileştirmeleri.** Gerçek
+  DB'ye geçiş ileriye kaldı; bu arada `lib/blob.ts` kısa ömürlü (4 sn) bellek
+  içi önbellek tutuyor (sıcak örnekte ardışık okumalar dosyayı tekrar
+  indirmiyor; yazma yolları `skipCache` ile taze okur), `/api/family` ise
+  koşullu istek (ETag / `If-None-Match` → 304) destekliyor. Yüzlerce kişilik
+  ağaçta yapılandırılmış bir modele (Postgres / SQLite) geçiş yine de doğal
+  bir sonraki adım.
 
 - **`main` geçmişi squash edildi.** Yeni iş her zaman güncel `main`'den
   dallanmalı (süreç zaten böyle işliyor, not olarak).
 
-- **Kuzen evliliği + büyük ağaç = düzen bozulması.** Kuzen evliliği grafta
-  döngü yaratır: kişi hem kendi ata zincirine hem eşinin zincirine bağlıdır.
-  300 kişilik "herkes" görünümünde dagre bu döngüyü çiftleri (hatta kardeşleri)
-  ayırarak çözüyor. Kenar ağırlığını yükseltmek işe yaramadı — katmanlı
-  yerleşimin yapısal sınırı. Odaklı görünümlerde (2/3/4 kuşak) düzen doğru;
-  varsayılan da bu. Kalıcı çözüm için birlik düğümlerini aynı sıraya sabitleyen
-  bir yerleşim (ör. ELK ya da elle sıralama) gerekir.
+- ~~**Kuzen evliliği + büyük ağaç = düzen bozulması.**~~ ⚠️ **Bileşik graf
+  kümelemesiyle iyileştirildi.** Kenar ağırlığını yükseltmek işe yaramamıştı
+  (katmanlı yerleşimin yapısal sınırı). Bunun yerine dagre'nin bileşik
+  (compound) grafını kullanıyoruz: her tek-evlilikli çiftin iki eşi bir üst
+  "küme"ye konur, dagre küme üyelerini bitişik tutar (`lib/tree-layout.ts`).
+  346 kişilik demo ağacında bitişik çift sayısı ölçümle 47/105 → 92/105'e
+  çıktı, tuval yalnızca ~%18 genişledi; çakışma yok (`tests/tree-layout.test.mts`).
+  Çok eşli / yeniden evli düğümler kümelenmez (kümeler örtüşemez). Tam çözüm
+  (ELK ya da elle sıralama) hâlâ açık, ama gözle görülür iyileşme sağlandı.
 
 - **Giriş kimliği artık "ağaç adı".** Soyadıyla giriş yanlış bir varsayımdı:
   kadınların soyadı değişir, 1934 öncesinde soyad yoktur, aynı ağaçta onlarca
@@ -247,8 +253,10 @@ Yeni özelliklerden bağımsız, mevcut mimaride dikkat edilmesi gerekenler:
 
 - **Ağaç ölçeklenmesi.** Dagre yerleşimi 172 kişide çok geniş bir tuval üretiyor;
   tamamı tek ekranda okunmuyor. Çözüm olarak odak kişinin çevresinde kum saati
-  (N kuşak ata + N kuşak soy + eşler + kardeşler) filtresi eklendi. Daha büyük
-  ağaçlarda sanallaştırma (viewport dışı düğümleri render etmeme) gerekebilir.
+  (N kuşak ata + N kuşak soy + eşler + kardeşler) filtresi eklendi. ✅ Ayrıca
+  büyük ağaçlarda (>150 kişi) React Flow `onlyRenderVisibleElements` ile
+  sanallaştırma açıldı — yalnızca görünür alandaki düğüm/kenarlar render edilir;
+  küçük ağaçlarda kapalı tutulur (mount/fitView davranışı değişmesin diye).
 
 - **`fitView` zamanlaması.** Düğümler mount sonrası bir effect ile yerleştiği
   için `onInit` içindeki tek `fitView` eksik bir kümeyi ölçüyordu; görünür kişi

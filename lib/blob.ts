@@ -5,28 +5,82 @@ function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
 }
 
-export async function getFamilyData(userId: string): Promise<FamilyData> {
-  try {
-    const key = blobPathname(userId);
-    const { blobs } = await list({ prefix: key });
-    if (blobs.length === 0) return { people: [], updatedAt: new Date().toISOString() };
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return { people: [], updatedAt: new Date().toISOString() };
-    return await new Response(result.stream).json();
-  } catch {
-    return { people: [], updatedAt: new Date().toISOString() };
+/* ----------------------------------------------------------------------
+ * Madde 10 — Kısa ömürlü bellek içi önbellek.
+ *
+ * Tüm veri tek bir JSON dosyası; her istekte tümünü indirmek/yazmak, ağaç
+ * büyüdükçe pahalılaşıyor. Sıcak (warm) bir sunucusuz örnekte ardışık
+ * okumalar dosyayı tekrar tekrar indirmesin diye küçük bir TTL önbelleği
+ * tutuyoruz. Önbellek, JSON dizisi olarak saklanır: her okuma taze bir nesne
+ * ayrıştırır, böylece çağıranın nesneyi değiştirmesi önbelleği bozamaz.
+ *
+ * Yazma yolları (POST/PUT/DELETE, import) `skipCache: true` ile taze okur:
+ * `oku→değiştir→yaz` akışının bayat veriyle çalışıp bir başkasının
+ * değişikliğini ezmesini istemiyoruz. Çakışma tespiti ise Madde 9'daki
+ * sürüm (updatedAt) kontrolüyle yapılır.
+ * -------------------------------------------------------------------- */
+const CACHE_TTL_MS = 4000;
+const cache = new Map<string, { json: string; at: number }>();
+
+const emptyData = (): FamilyData => ({ people: [], updatedAt: new Date().toISOString() });
+
+async function readFromBlob(userId: string): Promise<FamilyData> {
+  const key = blobPathname(userId);
+  const { blobs } = await list({ prefix: key });
+  if (blobs.length === 0) return emptyData();
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const result = await get(latest.pathname, { access: "private", useCache: false });
+  if (!result || result.statusCode !== 200) return emptyData();
+  const text = await new Response(result.stream).text();
+  cache.set(userId, { json: text, at: Date.now() });
+  return JSON.parse(text) as FamilyData;
+}
+
+export async function getFamilyData(
+  userId: string,
+  opts?: { skipCache?: boolean }
+): Promise<FamilyData> {
+  if (!opts?.skipCache) {
+    const hit = cache.get(userId);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      return JSON.parse(hit.json) as FamilyData;
+    }
   }
+  try {
+    return await readFromBlob(userId);
+  } catch {
+    return emptyData();
+  }
+}
+
+/* ----------------------------------------------------------------------
+ * Madde 9 — İyimser kilitleme (optimistic locking).
+ *
+ * "Giriş yapan herkes düzenler" ve akış `oku→değiştir→yaz` olduğundan, iki
+ * kişi aynı anda düzenlerse biri diğerinin değişikliğini eziyordu
+ * (last-write-wins). İstemci, düzenlemeye başladığı sürümü (`updatedAt`)
+ * `x-base-version` başlığıyla gönderir; sunucudaki güncel sürümle uyuşmuyorsa
+ * yazma reddedilir (409) ve kullanıcıdan yenilemesi istenir.
+ * -------------------------------------------------------------------- */
+export function versionMismatch(
+  req: { headers: { get(k: string): string | null } },
+  current: string
+): boolean {
+  const base = req.headers.get("x-base-version");
+  return !!base && base !== current;
 }
 
 export async function saveFamilyData(userId: string, data: FamilyData): Promise<void> {
   data.updatedAt = new Date().toISOString();
-  await put(blobPathname(userId), JSON.stringify(data), {
+  const json = JSON.stringify(data);
+  await put(blobPathname(userId), json, {
     access: "private",
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json",
   });
+  // Yazdıktan sonra önbelleği tazele: aynı örnekteki sonraki okumalar güncel.
+  cache.set(userId, { json, at: Date.now() });
 }
