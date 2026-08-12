@@ -1,4 +1,4 @@
-import { isLiving, isMasked, maskPerson } from "../lib/privacy.ts";
+import { isLiving, isMasked, maskPerson, stripPrivateFields } from "../lib/privacy.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0;
@@ -99,6 +99,28 @@ check("isMasked: gizleme açık, vefat → false", isMasked(vefat, true) === fal
 const gizli: Person = { ...vefat, id: "p3", confidential: true };
 check("isMasked: confidential her zaman gizli (kapalıyken bile)", isMasked(gizli, false) === true);
 check("isMasked: confidential maskede korunur", maskPerson(gizli).confidential === true);
+
+// --- Madde 5: alan-bazlı gizlilik (stripPrivateFields) ---
+const alanli: Person = {
+  id: "p4", firstName: "Zehra", lastName: "Kaya", gender: "female",
+  birthDate: "1990", birthPlace: "İzmir", bio: "Gizli hikâye",
+  photo: "u", photos: ["a", "b"], orientation: "Eşcinsel",
+  congenitalCondition: "X", healthCondition: "Y", deathCause: undefined,
+  occupation: "Öğretmen",
+  parentIds: [], spouseIds: [],
+  privateFields: ["story", "health", "photo", "orientation", "birthPlace"],
+};
+const s = stripPrivateFields(alanli);
+check("alan gizli: hikâye kaldırıldı", s.bio === undefined);
+check("alan gizli: sağlık kaldırıldı", s.congenitalCondition === undefined && s.healthCondition === undefined);
+check("alan gizli: foto+galeri kaldırıldı", s.photo === undefined && s.photos === undefined);
+check("alan gizli: yönelim kaldırıldı", s.orientation === undefined);
+check("alan gizli: doğum yeri kaldırıldı", s.birthPlace === undefined);
+check("alan gizli: gizlenmeyen alan durur (meslek)", s.occupation === "Öğretmen");
+check("alan gizli: ad/tarih durur", s.firstName === "Zehra" && s.birthDate === "1990");
+check("alan gizli: ham nesne değişmedi", alanli.bio === "Gizli hikâye" && alanli.photo === "u");
+const bos: Person = { id: "p5", firstName: "A", lastName: "B", gender: "male", parentIds: [], spouseIds: [] };
+check("privateFields yoksa aynı nesne döner", stripPrivateFields(bos) === bos);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
