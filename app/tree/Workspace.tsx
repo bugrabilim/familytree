@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Person } from "@/types/family";
@@ -105,6 +105,7 @@ function WorkspaceInner({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [printingView, setPrintingView] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -116,25 +117,78 @@ function WorkspaceInner({
   const [treeDepth, setTreeDepth] = useState(3);
   const [toast, setToast] = useState<string>();
 
+  // Madde 8 — "Bu görünümü yazdır": açık görünümü (ağaç/harita/soy/panel/liste)
+  // olduğu gibi bas. Detay paneli kapatılıp bir render sonra `print-view`
+  // sınıfıyla yalnız görünüm basılır; afterprint'te temizlenir.
+  useEffect(() => {
+    if (!printingView) return;
+    document.body.classList.add("print-view");
+    const done = () => {
+      document.body.classList.remove("print-view");
+      setPrintingView(false);
+    };
+    window.addEventListener("afterprint", done);
+    window.print();
+    return () => window.removeEventListener("afterprint", done);
+  }, [printingView]);
+
+  const printCurrentView = useCallback(() => {
+    setSelectedId(undefined);
+    setPrintingView(true);
+  }, []);
+
   const idx = useMemo(() => indexPeople(people), [people]);
   const selected = selectedId ? idx.get(selectedId) : undefined;
   /**
-   * Soy görünümünün kökü ve akrabalık rozetinin referansı.
-   * Kullanıcı bir kök seçmediyse en uzun ata zincirine sahip kişiyi alıyoruz —
-   * böylece soy görünümü boş açılmıyor.
+   * Varsayılan kök / odak seçimi (URL'de `kisi` yoksa) ve akrabalık rozetinin
+   * referansı. Üstünde ≥4 kuşak ata VE altında ≥4 kuşak torun bulunan, ayrıca
+   * yelpazesi en dolu (ata+torun sayısı ve toplam derinlik en yüksek) kişiyi
+   * seç — böylece ağaç zengin, karmaşık bir merkezle açılır. Uygun aday yoksa en
+   * çok 1. derece bağlantısı (ebeveyn + eş + çocuk) olan kişiye düş; o da yoksa
+   * ilk kişi. Böylece hem ağaç hem soy görünümü boş/sığ açılmaz.
    */
   const varsayilanKok = useMemo(() => {
-    let bestId: string | undefined;
-    let bestDepth = -1;
+    // Çocuk sayısını tek geçişte hazırla (1. derece bağlantı hesabı için)
+    const childCount = new Map<string, number>();
     for (const p of people) {
-      let d = 0;
-      for (const v of ancestorDepths(p.id, idx).values()) if (v > d) d = v;
-      if (d > bestDepth) {
-        bestDepth = d;
-        bestId = p.id;
+      for (const pid of p.parentIds) childCount.set(pid, (childCount.get(pid) ?? 0) + 1);
+    }
+
+    let bestId: string | undefined;
+    let bestScore = -1;
+    let fallbackId: string | undefined;
+    let fallbackDeg = -1;
+
+    for (const p of people) {
+      const anc = ancestorDepths(p.id, idx);
+      const desc = descendantDepths(p.id, people);
+      let up = 0;
+      for (const d of anc.values()) if (d > up) up = d;
+      let down = 0;
+      for (const d of desc.values()) if (d > down) down = d;
+
+      // 1. derece bağlantı sayısı — fallback ölçütü
+      const deg =
+        p.parentIds.length +
+        p.spouseIds.length +
+        (p.formerSpouseIds?.length ?? 0) +
+        (childCount.get(p.id) ?? 0);
+      if (deg > fallbackDeg) {
+        fallbackDeg = deg;
+        fallbackId = p.id;
+      }
+
+      // Asıl aday: ≥4 ata + ≥4 torun; yelpaze doluluğuna göre skorla
+      if (up >= 4 && down >= 4) {
+        const score = anc.size + desc.size + up + down;
+        if (score > bestScore) {
+          bestScore = score;
+          bestId = p.id;
+        }
       }
     }
-    return bestId;
+
+    return bestId ?? fallbackId ?? people[0]?.id;
   }, [people, idx]);
 
   const effectiveRoot = (rootId && idx.has(rootId) ? rootId : undefined) ?? varsayilanKok;
@@ -184,6 +238,31 @@ function WorkspaceInner({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+
+  // Madde 2 — İlk yüklemede URL'de `kisi` yoksa uygun bir kök/odak kişiyi
+  // otomatik seç (rootId + treeFocus + selectedId). Yalnızca mount'ta bir kez;
+  // başlangıç değerini türetilmiş varsayılandan kurmak (mount'ta tek ek render).
+  useEffect(() => {
+    if (!initialSelectedId && varsayilanKok) {
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setRootId(varsayilanKok);
+      setTreeFocus(varsayilanKok);
+      setSelectedId(varsayilanKok);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Madde 5 — Sekme (görünüm) değişince açık profil panelini kapat. İlk mount
+  // atlanır ki madde 2'nin seçtiği başlangıç seçimi korunsun.
+  const ilkGorunum = useRef(true);
+  useEffect(() => {
+    if (ilkGorunum.current) {
+      ilkGorunum.current = false;
+      return;
+    }
+    setSelectedId(undefined);
+  }, [view]);
 
   const notify = useCallback((msg: string) => {
     setToast(msg);
@@ -284,6 +363,7 @@ function WorkspaceInner({
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
         onPrint={() => setPrintOpen(true)}
+        onPrintView={printCurrentView}
         onManageMembers={role === "admin" ? () => setMembersOpen(true) : undefined}
         peopleCount={people.length}
       />
@@ -307,7 +387,12 @@ function WorkspaceInner({
               selectedId={treeFocus}
               focusId={effectiveRoot}
               depth={treeDepth}
-              onSelect={setTreeFocus}
+              onSelect={(id) => {
+                // Madde 1 — Karta tek tık: kişiyi merkeze al (treeFocus) VE
+                // profil panelini aç (selectedId). Çift tık da onOpen ile açar.
+                setTreeFocus(id);
+                setSelectedId(id);
+              }}
               onOpen={setSelectedId}
               onDeselect={() => setTreeFocus(undefined)}
               onQuickAdd={openQuickAdd}
@@ -361,6 +446,7 @@ function WorkspaceInner({
           <button
             onClick={openAdd}
             className="
+              no-print
               absolute bottom-6 right-4 lg:right-[400px] z-20
               h-12 pl-4 pr-5 rounded-full
               bg-primary text-primary-text font-medium text-sm

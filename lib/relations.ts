@@ -119,6 +119,35 @@ export function descendantDepths(startId: string, people: Person[]): Map<string,
 }
 
 /**
+ * Kişiyi merkez alıp herkesi KUŞAK UZAKLIĞINA göre gruplar.
+ * Anahtar = kuşak uzaklığı (0 = kişinin kendisi), değer = o uzaklıktaki kişiler.
+ * Pozitif uzaklık hem yukarı ataları hem aşağı torunları BİRLİKTE kapsar
+ * (ancestorDepths + descendantDepths). Saf: girdiyi değiştirmez.
+ */
+export function relativesByGeneration(
+  startId: string,
+  people: Person[],
+  idx: PersonIndex
+): Map<number, Person[]> {
+  const out = new Map<number, Person[]>();
+  const self = idx.get(startId);
+  if (!self) return out;
+  out.set(0, [self]);
+
+  const add = (depth: number, id: string) => {
+    const p = idx.get(id);
+    if (!p) return;
+    const arr = out.get(depth);
+    if (arr) arr.push(p);
+    else out.set(depth, [p]);
+  };
+
+  for (const [id, d] of ancestorDepths(startId, idx)) add(d, id);
+  for (const [id, d] of descendantDepths(startId, people)) add(d, id);
+  return out;
+}
+
+/**
  * Kan hısımlığı derecesi (medeni hukuk): iki kişi arasındaki en kısa
  * doğum (ebeveyn-çocuk) zincirinin halka sayısı. Kendisi = 0, anne/çocuk = 1,
  * kardeş / dede / torun = 2, amca-yeğen = 3, birinci kuzen = 4…

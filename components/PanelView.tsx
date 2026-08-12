@@ -15,6 +15,7 @@ import {
   genitive,
   indexPeople,
   possessive,
+  relativesByGeneration,
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
@@ -185,6 +186,11 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           {/* Kuşak görüntüleyici */}
           <Card title={t("panel.card.generation")} hint={t("panel.card.generationHint")}>
             <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
+          </Card>
+
+          {/* Kuşaklara göre akrabalar — kuşak-uzaklığına göre ayrı sütunlar */}
+          <Card title={t("panel.card.genSpread")} hint={t("panel.card.genSpreadHint")} className="lg:col-span-2">
+            <GenerationSpread people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* Yakınlık derecesi */}
@@ -582,14 +588,16 @@ function GenerationViewer({
   const [gen, setGen] = useState(1);
   const t = useT();
 
-  const { up, down, gens } = useMemo(() => {
-    if (!personId) return { up: new Map<string, number>(), down: new Map<string, number>(), gens: [] as number[] };
+  const { up, down, gens, genCounts } = useMemo(() => {
+    if (!personId) return { up: new Map<string, number>(), down: new Map<string, number>(), gens: [] as number[], genCounts: new Map<number, number>() };
     const up = ancestorDepths(personId, idx);
     const down = descendantDepths(personId, people);
     const set = new Set<number>([0]);
-    for (const d of up.values()) set.add(d);
-    for (const d of down.values()) set.add(d);
-    return { up, down, gens: [...set].sort((a, b) => a - b) };
+    // Her kuşaktaki kişi sayısı (0. kuşak = kişinin kendisi)
+    const genCounts = new Map<number, number>([[0, 1]]);
+    for (const d of up.values()) { set.add(d); genCounts.set(d, (genCounts.get(d) ?? 0) + 1); }
+    for (const d of down.values()) { set.add(d); genCounts.set(d, (genCounts.get(d) ?? 0) + 1); }
+    return { up, down, gens: [...set].sort((a, b) => a - b), genCounts };
   }, [personId, people, idx]);
 
   const results = useMemo(() => {
@@ -627,7 +635,7 @@ function GenerationViewer({
             >
               {gens.map((g) => (
                 <option key={g} value={g}>
-                  {t("panel.gv.genOption", { g })}{g === 0 ? ` ${t("panel.gv.selfParen")}` : ""}
+                  {t("panel.gv.genOption", { g })}{g === 0 ? ` ${t("panel.gv.selfParen")}` : ""} ({genCounts.get(g) ?? 0})
                 </option>
               ))}
             </select>
@@ -641,6 +649,113 @@ function GenerationViewer({
               <li className="text-sm text-text-subtle py-2 text-center">{t("panel.gv.noneInGen")}</li>
             )}
           </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bir kişiyi ve bir kuşak sayısı N seç; akrabaları kuşak-uzaklığına göre
+ * AYRI SÜTUNLAR (alanlar) hâlinde gör: 0. alan kişinin kendisi, 1. alan 1
+ * kuşak uzaktakiler, … N. alana kadar. Her alan başlığında o kuşaktaki kişi
+ * sayısı parantez içinde yazılır ("2. kuşak (5)").
+ */
+function GenerationSpread({
+  people,
+  idx,
+  onSelect,
+}: {
+  people: Person[];
+  idx: ReturnType<typeof indexPeople>;
+  onSelect: (id: string) => void;
+}) {
+  const [personId, setPersonId] = useState("");
+  const [gen, setGen] = useState(2);
+  const { view, hideLiving } = usePrivacy();
+  const t = useT();
+
+  // Kuşak uzaklığına göre gruplanmış akrabalar (0 = kişinin kendisi)
+  const groups = useMemo(() => {
+    if (!personId) return new Map<number, Person[]>();
+    return relativesByGeneration(personId, people, idx);
+  }, [personId, people, idx]);
+
+  const maxGen = useMemo(() => {
+    let m = 0;
+    for (const k of groups.keys()) if (k > m) m = k;
+    return m;
+  }, [groups]);
+
+  const effGen = Math.min(gen, Math.max(maxGen, 1));
+
+  // 0. alandan effGen. alana kadar; her alan o kuşaktaki (tr'ye göre sıralı) kişiler
+  const fields = useMemo(() => {
+    const coll = new Intl.Collator("tr");
+    const out: Array<{ depth: number; people: Person[] }> = [];
+    for (let k = 0; k <= effGen; k++) {
+      const list = [...(groups.get(k) ?? [])].sort((a, b) => coll.compare(a.firstName, b.firstName));
+      out.push({ depth: k, people: list });
+    }
+    return out;
+  }, [groups, effGen]);
+
+  return (
+    <div className="space-y-3">
+      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setGen(2); }} />
+      {personId && maxGen === 0 && (
+        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.gs.onlySelf")}</p>
+      )}
+      {personId && maxGen > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted shrink-0" htmlFor="gs-sec">{t("panel.gs.genLabel")}</label>
+            <select
+              id="gs-sec"
+              value={effGen}
+              onChange={(e) => setGen(Number(e.target.value))}
+              className={pickerSelectCls}
+            >
+              {Array.from({ length: maxGen }, (_, i) => i + 1).map((g) => (
+                <option key={g} value={g}>{t("panel.gv.genOption", { g })}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {fields.map((f) => (
+              <div key={f.depth} className="shrink-0 w-44 rounded-xl bg-surface-2 border border-border p-2.5">
+                <h3 className="text-xs font-semibold text-text mb-2 leading-tight">
+                  {f.depth === 0 ? t("panel.gv.self") : t("panel.gv.genOption", { g: f.depth })}{" "}
+                  <span className="text-text-subtle tabular-nums">({f.people.length})</span>
+                </h3>
+                <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
+                  {f.people.map((rawP) => {
+                    const p = view(rawP);
+                    const masked = isMasked(rawP, hideLiving);
+                    return (
+                      <li key={p.id}>
+                        <button
+                          onClick={() => onSelect(p.id)}
+                          className="w-full flex items-center gap-2 px-1.5 py-1.5 -mx-1 rounded-lg hover:bg-surface transition-colors text-left"
+                        >
+                          <Avatar person={p} size="xs" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-text truncate leading-tight">{fullName(p)}</span>
+                            <span className="block text-[11px] text-text-subtle truncate leading-tight">
+                              {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate) || (p.birthPlace ?? "")}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {f.people.length === 0 && (
+                    <li className="text-[11px] text-text-subtle py-1 text-center">{t("panel.gs.none")}</li>
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
@@ -721,15 +836,17 @@ function Card({
   title,
   hint,
   empty,
+  className,
   children,
 }: {
   title: string;
   hint?: string;
   empty?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+    <section className={`rounded-2xl border border-border bg-surface p-4 sm:p-5${className ? ` ${className}` : ""}`}>
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h2 className="font-serif text-base font-semibold text-text">{title}</h2>
         {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}

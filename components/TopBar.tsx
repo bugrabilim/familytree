@@ -27,7 +27,10 @@ interface Props {
   onViewChange: (v: ViewKey) => void;
   onSearch: () => void;
   onImportExport: () => void;
+  /** Aile kitabı (PDF) — PrintView'i açar. */
   onPrint: () => void;
+  /** Açık görünümü (ağaç/harita/soy/panel) yazdır (Madde 8). */
+  onPrintView: () => void;
   /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
   onManageMembers?: () => void;
   peopleCount: number;
@@ -40,6 +43,7 @@ export default function TopBar({
   onSearch,
   onImportExport,
   onPrint,
+  onPrintView,
   onManageMembers,
   peopleCount,
 }: Props) {
@@ -268,7 +272,19 @@ export default function TopBar({
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
                       <path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    {t("print.menu")}
+                    {t("print.book")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onPrintView();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                      <path d="M3 5h18v12H3zM3 19h18M9 9l3 3 3-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t("print.currentView")}
                   </button>
                   <div className="h-px bg-border" />
                   <button

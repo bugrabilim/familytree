@@ -1,33 +1,62 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
-import { aggregatePlaces, projectEquirectangular } from "@/lib/places";
-import { LAND_PATHS } from "@/lib/world-map";
-import { useT } from "@/lib/i18n";
+import {
+  aggregatePlaces,
+  projectEquirectangular,
+  GAZETTEER,
+} from "@/lib/places";
+import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
+import { useLang, useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
   onSelect: (id: string) => void;
 }
 
-/** SVG çizim tuvali boyutu (viewBox birimleri). */
-const VW = 1000;
-const VH = 620;
+/** SVG tuval boyutu — TÜM DÜNYA penceresi (lib/world-map.ts ile birebir). */
+const VW = WORLD_VIEWBOX.w; // 1000
+const VH = WORLD_VIEWBOX.h; // 403
+
+/** Zoom sınırları: k = VW / view.w (k=1 → tüm dünya). */
+const MIN_W = VW / 14; // en fazla ~14× yakınlaşma
+const MAX_W = VW; // tüm dünyadan daha fazla uzaklaşma yok
+
+/** GAZETTEER'de şehir değil, ülke yedeği olan anahtarlar (nokta basma). */
+const COUNTRY_FALLBACK_KEYS = new Set([
+  "Almanya",
+  "Somali",
+  "Sudan",
+  "Venezuela",
+  "Gana",
+  "Kenya",
+  "Brezilya",
+]);
+
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const FULL: Box = { x: 0, y: 0, w: VW, h: VH };
 
 export default function PlacesMap({ people, onSelect }: Props) {
-  const { view } = usePrivacy();
+  const { view: priv } = usePrivacy();
   const t = useT();
+  const { lang } = useLang();
   const [activePlace, setActivePlace] = useState<string | null>(null);
 
   // GİZLİLİK: kişileri görüntü katmanından geçir; maskeli (gizli yaşayan)
   // kişide `birthPlace` bulunmadığından doğum yeri sızmaz.
   const aggregates = useMemo(
-    () => aggregatePlaces(people.map((p) => view(p))),
-    [people, view]
+    () => aggregatePlaces(people.map((p) => priv(p))),
+    [people, priv]
   );
 
   const located = useMemo(() => aggregates.filter((a) => a.coords), [aggregates]);
@@ -41,29 +70,154 @@ export default function PlacesMap({ people, onSelect }: Props) {
   // id → kişi (maskeli) — yan listede göstermek için
   const byId = useMemo(() => {
     const m = new Map<string, Person>();
-    for (const p of people) m.set(p.id, view(p));
+    for (const p of people) m.set(p.id, priv(p));
     return m;
-  }, [people, view]);
+  }, [people, priv]);
 
   const active = useMemo(
     () => located.find((a) => a.place === activePlace) ?? null,
     [located, activePlace]
   );
 
-  /** Nokta yarıçapı — kişi sayısına göre ölçekli (√ ile alan orantılı). */
-  const radiusOf = (count: number) => 9 + 20 * Math.sqrt(count / maxCount);
+  // Referans şehirler (GAZETTEER) — ülke yedekleri hariç, önceden projeksiyonlu.
+  const refCities = useMemo(() => {
+    return Object.entries(GAZETTEER)
+      .filter(([name]) => !COUNTRY_FALLBACK_KEYS.has(name))
+      .map(([name, c]) => {
+        const { x, y } = projectEquirectangular(c.lat, c.lng, VW, VH);
+        return { name, x, y };
+      });
+  }, []);
 
-  // Enlem/boylam ızgara çizgileri (soyut arka plan — gerçek kıyı çizgisi yok).
-  const lngLines = useMemo(() => {
-    const out: number[] = [];
-    for (let lng = -60; lng <= 40; lng += 20) out.push(lng);
-    return out;
+  // Doğum yeri noktaları — önceden projeksiyonlu.
+  const dots = useMemo(
+    () =>
+      located.map((a) => {
+        const { x, y } = projectEquirectangular(a.coords!.lat, a.coords!.lng, VW, VH);
+        return { a, x, y };
+      }),
+    [located]
+  );
+
+  /* ---------------- Zoom + Pan durumu ---------------- */
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [box, setBox] = useState<Box>(FULL);
+  const boxRef = useRef<Box>(FULL);
+  // Olay işleyicileri (zoom/pan) güncel kutuyu okuyabilsin diye ref'i senkronla.
+  useEffect(() => {
+    boxRef.current = box;
+  }, [box]);
+
+  const k = VW / box.w; // yakınlaşma katsayısı
+  /** viewBox birimini sabit ekran boyutuna çevir (px tabanı / k). */
+  const s = useCallback((px: number) => px / k, [k]);
+
+  const clamp = useCallback((b: Box): Box => {
+    const w = Math.min(MAX_W, Math.max(MIN_W, b.w));
+    const h = w * (VH / VW);
+    const x = Math.min(Math.max(0, b.x), VW - w);
+    const y = Math.min(Math.max(0, b.y), VH - h);
+    return { x, y, w, h };
   }, []);
-  const latLines = useMemo(() => {
-    const out: number[] = [];
-    for (let lat = -20; lat <= 50; lat += 20) out.push(lat);
-    return out;
-  }, []);
+
+  const zoomAt = useCallback(
+    (factor: number, px: number, py: number) => {
+      const b = boxRef.current;
+      const targetW = b.w / factor;
+      const w = Math.min(MAX_W, Math.max(MIN_W, targetW));
+      const h = w * (VH / VW);
+      // İmleç altındaki dünya noktası sabit kalsın.
+      const wx = b.x + px * b.w;
+      const wy = b.y + py * b.h;
+      setBox(clamp({ x: wx - px * w, y: wy - py * h, w, h }));
+    },
+    [clamp]
+  );
+
+  // Fare tekerleği — sayfayı kaydırmadan yakınlaştır (passive:false gerekir).
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      zoomAt(factor, Math.min(1, Math.max(0, px)), Math.min(1, Math.max(0, py)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoomAt]);
+
+  // Sürükleyerek gezinme (pan) — pointer olayları (fare + dokunma).
+  const drag = useRef<{ id: number; sx: number; sy: number; moved: boolean } | null>(
+    null
+  );
+  const didPan = useRef(false);
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false };
+    didPan.current = false;
+    svgRef.current?.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const el = svgRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) > 3) {
+      d.moved = true;
+      didPan.current = true;
+    }
+    if (!d.moved) return;
+    d.sx = e.clientX;
+    d.sy = e.clientY;
+    const b = boxRef.current;
+    setBox(
+      clamp({
+        ...b,
+        x: b.x - (dx / rect.width) * b.w,
+        y: b.y - (dy / rect.height) * b.h,
+      })
+    );
+  };
+  const endPan = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (drag.current?.id === e.pointerId) {
+      svgRef.current?.releasePointerCapture?.(e.pointerId);
+      drag.current = null;
+    }
+  };
+
+  const zoomButton = (factor: number) => {
+    zoomAt(factor, 0.5, 0.5);
+  };
+  const resetView = () => setBox(FULL);
+
+  // Bir yeri merkeze alıp yakınlaştır (yan panelden seçince).
+  const focusPlace = useCallback(
+    (place: string) => {
+      setActivePlace(place);
+      const d = dots.find((x) => x.a.place === place);
+      if (!d) return;
+      const w = Math.max(MIN_W, VW / 5);
+      const h = w * (VH / VW);
+      setBox(clamp({ x: d.x - w / 2, y: d.y - h / 2, w, h }));
+    },
+    [dots, clamp]
+  );
+
+  /* ---------------- Kademeli detay eşikleri ---------------- */
+  const showCountryNames = k >= 1.9;
+  const showCities = k >= 3.5;
+  // Zoom arttıkça daha çok (küçük) ülke etiketi görünür.
+  const nameRankMax = k < 2.6 ? 2 : k < 3.5 ? 3 : k < 5 ? 5 : 9;
+
+  const radiusOf = (count: number) => 5 + 9 * Math.sqrt(count / maxCount); // ekran px tabanı
 
   if (people.length === 0 || aggregates.length === 0) {
     return (
@@ -71,9 +225,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
         <div className="text-center max-w-sm">
           <p className="text-4xl mb-3">🗺️</p>
           <h2 className="font-serif text-xl font-semibold text-text mb-1.5">{t("map.emptyTitle")}</h2>
-          <p className="text-sm text-text-muted">
-            {t("map.emptyBody")}
-          </p>
+          <p className="text-sm text-text-muted">{t("map.emptyBody")}</p>
         </div>
       </div>
     );
@@ -90,123 +242,184 @@ export default function PlacesMap({ people, onSelect }: Props) {
             </p>
           </div>
           <p className="text-[11px] text-text-subtle shrink-0 hidden sm:block">
-            {t("map.dotHint")}
+            {t("map.navHint")}
           </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          {/* Harita tuvali */}
-          <div className="rounded-2xl border border-border bg-surface p-2 sm:p-3 overflow-auto">
-            <svg
-              viewBox={`0 0 ${VW} ${VH}`}
-              className="w-full h-auto"
-              role="img"
-              aria-label={t("map.ariaMap")}
-              style={{ minWidth: 480 }}
-            >
-              {/* Zemin (deniz) */}
-              <rect
-                x={0}
-                y={0}
-                width={VW}
-                height={VH}
-                rx={16}
-                fill="var(--surface-2)"
-                stroke="var(--border)"
-              />
+          {/* Harita tuvali — zoom + pan */}
+          <div className="relative rounded-2xl border border-border bg-surface p-2 sm:p-3">
+            <div className="relative rounded-xl overflow-hidden">
+              <svg
+                ref={svgRef}
+                viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+                className="w-full h-auto block select-none cursor-grab active:cursor-grabbing"
+                role="img"
+                aria-label={t("map.ariaMap")}
+                style={{ touchAction: "none" }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endPan}
+                onPointerCancel={endPan}
+              >
+                {/* Zemin (deniz) — tüm dünya */}
+                <rect x={0} y={0} width={VW} height={VH} fill="var(--surface-2)" />
 
-              {/* Kara parçaları — gömülü, basitleştirilmiş dünya sınırları
-                  (Natural Earth 110m, dış istek yok). Noktalarla aynı izdüşüm. */}
-              <g clipPath="url(#map-clip)">
-                {LAND_PATHS.map((d, i) => (
-                  <path
-                    key={i}
-                    d={d}
-                    fill="var(--surface-3)"
-                    stroke="var(--border-strong)"
-                    strokeWidth={0.8}
-                    strokeLinejoin="round"
-                  />
-                ))}
-              </g>
-              <clipPath id="map-clip">
-                <rect x={0} y={0} width={VW} height={VH} rx={16} />
-              </clipPath>
+                {/* Enlem/boylam ızgarası — soluk (coğrafi, pan/zoom ile hareket eder) */}
+                <g stroke="var(--border)" strokeWidth={s(0.5)} opacity={0.3}>
+                  {[-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150].map((lng) => {
+                    const { x } = projectEquirectangular(0, lng, VW, VH);
+                    return <line key={`lng-${lng}`} x1={x} y1={0} x2={x} y2={VH} />;
+                  })}
+                  {[-30, 0, 30, 60].map((lat) => {
+                    const { y } = projectEquirectangular(lat, 0, VW, VH);
+                    return <line key={`lat-${lat}`} x1={0} y1={y} x2={VW} y2={y} />;
+                  })}
+                </g>
 
-              {/* Enlem/boylam ızgarası — soluk */}
-              <g stroke="var(--border)" strokeWidth={1} opacity={0.35}>
-                {lngLines.map((lng) => {
-                  const { x } = projectEquirectangular(0, lng, VW, VH);
-                  return <line key={`lng-${lng}`} x1={x} y1={0} x2={x} y2={VH} />;
-                })}
-                {latLines.map((lat) => {
-                  const { y } = projectEquirectangular(lat, 0, VW, VH);
-                  return <line key={`lat-${lat}`} x1={0} y1={y} x2={VW} y2={y} />;
-                })}
-              </g>
+                {/* Kara + ülke sınırları — Natural Earth 110m (gömülü, dış istek yok) */}
+                <g
+                  fill="var(--surface-3)"
+                  stroke="var(--border-strong)"
+                  strokeWidth={s(0.6)}
+                  strokeLinejoin="round"
+                >
+                  {COUNTRIES.map((c, i) => (
+                    <path key={i} d={c.d} />
+                  ))}
+                </g>
 
-              {/* Ekvator/0-boylam vurgusu */}
-              <g stroke="var(--border-strong)" strokeWidth={1} strokeDasharray="4 5" opacity={0.5}>
-                {(() => {
-                  const { y } = projectEquirectangular(0, 0, VW, VH);
-                  const { x } = projectEquirectangular(0, 0, VW, VH);
-                  return (
-                    <>
-                      <line x1={0} y1={y} x2={VW} y2={y} />
-                      <line x1={x} y1={0} x2={x} y2={VH} />
-                    </>
-                  );
-                })()}
-              </g>
+                {/* Ekvator vurgusu */}
+                <g stroke="var(--border-strong)" strokeWidth={s(0.7)} strokeDasharray={`${s(4)} ${s(5)}`} opacity={0.4}>
+                  {(() => {
+                    const { y } = projectEquirectangular(0, 0, VW, VH);
+                    return <line x1={0} y1={y} x2={VW} y2={y} />;
+                  })()}
+                </g>
 
-              {/* Noktalar */}
-              {located.map((a) => {
-                const { x, y } = projectEquirectangular(a.coords!.lat, a.coords!.lng, VW, VH);
-                const r = radiusOf(a.count);
-                const isActive = a.place === activePlace;
-                return (
-                  <g
-                    key={a.place}
-                    className="cursor-pointer"
-                    onClick={() => setActivePlace(isActive ? null : a.place)}
-                    role="button"
-                    aria-label={t("map.placeAria", { place: a.place, count: a.count })}
-                  >
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={r}
-                      fill="var(--primary)"
-                      fillOpacity={isActive ? 0.55 : 0.28}
-                      stroke="var(--primary)"
-                      strokeWidth={isActive ? 2.5 : 1.5}
-                    />
-                    <circle cx={x} cy={y} r={2.5} fill="var(--primary)" />
-                    <text
-                      x={x}
-                      y={y - r - 5}
-                      textAnchor="middle"
-                      fontSize={13}
-                      fontWeight={600}
-                      fill="var(--text)"
-                    >
-                      {a.place.split(",")[0]}
-                    </text>
-                    <text
-                      x={x}
-                      y={y + 4}
-                      textAnchor="middle"
-                      fontSize={12}
-                      fontWeight={700}
-                      fill="var(--primary-text)"
-                      style={{ pointerEvents: "none" }}
-                    >
-                      {a.count}
-                    </text>
+                {/* Ülke adları — orta zoom (rank filtreli) */}
+                {showCountryNames && (
+                  <g fill="var(--text-muted)" style={{ pointerEvents: "none" }}>
+                    {COUNTRIES.filter((c) => c.r <= nameRankMax).map((c, i) => (
+                      <text
+                        key={i}
+                        x={c.lx}
+                        y={c.ly}
+                        textAnchor="middle"
+                        fontSize={s(11)}
+                        fontWeight={500}
+                        opacity={0.85}
+                      >
+                        {lang === "en" ? c.en : c.tr}
+                      </text>
+                    ))}
                   </g>
-                );
-              })}
-            </svg>
+                )}
+
+                {/* Referans şehirler (GAZETTEER) — yüksek zoom */}
+                {showCities && (
+                  <g style={{ pointerEvents: "none" }}>
+                    {refCities.map((c) => (
+                      <g key={c.name}>
+                        <circle cx={c.x} cy={c.y} r={s(1.6)} fill="var(--text-subtle)" opacity={0.6} />
+                        <text
+                          x={c.x}
+                          y={c.y - s(4)}
+                          textAnchor="middle"
+                          fontSize={s(8.5)}
+                          fill="var(--text-subtle)"
+                          opacity={0.75}
+                        >
+                          {c.name}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
+                )}
+
+                {/* Doğum yeri noktaları — HER ZAMAN, karaların üstünde */}
+                {dots.map(({ a, x, y }) => {
+                  const isActive = a.place === activePlace;
+                  const r = s(radiusOf(a.count));
+                  const showLabel = showCities || isActive;
+                  return (
+                    <g
+                      key={a.place}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (didPan.current) return; // sürükleme tıklama sayılmaz
+                        setActivePlace(isActive ? null : a.place);
+                      }}
+                      role="button"
+                      aria-label={t("map.placeAria", { place: a.place, count: a.count })}
+                    >
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={r}
+                        fill="var(--primary)"
+                        fillOpacity={isActive ? 0.55 : 0.3}
+                        stroke="var(--primary)"
+                        strokeWidth={s(isActive ? 2 : 1.3)}
+                      />
+                      <circle cx={x} cy={y} r={s(1.8)} fill="var(--primary)" />
+                      {showLabel && (
+                        <text
+                          x={x}
+                          y={y - r - s(4)}
+                          textAnchor="middle"
+                          fontSize={s(11)}
+                          fontWeight={600}
+                          fill="var(--text)"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {a.place.split(",")[0]}
+                        </text>
+                      )}
+                      {(showCities || isActive) && r > s(7) && (
+                        <text
+                          x={x}
+                          y={y + s(3.5)}
+                          textAnchor="middle"
+                          fontSize={s(10)}
+                          fontWeight={700}
+                          fill="var(--primary-text)"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {a.count}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* Zoom denetimleri */}
+              <div className="no-print absolute top-2 right-2 flex flex-col gap-1">
+                <button
+                  onClick={() => zoomButton(1.6)}
+                  aria-label={t("map.zoomIn")}
+                  className="w-8 h-8 grid place-items-center rounded-lg bg-surface/90 border border-border text-text hover:bg-surface-2 text-lg leading-none shadow-sm"
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => zoomButton(1 / 1.6)}
+                  aria-label={t("map.zoomOut")}
+                  className="w-8 h-8 grid place-items-center rounded-lg bg-surface/90 border border-border text-text hover:bg-surface-2 text-lg leading-none shadow-sm"
+                >
+                  −
+                </button>
+              </div>
+              {k > 1.02 && (
+                <button
+                  onClick={resetView}
+                  className="no-print absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-surface/90 border border-border text-[11px] text-text hover:bg-surface-2 shadow-sm"
+                >
+                  {t("map.reset")}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Yan panel */}
@@ -229,9 +442,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               </section>
             ) : (
               <section className="rounded-2xl border border-border bg-surface-2/60 p-4">
-                <p className="text-sm text-text-muted">
-                  {t("map.clickHint")}
-                </p>
+                <p className="text-sm text-text-muted">{t("map.clickHint")}</p>
               </section>
             )}
 
@@ -244,7 +455,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 {aggregates.slice(0, 8).map((a) => (
                   <li key={a.place}>
                     <button
-                      onClick={() => a.coords && setActivePlace(a.place)}
+                      onClick={() => a.coords && focusPlace(a.place)}
                       className={`w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left transition-colors ${
                         a.coords ? "hover:bg-surface-2" : "cursor-default"
                       }`}
@@ -282,9 +493,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     {unlocated.length}
                   </span>
                 </div>
-                <p className="text-[11px] text-text-subtle mb-3">
-                  {t("map.unlocatedBody")}
-                </p>
+                <p className="text-[11px] text-text-subtle mb-3">{t("map.unlocatedBody")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {unlocated.map((a) => (
                     <span

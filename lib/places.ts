@@ -130,15 +130,20 @@ export interface Bounds {
 }
 
 /**
- * Varsayılan görüntü penceresi: Avrupa / Orta Doğu / Afrika'yı kapsar, ayrıca
- * demo'daki diaspora yerleri (Venezuela, Brezilya, Somali) dışarıda kalmasın
- * diye batıya ve güneye biraz genişletilmiştir. Böylece noktalar dağılır.
+ * Varsayılan görüntü penceresi: TÜM DÜNYA (equirectangular / plate carrée).
+ * Enlemde Antarktika'nın büyük kısmı elenerek pencere -60..85'e kırpıldı; bu
+ * hem gereksiz boş alanı atar hem de 360×145 derecelik pencereyi bozulmasız
+ * göstermek için ~2.48:1 en–boy oranı verir (PlacesMap 1000×403 viewBox).
+ *
+ * ÖNEMLİ: Bu sınırlar `lib/world-map.ts` içindeki `WORLD_BOUNDS` ile BİREBİR
+ * aynı olmalıdır — ülke poligonları o pencereye göre önceden hesaplandığından,
+ * noktalar (doğum yerleri) ancak böyle karaların üstüne oturur.
  */
 export const DEFAULT_BOUNDS: Bounds = {
-  minLat: -35,
-  maxLat: 60,
-  minLng: -80,
-  maxLng: 55,
+  minLat: -60,
+  maxLat: 85,
+  minLng: -180,
+  maxLng: 180,
 };
 
 /**
