@@ -94,6 +94,7 @@ export default function PersonForm({
     language: initial?.language ?? "",
     ethnicity: initial?.ethnicity ?? "",
     nationality: initial?.nationality ?? "",
+    occupation: initial?.occupation ?? "",
     congenitalCondition: initial?.congenitalCondition ?? "",
     healthCondition: initial?.healthCondition ?? "",
     deathCause: initial?.deathCause ?? "",
@@ -292,6 +293,7 @@ export default function PersonForm({
       language: form.language.trim() || undefined,
       ethnicity: form.ethnicity.trim() || undefined,
       nationality: form.nationality.trim() || undefined,
+      occupation: form.occupation.trim() || undefined,
       congenitalCondition: form.congenitalCondition.trim() || undefined,
       healthCondition: form.healthCondition.trim() || undefined,
       deathCause: form.deathCause.trim() || undefined,
@@ -669,11 +671,18 @@ export default function PersonForm({
                 onChange={(e) => set("orientation", e.target.value)} placeholder="Eşcinsel, Biseksüel…" />
             </div>
           </div>
-          <div>
-            <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
-            <input id="pf-patronim" className={field} value={form.patronymic}
-              onChange={(e) => set("patronymic", e.target.value)}
-              placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="pf-meslek">Meslek</label>
+              <input id="pf-meslek" className={field} value={form.occupation}
+                onChange={(e) => set("occupation", e.target.value)} placeholder="Öğretmen, Balıkçı, Terzi…" />
+            </div>
+            <div>
+              <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
+              <input id="pf-patronim" className={field} value={form.patronymic}
+                onChange={(e) => set("patronymic", e.target.value)}
+                placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

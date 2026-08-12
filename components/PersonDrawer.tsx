@@ -249,11 +249,13 @@ export default function PersonDrawer({
           )}
 
           {(person.language || person.religion || person.denomination ||
-            person.ethnicity || person.nationality || person.orientation) && (
+            person.ethnicity || person.nationality || person.orientation ||
+            person.occupation) && (
             <section>
               <SectionTitle>{t("drawer.identity")}</SectionTitle>
               <dl className="space-y-1.5">
                 {([
+                  [t("drawer.occupation"), person.occupation],
                   [t("drawer.language"), person.language],
                   [t("drawer.religion"), person.religion],
                   [t("drawer.denomination"), person.denomination],
