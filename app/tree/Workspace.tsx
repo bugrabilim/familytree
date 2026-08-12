@@ -66,7 +66,7 @@ export default function Workspace(props: {
   // Rol "viewer" ise salt-okunur zorlanır (sunucu da yazmayı reddeder).
   return (
     <ReadOnlyProvider forced={props.role === "viewer"}>
-      <PrivacyProvider>
+      <PrivacyProvider forced={props.role === "viewer"}>
         <WorkspaceInner {...props} />
       </PrivacyProvider>
     </ReadOnlyProvider>

@@ -35,6 +35,8 @@ export interface PersonPayload {
   events?: LifeEvent[];
   sources?: Source[];
   memories?: Memory[];
+  confidential?: boolean;
+  privateFields?: string[];
   parentIds?: string[];
   parentLinks?: Record<string, ParentLink>;
   spouseIds?: string[];

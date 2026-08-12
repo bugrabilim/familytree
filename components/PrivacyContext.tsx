@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { Person } from "@/types/family";
-import { isMasked, maskPerson } from "@/lib/privacy";
+import { isMasked, maskPerson, stripPrivateFields } from "@/lib/privacy";
 
 /** localStorage anahtarı — yaşayanları gizleme tercihi */
 const STORAGE_KEY = "soyagaci:hideLiving";
@@ -19,7 +19,9 @@ interface PrivacyValue {
   /** Yaşayan kişilerin özel bilgileri gizlensin mi? */
   hideLiving: boolean;
   setHideLiving: (v: boolean) => void;
-  /** Gösterime hazır kişi: gizlenmesi gerekiyorsa maskeli kopya, değilse aynısı. */
+  /** Rol "viewer" olduğu için gizleme zorunlu mu? (kullanıcı kapatamaz) */
+  forced: boolean;
+  /** Gösterime hazır kişi: tümüyle maskeli kopya, alan-bazlı gizli, ya da aynısı. */
   view: (p: Person) => Person;
 }
 
@@ -48,27 +50,40 @@ function readSnapshot(): boolean {
   }
 }
 
-export function PrivacyProvider({ children }: { children: React.ReactNode }) {
-  const hideLiving = useSyncExternalStore(subscribe, readSnapshot, () => false);
+export function PrivacyProvider({
+  children,
+  forced = false,
+}: {
+  children: React.ReactNode;
+  /** Rol "viewer" ise true — yaşayan maskesi zorunlu, kullanıcı kapatamaz. */
+  forced?: boolean;
+}) {
+  const stored = useSyncExternalStore(subscribe, readSnapshot, () => false);
+  const hideLiving = forced || stored;
 
-  const setHideLiving = useCallback((v: boolean) => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
-    } catch {
-      // yazılamıyorsa yoksay
-    }
-    // Aynı sekmedeki dinleyicileri uyandır (storage olayı yalnız diğer sekmelere gider)
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }, []);
+  const setHideLiving = useCallback(
+    (v: boolean) => {
+      if (forced) return; // viewer: gizleme kapatılamaz
+      try {
+        window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+      } catch {
+        // yazılamıyorsa yoksay
+      }
+      // Aynı sekmedeki dinleyicileri uyandır (storage olayı yalnız diğer sekmelere gider)
+      window.dispatchEvent(new Event(CHANGE_EVENT));
+    },
+    [forced]
+  );
 
   const view = useCallback(
-    (p: Person): Person => (isMasked(p, hideLiving) ? maskPerson(p) : p),
+    // Tümüyle maskeliyse whitelist kopya; değilse alan-bazlı gizli alanları çıkar.
+    (p: Person): Person => (isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p)),
     [hideLiving]
   );
 
   const value = useMemo<PrivacyValue>(
-    () => ({ hideLiving, setHideLiving, view }),
-    [hideLiving, setHideLiving, view]
+    () => ({ hideLiving, setHideLiving, forced, view }),
+    [hideLiving, setHideLiving, forced, view]
   );
 
   return <PrivacyContext.Provider value={value}>{children}</PrivacyContext.Provider>;

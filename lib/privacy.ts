@@ -37,6 +37,35 @@ export function isMasked(p: Person, hideLiving: boolean): boolean {
  * yaklaşımı sayesinde ileride eklenecek hassas alanlar da varsayılan olarak
  * gizli kalır.
  */
+/**
+ * Alan-bazlı gizlilik (Madde 5) — `PRIVATE_GROUPS` anahtarını gerçek alanlara
+ * eşler. Kişi tümüyle maskeli olmadığında bu gruplar tek tek gizlenir.
+ */
+const PRIVATE_GROUP_FIELDS: Record<string, Array<keyof Person>> = {
+  story: ["bio"],
+  health: ["congenitalCondition", "healthCondition", "deathCause", "healthNote"],
+  photo: ["photo", "photos"],
+  orientation: ["orientation"],
+  memories: ["memories"],
+  birthPlace: ["birthPlace"],
+  events: ["events"],
+};
+
+/**
+ * Kişinin `privateFields` gruplarına giren alanları boşaltılmış BİR KOPYA
+ * döndürür (yalnızca görüntü katmanı). Grup yoksa aynı nesne döner.
+ */
+export function stripPrivateFields(p: Person): Person {
+  if (!p.privateFields?.length) return p;
+  const copy = { ...p } as unknown as Record<string, unknown>;
+  for (const g of p.privateFields) {
+    for (const f of PRIVATE_GROUP_FIELDS[g] ?? []) {
+      delete copy[f as string];
+    }
+  }
+  return copy as unknown as Person;
+}
+
 export function maskPerson(p: Person): Person {
   const masked: Person = {
     id: p.id,

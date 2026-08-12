@@ -7,6 +7,7 @@ import {
   LIFE_EVENT_TYPES,
   MEMORY_PROMPTS,
   PARENT_KIND_LABELS,
+  PRIVATE_GROUPS,
   SOURCE_KINDS,
   type LifeEvent,
   type Memory,
@@ -138,6 +139,9 @@ export default function PersonForm({
       date: m.date,
     }))
   );
+
+  const [confidential, setConfidential] = useState(initial?.confidential ?? false);
+  const [privateFields, setPrivateFields] = useState<string[]>(initial?.privateFields ?? []);
 
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
@@ -337,6 +341,8 @@ export default function PersonForm({
       events: builtEvents,
       sources: builtSources.length ? builtSources : undefined,
       memories: builtMemories.length ? builtMemories : undefined,
+      confidential: confidential || undefined,
+      privateFields: privateFields.length ? privateFields : undefined,
     };
 
     if (relation) {
@@ -993,6 +999,61 @@ export default function PersonForm({
             </svg>
             {t("memory.add")}
           </button>
+        </div>
+      </details>
+
+      {/* Gizlilik — ince ayrım (Madde 5): kayıt-bazlı + alan-bazlı */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">
+            {t("private.section")}
+            {(confidential || privateFields.length > 0) && (
+              <span className="ml-1.5 text-primary">
+                · {confidential ? t("private.confidentialShort") : privateFields.length}
+              </span>
+            )}
+          </span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={confidential}
+              onChange={(e) => setConfidential(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm text-text">{t("private.confidential")}</span>
+              <span className="block text-[11px] text-text-subtle leading-snug">{t("private.confidentialHint")}</span>
+            </span>
+          </label>
+
+          <div className={confidential ? "opacity-40 pointer-events-none" : ""}>
+            <p className="text-[11px] text-text-subtle mb-1.5">{t("private.fieldsHint")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRIVATE_GROUPS.map((g) => {
+                const on = privateFields.includes(g);
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() =>
+                      setPrivateFields((cur) => (on ? cur.filter((x) => x !== g) : [...cur, g]))
+                    }
+                    className={`h-7 px-2.5 rounded-lg text-[11px] border transition-colors ${
+                      on
+                        ? "border-primary bg-primary-soft text-primary"
+                        : "border-border bg-surface-2 text-text-muted hover:text-text"
+                    }`}
+                  >
+                    {t(`private.${g}`)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-[11px] text-text-subtle -mt-1">{t("private.note")}</p>
         </div>
       </details>
 

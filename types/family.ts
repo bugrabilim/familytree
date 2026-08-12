@@ -150,6 +150,14 @@ export interface Person {
    */
   confidential?: boolean;
 
+  /**
+   * Alan-bazlı gizlilik (ince ayrım): burada listelenen `PRIVATE_GROUPS`
+   * anahtarlarına karşılık gelen hassas alanlar, kişi tümüyle maskeli olmasa
+   * bile görüntü katmanında herkesten gizlenir. Yalnızca ekranda etkilidir;
+   * ham veri, API ve GEDCOM etkilenmez.
+   */
+  privateFields?: string[];
+
   parentIds: string[];
   /** Ebeveyn bağlarının niteliği. Anahtar: `parentIds` içindeki kimlik. */
   parentLinks?: Record<string, ParentLink>;
@@ -204,6 +212,21 @@ export const SOURCE_KINDS: Record<string, { label: string; icon: string }> = {
   web: { label: "Web", icon: "🔗" },
   diger: { label: "Diğer", icon: "✨" },
 };
+
+/**
+ * Alan-bazlı gizlilik grupları (Madde 5). Her grup, ekranda birlikte gizlenen
+ * bir veya daha çok hassas alana karşılık gelir. `Person.privateFields` bu
+ * anahtarları taşır; eşleme `lib/privacy.ts`'tedir. Etiketler i18n `private.*`.
+ */
+export const PRIVATE_GROUPS = [
+  "story",       // bio / hikâye
+  "health",      // doğuştan + sonradan sağlık + ölüm nedeni
+  "photo",       // fotoğraf + galeri
+  "orientation", // cinsel yönelim
+  "memories",    // anılar
+  "birthPlace",  // doğum yeri
+  "events",      // yaşam olayları
+] as const;
 
 /**
  * Eğitim seviyeleri — düşükten yükseğe sıralı anahtarlar. Anahtar `education`

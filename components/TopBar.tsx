@@ -52,7 +52,7 @@ export default function TopBar({
   const router = useRouter();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { hideLiving, setHideLiving } = usePrivacy();
+  const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
   const { readOnly, setReadOnly, forced } = useReadOnly();
 
   return (
@@ -129,13 +129,23 @@ export default function TopBar({
             </kbd>
           </button>
 
-          {/* Yaşayanları gizle — KVKK/GDPR dostu görüntü katmanı */}
+          {/* Yaşayanları gizle — KVKK/GDPR dostu görüntü katmanı.
+              Viewer rolünde zorunlu (privacyForced): kapatılamaz. */}
           <button
             onClick={() => setHideLiving(!hideLiving)}
+            disabled={privacyForced}
             aria-label={t("topbar.hideLiving")}
             aria-pressed={hideLiving}
-            title={hideLiving ? t("topbar.hideLivingOn") : t("topbar.hideLivingOff")}
+            title={
+              privacyForced
+                ? t("topbar.hideLivingForced")
+                : hideLiving
+                ? t("topbar.hideLivingOn")
+                : t("topbar.hideLivingOff")
+            }
             className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+              privacyForced ? "cursor-not-allowed" : ""
+            } ${
               hideLiving
                 ? "border-primary bg-primary-soft text-primary"
                 : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
