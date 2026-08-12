@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { createInvite, getTreeAccess, removeMember, revokeInvite } from "@/lib/members";
 import type { TreeRole } from "@/types/user";
 
 const ROLES: TreeRole[] = ["viewer", "editor", "admin"];
 
-/** Yalnızca yönetici (admin) üye/davet yönetebilir. */
+/** Yalnızca yönetici (admin) — AKTİF ağacın üye/davetlerini yönetebilir. */
 async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
-  if (!canManage(session.user.role))
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
+  if (!canManage(ctx.role))
     return { error: NextResponse.json({ error: "Bu işlem için yönetici olmalısınız." }, { status: 403 }) };
-  return { treeId: session.user.id, actorName: session.user.name ?? "" };
+  const session = await auth();
+  return { treeId: ctx.treeId, actorName: session?.user?.name ?? "" };
 }
 
 /** Üyeleri ve bekleyen davetleri listeler (şifre hash'i sızdırılmaz). */

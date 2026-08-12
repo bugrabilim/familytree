@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
@@ -8,12 +8,12 @@ import type { Person } from "@/types/family";
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!canEdit(session.user.role))
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
+  if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
-  const userId = session.user.id;
+  const userId = ctx.treeId;
   const body = await req.json();
   const data = await getFamilyData(userId, { skipCache: true });
   if (versionMismatch(req, data.updatedAt)) {

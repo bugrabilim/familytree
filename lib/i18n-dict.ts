@@ -57,6 +57,24 @@ export const tr: Dict = {
   "topbar.menu": "Menü",
   "topbar.signOut": "Çıkış yap",
 
+  /* --- Çoklu ağaç seçici --- */
+  "tree.switcherAria": "Ağaç değiştir",
+  "tree.myTrees": "Ağaçlarım",
+  "tree.home": "ana",
+  "tree.new": "Yeni ağaç oluştur",
+  "tree.create": "Oluştur",
+  "tree.save": "Kaydet",
+  "tree.cancel": "Vazgeç",
+  "tree.rename": "Yeniden adlandır",
+  "tree.delete": "Sil",
+  "tree.newNamePlaceholder": "Ağaç adı",
+  "tree.nameTooShort": "Ağaç adı en az 2 karakter olmalı.",
+  "tree.deleteConfirm": "“{name}” ağacını ve tüm kişilerini kalıcı olarak sil?",
+  "tree.switchFailed": "Ağaç değiştirilemedi.",
+  "tree.createFailed": "Ağaç oluşturulamadı.",
+  "tree.renameFailed": "Ağaç yeniden adlandırılamadı.",
+  "tree.deleteFailed": "Ağaç silinemedi.",
+
   /* --- Görünüm sekmeleri --- */
   "view.agac.label": "Ağaç",
   "view.agac.hint": "Tüm aile ağacı",
@@ -689,6 +707,24 @@ export const en: Dict = {
   "topbar.readOnlyOff": "View mode: browse only, hide editing",
   "topbar.menu": "Menu",
   "topbar.signOut": "Sign out",
+
+  /* --- Multi-tree switcher --- */
+  "tree.switcherAria": "Switch tree",
+  "tree.myTrees": "My trees",
+  "tree.home": "home",
+  "tree.new": "Create new tree",
+  "tree.create": "Create",
+  "tree.save": "Save",
+  "tree.cancel": "Cancel",
+  "tree.rename": "Rename",
+  "tree.delete": "Delete",
+  "tree.newNamePlaceholder": "Tree name",
+  "tree.nameTooShort": "Tree name must be at least 2 characters.",
+  "tree.deleteConfirm": "Permanently delete the “{name}” tree and everyone in it?",
+  "tree.switchFailed": "Could not switch tree.",
+  "tree.createFailed": "Could not create tree.",
+  "tree.renameFailed": "Could not rename tree.",
+  "tree.deleteFailed": "Could not delete tree.",
 
   /* --- View tabs --- */
   "view.agac.label": "Tree",

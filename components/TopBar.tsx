@@ -5,9 +5,11 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
+import TreeSwitcher from "./TreeSwitcher";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
+import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey = "agac" | "soy" | "torunlar" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
 
@@ -36,6 +38,10 @@ interface Props {
   /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
   onManageMembers?: () => void;
   peopleCount: number;
+  /** Çoklu ağaç (yalnız founder). Verilmezse marka adı statik gösterilir. */
+  trees?: Array<TreeMeta & { home: boolean }>;
+  activeTreeId?: string;
+  isFounder?: boolean;
 }
 
 export default function TopBar({
@@ -48,7 +54,11 @@ export default function TopBar({
   onPrintView,
   onManageMembers,
   peopleCount,
+  trees,
+  activeTreeId,
+  isFounder,
 }: Props) {
+  const showSwitcher = !!(isFounder && trees && trees.length > 0 && activeTreeId);
   const router = useRouter();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -73,14 +83,20 @@ export default function TopBar({
               <circle cx="18.5" cy="9" r="2.4" stroke="var(--primary-text)" strokeWidth="2" />
             </svg>
           </div>
-          <div className="min-w-0 hidden xs:block sm:block">
-            <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
-              {familyName ? `${familyName}` : t("topbar.appName")}
-            </p>
-            <p className="text-[11px] leading-tight text-text-subtle">
-              {t("common.peopleCount", { count: peopleCount })}
-            </p>
-          </div>
+          {showSwitcher ? (
+            <div className="min-w-0 hidden xs:block sm:block">
+              <TreeSwitcher trees={trees!} activeTreeId={activeTreeId!} peopleCount={peopleCount} />
+            </div>
+          ) : (
+            <div className="min-w-0 hidden xs:block sm:block">
+              <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
+                {familyName ? `${familyName}` : t("topbar.appName")}
+              </p>
+              <p className="text-[11px] leading-tight text-text-subtle">
+                {t("common.peopleCount", { count: peopleCount })}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Görünüm seçici — segmented control */}

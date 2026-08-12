@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { getFamilyData } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
 
-  const data = await getFamilyData(session.user.id);
+  const data = await getFamilyData(ctx.treeId);
 
   // Madde 10 — Koşullu istek: veri değişmediyse (aynı updatedAt) gövdeyi
   // tekrar göndermeyip 304 dönüyoruz. ETag olarak sürüm damgasını kullanıyoruz.

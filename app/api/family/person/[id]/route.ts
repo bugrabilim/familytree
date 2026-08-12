@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 
 const conflict = () =>
@@ -16,11 +16,11 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canEdit(session.user.role)) return forbidden();
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
+  if (!canEdit(ctx.role)) return forbidden();
 
-  const userId = session.user.id;
+  const userId = ctx.treeId;
   const { id } = await params;
   const body = await req.json();
   const data = await getFamilyData(userId, { skipCache: true });
@@ -114,11 +114,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canEdit(session.user.role)) return forbidden();
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
+  if (!canEdit(ctx.role)) return forbidden();
 
-  const userId = session.user.id;
+  const userId = ctx.treeId;
   const { id } = await params;
   const data = await getFamilyData(userId, { skipCache: true });
   if (versionMismatch(req, data.updatedAt)) return conflict();

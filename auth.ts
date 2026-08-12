@@ -24,13 +24,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Founder (ağacı kuran) → admin. Kimlik = treeId (veri blob'u buna bağlı).
         if (await compare(password, user.passwordHash)) {
-          return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName };
+          return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName, isFounder: true };
         }
 
         // Aksi hâlde: aynı ağaca davetle katılmış bir üye mi? (rol üyeden gelir)
         const member = await findMemberByPassword(user.id, password);
         if (member) {
-          return { id: user.id, name: member.displayName, role: member.role, treeName: user.familyName };
+          return { id: user.id, name: member.displayName, role: member.role, treeName: user.familyName, isFounder: false };
         }
 
         return null;
@@ -51,7 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize() {
         const user = await prepareDemoAccount();
         // Demo ortak oyun alanı: ziyaretçiler serbestçe ekler/düzenler → admin.
-        return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName };
+        return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName, isFounder: true };
       },
     }),
   ],
@@ -67,10 +67,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.name = user.name;
-        // Girişte rol + ağaç adı jetona işlenir.
-        const u = user as { role?: TreeRole; treeName?: string };
+        // Girişte rol + ağaç adı + founder bilgisi jetona işlenir.
+        const u = user as { role?: TreeRole; treeName?: string; isFounder?: boolean };
         token.role = u.role ?? "admin";
         token.treeName = u.treeName ?? (user.name as string | undefined);
+        token.isFounder = u.isFounder ?? true;
       }
       return token;
     },
@@ -81,6 +82,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // onlar zaten ağaç şifresiyle giren founder'lardı → admin varsayılır.
       session.user.role = (token.role as TreeRole | undefined) ?? "admin";
       session.user.treeName = (token.treeName as string | undefined) ?? session.user.name ?? undefined;
+      // Eski jetonda yoksa founder varsay (ağaç şifresiyle girenler).
+      session.user.isFounder = (token.isFounder as boolean | undefined) ?? true;
       return session;
     },
   },
