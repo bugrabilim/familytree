@@ -166,6 +166,7 @@ interface Seed {
   /** etnik köken */ etnik?: string;
   /** uyruk */ uyruk?: string;
   /** meslek / uğraş */ meslek?: string;
+  /** eğitim seviyesi — EDUCATION_LEVELS anahtarı */ egitim?: string;
   /** doğuştan sağlık durumu / engellilik */ dogustan?: string;
   /** yaşarken edinilen sağlık sorunu */ saglik?: string;
   /** ölüm nedeni */ olum?: string;
@@ -212,6 +213,7 @@ function build(seeds: Seed[]): Person[] {
     ethnicity: s.etnik,
     nationality: s.uyruk,
     occupation: s.meslek,
+    education: s.egitim,
     congenitalCondition: s.dogustan,
     healthCondition: s.saglik,
     deathCause: s.olum,
@@ -523,7 +525,7 @@ const K5: Seed[] = [
 const K6: Seed[] = [
   {
     id: "k6-mehmet", ad: "Mehmet", soyad: "Demirtaş", c: "male", d: "1886-04-12", o: "1961-11-03", yer: "Kayseri",
-    eb: ["k5-omer", "k5-omer-es"],
+    eb: ["k5-omer", "k5-omer-es"], egitim: "ilkokul",
     bio: "1934 Soyadı Kanunu çıkınca \"Demirtaş\" soyadını aldı; demirci çıraklığından gelen bir tercihti. Kardeşi Ali ise \"Yıldırım\"ı seçti, iki kardeşin torunları bugün farklı soyadları taşıyor.\n\nAmcasının kızı Naz ile evlendi — o dönem yaygın olan bir akraba evliliği.",
   },
   {
@@ -587,7 +589,7 @@ const K6: Seed[] = [
 const K7: Seed[] = [
   {
     id: "k7-kemal", ad: "Kemal", soyad: "Demirtaş", c: "male", d: "1918-03-08", o: "1994-12-27", yer: "Kayseri",
-    eb: ["k6-mehmet", "k6-naz"],
+    eb: ["k6-mehmet", "k6-naz"], meslek: "Memur", egitim: "lise",
     bio: "Ailenin İstanbul'a taşınmasına önayak oldu. Sümerbank'ta memur olarak çalıştı, 1978'de emekli oldu. Akşamları radyo dinleyip çocuklarına Çanakkale'de ölen amcası Rıza'yı anlatırdı.",
     olaylar: [
       { id: "ev-kemal-askerlik", type: "askerlik", title: "Askerliğini yaptı", date: "1939", place: "Erzurum" },
@@ -595,12 +597,12 @@ const K7: Seed[] = [
       { id: "ev-kemal-emekli", type: "is", title: "Sümerbank'tan emekli oldu", date: "1978", place: "İstanbul" },
     ],
   },
-  { id: "k7-kemal-es", ad: "Muazzez", soyad: "Demirtaş", c: "female", d: "1924-05-16", o: "2009-08-03", yer: "İstanbul", es: ["k7-kemal"], meslek: "İlkokul öğretmeni", bio: "İlkokul öğretmeni. Emekli olduktan sonra da mahalledeki çocuklara ücretsiz ders verdi." },
+  { id: "k7-kemal-es", ad: "Muazzez", soyad: "Demirtaş", c: "female", d: "1924-05-16", o: "2009-08-03", yer: "İstanbul", es: ["k7-kemal"], meslek: "İlkokul öğretmeni", egitim: "onlisans", bio: "İlkokul öğretmeni. Emekli olduktan sonra da mahalledeki çocuklara ücretsiz ders verdi." },
 
   { id: "k7-sabri", ad: "Sabri", soyad: "Demirtaş", c: "male", d: "1920-10-11", o: "1997-04-19", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"] },
   { id: "k7-sabri-es", ad: "Ayten", soyad: "Demirtaş", c: "female", d: "1927-02-14", o: "2011-01-25", es: ["k7-sabri"] },
 
-  { id: "k7-nesrin", ad: "Nesrin", soyad: "Demirtaş", c: "female", d: "1922-07-19", o: "2016-03-30", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], meslek: "Eczacı", bio: "Hiç evlenmedi. Ailenin ilk üniversite mezunu kadını; eczacılık okudu, Kadıköy'de kırk yıl eczane işletti." },
+  { id: "k7-nesrin", ad: "Nesrin", soyad: "Demirtaş", c: "female", d: "1922-07-19", o: "2016-03-30", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], meslek: "Eczacı", egitim: "lisans", bio: "Hiç evlenmedi. Ailenin ilk üniversite mezunu kadını; eczacılık okudu, Kadıköy'de kırk yıl eczane işletti." },
 
   { id: "k7-bebek", ad: "Ömer", soyad: "Demirtaş", c: "male", d: "1925-01-30", o: "1925-06-12", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], bio: "Dört buçuk aylıkken boğmacadan vefat etti. Dedesi Ömer'in adı verilmişti." },
   { id: "k7-bebek2", ad: "Naz", soyad: "Demirtaş", c: "female", d: "1928-11-04", o: "1929-02-08", yer: "Kayseri", eb: ["k6-mehmet", "k6-naz"], bio: "Üç aylıkken zatürreden vefat etti. Annesiyle aynı adı taşıyordu." },
@@ -652,7 +654,7 @@ const K7: Seed[] = [
 const K8: Seed[] = [
   {
     id: "k8-orhan", ad: "Orhan", soyad: "Demirtaş", c: "male", d: "1947-02-19", yer: "İstanbul",
-    eb: ["k7-kemal", "k7-kemal-es"],
+    eb: ["k7-kemal", "k7-kemal-es"], meslek: "İnşaat mühendisi", egitim: "lisans",
     es: ["k8-orhan-es3"], eski: ["k8-orhan-es1", "k8-orhan-es2"],
     bio: "Üç kez evlendi, ikisinden boşandı. İnşaat mühendisi; 70'lerde Libya ve Suudi Arabistan'da şantiyelerde çalıştı, uzun süre ailesinden ayrı kaldı — ilk iki evliliğinin bitmesini buna bağlar.\n\nHer üç evliliğinden de çocukları var.",
     olaylar: [
@@ -669,7 +671,7 @@ const K8: Seed[] = [
 
   {
     id: "k8-gulten", ad: "Gülten", soyad: "Demirtaş", c: "female", d: "1953-04-06", yer: "İstanbul",
-    eb: ["k7-kemal", "k7-kemal-es"], meslek: "Avukat",
+    eb: ["k7-kemal", "k7-kemal-es"], meslek: "Avukat", egitim: "lisansustu",
     bio: "Evlenmedi, çocuğu olmadı. Ailenin ilk kadın avukatı. Yeğenlerinin hepsinin hukuk danışmanı.",
   },
 
@@ -778,7 +780,7 @@ const K9: Seed[] = [
   { id: "k9-cem-es5", ad: "Ceren", soyad: "Aydın", c: "female", d: "1990-12-02", yer: "İstanbul", bio: "Cem'in beşinci eşi. 2017-2019." },
   { id: "k9-cem-es6", ad: "Zeynep", soyad: "Demirtaş", c: "female", d: "1992-08-16", yer: "İstanbul", bio: "Cem'in altıncı eşi. 2021'den beri evliler." },
 
-  { id: "k9-selin", ad: "Selin", soyad: "Demirtaş", c: "female", d: "1984-02-14", yer: "Ankara", eb: ["k8-orhan", "k8-orhan-es2"], bio: "Hiç evlenmedi. Kutup araştırmacısı; yılın yarısını Antarktika'da geçiriyor." },
+  { id: "k9-selin", ad: "Selin", soyad: "Demirtaş", c: "female", d: "1984-02-14", yer: "Ankara", eb: ["k8-orhan", "k8-orhan-es2"], meslek: "Kutup araştırmacısı", egitim: "doktora", bio: "Hiç evlenmedi. Kutup araştırmacısı; yılın yarısını Antarktika'da geçiriyor." },
 
   // Orhan'ın 3. evliliğinden (Nalan)
   { id: "k9-ikiz1", ad: "Alp", soyad: "Demirtaş", c: "male", d: "1994-05-21", yer: "İstanbul", eb: ["k8-orhan", "k8-orhan-es3"], es: ["k9-ikiz1-es"], bio: "İkiz. Kardeşi Ada'dan dört dakika büyük." },
@@ -1057,13 +1059,13 @@ const LGBT: Seed[] = [
   /* --- Kayda geçmemiş bir ömür --- */
   {
     id: "l-nuri-t", ad: "Nuri", soyad: "Demirtaş", c: "male", d: "1931-03-08", o: "2007-11-19", yer: "Kayseri",
-    eb: ["k6-turgut", "k6-turgut-es"], yonelim: "Eşcinsel", meslek: "Öğretmen",
+    eb: ["k6-turgut", "k6-turgut-es"], yonelim: "Eşcinsel", meslek: "Öğretmen", egitim: "lisans",
     din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Orhan'ın kardeşi. Hiç evlenmedi. Kırk üç yıl aynı evi Rauf Bey'le paylaştı; aile ona hep \"Nuri'nin arkadaşı\" dedi.\n\nİkisi de öğretmendi, birlikte emekli oldular, yan yana gömüldüler. Kimse yüksek sesle söylemedi ama herkes biliyordu.\n\nBu ağaçta ilk kez, olduğu gibi yazılıyor.",
   },
   {
     id: "l-rauf", ad: "Rauf", soyad: "Kandemir", c: "male", d: "1929-07-22", o: "2009-04-03", yer: "Sivas",
-    es: ["l-nuri-t"], yonelim: "Eşcinsel", olum: "Kalp yetmezliği", meslek: "Edebiyat öğretmeni",
+    es: ["l-nuri-t"], yonelim: "Eşcinsel", olum: "Kalp yetmezliği", meslek: "Edebiyat öğretmeni", egitim: "lisans",
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "Nuri'nin ömürlük arkadaşı. Edebiyat öğretmeniydi. Nuri'nin ölümünden sonra iki yıl daha yaşadı; vasiyeti üzerine yan yana gömüldüler.",
   },
@@ -1170,7 +1172,7 @@ const EK2: Seed[] = [
   /* --- 2) Kızlık soyadını korudu --- */
   {
     id: "s-nazli", ad: "Nazlı", soyad: "Erdemir", c: "female", d: "1991-07-19", yer: "Ankara",
-    es: ["e9-selcuk2"],
+    es: ["e9-selcuk2"], meslek: "Akademisyen", egitim: "profesor",
     din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye",
     bio: "2016'da evlendi, soyadını hiç değiştirmedi. Akademisyen; on yıllık yayın listesi kendi adına, değiştirmek istemedi.\n\nÇocukları babalarının soyadını taşıyor — kanun başka türlüsüne izin vermiyor. \"Yarısı bende kaldı\" diyor.",
   },

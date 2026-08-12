@@ -6,6 +6,7 @@ import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { aggregatePlaces, projectEquirectangular } from "@/lib/places";
+import { LAND_PATHS } from "@/lib/world-map";
 import { useT } from "@/lib/i18n";
 
 interface Props {
@@ -103,7 +104,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               aria-label={t("map.ariaMap")}
               style={{ minWidth: 480 }}
             >
-              {/* Zemin */}
+              {/* Zemin (deniz) */}
               <rect
                 x={0}
                 y={0}
@@ -114,8 +115,26 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 stroke="var(--border)"
               />
 
+              {/* Kara parçaları — gömülü, basitleştirilmiş dünya sınırları
+                  (Natural Earth 110m, dış istek yok). Noktalarla aynı izdüşüm. */}
+              <g clipPath="url(#map-clip)">
+                {LAND_PATHS.map((d, i) => (
+                  <path
+                    key={i}
+                    d={d}
+                    fill="var(--surface-3)"
+                    stroke="var(--border-strong)"
+                    strokeWidth={0.8}
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </g>
+              <clipPath id="map-clip">
+                <rect x={0} y={0} width={VW} height={VH} rx={16} />
+              </clipPath>
+
               {/* Enlem/boylam ızgarası — soluk */}
-              <g stroke="var(--border)" strokeWidth={1} opacity={0.6}>
+              <g stroke="var(--border)" strokeWidth={1} opacity={0.35}>
                 {lngLines.map((lng) => {
                   const { x } = projectEquirectangular(0, lng, VW, VH);
                   return <line key={`lng-${lng}`} x1={x} y1={0} x2={x} y2={VH} />;

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     ethnicity: body.ethnicity || undefined,
     nationality: body.nationality || undefined,
     occupation: body.occupation || undefined,
+    education: body.education || undefined,
     congenitalCondition: body.congenitalCondition || undefined,
     healthCondition: body.healthCondition || undefined,
     deathCause: body.deathCause || undefined,

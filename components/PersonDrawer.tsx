@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  EDUCATION_LEVELS,
   LIFE_EVENT_TYPES,
   SOURCE_KINDS,
   type Person,
@@ -250,12 +251,17 @@ export default function PersonDrawer({
 
           {(person.language || person.religion || person.denomination ||
             person.ethnicity || person.nationality || person.orientation ||
-            person.occupation) && (
+            person.occupation || person.education) && (
             <section>
               <SectionTitle>{t("drawer.identity")}</SectionTitle>
               <dl className="space-y-1.5">
                 {([
                   [t("drawer.occupation"), person.occupation],
+                  [t("drawer.education"), person.education
+                    ? ((EDUCATION_LEVELS as readonly string[]).includes(person.education)
+                        ? t(`education.${person.education}`)
+                        : person.education)
+                    : undefined],
                   [t("drawer.language"), person.language],
                   [t("drawer.religion"), person.religion],
                   [t("drawer.denomination"), person.denomination],

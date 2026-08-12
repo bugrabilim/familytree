@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  EDUCATION_LEVELS,
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
   PARENT_KIND_LABELS,
@@ -95,6 +96,7 @@ export default function PersonForm({
     ethnicity: initial?.ethnicity ?? "",
     nationality: initial?.nationality ?? "",
     occupation: initial?.occupation ?? "",
+    education: initial?.education ?? "",
     congenitalCondition: initial?.congenitalCondition ?? "",
     healthCondition: initial?.healthCondition ?? "",
     deathCause: initial?.deathCause ?? "",
@@ -294,6 +296,7 @@ export default function PersonForm({
       ethnicity: form.ethnicity.trim() || undefined,
       nationality: form.nationality.trim() || undefined,
       occupation: form.occupation.trim() || undefined,
+      education: form.education.trim() || undefined,
       congenitalCondition: form.congenitalCondition.trim() || undefined,
       healthCondition: form.healthCondition.trim() || undefined,
       deathCause: form.deathCause.trim() || undefined,
@@ -678,11 +681,25 @@ export default function PersonForm({
                 onChange={(e) => set("occupation", e.target.value)} placeholder="Öğretmen, Balıkçı, Terzi…" />
             </div>
             <div>
-              <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
-              <input id="pf-patronim" className={field} value={form.patronymic}
-                onChange={(e) => set("patronymic", e.target.value)}
-                placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
+              <label className={label} htmlFor="pf-egitim">{t("form.education")}</label>
+              <select id="pf-egitim" className={field} value={form.education}
+                onChange={(e) => set("education", e.target.value)}>
+                <option value="">{t("form.educationNone")}</option>
+                {EDUCATION_LEVELS.map((k) => (
+                  <option key={k} value={k}>{t(`education.${k}`)}</option>
+                ))}
+                {/* İçe aktarımdan gelen, listede olmayan serbest metni koru */}
+                {form.education && !(EDUCATION_LEVELS as readonly string[]).includes(form.education) && (
+                  <option value={form.education}>{form.education}</option>
+                )}
+              </select>
             </div>
+          </div>
+          <div>
+            <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
+            <input id="pf-patronim" className={field} value={form.patronymic}
+              onChange={(e) => set("patronymic", e.target.value)}
+              placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

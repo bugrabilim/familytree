@@ -103,6 +103,12 @@ export interface Person {
   /** Meslek / uğraş — "Öğretmen", "Balıkçı", "Terzi"… (isteğe bağlı) */
   occupation?: string;
   /**
+   * Eğitim seviyesi — okul adı DEĞİL, seviye. `EDUCATION_LEVELS` anahtarlarından
+   * biri (ör. "lisans"); dil-bağımsız saklanır, ekranda çevrilir. İçe aktarımdan
+   * gelen serbest metin de olabilir (o zaman olduğu gibi gösterilir).
+   */
+  education?: string;
+  /**
    * Doğuştan gelen sağlık durumu / engellilik (Down sendromu, doğuştan görme
    * engeli, uzuv eksikliği…). Kalıtsal durumları izlemek isteyen aileler için.
    */
@@ -179,6 +185,22 @@ export const SOURCE_KINDS: Record<string, { label: string; icon: string }> = {
   web: { label: "Web", icon: "🔗" },
   diger: { label: "Diğer", icon: "✨" },
 };
+
+/**
+ * Eğitim seviyeleri — düşükten yükseğe sıralı anahtarlar. Anahtar `education`
+ * alanında saklanır; etiketler dile göre `education.<anahtar>` sözlüğünden
+ * gelir (okul adı değil, evrensel seviye). Serbest metin de geçerlidir.
+ */
+export const EDUCATION_LEVELS = [
+  "ilkokul",
+  "ortaokul",
+  "lise",
+  "onlisans",
+  "lisans",
+  "lisansustu",
+  "doktora",
+  "profesor",
+] as const;
 
 export const PARENT_KIND_LABELS: Record<Exclude<ParentKind, "biological">, string> = {
   adoptive: "Evlat edinen",

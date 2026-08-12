@@ -25,6 +25,7 @@ export interface PersonPayload {
   ethnicity?: string;
   nationality?: string;
   occupation?: string;
+  education?: string;
   congenitalCondition?: string;
   healthCondition?: string;
   deathCause?: string;

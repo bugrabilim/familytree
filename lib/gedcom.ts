@@ -147,6 +147,7 @@ export function exportGedcom(people: Person[]): string {
     }
 
     if (p.occupation) lines.push(`1 OCCU ${p.occupation}`);
+    if (p.education) lines.push(`1 EDUC ${p.education}`);
 
     if (p.bio) {
       const bioLines = p.bio.split("\n");
@@ -214,6 +215,7 @@ export function importGedcom(content: string): Person[] {
     deathCause?: string;
     birthPlace?: string;
     occupation?: string;
+    education?: string;
     bio: string;
     events: Array<{ type: string; date?: string; title: string; place?: string; note: string }>;
   }
@@ -290,6 +292,7 @@ export function importGedcom(content: string): Person[] {
         else if (tag === "BIRT") { ctx = "BIRT"; }
         else if (tag === "DEAT") { ctx = "DEAT"; }
         else if (tag === "OCCU") { ctx = null; curIndi.occupation = value || undefined; }
+        else if (tag === "EDUC") { ctx = null; curIndi.education = value || undefined; }
         else if (tag === "NOTE") { ctx = "NOTE"; curIndi.bio = value; }
       } else if (level === 2) {
         inEvenNote = false;
@@ -353,6 +356,7 @@ export function importGedcom(content: string): Person[] {
       deathCause: gi.deathCause,
       birthPlace: gi.birthPlace,
       occupation: gi.occupation,
+      education: gi.education,
       bio: gi.bio || undefined,
       events: events.length ? events : undefined,
       parentIds: [],

@@ -42,6 +42,7 @@ export async function PUT(
     ethnicity: body.ethnicity ?? data.people[index].ethnicity,
     nationality: body.nationality ?? data.people[index].nationality,
     occupation: body.occupation ?? data.people[index].occupation,
+    education: body.education ?? data.people[index].education,
     congenitalCondition: body.congenitalCondition ?? data.people[index].congenitalCondition,
     healthCondition: body.healthCondition ?? data.people[index].healthCondition,
     deathCause: body.deathCause ?? data.people[index].deathCause,
