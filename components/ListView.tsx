@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Gender, Person } from "@/types/family";
 import { EDUCATION_LEVELS } from "@/types/family";
-import Avatar from "./ui/Avatar";
+import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
@@ -345,10 +345,10 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                     onClick={() => onSelect(p.id)}
                     className={`
                       w-full flex items-center gap-3 p-3 rounded-xl text-left
-                      bg-surface border transition-all duration-150
+                      ${genderTone(p.gender).bg} transition-all duration-150
                       ${p.id === selectedId
-                        ? "border-primary shadow-card"
-                        : "border-border hover:border-border-strong hover:shadow-card"}
+                        ? "ring-2 ring-primary/40 shadow-card"
+                        : "hover:shadow-card"}
                     `}
                   >
                     <Avatar person={p} size="md" />
