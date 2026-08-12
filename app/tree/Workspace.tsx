@@ -18,19 +18,25 @@ import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider } from "@/components/PrivacyContext";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
-import { RELATION_LABELS, type RelationType } from "@/lib/actions";
+import { type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
+import { useT } from "@/lib/i18n";
 
-const FamilyTree = dynamic(() => import("@/components/FamilyTree"), {
-  ssr: false,
-  loading: () => (
+function TreeLoading() {
+  const t = useT();
+  return (
     <div className="h-full grid place-items-center">
       <div className="flex items-center gap-2.5 text-text-subtle text-sm">
         <span className="w-4 h-4 rounded-full border-2 border-border border-t-primary animate-spin" />
-        Ağaç yükleniyor…
+        {t("ws.treeLoading")}
       </div>
     </div>
-  ),
+  );
+}
+
+const FamilyTree = dynamic(() => import("@/components/FamilyTree"), {
+  ssr: false,
+  loading: () => <TreeLoading />,
 });
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
@@ -70,6 +76,7 @@ function WorkspaceInner({
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
+  const t = useT();
 
   const [view, setView] = useState<ViewKey>("agac");
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
@@ -199,17 +206,17 @@ function WorkspaceInner({
 
   const handleDeleted = useCallback(() => {
     setSelectedId(undefined);
-    notify("Kişi silindi");
+    notify(t("ws.toast.deleted"));
     router.refresh();
-  }, [router, notify]);
+  }, [router, notify, t]);
 
   const handleImported = useCallback(
     (count: number) => {
       setGedcomOpen(false);
-      notify(`${count} kişi içe aktarıldı`);
+      notify(t("ws.toast.imported", { count }));
       router.refresh();
     },
-    [router, notify]
+    [router, notify, t]
   );
 
   const handleDemoLoaded = useCallback(
@@ -218,10 +225,10 @@ function WorkspaceInner({
       setDemoLoading(false);
       setSelectedId(undefined);
       setRootId(undefined);
-      notify(`Demo ağacı yüklendi — ${count} kişi`);
+      notify(t("ws.toast.demoLoaded", { count }));
       router.refresh();
     },
-    [router, notify]
+    [router, notify, t]
   );
 
   /** Boş durumdan tek tıkla demo yükle */
@@ -230,13 +237,13 @@ function WorkspaceInner({
     try {
       const res = await fetch("/api/family/demo", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Demo yüklenemedi.");
+      if (!res.ok) throw new Error(data?.error ?? t("ws.demoFailed"));
       handleDemoLoaded(data.count ?? 0);
     } catch (err) {
       setDemoLoading(false);
       notify((err as Error).message);
     }
-  }, [handleDemoLoaded, notify]);
+  }, [handleDemoLoaded, notify, t]);
 
   // "Merkeze al": ağaçta kişiyi merkeze alır ve şecere kökü yapar; görünüm
   // değiştirmez (eskiden Soy sayfasına atlıyordu).
@@ -341,7 +348,7 @@ function WorkspaceInner({
             <svg width="15" height="15" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
-            Kişi ekle
+            {t("common.addPerson")}
           </button>
         )}
       </main>
@@ -367,10 +374,10 @@ function WorkspaceInner({
         <Modal
           title={
             editor.personId
-              ? "Kişiyi düzenle"
+              ? t("ws.modal.edit")
               : editor.relation
-              ? RELATION_LABELS[editor.relation.type].title
-              : "Yeni kişi ekle"
+              ? t(`relation.${editor.relation.type}.title`)
+              : t("ws.modal.new")
           }
           subtitle={
             editor.relation
@@ -440,11 +447,12 @@ function TreeDepthControl({
   focusPerson?: Person;
   onGoToFocus: () => void;
 }) {
+  const t = useT();
   if (total <= 25) return null;
 
   const sayilar = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   const metinler: Array<{ d: number; l: string; ipucu: string }> = [
-    { d: HERKES, l: "Tümü", ipucu: "Ağaçtaki bütün kayıtlar — kuşak sınırı olmadan herkes" },
+    { d: HERKES, l: t("ws.depth.all"), ipucu: t("ws.depth.allHint") },
   ];
 
   return (
@@ -452,7 +460,7 @@ function TreeDepthControl({
       {focusPerson && (
         <button
           onClick={onGoToFocus}
-          title="Odak kişiye dön"
+          title={t("ws.depth.focusTitle")}
           className="flex items-center gap-1.5 h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
         >
           <Avatar person={focusPerson} size="xs" />
@@ -467,7 +475,7 @@ function TreeDepthControl({
           <button
             key={d}
             onClick={() => onChange(d)}
-            title={`${d} kuşak yukarı ve aşağı`}
+            title={t("ws.depth.genHint", { d })}
             className={`h-6 w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
               depth === d
                 ? "bg-primary text-primary-text"
