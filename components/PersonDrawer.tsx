@@ -2,9 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
-  PARENT_KIND_LABELS,
   SOURCE_KINDS,
   type Person,
 } from "@/types/family";
@@ -29,6 +27,7 @@ import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   person: Person;
@@ -61,6 +60,7 @@ export default function PersonDrawer({
 
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
+  const t = useT();
   // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
   // akrabalık hesapları maskeli kişiyle de doğru çalışır.
   const person = view(rawPerson);
@@ -93,7 +93,7 @@ export default function PersonDrawer({
         key: "birth",
         date: person.birthDate,
         icon: "🎂",
-        label: "Doğum",
+        label: t("drawer.birth"),
         sub: person.birthPlace,
       });
     }
@@ -103,7 +103,7 @@ export default function PersonDrawer({
         key: ev.id,
         date: ev.date,
         icon: meta?.icon ?? "✨",
-        label: ev.title || meta?.label || ev.type,
+        label: ev.title || t(`event.${ev.type}`),
         sub: ev.place,
       });
     }
@@ -112,7 +112,7 @@ export default function PersonDrawer({
         key: "death",
         date: person.deathDate,
         icon: "🕯️",
-        label: "Vefat",
+        label: t("drawer.death"),
         sub: person.deathCause,
       });
     }
@@ -121,7 +121,7 @@ export default function PersonDrawer({
       .sort((a, b) => a.date!.localeCompare(b.date!));
     const undated = items.filter((it) => !it.date);
     return { dated, undated, hasEvents: (person.events ?? []).length > 0 };
-  }, [person.birthDate, person.birthPlace, person.deathDate, person.deathCause, person.events]);
+  }, [person.birthDate, person.birthPlace, person.deathDate, person.deathCause, person.events, t]);
 
   useEscapeKey(onClose);
 
@@ -152,7 +152,7 @@ export default function PersonDrawer({
           inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t animate-slide-up
           lg:top-14 lg:bottom-0 lg:right-0 lg:left-auto lg:w-[380px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l lg:animate-slide-left
         "
-        aria-label="Kişi ayrıntıları"
+        aria-label={t("drawer.aria")}
       >
         {/* Mobil tutamaç */}
         <div className="lg:hidden pt-2.5 pb-1 grid place-items-center shrink-0">
@@ -163,7 +163,7 @@ export default function PersonDrawer({
         <div className="relative shrink-0 px-5 pt-4 lg:pt-5 pb-4 border-b border-border">
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t("drawer.close")}
             className="absolute right-3 top-3 lg:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -182,7 +182,7 @@ export default function PersonDrawer({
               )}
               {masked && (
                 <p className="inline-flex items-center gap-1 mt-1 text-[11px] text-text-subtle">
-                  🔒 Yaşayan — özel bilgiler gizli
+                  {t("drawer.livingMasked")}
                 </p>
               )}
               {years && (
@@ -190,7 +190,7 @@ export default function PersonDrawer({
                   {years}
                   {age !== null && (
                     <span className="text-text-subtle">
-                      {" "}· {person.deathDate ? `${age} yaşında` : `${age} yaş`}
+                      {" "}· {person.deathDate ? t("drawer.agePast", { age }) : t("drawer.ageNow", { age })}
                     </span>
                   )}
                 </p>
@@ -207,26 +207,26 @@ export default function PersonDrawer({
           <div className="flex flex-wrap gap-1.5 mt-4">
             {!readOnly && (
               <Button size="sm" variant="secondary" onClick={() => onEdit(person.id)}>
-                Düzenle
+                {t("drawer.edit")}
               </Button>
             )}
             <Button size="sm" variant="secondary" onClick={() => onFocus(person.id)}>
-              Merkeze al
+              {t("drawer.focus")}
             </Button>
             {!readOnly && (
               <div className="ml-auto">
                 {confirmDelete ? (
                   <div className="flex gap-1.5">
                     <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
-                      {deleting ? "Siliniyor…" : "Eminim, sil"}
+                      {deleting ? t("drawer.deleting") : t("drawer.confirmDelete")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
-                      Vazgeç
+                      {t("drawer.cancelDelete")}
                     </Button>
                   </div>
                 ) : (
                   <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                    Sil
+                    {t("drawer.delete")}
                   </Button>
                 )}
               </div>
@@ -240,26 +240,26 @@ export default function PersonDrawer({
           {(person.birthDate || person.birthPlace || person.deathDate) && (
             <section className="space-y-2">
               {person.birthDate && (
-                <Fact icon="🎂" label="Doğum" value={formatLong(person.birthDate)} />
+                <Fact icon="🎂" label={t("drawer.birth")} value={formatLong(person.birthDate)} />
               )}
-              {person.birthPlace && <Fact icon="📍" label="Doğum yeri" value={person.birthPlace} />}
-              {person.deathDate && <Fact icon="🕯️" label="Vefat" value={formatLong(person.deathDate)} />}
-              {person.deathCause && <Fact icon="🩶" label="Ölüm nedeni" value={person.deathCause} />}
+              {person.birthPlace && <Fact icon="📍" label={t("drawer.birthPlace")} value={person.birthPlace} />}
+              {person.deathDate && <Fact icon="🕯️" label={t("drawer.death")} value={formatLong(person.deathDate)} />}
+              {person.deathCause && <Fact icon="🩶" label={t("drawer.deathCause")} value={person.deathCause} />}
             </section>
           )}
 
           {(person.language || person.religion || person.denomination ||
             person.ethnicity || person.nationality || person.orientation) && (
             <section>
-              <SectionTitle>Kimlik ve köken</SectionTitle>
+              <SectionTitle>{t("drawer.identity")}</SectionTitle>
               <dl className="space-y-1.5">
                 {([
-                  ["Ana dil", person.language],
-                  ["Din", person.religion],
-                  ["Mezhep", person.denomination],
-                  ["Etnik köken", person.ethnicity],
-                  ["Uyruk", person.nationality],
-                  ["Cinsel yönelim", person.orientation],
+                  [t("drawer.language"), person.language],
+                  [t("drawer.religion"), person.religion],
+                  [t("drawer.denomination"), person.denomination],
+                  [t("drawer.ethnicity"), person.ethnicity],
+                  [t("drawer.nationality"), person.nationality],
+                  [t("drawer.orientation"), person.orientation],
                 ] as const)
                   .filter(([, v]) => !!v)
                   .map(([k, v]) => (
@@ -274,16 +274,16 @@ export default function PersonDrawer({
 
           {(person.congenitalCondition || person.healthCondition || person.healthNote) && (
             <section className="space-y-2">
-              <SectionTitle>Sağlık</SectionTitle>
+              <SectionTitle>{t("drawer.health")}</SectionTitle>
               {person.congenitalCondition && (
                 <div>
-                  <p className="text-[11px] font-medium text-text-subtle">Doğuştan</p>
+                  <p className="text-[11px] font-medium text-text-subtle">{t("drawer.congenital")}</p>
                   <p className="text-sm text-text-muted leading-relaxed">{person.congenitalCondition}</p>
                 </div>
               )}
               {person.healthCondition && (
                 <div>
-                  <p className="text-[11px] font-medium text-text-subtle">Yaşarken</p>
+                  <p className="text-[11px] font-medium text-text-subtle">{t("drawer.acquired")}</p>
                   <p className="text-sm text-text-muted leading-relaxed">{person.healthCondition}</p>
                 </div>
               )}
@@ -296,7 +296,7 @@ export default function PersonDrawer({
 
           {person.bio && (
             <section>
-              <SectionTitle>Hikâyesi</SectionTitle>
+              <SectionTitle>{t("drawer.story")}</SectionTitle>
               <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
                 {person.bio}
               </p>
@@ -306,14 +306,14 @@ export default function PersonDrawer({
           {/* Galeri — maskeli (yaşayan) kişide `photos` taşınmadığı için boş kalır */}
           {person.photos && person.photos.length > 0 && (
             <section>
-              <SectionTitle>Galeri</SectionTitle>
+              <SectionTitle>{t("drawer.gallery")}</SectionTitle>
               <div className="grid grid-cols-3 gap-1.5">
                 {person.photos.map((src) => (
                   <button
                     key={src}
                     type="button"
                     onClick={() => setLightbox(src)}
-                    aria-label="Fotoğrafı büyüt"
+                    aria-label={t("drawer.enlargePhoto")}
                     className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -327,7 +327,7 @@ export default function PersonDrawer({
           {/* Kaynaklar — maskeli (yaşayan) kişide `sources` taşınmadığı için boş kalır */}
           {person.sources && person.sources.length > 0 && (
             <section>
-              <SectionTitle>Kaynaklar</SectionTitle>
+              <SectionTitle>{t("drawer.sources")}</SectionTitle>
               <ul className="space-y-2.5">
                 {person.sources.map((s) => {
                   const meta = SOURCE_KINDS[s.kind ?? ""];
@@ -364,7 +364,7 @@ export default function PersonDrawer({
 
           {timeline.hasEvents && (timeline.dated.length > 0 || timeline.undated.length > 0) && (
             <section>
-              <SectionTitle>Zaman çizelgesi</SectionTitle>
+              <SectionTitle>{t("drawer.timeline")}</SectionTitle>
               {timeline.dated.length > 0 && (
                 <ol>
                   {timeline.dated.map((it, i) => (
@@ -382,7 +382,7 @@ export default function PersonDrawer({
               {timeline.undated.length > 0 && (
                 <div className="mt-1">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-text-subtle mb-1 pl-[3.25rem]">
-                    Tarihsiz
+                    {t("drawer.undated")}
                   </p>
                   <ol>
                     {timeline.undated.map((it, i) => (
@@ -401,59 +401,59 @@ export default function PersonDrawer({
           )}
 
           <RelationGroup
-            title="Ebeveynler"
+            title={t("drawer.parents")}
             people={parents}
             onSelect={onSelect}
             badgeOf={(par) => {
               const l = parentLinkOf(person, par.id);
               if (!l) return undefined;
               const parts: string[] = [];
-              if (l.kind && l.kind !== "biological") parts.push(PARENT_KIND_LABELS[l.kind]);
-              if (l.estranged) parts.push(ESTRANGEMENT_LABELS[l.estranged].child);
+              if (l.kind && l.kind !== "biological") parts.push(t(`parentKind.${l.kind}`));
+              if (l.estranged) parts.push(t(`estrangement.${l.estranged}.child`));
               return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
             }}
             emptyAction={
               !readOnly && parents.length < 2
-                ? { label: "Ebeveyn ekle", onClick: () => onQuickAdd("parent", person.id) }
+                ? { label: t("drawer.addParent"), onClick: () => onQuickAdd("parent", person.id) }
                 : undefined
             }
           />
           <RelationGroup
-            title="Eş"
+            title={t("drawer.spouse")}
             people={spouses}
             onSelect={onSelect}
             emptyAction={
               readOnly
                 ? undefined
-                : { label: "Eş ekle", onClick: () => onQuickAdd("spouse", person.id) }
+                : { label: t("drawer.addSpouse"), onClick: () => onQuickAdd("spouse", person.id) }
             }
           />
-          <RelationGroup title="Eski eş" people={formerSpouses} onSelect={onSelect} />
+          <RelationGroup title={t("drawer.formerSpouse")} people={formerSpouses} onSelect={onSelect} />
           <RelationGroup
-            title="Çocuklar"
+            title={t("drawer.children")}
             people={children}
             onSelect={onSelect}
             badgeOf={(ch) => {
               const l = parentLinkOf(ch, person.id);
               if (!l) return undefined;
               const parts: string[] = [];
-              if (l.kind && l.kind !== "biological") parts.push(PARENT_KIND_LABELS[l.kind]);
-              if (l.estranged) parts.push(ESTRANGEMENT_LABELS[l.estranged].parent);
+              if (l.kind && l.kind !== "biological") parts.push(t(`parentKind.${l.kind}`));
+              if (l.estranged) parts.push(t(`estrangement.${l.estranged}.parent`));
               return parts.length ? { text: parts.join(" · "), note: l.note } : undefined;
             }}
             emptyAction={
               readOnly
                 ? undefined
-                : { label: "Çocuk ekle", onClick: () => onQuickAdd("child", person.id) }
+                : { label: t("drawer.addChild"), onClick: () => onQuickAdd("child", person.id) }
             }
           />
           <RelationGroup
-            title="Kardeşler"
+            title={t("drawer.siblings")}
             people={siblings}
             onSelect={onSelect}
             emptyAction={
               !readOnly && parents.length > 0
-                ? { label: "Kardeş ekle", onClick: () => onQuickAdd("sibling", person.id) }
+                ? { label: t("drawer.addSibling"), onClick: () => onQuickAdd("sibling", person.id) }
                 : undefined
             }
           />
@@ -472,17 +472,18 @@ export default function PersonDrawer({
  */
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEscapeKey(onClose);
+  const t = useT();
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Fotoğraf"
+      aria-label={t("drawer.photoDialog")}
     >
       <button
         onClick={onClose}
-        aria-label="Kapat"
+        aria-label={t("drawer.close")}
         className="absolute right-3 top-3 w-9 h-9 grid place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
       >
         <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>

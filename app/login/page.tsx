@@ -6,9 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
+import { useT } from "@/lib/i18n";
 import { demoGirisi } from "./actions";
 
 function LoginForm() {
+  const t = useT();
   const [familyName, setFamilyName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +28,7 @@ function LoginForm() {
     const res = await signIn("credentials", { familyName, password, redirect: false });
 
     if (res?.error) {
-      setError("Ağaç adı veya şifre hatalı.");
+      setError(t("login.error"));
       setLoading(false);
     } else {
       router.push(callbackUrl);
@@ -35,19 +37,19 @@ function LoginForm() {
 
   return (
     <AuthShell
-      title="Tekrar hoş geldin"
-      subtitle="Aile hesabına giriş yap"
+      title={t("login.title")}
+      subtitle={t("login.subtitle")}
       footer={
         <>
           <p>
-            Hesabın yok mu?{" "}
+            {t("login.noAccount")}{" "}
             <Link href="/register" className="text-primary font-medium hover:underline">
-              Hesap oluştur
+              {t("login.createAccount")}
             </Link>
           </p>
           <p className="mt-2">
             <Link href="/forgot-password" className="text-text-subtle hover:text-primary hover:underline">
-              Şifremi unuttum
+              {t("login.forgot")}
             </Link>
           </p>
         </>
@@ -55,20 +57,20 @@ function LoginForm() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className={authLabel} htmlFor="soyisim">Ağaç adı</label>
+          <label className={authLabel} htmlFor="soyisim">{t("login.treeName")}</label>
           <input
             id="soyisim"
             className={authField}
             value={familyName}
             onChange={(e) => setFamilyName(e.target.value)}
-            placeholder="ör. Demirtaş Ailesi"
+            placeholder={t("login.treeNamePlaceholder")}
             autoComplete="username"
             required
           />
         </div>
 
         <div>
-          <label className={authLabel} htmlFor="sifre">Şifre</label>
+          <label className={authLabel} htmlFor="sifre">{t("login.password")}</label>
           <input
             id="sifre"
             type="password"
@@ -86,7 +88,7 @@ function LoginForm() {
         )}
 
         <Button type="submit" size="lg" full disabled={loading || demoLoading}>
-          {loading ? "Giriş yapılıyor…" : "Giriş yap"}
+          {loading ? t("login.signingIn") : t("login.signIn")}
         </Button>
       </form>
 
@@ -94,7 +96,7 @@ function LoginForm() {
       <div className="mt-6">
         <div className="flex items-center gap-3 mb-4">
           <span className="h-px flex-1 bg-border" />
-          <span className="text-[11px] text-text-subtle">ya da</span>
+          <span className="text-[11px] text-text-subtle">{t("login.or")}</span>
           <span className="h-px flex-1 bg-border" />
         </div>
 
@@ -109,16 +111,15 @@ function LoginForm() {
             setError("");
             demoGirisi().catch(() => {
               setDemoLoading(false);
-              setError("Demo açılamadı. Lütfen tekrar deneyin.");
+              setError(t("login.demoFailed"));
             });
           }}
         >
-          {demoLoading ? "Demo hazırlanıyor…" : "Demo ağacını şifresiz incele"}
+          {demoLoading ? t("login.demoLoading") : t("login.demoButton")}
         </Button>
 
         <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
-          300&apos;ü aşkın kişilik, 16 kuşaklık örnek bir aile. Herkese açık ve
-          ortak — her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.
+          {t("login.demoNote")}
         </p>
       </div>
     </AuthShell>

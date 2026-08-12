@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   peopleCount: number;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoLoaded }: Props) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [busy, setBusy] = useState<"" | "export" | "import" | "demo">("");
@@ -24,7 +26,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     try {
       const res = await fetch("/api/family/demo", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Demo yüklenemedi.");
+      if (!res.ok) throw new Error(data?.error ?? t("gedcom.demoFailed"));
       onDemoLoaded(data.count ?? 0);
     } catch (err) {
       setError((err as Error).message);
@@ -37,7 +39,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     setError("");
     try {
       const res = await fetch("/api/family/export");
-      if (!res.ok) throw new Error("Dışa aktarma başarısız oldu.");
+      if (!res.ok) throw new Error(t("gedcom.exportFailed"));
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
       const name = cd.match(/filename="([^"]+)"/)?.[1] ?? "aile-agaci.ged";
@@ -65,7 +67,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
       fd.append("mode", mode);
       const res = await fetch("/api/family/import", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "İçe aktarma başarısız oldu.");
+      if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
       onImported(data.count ?? 0);
     } catch (err) {
       setError((err as Error).message);
@@ -77,21 +79,21 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
 
   return (
     <Modal
-      title="GEDCOM aktar / al"
-      subtitle="Tüm soy ağacı programlarının ortak dosya biçimi"
+      title={t("common.gedcom")}
+      subtitle={t("gedcom.subtitle")}
       onClose={onClose}
     >
       <div className="space-y-6">
         {/* Dışa aktar */}
         <section>
-          <h3 className="text-sm font-semibold text-text mb-1">Dışa aktar</h3>
+          <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.exportTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
-            {peopleCount} kişilik ağacını <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
-            dosyası olarak indir. MyHeritage, Ancestry, FamilySearch, Gramps ve
-            diğerlerine yükleyebilirsin.
+            {t("gedcom.exportBodyBefore", { count: peopleCount })}{" "}
+            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
+            {t("gedcom.exportBodyAfter")}
           </p>
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={busy !== ""}>
-            {busy === "export" ? "Hazırlanıyor…" : "GEDCOM indir"}
+            {busy === "export" ? t("gedcom.preparing") : t("gedcom.download")}
           </Button>
         </section>
 
@@ -99,16 +101,17 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
 
         {/* İçe aktar */}
         <section>
-          <h3 className="text-sm font-semibold text-text mb-1">İçe aktar</h3>
+          <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.importTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
-            Başka bir programdan indirdiğin <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
-            dosyasını buraya yükle. Kişiler, tarihler ve aile bağları aktarılır.
+            {t("gedcom.importBodyBefore")}{" "}
+            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
+            {t("gedcom.importBodyAfter")}
           </p>
 
           <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
             {([
-              { v: "merge", l: "Mevcuda ekle" },
-              { v: "replace", l: "Hepsini değiştir" },
+              { v: "merge", l: t("gedcom.modeMerge") },
+              { v: "replace", l: t("gedcom.modeReplace") },
             ] as const).map((o) => (
               <button
                 key={o.v}
@@ -125,7 +128,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
 
           {mode === "replace" && peopleCount > 0 && (
             <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg mb-3 leading-relaxed">
-              Dikkat: mevcut {peopleCount} kişi silinip dosyadaki kayıtlarla değiştirilecek.
+              {t("gedcom.replaceWarn", { count: peopleCount })}
             </p>
           )}
 
@@ -135,7 +138,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
             onClick={() => fileRef.current?.click()}
             disabled={busy !== ""}
           >
-            {busy === "import" ? "Aktarılıyor…" : "Dosya seç"}
+            {busy === "import" ? t("gedcom.importing") : t("gedcom.chooseFile")}
           </Button>
           <input
             ref={fileRef}
@@ -150,29 +153,25 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
 
         {/* Demo ağacı */}
         <section>
-          <h3 className="text-sm font-semibold text-text mb-1">Demo ağacı</h3>
+          <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.demoTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
-            16 kuşaklık örnek bir aile: 1521&apos;den bugüne 300&apos;ü aşkın kişi.
-            Soyadı Kanunu öncesi lakaplar, çok eşlilik, boşanmalar, akraba
-            evlilikleri, evlat edinme, göç ve savaş kayıpları — uygulamanın tüm
-            özelliklerini gösterir.
+            {t("gedcom.demoBody")}
           </p>
 
           {demoOnay || peopleCount === 0 ? (
             <div className="space-y-2.5">
               {peopleCount > 0 && (
                 <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg leading-relaxed">
-                  Mevcut {peopleCount} kişi silinip demo ağacıyla değiştirilecek.
-                  Önce GEDCOM olarak yedek almak isteyebilirsin.
+                  {t("gedcom.demoReplaceWarn", { count: peopleCount })}
                 </p>
               )}
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleDemo} disabled={busy !== ""}>
-                  {busy === "demo" ? "Yükleniyor…" : "Demo ağacını yükle"}
+                  {busy === "demo" ? t("gedcom.demoLoading") : t("gedcom.loadDemo")}
                 </Button>
                 {peopleCount > 0 && (
                   <Button size="sm" variant="ghost" onClick={() => setDemoOnay(false)}>
-                    Vazgeç
+                    {t("gedcom.cancel")}
                   </Button>
                 )}
               </div>
@@ -184,7 +183,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
               onClick={() => setDemoOnay(true)}
               disabled={busy !== ""}
             >
-              Demo ağacını yükle
+              {t("gedcom.loadDemo")}
             </Button>
           )}
         </section>

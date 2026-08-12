@@ -20,6 +20,7 @@ import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
@@ -31,6 +32,7 @@ interface Props {
 export default function PanelView({ people, onSelect, onAdd, onImportExport }: Props) {
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
+  const t = useT();
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
@@ -75,7 +77,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             rawPerson: p,
             days,
             icon: "🕯️",
-            label: years >= 1 ? `${years}. yıl anması` : "Ölüm yıldönümü",
+            label: years >= 1 ? t("panel.memorial.year", { years }) : t("panel.memorial.generic"),
           });
         }
       }
@@ -94,14 +96,14 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             rawPerson: p,
             days,
             icon: "💍",
-            label: years >= 1 ? `${years}. evlilik yıldönümü` : "Evlilik yıldönümü",
+            label: years >= 1 ? t("panel.anniversary.year", { years }) : t("panel.anniversary.generic"),
           });
         }
       }
     }
 
     return out.sort((a, b) => a.days - b.days).slice(0, 8);
-  }, [people, view, hideLiving]);
+  }, [people, view, hideLiving, t]);
 
   const eldest = useMemo(() => {
     return [...people]
@@ -122,12 +124,11 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       <div className="h-full grid place-items-center p-6">
         <div className="text-center max-w-sm">
           <p className="text-4xl mb-3">🌱</p>
-          <h2 className="font-serif text-xl font-semibold text-text mb-1.5">Panel boş</h2>
+          <h2 className="font-serif text-xl font-semibold text-text mb-1.5">{t("panel.empty.title")}</h2>
           <p className="text-sm text-text-muted mb-5">
-            İlk kişiyi ekleyince burada ailenin özeti, doğum günleri ve akrabalık
-            araçları belirecek.
+            {t("panel.empty.body")}
           </p>
-          {!readOnly && <Button onClick={onAdd}>İlk kişiyi ekle</Button>}
+          {!readOnly && <Button onClick={onAdd}>{t("panel.empty.addFirst")}</Button>}
         </div>
       </div>
     );
@@ -138,61 +139,61 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* İstatistikler */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat value={stats.total} label="Kişi" tone="primary" />
-          <Stat value={stats.generations} label="Kuşak" tone="accent" />
-          <Stat value={stats.living} label="Yaşayan" tone="male" />
-          <Stat value={stats.deceased} label="Vefat eden" tone="neutral" />
+          <Stat value={stats.total} label={t("panel.stats.people")} tone="primary" />
+          <Stat value={stats.generations} label={t("panel.stats.generations")} tone="accent" />
+          <Stat value={stats.living} label={t("panel.stats.living")} tone="male" />
+          <Stat value={stats.deceased} label={t("panel.stats.deceased")} tone="neutral" />
         </section>
 
         {/* Rakamlarla aile — genişletilmiş istatistikler */}
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="font-serif text-base font-semibold text-text">Rakamlarla aile</h2>
-            <span className="text-[11px] text-text-subtle shrink-0">özet</span>
+            <h2 className="font-serif text-base font-semibold text-text">{t("panel.numbers")}</h2>
+            <span className="text-[11px] text-text-subtle shrink-0">{t("panel.summary")}</span>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
-            <MiniStat label="Kadın" value={stats.female} />
-            <MiniStat label="Erkek" value={stats.male} />
-            <MiniStat label="Evlilik" value={stats.marriages} />
-            <MiniStat label="Boşanma" value={stats.divorces} />
+            <MiniStat label={t("panel.mini.female")} value={stats.female} />
+            <MiniStat label={t("panel.mini.male")} value={stats.male} />
+            <MiniStat label={t("panel.mini.marriages")} value={stats.marriages} />
+            <MiniStat label={t("panel.mini.divorces")} value={stats.divorces} />
             {stats.avgLifespan !== undefined && (
-              <MiniStat label="Ortalama ömür" value={`${stats.avgLifespan} yıl`} />
+              <MiniStat label={t("panel.mini.avgLifespan")} value={t("panel.mini.avgLifespanValue", { years: stats.avgLifespan })} />
             )}
             {stats.oldestLivingAge !== undefined && (
-              <MiniStat label="En yaşlı yaşayan" value={`${stats.oldestLivingAge} yaş`} />
+              <MiniStat label={t("panel.mini.oldestLiving")} value={t("panel.mini.oldestLivingValue", { age: stats.oldestLivingAge })} />
             )}
             {stats.oldestBirthYear !== undefined && (
-              <MiniStat label="En eski doğum" value={stats.oldestBirthYear} />
+              <MiniStat label={t("panel.mini.oldestBirth")} value={stats.oldestBirthYear} />
             )}
-            <MiniStat label="En kalabalık kardeş" value={stats.largestSibship} />
+            <MiniStat label={t("panel.mini.largestSibship")} value={stats.largestSibship} />
             {stats.topBirthPlace && (
-              <MiniStat label="En sık doğum yeri" value={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} wide />
+              <MiniStat label={t("panel.mini.topBirthPlace")} value={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} wide />
             )}
-            {stats.unlinked > 0 && <MiniStat label="Bağsız kişi" value={stats.unlinked} />}
+            {stats.unlinked > 0 && <MiniStat label={t("panel.mini.unlinked")} value={stats.unlinked} />}
           </dl>
         </section>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
-          <Card title="Kişinin akrabaları" hint="Örn. birinin halası kim?">
+          <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
             <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* Kuşak görüntüleyici */}
-          <Card title="Kuşak görüntüleyici" hint="N. kuşaktaki herkes">
+          <Card title={t("panel.card.generation")} hint={t("panel.card.generationHint")}>
             <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* Yakınlık derecesi */}
-          <Card title="Yakınlık derecesi" hint="1° · 2° · 10°…">
+          <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
             <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* Yaklaşan olaylar — doğum günü 🎂 · evlilik yıldönümü 💍 · anma 🕯️ */}
           <Card
-            title="Yaklaşan olaylar"
-            hint="Önümüzdeki 60 gün"
-            empty={upcoming.length === 0 ? "Bu dönemde yaklaşan olay yok" : undefined}
+            title={t("panel.card.upcoming")}
+            hint={t("panel.card.upcomingHint")}
+            empty={upcoming.length === 0 ? t("panel.card.upcomingEmpty") : undefined}
           >
             <ul className="space-y-1">
               {upcoming.map((ev) => {
@@ -202,13 +203,13 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                 if (ev.kind === "birthday") {
                   const age = calcAge(ev.rawPerson.birthDate);
                   subtext = masked ? (
-                    <p className="text-[11px] text-text-subtle leading-tight">🔒 Yaşayan</p>
+                    <p className="text-[11px] text-text-subtle leading-tight">{t("common.living")}</p>
                   ) : age !== null ? (
                     <p className="text-[11px] text-text-subtle leading-tight">
-                      🎂 {age + (ev.days === 0 ? 0 : 1)} yaşına giriyor
+                      {t("panel.birthday.turning", { age: age + (ev.days === 0 ? 0 : 1) })}
                     </p>
                   ) : (
-                    <p className="text-[11px] text-text-subtle leading-tight">🎂 Doğum günü</p>
+                    <p className="text-[11px] text-text-subtle leading-tight">{t("panel.birthday.generic")}</p>
                   );
                 } else {
                   subtext = (
@@ -247,12 +248,12 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
 
           {/* Akrabalık hesaplayıcı */}
-          <Card title="Akrabalık hesaplayıcı" hint="İki kişi nasıl akraba?">
+          <Card title={t("panel.card.calculator")} hint={t("panel.card.calculatorHint")}>
             <RelationCalculator people={people} idx={idx} onSelect={onSelect} />
           </Card>
 
           {/* En eski kuşak */}
-          <Card title="En eski kayıtlar" empty={eldest.length === 0 ? "Tarihli kayıt yok" : undefined}>
+          <Card title={t("panel.card.oldest")} empty={eldest.length === 0 ? t("panel.card.noDated") : undefined}>
             <ul className="space-y-1">
               {eldest.map((rawP) => {
                 const p = view(rawP);
@@ -275,7 +276,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                         )}
                       </div>
                       <span className="text-xs text-text-muted tabular-nums shrink-0">
-                        {masked ? "🔒 Yaşayan" : lifeSpan(p.birthDate, p.deathDate)}
+                        {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate)}
                       </span>
                     </button>
                   </li>
@@ -285,7 +286,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
 
           {/* En yeni kayıtlar */}
-          <Card title="En yeni kayıtlar" hint="Doğuma göre" empty={newest.length === 0 ? "Tarihli kayıt yok" : undefined}>
+          <Card title={t("panel.card.newest")} hint={t("panel.card.newestHint")} empty={newest.length === 0 ? t("panel.card.noDated") : undefined}>
             <ul className="space-y-1">
               {newest.map((rawP) => {
                 const p = view(rawP);
@@ -308,7 +309,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                         )}
                       </div>
                       <span className="text-xs text-text-muted tabular-nums shrink-0">
-                        {masked ? "🔒 Yaşayan" : lifeSpan(p.birthDate, p.deathDate)}
+                        {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate)}
                       </span>
                     </button>
                   </li>
@@ -318,7 +319,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
 
           {/* Soyadları + uyarılar */}
-          <Card title="Aileler" hint="Soyada göre">
+          <Card title={t("panel.card.families")} hint={t("panel.card.familiesHint")}>
             <div className="flex flex-wrap gap-1.5 mb-4">
               {stats.surnames.map((s) => (
                 <span
@@ -335,21 +336,20 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
               <div className="flex items-start gap-2.5 p-3 rounded-xl bg-accent-soft border border-accent/15">
                 <span className="text-sm" aria-hidden>💡</span>
                 <p className="text-xs text-text leading-relaxed">
-                  <span className="font-semibold">{stats.unlinked} kişinin</span> hiçbir
-                  aile bağı yok. Ağaç görünümünde kartın kenarındaki{" "}
-                  <span className="font-semibold">+</span> düğmeleriyle ebeveyn, eş veya
-                  çocuk ekleyebilirsin.
+                  <span className="font-semibold">{t("panel.unlinkedTip.bold", { count: stats.unlinked })}</span>{" "}
+                  {t("panel.unlinkedTip.mid")}{" "}
+                  <span className="font-semibold">+</span> {t("panel.unlinkedTip.end")}
                 </p>
               </div>
             )}
 
             <div className="flex gap-2 mt-4">
               <Button size="sm" variant="secondary" onClick={onImportExport}>
-                GEDCOM aktar / al
+                {t("common.gedcom")}
               </Button>
               {!readOnly && (
                 <Button size="sm" variant="secondary" onClick={onAdd}>
-                  Kişi ekle
+                  {t("common.addPerson")}
                 </Button>
               )}
             </div>
@@ -412,6 +412,7 @@ function RelativesFinder({
   const [personId, setPersonId] = useState("");
   const [filter, setFilter] = useState("");
   const { view } = usePrivacy();
+  const t = useT();
 
   const sorted = useMemo(() => {
     const coll = new Intl.Collator("tr");
@@ -457,8 +458,8 @@ function RelativesFinder({
 
   return (
     <div className="space-y-3">
-      <select value={personId} onChange={(e) => setPersonId(e.target.value)} className={selectCls} aria-label="Kişi seç">
-        <option value="">Kişi seç…</option>
+      <select value={personId} onChange={(e) => setPersonId(e.target.value)} className={selectCls} aria-label={t("common.choosePersonAria")}>
+        <option value="">{t("common.choosePerson")}</option>
         {sorted.map((p) => {
           const mp = view(p);
           return (
@@ -475,10 +476,10 @@ function RelativesFinder({
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Akrabalık ya da isim süz — örn. hala, dayı…"
+            placeholder={t("panel.rf.filterPlaceholder")}
             className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
           />
-          <p className="text-[11px] text-text-subtle">{relatives.length} akraba bulundu</p>
+          <p className="text-[11px] text-text-subtle">{t("panel.rf.found", { count: relatives.length })}</p>
           <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
             {shown.map(({ person, relation }) => (
               <li key={person.id}>
@@ -493,7 +494,7 @@ function RelativesFinder({
               </li>
             ))}
             {shown.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">Eşleşen akraba yok</li>
+              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.rf.noMatch")}</li>
             )}
           </ul>
         </>
@@ -515,6 +516,7 @@ function PersonPicker({
   onChange: (id: string) => void;
 }) {
   const { view } = usePrivacy();
+  const t = useT();
   const sorted = useMemo(() => {
     const coll = new Intl.Collator("tr");
     return [...people].sort(
@@ -522,8 +524,8 @@ function PersonPicker({
     );
   }, [people]);
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={pickerSelectCls} aria-label="Kişi seç">
-      <option value="">Kişi seç…</option>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={pickerSelectCls} aria-label={t("common.choosePersonAria")}>
+      <option value="">{t("common.choosePerson")}</option>
       {sorted.map((p) => {
         const mp = view(p);
         return (
@@ -575,6 +577,7 @@ function GenerationViewer({
 }) {
   const [personId, setPersonId] = useState("");
   const [gen, setGen] = useState(1);
+  const t = useT();
 
   const { up, down, gens } = useMemo(() => {
     if (!personId) return { up: new Map<string, number>(), down: new Map<string, number>(), gens: [] as number[] };
@@ -591,20 +594,20 @@ function GenerationViewer({
     const out: Array<{ person: Person; badge: string }> = [];
     if (gen === 0) {
       const self = idx.get(personId);
-      if (self) out.push({ person: self, badge: "Kendisi" });
+      if (self) out.push({ person: self, badge: t("panel.gv.self") });
       return out;
     }
     for (const [id, d] of up) if (d === gen) {
       const p = idx.get(id);
-      if (p) out.push({ person: p, badge: `↑ ${describeRelation(personId, id, people, idx) ?? "ata"}` });
+      if (p) out.push({ person: p, badge: `↑ ${describeRelation(personId, id, people, idx) ?? t("panel.gv.ancestor")}` });
     }
     for (const [id, d] of down) if (d === gen) {
       const p = idx.get(id);
-      if (p) out.push({ person: p, badge: `↓ ${describeRelation(personId, id, people, idx) ?? "torun"}` });
+      if (p) out.push({ person: p, badge: `↓ ${describeRelation(personId, id, people, idx) ?? t("panel.gv.descendant")}` });
     }
     const coll = new Intl.Collator("tr");
     return out.sort((a, b) => coll.compare(a.person.firstName, b.person.firstName));
-  }, [personId, gen, up, down, people, idx]);
+  }, [personId, gen, up, down, people, idx, t]);
 
   return (
     <div className="space-y-3">
@@ -612,7 +615,7 @@ function GenerationViewer({
       {personId && (
         <>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted shrink-0" htmlFor="gen-sec">Kuşak</label>
+            <label className="text-xs text-text-muted shrink-0" htmlFor="gen-sec">{t("panel.gv.genLabel")}</label>
             <select
               id="gen-sec"
               value={gen}
@@ -621,18 +624,18 @@ function GenerationViewer({
             >
               {gens.map((g) => (
                 <option key={g} value={g}>
-                  {g}. kuşak{g === 0 ? " (kişinin kendisi)" : ""}
+                  {t("panel.gv.genOption", { g })}{g === 0 ? ` ${t("panel.gv.selfParen")}` : ""}
                 </option>
               ))}
             </select>
           </div>
-          <p className="text-[11px] text-text-subtle">{results.length} kişi</p>
+          <p className="text-[11px] text-text-subtle">{t("common.peopleCount", { count: results.length })}</p>
           <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
             {results.map((r) => (
               <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
             ))}
             {results.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">Bu kuşakta kimse yok</li>
+              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.gv.noneInGen")}</li>
             )}
           </ul>
         </>
@@ -657,6 +660,7 @@ function DegreeViewer({
 }) {
   const [personId, setPersonId] = useState("");
   const [degree, setDegree] = useState(1);
+  const t = useT();
 
   const { degrees, dist } = useMemo(() => {
     if (!personId) return { degrees: [] as number[], dist: new Map<string, number>() };
@@ -683,7 +687,7 @@ function DegreeViewer({
       {personId && (
         <>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted shrink-0" htmlFor="deg-sec">Derece</label>
+            <label className="text-xs text-text-muted shrink-0" htmlFor="deg-sec">{t("panel.dv.degLabel")}</label>
             <select
               id="deg-sec"
               value={degree}
@@ -691,17 +695,17 @@ function DegreeViewer({
               className={pickerSelectCls}
             >
               {degrees.map((d) => (
-                <option key={d} value={d}>{d}. derece ({d}°)</option>
+                <option key={d} value={d}>{t("panel.dv.degOption", { d })}</option>
               ))}
             </select>
           </div>
-          <p className="text-[11px] text-text-subtle">{results.length} kişi · yalnızca kan hısımlığı</p>
+          <p className="text-[11px] text-text-subtle">{t("panel.dv.count", { count: results.length })}</p>
           <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
             {results.map((r) => (
               <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
             ))}
             {results.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">Bu derecede kimse yok</li>
+              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.dv.noneAtDegree")}</li>
             )}
           </ul>
         </>
@@ -743,6 +747,7 @@ function RelationCalculator({
 }) {
   const [aId, setAId] = useState("");
   const [bId, setBId] = useState("");
+  const t = useT();
 
   const sorted = useMemo(() => {
     const coll = new Intl.Collator("tr");
@@ -765,16 +770,16 @@ function RelationCalculator({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <select value={aId} onChange={(e) => setAId(e.target.value)} className={selectCls} aria-label="Birinci kişi">
-          <option value="">Kişi seç…</option>
+        <select value={aId} onChange={(e) => setAId(e.target.value)} className={selectCls} aria-label={t("panel.rc.firstAria")}>
+          <option value="">{t("common.choosePerson")}</option>
           {sorted.map((p) => (
             <option key={p.id} value={p.id}>
               {fullName(p)}
             </option>
           ))}
         </select>
-        <select value={bId} onChange={(e) => setBId(e.target.value)} className={selectCls} aria-label="İkinci kişi">
-          <option value="">Kişi seç…</option>
+        <select value={bId} onChange={(e) => setBId(e.target.value)} className={selectCls} aria-label={t("panel.rc.secondAria")}>
+          <option value="">{t("common.choosePerson")}</option>
           {sorted.map((p) => (
             <option key={p.id} value={p.id}>
               {fullName(p)}
@@ -801,7 +806,7 @@ function RelationCalculator({
             </p>
           ) : (
             <p className="text-sm text-text-muted">
-              Bu iki kişi arasında bir bağ bulunamadı.
+              {t("panel.rc.noBond")}
             </p>
           )}
         </div>

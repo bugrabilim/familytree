@@ -6,6 +6,7 @@ import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { aggregatePlaces, projectEquirectangular } from "@/lib/places";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
@@ -18,6 +19,7 @@ const VH = 620;
 
 export default function PlacesMap({ people, onSelect }: Props) {
   const { view } = usePrivacy();
+  const t = useT();
   const [activePlace, setActivePlace] = useState<string | null>(null);
 
   // GİZLİLİK: kişileri görüntü katmanından geçir; maskeli (gizli yaşayan)
@@ -67,9 +69,9 @@ export default function PlacesMap({ people, onSelect }: Props) {
       <div className="h-full grid place-items-center p-6">
         <div className="text-center max-w-sm">
           <p className="text-4xl mb-3">🗺️</p>
-          <h2 className="font-serif text-xl font-semibold text-text mb-1.5">Harita boş</h2>
+          <h2 className="font-serif text-xl font-semibold text-text mb-1.5">{t("map.emptyTitle")}</h2>
           <p className="text-sm text-text-muted">
-            Kişilere doğum yeri ekleyince burada aile coğrafyası belirecek.
+            {t("map.emptyBody")}
           </p>
         </div>
       </div>
@@ -81,13 +83,13 @@ export default function PlacesMap({ people, onSelect }: Props) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <div className="flex items-baseline justify-between gap-3">
           <div>
-            <h1 className="font-serif text-xl font-semibold text-text">Doğum yerleri</h1>
+            <h1 className="font-serif text-xl font-semibold text-text">{t("map.title")}</h1>
             <p className="text-sm text-text-muted">
-              {located.length} bilinen konum · {aggregates.length} farklı yer
+              {t("map.subtitle", { located: located.length, total: aggregates.length })}
             </p>
           </div>
           <p className="text-[11px] text-text-subtle shrink-0 hidden sm:block">
-            Nokta büyüklüğü kişi sayısına göre
+            {t("map.dotHint")}
           </p>
         </div>
 
@@ -98,7 +100,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               viewBox={`0 0 ${VW} ${VH}`}
               className="w-full h-auto"
               role="img"
-              aria-label="Doğum yerleri haritası"
+              aria-label={t("map.ariaMap")}
               style={{ minWidth: 480 }}
             >
               {/* Zemin */}
@@ -149,7 +151,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     className="cursor-pointer"
                     onClick={() => setActivePlace(isActive ? null : a.place)}
                     role="button"
-                    aria-label={`${a.place}: ${a.count} kişi`}
+                    aria-label={t("map.placeAria", { place: a.place, count: a.count })}
                   >
                     <circle
                       cx={x}
@@ -201,7 +203,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     onClick={() => setActivePlace(null)}
                     className="text-[11px] text-text-subtle hover:text-text shrink-0"
                   >
-                    Kapat
+                    {t("map.close")}
                   </button>
                 </div>
                 <PersonList ids={active.personIds} byId={byId} onSelect={onSelect} />
@@ -209,7 +211,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
             ) : (
               <section className="rounded-2xl border border-border bg-surface-2/60 p-4">
                 <p className="text-sm text-text-muted">
-                  Bir noktaya tıklayarak o yerde doğanları görebilirsin.
+                  {t("map.clickHint")}
                 </p>
               </section>
             )}
@@ -217,7 +219,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
             {/* En sık doğum yerleri */}
             <section className="rounded-2xl border border-border bg-surface p-4">
               <h2 className="font-serif text-base font-semibold text-text mb-3">
-                En sık doğum yerleri
+                {t("map.topPlaces")}
               </h2>
               <ul className="space-y-1">
                 {aggregates.slice(0, 8).map((a) => (
@@ -238,7 +240,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                       <span className="text-sm text-text truncate flex-1 min-w-0">
                         {a.place}
                         {!a.coords && (
-                          <span className="text-text-subtle"> · konum yok</span>
+                          <span className="text-text-subtle">{t("map.noLocation")}</span>
                         )}
                       </span>
                       <span className="text-xs text-text-muted tabular-nums shrink-0">
@@ -255,14 +257,14 @@ export default function PlacesMap({ people, onSelect }: Props) {
               <section className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex items-baseline justify-between gap-2 mb-3">
                   <h2 className="font-serif text-base font-semibold text-text">
-                    Konumu bilinmeyen yerler
+                    {t("map.unlocatedTitle")}
                   </h2>
                   <span className="text-[11px] text-text-subtle shrink-0">
                     {unlocated.length}
                   </span>
                 </div>
                 <p className="text-[11px] text-text-subtle mb-3">
-                  Haritada gösterilemiyor — sözlükte karşılığı yok. Yine de burada listeli.
+                  {t("map.unlocatedBody")}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {unlocated.map((a) => (

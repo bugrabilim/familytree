@@ -2,6 +2,7 @@
 
 import Button from "./ui/Button";
 import { useReadOnly } from "./ReadOnlyContext";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   onAdd: () => void;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Props) {
   const { readOnly } = useReadOnly();
+  const t = useT();
   return (
     <div className="h-full grid place-items-center px-6 py-10 overflow-y-auto">
       <div className="w-full max-w-md text-center">
@@ -36,14 +38,14 @@ export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Pro
         </svg>
 
         <h1 className="font-serif text-2xl font-semibold text-text mb-2">
-          Ailenin hikâyesi burada başlıyor
+          {t("empty.title")}
         </h1>
         <p className="text-sm text-text-muted leading-relaxed mb-7">
-          Kendinden başla. Sonra kartın kenarındaki{" "}
+          {t("empty.bodyBefore")}{" "}
           <span className="inline-flex w-4 h-4 rounded-full bg-primary text-primary-text items-center justify-center text-[9px] align-middle font-bold">
             +
           </span>{" "}
-          düğmeleriyle anne, baba, eş ve çocuk ekleyerek ağacı büyüt.
+          {t("empty.bodyAfter")}
         </p>
 
         {readOnly ? (
@@ -59,16 +61,16 @@ export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Pro
               />
               <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
             </svg>
-            Görüntüleme modu açık — düzenlemek için modu kapat.
+            {t("empty.readOnlyNote")}
           </div>
         ) : (
           <>
             <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
               <Button size="lg" onClick={onAdd}>
-                Kendimi ekle
+                {t("empty.addSelf")}
               </Button>
               <Button size="lg" variant="secondary" onClick={onImport}>
-                GEDCOM dosyam var
+                {t("empty.haveGedcom")}
               </Button>
             </div>
 
@@ -77,22 +79,22 @@ export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Pro
               disabled={demoLoading}
               className="mt-4 text-xs text-text-muted hover:text-primary underline underline-offset-4 disabled:opacity-50"
             >
-              {demoLoading ? "Demo yükleniyor…" : "Önce örnek bir ağaca göz at"}
+              {demoLoading ? t("empty.demoLoading") : t("empty.tryDemo")}
             </button>
           </>
         )}
 
         <div className="mt-10 grid gap-3 text-left">
           {[
-            { icon: "🌳", t: "Dört farklı görünüm", d: "Ağaç, soy çizgisi, liste ve özet paneli." },
-            { icon: "👨‍👩‍👧", t: "Türkçe akrabalık", d: "Amca mı dayı mı? Uygulama senin için hesaplar." },
-            { icon: "📄", t: "Veri senin", d: "GEDCOM ile her an dışa aktar, kilitlenme yok." },
+            { icon: "🌳", key: "views" },
+            { icon: "👨‍👩‍👧", key: "kinship" },
+            { icon: "📄", key: "data" },
           ].map((f) => (
-            <div key={f.t} className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border">
+            <div key={f.key} className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border">
               <span className="text-lg shrink-0" aria-hidden>{f.icon}</span>
               <div>
-                <p className="text-sm font-medium text-text leading-tight">{f.t}</p>
-                <p className="text-xs text-text-muted leading-relaxed mt-0.5">{f.d}</p>
+                <p className="text-sm font-medium text-text leading-tight">{t(`empty.feature.${f.key}.title`)}</p>
+                <p className="text-xs text-text-muted leading-relaxed mt-0.5">{t(`empty.feature.${f.key}.desc`)}</p>
               </div>
             </div>
           ))}

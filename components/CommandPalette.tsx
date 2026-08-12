@@ -8,6 +8,7 @@ import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   people: Person[];
@@ -22,6 +23,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
+  const t = useT();
   const { view, hideLiving } = usePrivacy();
   // Arama ve gösterim maskeli görünüm üzerinden — gizli alanlar eşleşmez.
   const people = useMemo(() => rawPeople.map(view), [rawPeople, view]);
@@ -92,7 +94,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Kişi ara"
+        aria-label={t("palette.aria")}
         className="relative z-10 w-full max-w-lg rounded-2xl bg-bg-elevated border border-border shadow-modal overflow-hidden animate-scale-in"
       >
         <div className="flex items-center gap-3 px-4 h-14 border-b border-border">
@@ -107,7 +109,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
               setQuery(e.target.value);
               setCursor(0);
             }}
-            placeholder="Kişi ara — isim, yer, hikâye…"
+            placeholder={t("palette.placeholder")}
             className="flex-1 bg-transparent text-[15px] text-text placeholder:text-text-subtle focus:outline-none"
           />
           <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-subtle shrink-0">
@@ -119,7 +121,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
           {results.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-sm text-text-muted mb-3">
-                {query ? `"${query}" bulunamadı` : "Henüz kimse yok"}
+                {query ? t("palette.notFound", { query }) : t("palette.empty")}
               </p>
               <button
                 onClick={() => {
@@ -128,7 +130,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
                 }}
                 className="text-sm text-primary font-medium hover:underline"
               >
-                + Yeni kişi ekle
+                {t("palette.addNew")}
               </button>
             </div>
           ) : (
@@ -152,10 +154,10 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
                       </p>
                       <p className="text-[11px] text-text-subtle truncate leading-tight">
                         {isMasked(p, hideLiving)
-                          ? "🔒 Yaşayan"
+                          ? t("common.living")
                           : [lifeSpan(p.birthDate, p.deathDate), p.birthPlace]
                               .filter(Boolean)
-                              .join(" · ") || "Ayrıntı yok"}
+                              .join(" · ") || t("palette.noDetail")}
                       </p>
                     </div>
                     {i === cursor && (

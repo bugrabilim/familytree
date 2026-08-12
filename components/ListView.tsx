@@ -9,6 +9,7 @@ import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
 type Filter =
@@ -35,6 +36,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
 
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
+  const t = useT();
   // Süzme, arama ve gösterim maskeli görünüm üzerinden yapılır — böylece
   // arama gizlenmiş alanlarla eşleşmez ve gizli bilgi listelenmez.
   const people = useMemo(() => rawPeople.map(view), [rawPeople, view]);
@@ -114,14 +116,14 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
   }, [people, query, sort, filter, childIds, lgbtIds]);
 
   const FILTERS: Array<{ k: Filter; l: string }> = [
-    { k: "hepsi", l: "Hepsi" },
-    { k: "yasayan", l: "Yaşayan" },
-    { k: "vefat", l: "Vefat" },
-    { k: "bagsiz", l: "Bağsız" },
-    { k: "lgbt", l: "LGBT+" },
-    { k: "dogustan", l: "Doğuştan durum" },
-    { k: "hastalik", l: "Sonradan rahatsızlık" },
-    { k: "olum-neden", l: "Ölüm nedeni" },
+    { k: "hepsi", l: t("list.filter.all") },
+    { k: "yasayan", l: t("list.filter.living") },
+    { k: "vefat", l: t("list.filter.deceased") },
+    { k: "bagsiz", l: t("list.filter.unlinked") },
+    { k: "lgbt", l: t("list.filter.lgbt") },
+    { k: "dogustan", l: t("list.filter.congenital") },
+    { k: "hastalik", l: t("list.filter.illness") },
+    { k: "olum-neden", l: t("list.filter.deathCause") },
   ];
 
   return (
@@ -140,7 +142,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="İsim, yer, hikâye…"
+              placeholder={t("list.searchPlaceholder")}
               className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
@@ -149,12 +151,12 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             className="h-9 px-2.5 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary cursor-pointer"
-            aria-label="Sırala"
+            aria-label={t("list.sortAria")}
           >
-            <option value="soyad">Soyada göre</option>
-            <option value="ad">Ada göre</option>
-            <option value="dogum">Doğum tarihine göre</option>
-            <option value="yeni">Son eklenen</option>
+            <option value="soyad">{t("list.sortSurname")}</option>
+            <option value="ad">{t("list.sortName")}</option>
+            <option value="dogum">{t("list.sortBirth")}</option>
+            <option value="yeni">{t("list.sortNewest")}</option>
           </select>
 
           {!readOnly && (
@@ -162,7 +164,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
               <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
                 <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              <span className="hidden sm:inline">Kişi ekle</span>
+              <span className="hidden sm:inline">{t("common.addPerson")}</span>
             </Button>
           )}
         </div>
@@ -182,7 +184,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             </button>
           ))}
           <span className="ml-auto text-xs text-text-subtle tabular-nums">
-            {rows.length} kişi
+            {t("common.peopleCount", { count: rows.length })}
           </span>
         </div>
       </div>
@@ -193,7 +195,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
           <div className="h-full grid place-items-center text-center">
             <div>
               <p className="text-3xl mb-2">🔍</p>
-              <p className="text-sm text-text-muted">Sonuç bulunamadı</p>
+              <p className="text-sm text-text-muted">{t("list.noResults")}</p>
             </div>
           </div>
         ) : (
@@ -221,12 +223,12 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                       </p>
                       {masked ? (
                         <p className="text-xs text-text-subtle truncate leading-tight mt-0.5">
-                          🔒 Yaşayan
+                          {t("common.living")}
                         </p>
                       ) : (
                         <p className="text-xs text-text-muted truncate leading-tight mt-0.5 tabular-nums">
-                          {lifeSpan(p.birthDate, p.deathDate) || "Tarih yok"}
-                          {age !== null && ` · ${age} yaş`}
+                          {lifeSpan(p.birthDate, p.deathDate) || t("list.noDate")}
+                          {age !== null && ` · ${t("list.yrs", { age })}`}
                         </p>
                       )}
                       {p.birthPlace && (
@@ -245,7 +247,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                       )}
                     </div>
                     {p.deathDate && (
-                      <span className="text-[10px] text-text-subtle shrink-0" title="Vefat etti">✝</span>
+                      <span className="text-[10px] text-text-subtle shrink-0" title={t("list.deceasedTitle")}>✝</span>
                     )}
                   </button>
                 </li>
