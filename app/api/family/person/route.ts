@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     bio: body.bio || undefined,
     events: Array.isArray(body.events) ? body.events : undefined,
     sources: Array.isArray(body.sources) ? body.sources : undefined,
+    memories: Array.isArray(body.memories) ? body.memories : undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],
     parentLinks: body.parentLinks && typeof body.parentLinks === "object" ? body.parentLinks : undefined,
     spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],

@@ -6,23 +6,35 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+export type UploadKind = "photo" | "audio";
+
 export async function uploadToCloudinary(
   fileBuffer: Buffer,
-  filename: string
+  filename: string,
+  kind: UploadKind = "photo"
 ): Promise<string> {
+  // Ses, Cloudinary'de "video" kaynağı olarak yüklenir; foto ise kare yüz-kırpma
+  // dönüşümüyle avatar boyutuna getirilir.
+  const options =
+    kind === "audio"
+      ? {
+          folder: "familytree/audio",
+          resource_type: "video" as const,
+          public_id: filename.replace(/\.[^.]+$/, ""),
+          overwrite: true,
+        }
+      : {
+          folder: "familytree",
+          public_id: filename.replace(/\.[^.]+$/, ""),
+          overwrite: true,
+          transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
+        };
+
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: "familytree",
-        public_id: filename.replace(/\.[^.]+$/, ""),
-        overwrite: true,
-        transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
-      },
-      (error, result) => {
-        if (error || !result) return reject(error ?? new Error("Upload failed"));
-        resolve(result.secure_url);
-      }
-    );
+    const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error || !result) return reject(error ?? new Error("Upload failed"));
+      resolve(result.secure_url);
+    });
     uploadStream.end(fileBuffer);
   });
 }

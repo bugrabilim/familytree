@@ -1,4 +1,4 @@
-import type { Gender, LifeEvent, ParentLink, Person } from "@/types/family";
+import type { Gender, LifeEvent, Memory, ParentLink, Person } from "@/types/family";
 
 /** İnsan-okur kod: 6 haneli, "289" ile başlar (bkz. lib/code.ts). */
 const formatCode = (n: number): string => "289" + String(n).padStart(3, "0");
@@ -171,6 +171,7 @@ interface Seed {
   /** yaşarken edinilen sağlık sorunu */ saglik?: string;
   /** ölüm nedeni */ olum?: string;
   /** yaşam olayları — zaman çizelgesi */ olaylar?: LifeEvent[];
+  /** anılar / hikâyeler */ anilar?: Memory[];
 }
 
 /**
@@ -218,6 +219,7 @@ function build(seeds: Seed[]): Person[] {
     healthCondition: s.saglik,
     deathCause: s.olum,
     events: s.olaylar,
+    memories: s.anilar,
     parentIds: s.eb ?? [],
     parentLinks: s.bag,
     spouseIds: s.es ?? [],
@@ -660,6 +662,19 @@ const K8: Seed[] = [
     olaylar: [
       { id: "ev-orhan-mez", type: "mezuniyet", title: "İnşaat mühendisliğinden mezun oldu", date: "1970", place: "İstanbul" },
       { id: "ev-orhan-goc", type: "goc-tasinma", title: "Libya şantiyesine gitti", date: "1974", place: "Trablus, Libya" },
+    ],
+    anilar: [
+      {
+        id: "an-orhan-1",
+        prompt: "En zor dönemin hangisiydi?",
+        text: "Trablus'ta ilk yıl. Ne dil biliyordum ne kimseyi tanıyordum. Akşamları çadırda radyoyu Türkiye'ye ayarlamaya çalışırdım; bazen bir maç, bazen sadece cızırtı. O cızırtı bile evimden bir parçaydı.",
+        date: "1974",
+      },
+      {
+        id: "an-orhan-2",
+        prompt: "Gelecek kuşaklara bir öğüt?",
+        text: "Para için gittiğin yerde, geride bıraktığını unutma. Ben bunu geç öğrendim.",
+      },
     ],
   },
   { id: "k8-orhan-es1", ad: "Filiz", soyad: "Aksoy", c: "female", d: "1950-06-08", yer: "İstanbul", bio: "Orhan'ın ilk eşi. 1968'de evlendiler, 1976'da boşandılar." },

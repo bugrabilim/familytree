@@ -51,6 +51,7 @@ export async function PUT(
     bio: body.bio ?? data.people[index].bio,
     events: Array.isArray(body.events) ? body.events : data.people[index].events,
     sources: Array.isArray(body.sources) ? body.sources : data.people[index].sources,
+    memories: Array.isArray(body.memories) ? body.memories : data.people[index].memories,
     parentIds: Array.isArray(body.parentIds)
       ? body.parentIds
       : data.people[index].parentIds,

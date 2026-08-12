@@ -370,6 +370,27 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {person.memories && person.memories.length > 0 && (
+            <section>
+              <SectionTitle>{t("drawer.memories")}</SectionTitle>
+              <ul className="space-y-3">
+                {person.memories.map((m) => (
+                  <li key={m.id} className="rounded-xl bg-surface-2 p-3">
+                    {m.prompt && (
+                      <p className="text-xs font-medium text-text-muted mb-1 leading-snug">{m.prompt}</p>
+                    )}
+                    {m.text && (
+                      <p className="text-sm text-text leading-snug whitespace-pre-wrap">{m.text}</p>
+                    )}
+                    {m.audio && (
+                      <audio controls src={m.audio} className="mt-2 h-9 w-full" preload="none" />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {timeline.hasEvents && (timeline.dated.length > 0 || timeline.undated.length > 0) && (
             <section>
               <SectionTitle>{t("drawer.timeline")}</SectionTitle>

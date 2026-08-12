@@ -1,4 +1,4 @@
-import type { Gender, LifeEvent, ParentLink, Person, Source } from "@/types/family";
+import type { Gender, LifeEvent, Memory, ParentLink, Person, Source } from "@/types/family";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
 
@@ -34,6 +34,7 @@ export interface PersonPayload {
   bio?: string;
   events?: LifeEvent[];
   sources?: Source[];
+  memories?: Memory[];
   parentIds?: string[];
   parentLinks?: Record<string, ParentLink>;
   spouseIds?: string[];
@@ -99,6 +100,16 @@ export async function uploadPhoto(file: File): Promise<string> {
   fd.append("file", file);
   const res = await fetch("/api/upload", { method: "POST", body: fd });
   if (!res.ok) throw new Error(await parseError(res, "Fotoğraf yüklenemedi."));
+  const { url } = await res.json();
+  return url;
+}
+
+export async function uploadAudio(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("kind", "audio");
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  if (!res.ok) throw new Error(await parseError(res, "Ses yüklenemedi."));
   const { url } = await res.json();
   return url;
 }
