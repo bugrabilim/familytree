@@ -5,7 +5,7 @@
 > haritası önerir. **Hiçbir özellik hemen eklenmek zorunda değil** — bu bir
 > tartışma ve referans belgesidir.
 >
-> Tarih: 2026-08 · Durum: Kademe 1–3 tamamlandı; Kademe 4 (rapor/PDF · sesli hikâye · gerçek rol) sırada
+> Tarih: 2026-08 · Durum: Kademe 1–5 tamamlandı; yalnız çoklu ağaç (auth) ile gerçek harita tile / DB-ELK bilinçli ertelendi
 >
 > **Güncelleme (2026-08):** Uygulama arayüzü sektör liderleri (MyHeritage,
 > Ancestry, FamilySearch) örnek alınarak baştan tasarlandı. Aşağıdaki bölüm 4
@@ -181,26 +181,28 @@ yaşam-olayı zaman çizelgesi, kaynak/atıf, çoklu medya galerisi, rol ayrım�
 İngilizce (i18n), meslek, eğitim seviyesi, eşzamanlı yazma koruması, blob
 önbelleği, yerleşim iyileştirmesi ve büyük ağaç sanallaştırması eklendi.
 
-### ❌ Hâlâ eksik olan (piyasa standardı) — öncelik sırasıyla
-**Yüksek getiri:**
-- **Rapor / yazdırma / PDF dışa aktarım** — ağaç ve kişi kartını yazdırılabilir /
-  PDF olarak alma. Ticari araçların ve webtrees'in hepsinde var; bizde yok.
-- **Rehberli anı + sözlü/sesli hikâye** — rehberli anı soruları ve sesli anı
-  kaydı. Şu an yalnız serbest `bio` + yapısal olaylar var (iç görü #4).
-- **Gerçek rol/davet sistemi** — kişiye özel hesap + rol (yönetici/editör/üye/
-  misafir) + davet bağlantısı. Şimdiki "görüntüleyen/düzenleyen" bir istemci
-  anahtarı, gerçek yetkilendirme değil (iç görü #8).
+### ✅ Yüksek getiri — tamamlandı (Kademe 4)
+- ~~**Rapor / yazdırma / PDF**~~ ✅ Aile kitabı + açık görünüm (ağaç/harita/soy/
+  panel) yazdırma (`PrintView`, `@media print`).
+- ~~**Rehberli anı + sözlü/sesli hikâye**~~ ✅ `memories[]` + rehberli sorular +
+  `AudioRecorder` (Cloudinary).
+- ~~**Gerçek rol/davet sistemi**~~ ✅ Görüntüleyen/editör/yönetici + tokenli davet
+  bağlantısı; sunucu-taraflı yetki (`lib/roles.ts`, `lib/members.ts`).
 
-**Olgunlaştırır:**
-- **Ek grafik türleri** — torunlar (descendancy), belirgin kum saati, aile
-  geneli tarihsel zaman çizelgesi. (webtrees ~12 grafik; bizde 6 görünüm.)
-- **İnce ayrımlı gizlilik** — alan-bazlı / role göre görünürlük (şimdi yalnız
-  global "yaşayan" maskesi + kayıt-bazlı `confidential`).
-- **Çoklu ağaç** — tek aile hesabı; birden fazla ağaç yönetimi yok.
-- **Gelişmiş arama/filtre** — tarih aralığı / yer / etiket bazlı sorgu.
+### ✅ Olgunlaştırır — büyük ölçüde tamamlandı
+- ~~**Ek grafik türleri**~~ ✅ Torunlar (descendancy) + aile geneli zaman
+  çizelgesi eklendi; 8 görünüm (ağaç/soy/torunlar/yelpaze/zaman/liste/harita/panel).
+- ~~**İnce ayrımlı gizlilik**~~ ✅ Role-bazlı (viewer'da zorunlu maske) + alan-bazlı
+  (`privateFields` grupları) + kayıt-bazlı `confidential`.
+- ~~**Gelişmiş arama/filtre**~~ ✅ Liste görünümünde birleştirilebilir alan süzgeci
+  (cinsiyet/yıl aralığı/yer/meslek/eğitim) — `lib/search.ts`.
+- **Çoklu ağaç** — ⏸️ ertelendi. Giriş "ağaç adı + şifre" temelli olduğundan
+  bir hesabın çok ağaç yönetmesi auth yeniden mimarisi ister; talep gelince.
 
 **Bilinçli sınırlı / kapsam dışı:**
-- Gezilebilir gerçek harita (tile) — CSP/çevrimdışı nedeniyle bilinçli olarak yok.
+- Gezilebilir gerçek harita (tile) — CSP/çevrimdışı nedeniyle bilinçli olarak yok
+  (elle sözlük + gömülü SVG dünya sınırlarıyla zoom/pan var).
+- Gerçek DB'ye geçiş + ELK ile tam yerleşim — teknik borç, ertelendi.
 - DNA eşleştirme ve devasa kayıt arşivi — devlerin işi, kapsam dışı.
 
 ---
@@ -225,13 +227,17 @@ Efor/getiri dengesine göre kademeler. Bir kademe komple yapılmak zorunda deği
 9. ~~**Kaynak/atıf**~~ ✅ `sources[]`.
 10. ~~**Harita**~~ ✅ `PlacesMap` + gerçek kara zemini (`lib/world-map.ts`).
 
-### 🟣 Kademe 4 — Sıradaki (bu döngü)
-11. **Rapor / yazdırma / PDF** — yazdırılabilir "aile kitabı" + kişi profili;
-    `@media print` + `window.print()` (bağımlılık yok, CSP güvenli).
-12. **Rehberli anı + sesli hikâye** — rehberli anı soruları; sesli anı kaydı
-    (Cloudinary'ye yükleme).
-13. **Gerçek rol/davet sistemi** — kişiye özel hesap + rol + davet bağlantısı;
-    Kademe 3'teki istemci anahtarının yerini alır.
+### 🟣 Kademe 4 — Olgunlaşma ✅ tamamlandı
+11. ~~**Rapor / yazdırma / PDF**~~ ✅ `PrintView` (aile kitabı) + açık görünüm
+    yazdırma; `@media print` + `window.print()`.
+12. ~~**Rehberli anı + sesli hikâye**~~ ✅ `memories[]` + `AudioRecorder`.
+13. ~~**Gerçek rol/davet sistemi**~~ ✅ Roller + tokenli davet + sunucu yetkisi.
+
+### 🟤 Kademe 5 — Olgunlaştırma (bu döngü)
+14. ~~**Ek grafik türleri**~~ ✅ Torunlar + Zaman çizelgesi (`lib/timeline.ts`).
+15. ~~**İnce ayrımlı gizlilik**~~ ✅ Role-bazlı + alan-bazlı (`privateFields`).
+16. ~~**Gelişmiş arama/filtre**~~ ✅ Faceted süzgeç (`lib/search.ts`).
+17. **Çoklu ağaç** — ⏸️ ertelendi (auth yeniden mimarisi gerektirir).
 
 ### ⛔ Kapsam dışı (bilinçli)
 - **DNA eşleştirme** ve **kayıt arşivi** — Devlerin işi, bizim alanımız değil.
