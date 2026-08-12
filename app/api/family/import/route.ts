@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { importGedcom } from "@/lib/gedcom";
 import { nextCode } from "@/lib/code";
@@ -18,9 +18,9 @@ function ensureCodes(people: Person[]): Person[] {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!canEdit(session.user.role))
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
+  if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   let formData: FormData;
@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (mode === "replace") {
-    await saveFamilyData(session.user.id, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
+    await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
   } else {
-    const { people: existing } = await getFamilyData(session.user.id, { skipCache: true });
-    await saveFamilyData(session.user.id, {
+    const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
+    await saveFamilyData(ctx.treeId, {
       people: ensureCodes([...existing, ...imported]),
       updatedAt: new Date().toISOString(),
     });

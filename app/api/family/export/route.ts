@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { getFamilyData } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { exportGedcom } from "@/lib/gedcom";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
 
-  const { people } = await getFamilyData(session.user.id);
+  const { people } = await getFamilyData(ctx.treeId);
   const gedcom = exportGedcom(people);
 
-  const familyName = (session.user.name ?? "aile-agaci").toLowerCase().replace(/\s+/g, "-");
+  const familyName = "aile-agaci";
 
   return new NextResponse(gedcom, {
     headers: {

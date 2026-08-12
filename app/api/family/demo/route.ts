@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { saveFamilyData } from "@/lib/blob";
+import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { DEMO_PEOPLE } from "@/lib/demo-data";
 
@@ -8,12 +8,12 @@ import { DEMO_PEOPLE } from "@/lib/demo-data";
  * Demo ağacını yükler. Mevcut veriyi değiştirir — arayüz onay alır.
  */
 export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!canEdit(session.user.role))
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
+  if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
-  await saveFamilyData(session.user.id, {
+  await saveFamilyData(ctx.treeId, {
     people: DEMO_PEOPLE,
     updatedAt: new Date().toISOString(),
   });

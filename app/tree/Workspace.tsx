@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
+import type { TreeMeta } from "@/lib/trees";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
@@ -59,6 +60,9 @@ export default function Workspace(props: {
   familyName?: string;
   displayName?: string;
   role?: TreeRole;
+  trees?: Array<TreeMeta & { home: boolean }>;
+  activeTreeId?: string;
+  isFounder?: boolean;
   initialSelectedId?: string;
 }) {
   // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
@@ -78,6 +82,9 @@ function WorkspaceInner({
   version,
   familyName,
   role = "admin",
+  trees,
+  activeTreeId,
+  isFounder,
   initialSelectedId,
 }: {
   people: Person[];
@@ -85,6 +92,9 @@ function WorkspaceInner({
   familyName?: string;
   displayName?: string;
   role?: TreeRole;
+  trees?: Array<TreeMeta & { home: boolean }>;
+  activeTreeId?: string;
+  isFounder?: boolean;
   initialSelectedId?: string;
 }) {
   const router = useRouter();
@@ -380,6 +390,9 @@ function WorkspaceInner({
         onPrintView={printCurrentView}
         onManageMembers={role === "admin" ? () => setMembersOpen(true) : undefined}
         peopleCount={people.length}
+        trees={trees}
+        activeTreeId={activeTreeId}
+        isFounder={isFounder}
       />
 
       <main
