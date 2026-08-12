@@ -277,3 +277,22 @@ body {
   box-shadow: none;
 }
 .react-flow__edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
+
+/* ----------------------------------------------------------------------
+ * Yazdırma (Madde 11) — yalnızca "aile kitabı" (.print-root) basılır.
+ * PrintView document.body'ye portallanır; uygulama gövdesi (.app-shell)
+ * yazdırmada gizlenir, böylece kitap sayfalara serbestçe akar.
+ * -------------------------------------------------------------------- */
+@media print {
+  .app-shell { display: none !important; }
+  .print-root {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-entry { break-inside: avoid; }
+  .print-cover { break-after: page; }
+  @page { margin: 16mm; }
+}
