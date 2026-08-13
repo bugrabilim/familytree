@@ -1,6 +1,12 @@
 import { put, list, get } from "@vercel/blob";
 import type { FamilyData } from "@/types/family";
-import { dbGetFamilyData, dbReplacePeople } from "@/lib/db";
+import {
+  dbDeletePeople,
+  dbGetFamilyData,
+  dbReplacePeople,
+  dbUpsertPeople,
+} from "@/lib/db";
+import { diffPeople } from "@/lib/people-diff";
 
 function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
@@ -104,6 +110,12 @@ export function versionMismatch(
 }
 
 export async function saveFamilyData(userId: string, data: FamilyData): Promise<void> {
+  // Hedefli çift-yazma için: AYNI istekte okunmuş TAZE anlık görüntüyü yakala
+  // (kaydetmeden önceki durum). Taze değilse (ör. önce okumayan demo yolu)
+  // güvenli tam-yenilemeye düşeceğiz.
+  const hit = cache.get(userId);
+  const freshOldJson = hit && Date.now() - hit.at < CACHE_TTL_MS ? hit.json : null;
+
   data.updatedAt = new Date().toISOString();
   const json = JSON.stringify(data);
   await put(blobPathname(userId), json, {
@@ -115,12 +127,18 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
   // Yazdıktan sonra önbelleği tazele: aynı örnekteki sonraki okumalar güncel.
   cache.set(userId, { json, at: Date.now() });
 
-  // Faz 2c — çift-yazma (best-effort): Postgres'i de tazele. Blob kaynaktır;
-  // Postgres yazması başarısız olursa kullanıcının kaydı ETKİLENMEZ (yalnız
-  // uyarı loglanır). Okuma yolu Postgres'e çevrildiğinde bu tam-yenileme,
-  // hedefli upsert'e dönüşecek.
+  // Faz 2c/2e — çift-yazma (best-effort): Postgres'i de yaz. Blob kaynaktır;
+  // Postgres yazması başarısız olursa kullanıcının kaydı ETKİLENMEZ. Taze eski
+  // görüntü varsa YALNIZ değişen/silinen kişileri yaz (hızlı); yoksa tam yenile.
   try {
-    await dbReplacePeople(userId, data.people);
+    if (freshOldJson) {
+      const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
+      const { changed, removed } = diffPeople(oldPeople, data.people);
+      if (changed.length) await dbUpsertPeople(userId, changed);
+      if (removed.length) await dbDeletePeople(userId, removed);
+    } else {
+      await dbReplacePeople(userId, data.people);
+    }
   } catch (e) {
     console.warn(`[cift-yazma] people→postgres (${userId}):`, (e as Error).message);
   }
