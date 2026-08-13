@@ -28,12 +28,19 @@ const people: Person[] = [
   P("anneF","Anne","female",["dedeX","nineY"],["babaM"]),
   P("dayiM","Dayi","male",["dedeX","nineY"]),
   P("ben","Ben","male",["babaM","anneF"]),
-  P("ablaF","Abla","female",["babaM","anneF"]),
+  P("ablaF","Abla","female",["babaM","anneF"],["enisteM"]),
+  P("kardesM","Kardes","male",["babaM","anneF"],["yengeF"]),
   P("oglumM","Oglum","male",["ben"]),
   P("kuzenF","Kuzen","female",["amcaM"]),
   P("yegenF","Yegen","female",["ablaF"]),
-  P("esimF","Esim","female",[],["ben"]),
+  P("esimF","Esim","female",["kayinP"],["ben"]),
   P("buyukhalaF","BuyukHala","female",["dedeM","nineF"]), // aslında hala; büyük hala testi ayrı
+  // Sıhrî (evlilik yoluyla) akrabalık testleri için ek kişiler
+  P("enisteM","Eniste","male",[],["ablaF"]),   // ablaF'in eşi → enişte / damat
+  P("yengeF","Yenge","female",[],["kardesM"]), // kardesM'in eşi → yenge / elti
+  P("kayinP","KayinP","male",[]),              // esimF'in babası → kayınpeder / dünür
+  P("baldizF","Baldiz","female",["kayinP"],["bacanakM"]), // esimF'in kız kardeşi → baldız
+  P("bacanakM","Bacanak","male",[],["baldizF"]),          // baldizF'in eşi → bacanak
 ];
 // oglum'un gözünden hala → büyük hala olmalı
 const idx = indexPeople(people);
@@ -49,9 +56,18 @@ const cases: Array<[string,string,string]> = [
   ["oglumM","dayiM","Büyük dayı"],
   ["dedeM","oglumM","Torun çocuğu"], ["dedeM","ben","Torun"],
   ["esimF","babaM","Kayınpeder"], ["esimF","anneF","Kayınvalide"],
-  ["esimF","ablaF","Baldız / Görümce"],
   ["babaM","esimF","Gelin"],
   ["ben","ben","Kendisi"],
+  // --- Sıhrî akrabalık: bakış açısına göre ayrışan terimler ---
+  ["esimF","ablaF","Görümce"],        // kadının, eşinin kız kardeşi
+  ["ben","baldizF","Baldız"],         // erkeğin, eşinin kız kardeşi
+  ["esimF","kardesM","Kayınbirader"], // eşin erkek kardeşi
+  ["ben","yengeF","Yenge"],           // erkek kardeşin eşi
+  ["ben","enisteM","Enişte"],         // kız kardeşin eşi
+  ["babaM","enisteM","Damat"],        // kızın eşi
+  ["esimF","yengeF","Elti"],          // kocaları kardeş olan iki kadın
+  ["ben","bacanakM","Bacanak"],       // eşleri kız kardeş olan iki erkek
+  ["babaM","kayinP","Dünür"],         // çocuğunun eşinin ebeveyni
 ];
 
 let ok = 0, fail = 0;

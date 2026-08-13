@@ -332,6 +332,40 @@ export function describeRelation(
   // Evlilik adımı içeriyor mu?
   const spouseAt = moves.indexOf("spouse");
   if (spouseAt !== -1) {
+    // Elti / Bacanak — "eşinin kardeşinin eşi": iki uçta evlilik, arada kardeşlik.
+    //   Yol: [spouse, parent, child, spouse]
+    //   • İki kadın (kocaları kardeş)  → elti
+    //   • İki erkek (eşleri kız kardeş) → bacanak
+    if (
+      moves.length === 4 &&
+      moves[0] === "spouse" &&
+      moves[1] === "parent" &&
+      moves[2] === "child" &&
+      moves[3] === "spouse"
+    ) {
+      const esId = path[0].personId; // from'un eşi
+      const kardesId = path[2].personId; // eşin kardeşi (to'nun eşi)
+      const eski = eskiEsMi(fromId, esId) || eskiEsMi(kardesId, toId);
+      let taban: string;
+      if (from?.gender === "female" && g === "female") taban = "Elti";
+      else if (from?.gender === "male" && g === "male") taban = "Bacanak";
+      else taban = "Eşinin kardeşinin eşi";
+      return eski ? `Eski ${taban.toLocaleLowerCase("tr")}` : taban;
+    }
+
+    // Dünür — "çocuğunun eşinin ebeveyni": iki ailenin evlilikle bağlanan büyükleri.
+    //   Yol: [child, spouse, parent]
+    if (
+      moves.length === 3 &&
+      moves[0] === "child" &&
+      moves[1] === "spouse" &&
+      moves[2] === "parent"
+    ) {
+      const damatGelinId = path[1].personId; // çocuğun eşi
+      const eski = eskiEsMi(path[0].personId, damatGelinId);
+      return eski ? "Eski dünür" : "Dünür";
+    }
+
     // "X'in eşi" biçiminde tarif et
     // "X'in eşi" — son adım evlilikse
     if (spouseAt === moves.length - 1) {
@@ -366,7 +400,17 @@ export function describeRelation(
           if (kalanLower === "anne") return "Kayınvalide";
           if (kalanLower === "baba") return "Kayınpeder";
           if (kalanLower.includes("kardeş")) {
-            return g === "female" ? "Baldız / Görümce" : "Kayınbirader";
+            // Eşin erkek kardeşi → her iki cinsiyette de "kayınbirader".
+            if (g === "male") return "Kayınbirader";
+            // Eşin kız kardeşi: bakış açısına göre ayrışır —
+            //  erkeğin eşinin kız kardeşi → "baldız"
+            //  kadının eşinin kız kardeşi → "görümce"
+            if (g === "female") {
+              if (from?.gender === "male") return "Baldız";
+              if (from?.gender === "female") return "Görümce";
+              return "Baldız / Görümce";
+            }
+            return "Eşinin kardeşi";
           }
         }
         // Üvey çocuk: eşinin (ya da eski eşinin) çocuğu
