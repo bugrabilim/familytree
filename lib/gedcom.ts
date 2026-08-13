@@ -3,6 +3,12 @@ import { nanoid } from "nanoid";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
+/** URL'den GEDCOM medya biçimi (uzantı); belirsizse "jpg". */
+function mediaForm(url: string): string {
+  const m = url.match(/\.(jpe?g|png|gif|webp|bmp|tiff?)(?:$|[?#])/i);
+  return m ? m[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
+}
+
 function dateToGedcom(date?: string): string {
   if (!date) return "";
   const parts = date.split("-");
@@ -149,6 +155,18 @@ export function exportGedcom(people: Person[]): string {
     if (p.occupation) lines.push(`1 OCCU ${p.occupation}`);
     if (p.education) lines.push(`1 EDUC ${p.education}`);
 
+    // Fotoğraflar — kapak + galeri, URL olarak taşınır (GEDCOM medyayı gömmez;
+    // MyHeritage vb. `OBJE/FILE` URL'lerini okur). Yinelenenler atlanır.
+    const media: string[] = [];
+    for (const url of [p.photo, ...(p.photos ?? [])]) {
+      if (url && !media.includes(url)) media.push(url);
+    }
+    for (const url of media) {
+      lines.push("1 OBJE");
+      lines.push(`2 FILE ${url}`);
+      lines.push(`2 FORM ${mediaForm(url)}`);
+    }
+
     if (p.bio) {
       const bioLines = p.bio.split("\n");
       lines.push(`1 NOTE ${bioLines[0]}`);
@@ -218,6 +236,8 @@ export function importGedcom(content: string): Person[] {
     education?: string;
     bio: string;
     events: Array<{ type: string; date?: string; title: string; place?: string; note: string }>;
+    photos: string[];
+    mediaRefs: string[];
   }
   interface GedFam {
     husb?: string;
@@ -230,10 +250,13 @@ export function importGedcom(content: string): Person[] {
 
   const individuals = new Map<string, GedIndi>();
   const families: GedFam[] = [];
+  /** Üst-düzey `0 @M@ OBJE` kayıtları: gedId → dosya URL'i (işaretçi çözümü). */
+  const mediaRecords = new Map<string, string>();
 
   let curIndi: GedIndi | null = null;
   let curFam: GedFam | null = null;
-  let ctx: "BIRT" | "DEAT" | "NOTE" | "FAMC" | "EVEN" | null = null;
+  let curObje: { gedId: string; file: string } | null = null;
+  let ctx: "BIRT" | "DEAT" | "NOTE" | "FAMC" | "EVEN" | "OBJE" | null = null;
   // EVEN bloğunda işlenen olay ve NOTE alt-bağlamı (level 3 CONT için)
   let curEvent: GedIndi["events"][number] | null = null;
   let inEvenNote = false;
@@ -241,6 +264,7 @@ export function importGedcom(content: string): Person[] {
   const flush = () => {
     if (curIndi) { individuals.set(curIndi.gedId, curIndi); curIndi = null; }
     if (curFam) { families.push(curFam); curFam = null; }
+    if (curObje) { if (curObje.file) mediaRecords.set(curObje.gedId, curObje.file); curObje = null; }
     ctx = null;
     curEvent = null;
     inEvenNote = false;
@@ -261,9 +285,11 @@ export function importGedcom(content: string): Person[] {
     if (level === 0) {
       flush();
       if (tag === "INDI" && xref) {
-        curIndi = { gedId: xref, ourId: nanoid(), firstName: "", lastName: "", gender: "unknown", bio: "", events: [] };
+        curIndi = { gedId: xref, ourId: nanoid(), firstName: "", lastName: "", gender: "unknown", bio: "", events: [], photos: [], mediaRefs: [] };
       } else if (tag === "FAM") {
         curFam = { children: [] };
+      } else if (tag === "OBJE" && xref) {
+        curObje = { gedId: xref, file: "" };
       }
       continue;
     }
@@ -294,9 +320,16 @@ export function importGedcom(content: string): Person[] {
         else if (tag === "OCCU") { ctx = null; curIndi.occupation = value || undefined; }
         else if (tag === "EDUC") { ctx = null; curIndi.education = value || undefined; }
         else if (tag === "NOTE") { ctx = "NOTE"; curIndi.bio = value; }
+        else if (tag === "OBJE") {
+          // İşaretçi (`@M@`) → sonra çöz; satır-içi ise `2 FILE` beklenir.
+          if (/^@[^@]+@$/.test(value)) { ctx = null; curIndi.mediaRefs.push(value); }
+          else ctx = "OBJE";
+        }
       } else if (level === 2) {
         inEvenNote = false;
-        if (ctx === "BIRT") {
+        if (ctx === "OBJE" && tag === "FILE") {
+          if (value) curIndi.photos.push(value);
+        } else if (ctx === "BIRT") {
           if (tag === "DATE") curIndi.birthDate = gedcomToDate(value);
           else if (tag === "PLAC") curIndi.birthPlace = value;
         } else if (ctx === "DEAT" && tag === "DATE") {
@@ -333,6 +366,9 @@ export function importGedcom(content: string): Person[] {
       else if (tag === "CHIL") curFam.children.push(value);
       else if (tag === "DIV" && value.toUpperCase() !== "N") curFam.divorced = true;
     }
+
+    // Üst-düzey `0 @M@ OBJE` kaydının dosya URL'i.
+    if (curObje && level === 1 && tag === "FILE" && !curObje.file) curObje.file = value;
   }
   flush();
 
@@ -346,6 +382,11 @@ export function importGedcom(content: string): Person[] {
       place: e.place,
       note: e.note || undefined,
     }));
+    // Fotoğraflar: satır-içi FILE'lar + çözülmüş işaretçiler (yinelenensiz).
+    const photos: string[] = [];
+    for (const u of [...gi.photos, ...gi.mediaRefs.map((r) => mediaRecords.get(r) ?? "")]) {
+      if (u && !photos.includes(u)) photos.push(u);
+    }
     people.push({
       id: gi.ourId,
       firstName: gi.firstName || "?",
@@ -357,6 +398,8 @@ export function importGedcom(content: string): Person[] {
       birthPlace: gi.birthPlace,
       occupation: gi.occupation,
       education: gi.education,
+      photo: photos[0],
+      photos: photos.length ? photos : undefined,
       bio: gi.bio || undefined,
       events: events.length ? events : undefined,
       parentIds: [],
