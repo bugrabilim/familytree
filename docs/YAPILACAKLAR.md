@@ -1,5 +1,19 @@
 # Yapılacaklar / Backlog
 
+## Kalıcı kural
+
+- **Her geliştirme/bug/değişikliğin İngilizcesi de yapılır** (i18n TR+EN),
+  onay beklemeden. (Kullanıcı talebi, 2026-08-13.)
+
+## Yapıldı — çok-biçimli aktarım + MyHeritage incelemesi
+
+- MyHeritage incelemesi: `docs/MYHERITAGE-INCELEME.md`.
+- İçe/dışa aktarım artık **GEDCOM + CSV + JSON** (`lib/import.ts`, biçim otomatik
+  algılanır; CSV/JSON'da id/baba/anne/eş ile bağlar korunur). Testler:
+  `tests/import.test.mts`.
+- Sonraki fikir: GEDCOM dışa aktarımında fotoğraf URL'lerini `OBJE` olarak yaz
+  (medya taşınsın).
+
 ## Bekleyen — Supabase Auth devamı (sonra yapılacak)
 
 3b+3c PR #48'de. Bayrak (`SUPABASE_AUTH_LOGIN`) kullanıcı hazır olunca açılacak.

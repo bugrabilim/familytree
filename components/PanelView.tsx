@@ -246,28 +246,28 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             {stats.unlinked > 0 && <MiniStat label={t("panel.mini.unlinked")} value={stats.unlinked} />}
             {/* #8 — sağlık / yönelim / evlilik desenleri (yalnız veri varsa; tıklanır) */}
             {groups.congenital.length > 0 && (
-              <MiniStat label="Doğuştan rahatsızlık" value={groups.congenital.length}
-                onClick={() => openDrill("Doğuştan rahatsızlığı olanlar", groups.congenital)} />
+              <MiniStat label={t("panel.mini.congenital")} value={groups.congenital.length}
+                onClick={() => openDrill(t("panel.drill.congenital"), groups.congenital)} />
             )}
             {groups.acquired.length > 0 && (
-              <MiniStat label="Sonradan rahatsızlık" value={groups.acquired.length}
-                onClick={() => openDrill("Sonradan rahatsızlanan/engelli olanlar", groups.acquired)} />
+              <MiniStat label={t("panel.mini.acquired")} value={groups.acquired.length}
+                onClick={() => openDrill(t("panel.drill.acquired"), groups.acquired)} />
             )}
             {groups.deathCause.length > 0 && (
-              <MiniStat label="Ölüm nedeni kayıtlı" value={groups.deathCause.length}
-                onClick={() => openDrill("Ölüm nedeni kayıtlı olanlar", groups.deathCause)} />
+              <MiniStat label={t("panel.mini.deathCause")} value={groups.deathCause.length}
+                onClick={() => openDrill(t("panel.drill.deathCause"), groups.deathCause)} />
             )}
             {groups.orientation.length > 0 && (
-              <MiniStat label="Cinsel yönelim kayıtlı" value={groups.orientation.length}
-                onClick={() => openDrill("Cinsel yönelim kaydı olanlar", groups.orientation)} />
+              <MiniStat label={t("panel.mini.orientation")} value={groups.orientation.length}
+                onClick={() => openDrill(t("panel.drill.orientation"), groups.orientation)} />
             )}
             {groups.polygamy.length > 0 && (
-              <MiniStat label="Çok eşli (aynı anda)" value={groups.polygamy.length}
-                onClick={() => openDrill("Aynı anda birden çok eşi olanlar", groups.polygamy)} />
+              <MiniStat label={t("panel.mini.polygamy")} value={groups.polygamy.length}
+                onClick={() => openDrill(t("panel.drill.polygamy"), groups.polygamy)} />
             )}
             {groups.multiMarriage.length > 0 && (
-              <MiniStat label="Birden çok evlilik" value={groups.multiMarriage.length}
-                onClick={() => openDrill("Birden çok evlilik yapanlar", groups.multiMarriage)} />
+              <MiniStat label={t("panel.mini.multiMarriage")} value={groups.multiMarriage.length}
+                onClick={() => openDrill(t("panel.drill.multiMarriage"), groups.multiMarriage)} />
             )}
           </dl>
         </section>
@@ -390,17 +390,17 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
 
           {/* #6 Yaşayan en yaşlılar */}
-          <Card title="Yaşayan en yaşlılar" empty={livingOldest.length === 0 ? t("panel.card.noDated") : undefined}>
+          <Card title={t("panel.card.livingOldest")} empty={livingOldest.length === 0 ? t("panel.card.noDated") : undefined}>
             <AgeList rows={livingOldest} onSelect={onSelect} />
           </Card>
 
           {/* #6 En gençler (yaşayan) */}
-          <Card title="En gençler" empty={youngest.length === 0 ? t("panel.card.noDated") : undefined}>
+          <Card title={t("panel.card.youngest")} empty={youngest.length === 0 ? t("panel.card.noDated") : undefined}>
             <AgeList rows={youngest} onSelect={onSelect} />
           </Card>
 
           {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
-          <Card title="En uzun yaşamışlar" hint="Yaşamış/yaşayan tüm kişiler arasında en yüksek yaş" empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
+          <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
             <AgeList rows={longestLived} onSelect={onSelect} />
           </Card>
 
@@ -581,6 +581,7 @@ function AgeList({
   rows: Array<{ p: Person; age: number; living?: boolean }>;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <ul className="space-y-1">
       {rows.map(({ p, age, living }) => (
@@ -597,7 +598,7 @@ function AgeList({
               </p>
             </div>
             <span className="text-xs font-medium text-text-muted tabular-nums shrink-0">
-              {living === false ? `${age} yıl` : `${age} yaş`}
+              {living === false ? t("panel.age.lived", { age }) : t("panel.age.old", { age })}
             </span>
           </button>
         </li>
@@ -614,11 +615,12 @@ function GenderPie({
   counts: Record<Gender, number>;
   onPick: (g: Gender, label: string) => void;
 }) {
+  const t = useT();
   const LABELS: Record<Gender, string> = {
-    female: "Kadın",
-    male: "Erkek",
-    other: "Diğer",
-    unknown: "Bilinmiyor",
+    female: t("panel.gender.female"),
+    male: t("panel.gender.male"),
+    other: t("panel.gender.other"),
+    unknown: t("panel.gender.unknown"),
   };
   const data = (Object.keys(LABELS) as Gender[])
     .map((g) => ({ g, v: counts[g] ?? 0, label: LABELS[g] }))
@@ -639,9 +641,9 @@ function GenderPie({
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-      <h2 className="font-serif text-base font-semibold text-text mb-3">Cinsiyet dağılımı</h2>
+      <h2 className="font-serif text-base font-semibold text-text mb-3">{t("panel.pie.title")}</h2>
       <div className="flex items-center gap-5">
-        <svg viewBox="0 0 100 100" className="w-28 h-28 shrink-0" role="img" aria-label="Cinsiyet dağılımı">
+        <svg viewBox="0 0 100 100" className="w-28 h-28 shrink-0" role="img" aria-label={t("panel.pie.title")}>
           <g transform="rotate(-90 50 50)">
             {arcs.length === 1 ? (
               <circle cx="50" cy="50" r={rMid} fill="none" stroke={genderTone(arcs[0].g).css} strokeWidth={sw} />
