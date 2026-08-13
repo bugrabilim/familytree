@@ -1,7 +1,7 @@
 import { put, list, get } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
-import type { Invite, Member, TreeAccess, TreeRole } from "@/types/user";
+import type { Invite, Member, ShareLink, TreeAccess, TreeRole } from "@/types/user";
 import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 
 /**
@@ -28,7 +28,7 @@ export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
     const result = await get(latest.pathname, { access: "private", useCache: false });
     if (!result || result.statusCode !== 200) return empty();
     const data = (await new Response(result.stream).json()) as TreeAccess;
-    return { members: data.members ?? [], invites: data.invites ?? [] };
+    return { members: data.members ?? [], invites: data.invites ?? [], share: data.share ?? null };
   } catch {
     return empty();
   }
@@ -154,4 +154,67 @@ export async function revokeInvite(treeId: string, tokenHash: string): Promise<v
   const data = await getTreeAccess(treeId);
   data.invites = data.invites.filter((iv) => iv.tokenHash !== tokenHash);
   await saveTreeAccess(treeId, data);
+}
+
+/* ── Herkese açık salt-okunur paylaşım (üyeliksiz görüntüleme) ──────────────── */
+
+/** Ağacın paylaşım bağlantısı (yoksa null). */
+export async function getShareLink(treeId: string): Promise<ShareLink | null> {
+  const data = await getTreeAccess(treeId);
+  return data.share ?? null;
+}
+
+/**
+ * Paylaşımı aç / jetonu yenile (rotate). Yeni tahmin-edilemez bir jeton üretir;
+ * eski bağlantı geçersizleşir. Ham jeton `<treeId>.<secret>`.
+ */
+export async function enableShare(
+  treeId: string,
+  treeName: string,
+  hideLiving: boolean
+): Promise<ShareLink> {
+  const secret = randomBytes(18).toString("base64url");
+  const share: ShareLink = {
+    token: `${treeId}.${secret}`,
+    treeName,
+    hideLiving,
+    createdAt: new Date().toISOString(),
+  };
+  const data = await getTreeAccess(treeId);
+  data.share = share;
+  await saveTreeAccess(treeId, data);
+  return share;
+}
+
+/** Paylaşım seçeneklerini (ad + yaşayan gizleme) güncelle. Jeton değişmez. */
+export async function updateShareOptions(
+  treeId: string,
+  treeName: string,
+  hideLiving: boolean
+): Promise<ShareLink | null> {
+  const data = await getTreeAccess(treeId);
+  if (!data.share) return null;
+  data.share = { ...data.share, treeName, hideLiving };
+  await saveTreeAccess(treeId, data);
+  return data.share;
+}
+
+/** Paylaşımı kapat (bağlantı/kod/QR geçersizleşir). */
+export async function disableShare(treeId: string): Promise<void> {
+  const data = await getTreeAccess(treeId);
+  data.share = undefined;
+  await saveTreeAccess(treeId, data);
+}
+
+/** Genel görüntüleme için: jeton geçerli ve etkin mi? Değilse null. */
+export async function findValidShare(
+  token: string
+): Promise<{ treeId: string; share: ShareLink } | null> {
+  const parsed = parseInviteToken(token);
+  if (!parsed) return null;
+  const data = await getTreeAccess(parsed.treeId);
+  if (data.share && data.share.token === token) {
+    return { treeId: parsed.treeId, share: data.share };
+  }
+  return null;
 }

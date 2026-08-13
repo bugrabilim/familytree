@@ -53,13 +53,20 @@ function readSnapshot(): boolean {
 export function PrivacyProvider({
   children,
   forced = false,
+  forcedValue,
 }: {
   children: React.ReactNode;
   /** Rol "viewer" ise true — yaşayan maskesi zorunlu, kullanıcı kapatamaz. */
   forced?: boolean;
+  /**
+   * `forced` iken kilitlenecek değer. Verilmezse `true` (yaşayanları gizle).
+   * Herkese açık paylaşımda sahibin tercihi (ör. false = yaşayanlar görünür)
+   * bu yolla zorlanır.
+   */
+  forcedValue?: boolean;
 }) {
   const stored = useSyncExternalStore(subscribe, readSnapshot, () => false);
-  const hideLiving = forced || stored;
+  const hideLiving = forced ? forcedValue ?? true : stored;
 
   const setHideLiving = useCallback(
     (v: boolean) => {

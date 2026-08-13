@@ -38,8 +38,26 @@ export interface Invite {
   usedAt?: string;
 }
 
+/**
+ * Herkese açık salt-okunur paylaşım bağlantısı (üyelik gerektirmez).
+ * Ağaç sahibi bir bağlantı/kod/QR üretir; bu jetona sahip herkes ağacı
+ * yalnızca GÖRÜNTÜLER (düzenleyemez). Jeton `<treeId>.<secret>` biçiminde ham
+ * (bearer) saklanır — tahmin edilemez; sahibi istediğinde yenileyip/kapatabilir.
+ */
+export interface ShareLink {
+  /** Ham bearer jeton: `<treeId>.<secret>`. Bağlantı ve "kod" olarak kullanılır. */
+  token: string;
+  /** Ağaç adı (paylaşım anında; genel sayfada başlık için). */
+  treeName: string;
+  /** Yaşayanların özel bilgileri gizlensin mi? (varsayılan: evet). */
+  hideLiving: boolean;
+  createdAt: string;
+}
+
 /** Bir ağacın erişim kaydı — blob `tree-access-<treeId>.json`. */
 export interface TreeAccess {
   members: Member[];
   invites: Invite[];
+  /** Herkese açık salt-okunur paylaşım (yoksa/undefined → paylaşım kapalı). */
+  share?: ShareLink | null;
 }

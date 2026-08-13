@@ -12,6 +12,7 @@ import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
 import PrintView from "@/components/PrintView";
 import MembersDialog from "@/components/MembersDialog";
+import ShareDialog from "@/components/ShareDialog";
 import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
@@ -64,13 +65,18 @@ export default function Workspace(props: {
   activeTreeId?: string;
   isFounder?: boolean;
   initialSelectedId?: string;
+  /** Herkese açık salt-okunur paylaşım görünümü (üyeliksiz genel ziyaretçi). */
+  publicView?: boolean;
+  /** publicView iken yaşayan-gizleme kilit değeri (sahibin tercihi). */
+  hideLivingForced?: boolean;
 }) {
   // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
   // tüketebilsin diye asıl mantık sağlayıcıların içindeki bir bileşene taşındı.
-  // Rol "viewer" ise salt-okunur zorlanır (sunucu da yazmayı reddeder).
+  // Rol "viewer" ya da genel paylaşım ise salt-okunur zorlanır (sunucu da reddeder).
+  const forcedViewer = props.role === "viewer" || !!props.publicView;
   return (
-    <ReadOnlyProvider forced={props.role === "viewer"}>
-      <PrivacyProvider forced={props.role === "viewer"}>
+    <ReadOnlyProvider forced={forcedViewer}>
+      <PrivacyProvider forced={forcedViewer} forcedValue={props.publicView ? props.hideLivingForced : undefined}>
         <WorkspaceInner {...props} />
       </PrivacyProvider>
     </ReadOnlyProvider>
@@ -86,6 +92,7 @@ function WorkspaceInner({
   activeTreeId,
   isFounder,
   initialSelectedId,
+  publicView,
 }: {
   people: Person[];
   version: string;
@@ -96,6 +103,8 @@ function WorkspaceInner({
   activeTreeId?: string;
   isFounder?: boolean;
   initialSelectedId?: string;
+  publicView?: boolean;
+  hideLivingForced?: boolean;
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
@@ -118,6 +127,7 @@ function WorkspaceInner({
   const [printOpen, setPrintOpen] = useState(false);
   const [printingView, setPrintingView] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
@@ -377,11 +387,13 @@ function WorkspaceInner({
         onImportExport={() => setGedcomOpen(true)}
         onPrint={() => setPrintOpen(true)}
         onPrintView={printCurrentView}
-        onManageMembers={role === "admin" ? () => setMembersOpen(true) : undefined}
+        onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
+        onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
         activeTreeId={activeTreeId}
         isFounder={isFounder}
+        publicView={publicView}
       />
 
       <main
@@ -547,6 +559,10 @@ function WorkspaceInner({
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+      )}
+
+      {shareOpen && role === "admin" && !publicView && (
+        <ShareDialog treeName={familyName} onClose={() => setShareOpen(false)} />
       )}
 
       {membersOpen && role === "admin" && (
