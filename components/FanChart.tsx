@@ -21,6 +21,8 @@ interface Props {
   selectedId?: string;
   onSelect: (id: string) => void;
   onSetRoot: (id: string) => void;
+  /** Boş alana tıklanınca açık profili kapat. */
+  onClose?: () => void;
 }
 
 /** Etiketi halka kalınlığına göre kabaca kısaltır (adlar-yalnız gösterim). */
@@ -36,6 +38,7 @@ export default function FanChart({
   selectedId,
   onSelect,
   onSetRoot,
+  onClose,
 }: Props) {
   const [generations, setGenerations] = useState(6);
   const { view } = usePrivacy();
@@ -130,6 +133,7 @@ export default function FanChart({
             className="w-full h-auto max-w-[860px]"
             role="img"
             aria-label={t("fan.ariaLabel", { name: primaryName(rootView) })}
+            onClick={() => onClose?.()}
           >
             {nodes.map((node) => (
               <Wedge
@@ -197,7 +201,8 @@ function Wedge({
   if (rot > 90) rot -= 180;
   if (rot < -90) rot += 180;
 
-  const label = fitLabel(primaryName(person), node.gen);
+  // Yelpazede yalnız isim gösterilir — "Osman oğlu" gibi patronim/soyad değil.
+  const label = fitLabel(person.firstName?.trim() || "İsimsiz", node.gen);
   const fontSize = isRoot ? 13 : node.gen <= 2 ? 11 : node.gen <= 4 ? 9 : 7.5;
 
   const title = `${primaryName(person)} — Sosa ${node.sosa}`;
@@ -205,8 +210,14 @@ function Wedge({
   return (
     <g
       className="cursor-pointer"
-      onClick={() => onSelect(person.id)}
-      onDoubleClick={() => onSetRoot(person.id)}
+      onClick={(e) => {
+        e.stopPropagation(); // arka plan (svg) kapatma tıklamasını tetiklemesin
+        onSelect(person.id);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onSetRoot(person.id);
+      }}
     >
       <title>{title}</title>
       <path

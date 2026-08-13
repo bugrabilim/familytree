@@ -44,16 +44,16 @@ export default function Avatar({ person, size = "md", className = "", ring = fal
   const tone = genderTone(person.gender);
   const ringCls = ring ? `ring-2 ${tone.ring}` : "";
 
-  /* Fotoğrafı olmayan kart boş kalmasın: kimlikten deterministik portre.
-     Adı da soyadı da boşsa (form ilk açıldığında) baş harflere düşüyoruz. */
-  const uretilmis =
-    person.firstName?.trim() || person.lastName?.trim()
-      ? generateAvatar(
-          person.id ?? `${person.firstName} ${person.lastName}`,
-          person.gender,
-          person.birthDate ? Number(person.birthDate.slice(0, 4)) : undefined
-        )
-      : undefined;
+  /* Fotoğraf yoksa avatar HER ZAMAN otomatik gelsin: kimlikten (yoksa ad, o da
+     yoksa sabit tohum) deterministik portre üretilir. Böylece hiçbir kart boş
+     ya da baş-harf kutusu olarak kalmaz. */
+  const seed =
+    person.id ?? (`${person.firstName ?? ""} ${person.lastName ?? ""}`.trim() || "anon");
+  const uretilmis = generateAvatar(
+    seed,
+    person.gender,
+    person.birthDate ? Number(person.birthDate.slice(0, 4)) : undefined
+  );
 
   const kaynak = (!failed && person.photo) || uretilmis;
 
