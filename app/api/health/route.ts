@@ -30,7 +30,8 @@ export async function GET() {
     CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
     CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
-    NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
+    // NextAuth v5 gizli anahtarı AUTH_SECRET adıyla okur (NEXTAUTH_SECRET değil).
+    AUTH_SECRET: !!process.env.AUTH_SECRET,
     ...supabaseEnvPresence(),
   };
 
