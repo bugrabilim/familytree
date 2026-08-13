@@ -81,7 +81,10 @@ export default function MigrateClient() {
                     <thead>
                       <tr className="text-left text-text-subtle border-b border-border">
                         <th className="py-1.5 pr-3 font-medium">Ağaç</th>
-                        <th className="py-1.5 px-2 font-medium tabular-nums">Kişi</th>
+                        <th className="py-1.5 px-2 font-medium tabular-nums">Kişi (Blob)</th>
+                        {kind === "preview" && (
+                          <th className="py-1.5 px-2 font-medium tabular-nums">Postgres</th>
+                        )}
                         <th className="py-1.5 px-2 font-medium tabular-nums">Üye</th>
                         <th className="py-1.5 px-2 font-medium tabular-nums">Davet</th>
                         <th className="py-1.5 pl-2 font-medium">Durum</th>
@@ -94,11 +97,20 @@ export default function MigrateClient() {
                             {String(t.tree)} {t.home ? <span className="text-[10px] text-text-subtle">(ana)</span> : null}
                           </td>
                           <td className="py-1.5 px-2 tabular-nums">{String(t.people ?? "—")}</td>
+                          {kind === "preview" && (
+                            <td className="py-1.5 px-2 tabular-nums">
+                              {t.postgresPeople == null ? "—" : String(t.postgresPeople)}
+                            </td>
+                          )}
                           <td className="py-1.5 px-2 tabular-nums">{String(t.members ?? "—")}</td>
                           <td className="py-1.5 px-2 tabular-nums">{String(t.invites ?? "—")}</td>
                           <td className="py-1.5 pl-2">
                             {kind === "preview" ? (
-                              <span className="text-text-subtle">hazır</span>
+                              t.inSync ? (
+                                <span className="text-primary">✓ eşitlenmiş</span>
+                              ) : (
+                                <span className="text-danger">✗ farklı</span>
+                              )
                             ) : t.ok ? (
                               <span className="text-primary">✓ {String(t.verifiedPeople)} doğrulandı</span>
                             ) : (
