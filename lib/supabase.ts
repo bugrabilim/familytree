@@ -51,3 +51,34 @@ export function supabaseAdmin(): SupabaseClient {
   });
   return cached;
 }
+
+/**
+ * Sağlık kontrolü: Supabase'e gerçekten ulaşılıyor mu ve şema hazır mı?
+ * Basit bir sorgu (trees tablosundan tek satır) dener — bağlantı + servis-rolü
+ * anahtarı + tablonun varlığını birlikte doğrular. Sır/değer sızdırmaz.
+ */
+export async function pingSupabase(): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "env eksik" };
+  try {
+    const { error } = await supabaseAdmin().from("trees").select("id").limit(1);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+/** Hangi Supabase env değişkeni adları mevcut? (yalnız var/yok, değer değil) */
+export function supabaseEnvPresence(): Record<string, boolean> {
+  const names = [
+    "SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SECRET_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "POSTGRES_URL",
+    "POSTGRES_PRISMA_URL",
+  ];
+  return Object.fromEntries(names.map((n) => [n, !!process.env[n]]));
+}

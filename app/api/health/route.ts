@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { pingBlob } from "@/lib/blob";
 import { pingCloudinary } from "@/lib/cloudinary";
+import { pingSupabase, supabaseEnvPresence } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,11 @@ export async function GET() {
   if (!canManage(session.user.role))
     return NextResponse.json({ error: "Yönetici olmalısınız." }, { status: 403 });
 
-  const [blob, cloudinary] = await Promise.all([pingBlob(), pingCloudinary()]);
+  const [blob, cloudinary, supabase] = await Promise.all([
+    pingBlob(),
+    pingCloudinary(),
+    pingSupabase(),
+  ]);
 
   const envPresent = {
     BLOB_READ_WRITE_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
@@ -26,8 +31,11 @@ export async function GET() {
     CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
     NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
+    ...supabaseEnvPresence(),
   };
 
+  // Not: Supabase henüz uygulamaya bağlı değil (Faz 2). Bu yüzden `healthy`
+  // hesabına KATILMAZ — yalnız bilgilendirme amaçlı gösterilir.
   const healthy = blob.ok && cloudinary.ok;
   return NextResponse.json(
     {
@@ -36,6 +44,7 @@ export async function GET() {
       services: {
         vercelBlob: blob, // veri deposu (JSON)
         cloudinary, // fotoğraf + ses
+        supabase, // Postgres (Faz 2 — bilgilendirme)
       },
       env: envPresent, // yalnız var/yok (değer değil)
     },
