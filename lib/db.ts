@@ -1,0 +1,118 @@
+import "server-only";
+import { supabaseAdmin } from "@/lib/supabase";
+import type { Person } from "@/types/family";
+import type { Invite, Member } from "@/types/user";
+
+/**
+ * Postgres (Supabase) veri katmanı — Faz 2.
+ *
+ * Şimdilik YALNIZ yazma (göç) ve doğrulama içindir; uygulama hâlâ Blob'dan
+ * okuyup yazıyor. Okuma yolu ileride (çift-yazma sonrası) buraya çevrilecek.
+ * Tüm çağrılar servis-rolü istemcisiyle sunucudan yapılır (RLS atlanır);
+ * yetki denetimi çağıran rotalarda.
+ */
+
+export interface TreeRow {
+  treeId: string;
+  ownerAccount: string;
+  name: string;
+  isHome: boolean;
+  createdAt?: string;
+}
+
+function personToRow(treeId: string, p: Person) {
+  return {
+    tree_id: treeId,
+    person_id: p.id,
+    first_name: p.firstName ?? "",
+    last_name: p.lastName ?? "",
+    gender: p.gender ?? "unknown",
+    birth_date: p.birthDate ?? null,
+    death_date: p.deathDate ?? null,
+    sibling_order: p.siblingOrder ?? null,
+    data: p, // tam Person nesnesi (kayıpsız)
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/** Ağaç satırını ekle/güncelle (id çakışmasında günceller). */
+export async function dbUpsertTree(t: TreeRow): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("trees")
+    .upsert(
+      {
+        id: t.treeId,
+        owner_account: t.ownerAccount,
+        name: t.name,
+        is_home: t.isHome,
+        ...(t.createdAt ? { created_at: t.createdAt } : {}),
+      },
+      { onConflict: "id" }
+    );
+  if (error) throw new Error(`trees upsert: ${error.message}`);
+}
+
+/** Ağacın kişilerini Postgres'e tam kopyala (önce temizle, sonra ekle). İdempotent. */
+export async function dbReplacePeople(treeId: string, people: Person[]): Promise<number> {
+  const sb = supabaseAdmin();
+  const del = await sb.from("people").delete().eq("tree_id", treeId);
+  if (del.error) throw new Error(`people delete: ${del.error.message}`);
+  if (people.length === 0) return 0;
+  const rows = people.map((p) => personToRow(treeId, p));
+  // Büyük ağaçlarda tek istek şişmesin diye parça parça ekle.
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await sb.from("people").insert(rows.slice(i, i + CHUNK));
+    if (error) throw new Error(`people insert: ${error.message}`);
+  }
+  return people.length;
+}
+
+/** Ağacın üyelerini Postgres'e tam kopyala. İdempotent. */
+export async function dbReplaceMembers(treeId: string, members: Member[]): Promise<number> {
+  const sb = supabaseAdmin();
+  const del = await sb.from("tree_members").delete().eq("tree_id", treeId);
+  if (del.error) throw new Error(`members delete: ${del.error.message}`);
+  if (members.length === 0) return 0;
+  const rows = members.map((m) => ({
+    id: m.id,
+    tree_id: treeId,
+    display_name: m.displayName,
+    password_hash: m.passwordHash,
+    role: m.role,
+    joined_at: m.joinedAt,
+  }));
+  const { error } = await sb.from("tree_members").insert(rows);
+  if (error) throw new Error(`members insert: ${error.message}`);
+  return members.length;
+}
+
+/** Ağacın davetlerini Postgres'e tam kopyala. İdempotent. */
+export async function dbReplaceInvites(treeId: string, invites: Invite[]): Promise<number> {
+  const sb = supabaseAdmin();
+  const del = await sb.from("tree_invites").delete().eq("tree_id", treeId);
+  if (del.error) throw new Error(`invites delete: ${del.error.message}`);
+  if (invites.length === 0) return 0;
+  const rows = invites.map((iv) => ({
+    tree_id: treeId,
+    token_hash: iv.tokenHash,
+    role: iv.role,
+    created_by: iv.createdBy,
+    created_at: iv.createdAt,
+    expires_at: iv.expiresAt,
+    used_at: iv.usedAt ?? null,
+  }));
+  const { error } = await sb.from("tree_invites").insert(rows);
+  if (error) throw new Error(`invites insert: ${error.message}`);
+  return invites.length;
+}
+
+/** Doğrulama: Postgres'te bu ağaç için kaç kişi var? */
+export async function dbCountPeople(treeId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin()
+    .from("people")
+    .select("person_id", { count: "exact", head: true })
+    .eq("tree_id", treeId);
+  if (error) throw new Error(`people count: ${error.message}`);
+  return count ?? 0;
+}
