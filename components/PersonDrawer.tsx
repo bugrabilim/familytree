@@ -9,6 +9,7 @@ import {
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
+import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
   describeRelation,
@@ -556,6 +557,9 @@ export default function PersonDrawer({
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEscapeKey(onClose);
   const t = useT();
+  const [enhanced, setEnhanced] = useState(false);
+  const canEnhance = isCloudinaryImage(src);
+  const shown = enhanced ? enhancedUrl(src) : src;
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 animate-fade-in"
@@ -573,9 +577,27 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
           <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       </button>
+      {/* İyileştir — Cloudinary dönüşümüyle görüntü-anı iyileştirme (yalnız gösterim) */}
+      {canEnhance && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setEnhanced((v) => !v);
+          }}
+          aria-pressed={enhanced}
+          className={`absolute left-3 top-3 flex items-center gap-2 h-9 px-3 rounded-lg text-xs font-medium transition-colors ${
+            enhanced ? "bg-primary text-primary-text" : "bg-white/10 text-white/90 hover:bg-white/20"
+          }`}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9L18 15z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {enhanced ? t("photo.original") : t("photo.enhance")}
+        </button>
+      )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={shown}
         alt=""
         onClick={(e) => e.stopPropagation()}
         className="max-w-full max-h-full object-contain rounded-lg shadow-modal"

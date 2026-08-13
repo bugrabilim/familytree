@@ -505,6 +505,8 @@ export const tr: Dict = {
   "drawer.siblings": "Kardeşler",
   "drawer.addSibling": "Kardeş ekle",
   "drawer.photoDialog": "Fotoğraf",
+  "photo.enhance": "İyileştir",
+  "photo.original": "Orijinal",
 
   /* --- Liste görünümü --- */
   "list.searchPlaceholder": "İsim, yer, hikâye…",
@@ -1222,6 +1224,8 @@ export const en: Dict = {
   "drawer.siblings": "Siblings",
   "drawer.addSibling": "Add sibling",
   "drawer.photoDialog": "Photo",
+  "photo.enhance": "Enhance",
+  "photo.original": "Original",
 
   /* --- List view --- */
   "list.searchPlaceholder": "Name, place, story…",
