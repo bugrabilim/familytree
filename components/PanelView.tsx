@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Person } from "@/types/family";
-import Avatar from "./ui/Avatar";
+import type { Gender, Person } from "@/types/family";
+import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
+import Modal from "./ui/Modal";
 import { calcAge, daysUntilAnniversary, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
 import {
   ancestorDepths,
@@ -123,6 +124,63 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       .slice(0, 5);
   }, [people]);
 
+  // Gizli alanlar sayım/gösterime sızmasın diye maskeli kopya üzerinde çalışırız
+  // (panelin geri kalanıyla tutarlı). Kimlik (`id`) maskede korunur → seçim çalışır.
+  const shown = useMemo(() => people.map(view), [people, view]);
+
+  // Yaşa göre sıralı (yaşayan = bugüne, vefat = ölüme kadar). #6/#7 için ortak.
+  const byAge = useMemo(
+    () =>
+      shown
+        .filter((p) => p.birthDate)
+        .map((p) => ({ p, age: calcAge(p.birthDate, p.deathDate), living: !p.deathDate }))
+        .filter((x): x is { p: Person; age: number; living: boolean } => x.age !== null),
+    [shown]
+  );
+  const livingOldest = useMemo(
+    () => byAge.filter((x) => x.living).sort((a, b) => b.age - a.age).slice(0, 5),
+    [byAge]
+  );
+  const youngest = useMemo(
+    () => byAge.filter((x) => x.living).sort((a, b) => a.age - b.age).slice(0, 5),
+    [byAge]
+  );
+  const longestLived = useMemo(
+    () => [...byAge].sort((a, b) => b.age - a.age).slice(0, 5),
+    [byAge]
+  );
+
+  // #8 — özet grupları (hepsi maskeli kopyadan; tıklanınca kişiler listelenir).
+  const groups = useMemo(
+    () => ({
+      female: shown.filter((p) => p.gender === "female"),
+      male: shown.filter((p) => p.gender === "male"),
+      living: shown.filter((p) => !p.deathDate),
+      deceased: shown.filter((p) => p.deathDate),
+      congenital: shown.filter((p) => p.congenitalCondition?.trim()),
+      acquired: shown.filter((p) => p.healthCondition?.trim()),
+      deathCause: shown.filter((p) => p.deathCause?.trim()),
+      orientation: shown.filter((p) => p.orientation?.trim()),
+      polygamy: shown.filter((p) => (p.spouseIds?.length ?? 0) > 1),
+      multiMarriage: shown.filter(
+        (p) => (p.spouseIds?.length ?? 0) + (p.formerSpouseIds?.length ?? 0) > 1
+      ),
+    }),
+    [shown]
+  );
+
+  const genderCounts = useMemo(() => {
+    const c: Record<Gender, number> = { female: 0, male: 0, other: 0, unknown: 0 };
+    for (const p of shown) c[p.gender] = (c[p.gender] ?? 0) + 1;
+    return c;
+  }, [shown]);
+
+  // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
+  const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
+  const openDrill = (title: string, list: Person[]) => {
+    if (list.length) setDrill({ title, list });
+  };
+
   if (people.length === 0) {
     return (
       <div className="h-full grid place-items-center p-6">
@@ -141,13 +199,23 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        {/* İstatistikler */}
+        {/* İstatistikler — rakamlar tıklanabilir (ilgili kişileri listeler) */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat value={stats.total} label={t("panel.stats.people")} tone="primary" />
+          <Stat value={stats.total} label={t("panel.stats.people")} tone="primary"
+            onClick={() => openDrill(t("panel.stats.people"), shown)} />
           <Stat value={stats.generations} label={t("panel.stats.generations")} tone="accent" />
-          <Stat value={stats.living} label={t("panel.stats.living")} tone="male" />
-          <Stat value={stats.deceased} label={t("panel.stats.deceased")} tone="neutral" />
+          <Stat value={stats.living} label={t("panel.stats.living")} tone="male"
+            onClick={() => openDrill(t("panel.stats.living"), groups.living)} />
+          <Stat value={stats.deceased} label={t("panel.stats.deceased")} tone="neutral"
+            onClick={() => openDrill(t("panel.stats.deceased"), groups.deceased)} />
         </section>
+
+        {/* #2 Cinsiyet dağılımı — pasta (donut) grafik + tıklanabilir açıklama */}
+        <GenderPie
+          counts={genderCounts}
+          onPick={(g, label) => openDrill(label, shown.filter((p) => p.gender === g))}
+        />
+
 
         {/* Rakamlarla aile — genişletilmiş istatistikler */}
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
@@ -156,8 +224,10 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             <span className="text-[11px] text-text-subtle shrink-0">{t("panel.summary")}</span>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
-            <MiniStat label={t("panel.mini.female")} value={stats.female} />
-            <MiniStat label={t("panel.mini.male")} value={stats.male} />
+            <MiniStat label={t("panel.mini.female")} value={stats.female}
+              onClick={() => openDrill(t("panel.mini.female"), groups.female)} />
+            <MiniStat label={t("panel.mini.male")} value={stats.male}
+              onClick={() => openDrill(t("panel.mini.male"), groups.male)} />
             <MiniStat label={t("panel.mini.marriages")} value={stats.marriages} />
             <MiniStat label={t("panel.mini.divorces")} value={stats.divorces} />
             {stats.avgLifespan !== undefined && (
@@ -174,6 +244,31 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
               <MiniStat label={t("panel.mini.topBirthPlace")} value={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} wide />
             )}
             {stats.unlinked > 0 && <MiniStat label={t("panel.mini.unlinked")} value={stats.unlinked} />}
+            {/* #8 — sağlık / yönelim / evlilik desenleri (yalnız veri varsa; tıklanır) */}
+            {groups.congenital.length > 0 && (
+              <MiniStat label={t("panel.mini.congenital")} value={groups.congenital.length}
+                onClick={() => openDrill(t("panel.drill.congenital"), groups.congenital)} />
+            )}
+            {groups.acquired.length > 0 && (
+              <MiniStat label={t("panel.mini.acquired")} value={groups.acquired.length}
+                onClick={() => openDrill(t("panel.drill.acquired"), groups.acquired)} />
+            )}
+            {groups.deathCause.length > 0 && (
+              <MiniStat label={t("panel.mini.deathCause")} value={groups.deathCause.length}
+                onClick={() => openDrill(t("panel.drill.deathCause"), groups.deathCause)} />
+            )}
+            {groups.orientation.length > 0 && (
+              <MiniStat label={t("panel.mini.orientation")} value={groups.orientation.length}
+                onClick={() => openDrill(t("panel.drill.orientation"), groups.orientation)} />
+            )}
+            {groups.polygamy.length > 0 && (
+              <MiniStat label={t("panel.mini.polygamy")} value={groups.polygamy.length}
+                onClick={() => openDrill(t("panel.drill.polygamy"), groups.polygamy)} />
+            )}
+            {groups.multiMarriage.length > 0 && (
+              <MiniStat label={t("panel.mini.multiMarriage")} value={groups.multiMarriage.length}
+                onClick={() => openDrill(t("panel.drill.multiMarriage"), groups.multiMarriage)} />
+            )}
           </dl>
         </section>
 
@@ -294,6 +389,21 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             </ul>
           </Card>
 
+          {/* #6 Yaşayan en yaşlılar */}
+          <Card title={t("panel.card.livingOldest")} empty={livingOldest.length === 0 ? t("panel.card.noDated") : undefined}>
+            <AgeList rows={livingOldest} onSelect={onSelect} />
+          </Card>
+
+          {/* #6 En gençler (yaşayan) */}
+          <Card title={t("panel.card.youngest")} empty={youngest.length === 0 ? t("panel.card.noDated") : undefined}>
+            <AgeList rows={youngest} onSelect={onSelect} />
+          </Card>
+
+          {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
+          <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
+            <AgeList rows={longestLived} onSelect={onSelect} />
+          </Card>
+
           {/* En yeni kayıtlar */}
           <Card title={t("panel.card.newest")} hint={t("panel.card.newestHint")} empty={newest.length === 0 ? t("panel.card.noDated") : undefined}>
             <ul className="space-y-1">
@@ -365,6 +475,31 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
         </div>
       </div>
+
+      {/* #1 — rakama tıklayınca ilgili kişiler */}
+      {drill && (
+        <Modal title={drill.title} subtitle={t("common.peopleCount", { count: drill.list.length })} onClose={() => setDrill(null)}>
+          <ul className="space-y-1">
+            {drill.list.map((p) => (
+              <li key={p.id}>
+                <button
+                  onClick={() => {
+                    onSelect(p.id);
+                    setDrill(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                >
+                  <Avatar person={p} size="sm" />
+                  <span className="text-sm text-text truncate flex-1 min-w-0 leading-tight">{fullName(p)}</span>
+                  <span className="text-xs text-text-muted tabular-nums shrink-0">
+                    {lifeSpan(p.birthDate, p.deathDate)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -382,25 +517,179 @@ function Stat({
   value,
   label,
   tone,
+  onClick,
 }: {
   value: number;
   label: string;
   tone: keyof typeof TONES;
+  onClick?: () => void;
 }) {
-  return (
-    <div className={`rounded-2xl p-4 ${TONES[tone]}`}>
+  const inner = (
+    <>
       <p className="text-2xl font-semibold tabular-nums leading-none">{value}</p>
       <p className="text-xs mt-1.5 opacity-80">{label}</p>
-    </div>
+    </>
+  );
+  const base = `rounded-2xl p-4 ${TONES[tone]}`;
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${base} text-left w-full transition-transform hover:scale-[1.02] cursor-pointer`}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div className={base}>{inner}</div>
   );
 }
 
-function MiniStat({ label, value, wide }: { label: string; value: string | number; wide?: boolean }) {
-  return (
-    <div className={wide ? "col-span-2" : ""}>
-      <dt className="text-[11px] text-text-subtle leading-tight">{label}</dt>
+function MiniStat({
+  label,
+  value,
+  wide,
+  onClick,
+}: {
+  label: string;
+  value: string | number;
+  wide?: boolean;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <>
+      <dt className={`text-[11px] leading-tight ${onClick ? "text-primary/70 group-hover:text-primary" : "text-text-subtle"}`}>
+        {label}
+      </dt>
       <dd className="text-lg font-semibold text-text tabular-nums leading-tight truncate">{value}</dd>
-    </div>
+    </>
+  );
+  const cls = wide ? "col-span-2" : "";
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${cls} group text-left rounded-lg -m-1 p-1 hover:bg-surface-2 transition-colors cursor-pointer`}>
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
+/** Yaşa göre kişi listesi — #6/#7 kartlarında ortak. */
+function AgeList({
+  rows,
+  onSelect,
+}: {
+  rows: Array<{ p: Person; age: number; living?: boolean }>;
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  return (
+    <ul className="space-y-1">
+      {rows.map(({ p, age, living }) => (
+        <li key={p.id}>
+          <button
+            onClick={() => onSelect(p.id)}
+            className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+          >
+            <Avatar person={p} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-text truncate leading-tight">{fullName(p)}</p>
+              <p className="text-[11px] text-text-subtle tabular-nums leading-tight">
+                {lifeSpan(p.birthDate, p.deathDate)}
+              </p>
+            </div>
+            <span className="text-xs font-medium text-text-muted tabular-nums shrink-0">
+              {living === false ? t("panel.age.lived", { age }) : t("panel.age.old", { age })}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** #2 — Cinsiyet dağılımı donut grafiği + tıklanabilir açıklama. */
+function GenderPie({
+  counts,
+  onPick,
+}: {
+  counts: Record<Gender, number>;
+  onPick: (g: Gender, label: string) => void;
+}) {
+  const t = useT();
+  const LABELS: Record<Gender, string> = {
+    female: t("panel.gender.female"),
+    male: t("panel.gender.male"),
+    other: t("panel.gender.other"),
+    unknown: t("panel.gender.unknown"),
+  };
+  const data = (Object.keys(LABELS) as Gender[])
+    .map((g) => ({ g, v: counts[g] ?? 0, label: LABELS[g] }))
+    .filter((d) => d.v > 0);
+  const total = data.reduce((s, d) => s + d.v, 0);
+  if (total === 0) return null;
+
+  const rMid = 34;
+  const sw = 16;
+  const C = 2 * Math.PI * rMid;
+  let acc = 0;
+  const arcs = data.map((d) => {
+    const len = (d.v / total) * C;
+    const arc = { ...d, dash: `${len} ${C - len}`, off: -acc, pct: Math.round((d.v / total) * 100) };
+    acc += len;
+    return arc;
+  });
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      <h2 className="font-serif text-base font-semibold text-text mb-3">{t("panel.pie.title")}</h2>
+      <div className="flex items-center gap-5">
+        <svg viewBox="0 0 100 100" className="w-28 h-28 shrink-0" role="img" aria-label={t("panel.pie.title")}>
+          <g transform="rotate(-90 50 50)">
+            {arcs.length === 1 ? (
+              <circle cx="50" cy="50" r={rMid} fill="none" stroke={genderTone(arcs[0].g).css} strokeWidth={sw} />
+            ) : (
+              arcs.map((a) => (
+                <circle
+                  key={a.g}
+                  cx="50"
+                  cy="50"
+                  r={rMid}
+                  fill="none"
+                  stroke={genderTone(a.g).css}
+                  strokeWidth={sw}
+                  strokeDasharray={a.dash}
+                  strokeDashoffset={a.off}
+                  className="cursor-pointer transition-[stroke-width] hover:[stroke-width:18]"
+                  onClick={() => onPick(a.g, a.label)}
+                >
+                  <title>{`${a.label}: ${a.v}`}</title>
+                </circle>
+              ))
+            )}
+          </g>
+          <text x="50" y="50" textAnchor="middle" dominantBaseline="central" fontSize="15" fontWeight={700} fill="var(--text)">
+            {total}
+          </text>
+        </svg>
+        <ul className="flex-1 min-w-0 space-y-1.5">
+          {arcs.map((a) => (
+            <li key={a.g}>
+              <button
+                type="button"
+                onClick={() => onPick(a.g, a.label)}
+                className="w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1 hover:bg-surface-2 transition-colors"
+              >
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: genderTone(a.g).css }} aria-hidden />
+                <span className="text-sm text-text flex-1 min-w-0 truncate">{a.label}</span>
+                <span className="text-xs text-text-muted tabular-nums shrink-0">
+                  {a.v} · %{a.pct}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 

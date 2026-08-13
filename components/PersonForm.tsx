@@ -69,6 +69,23 @@ const field =
   "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all";
 const label = "block text-xs font-medium text-text-muted mb-1.5";
 
+/**
+ * Türkçe-duyarlı normalleştirme: küçük harf + aksan/harf katlama, alfasayısal
+ * dışı at. "Öğretmen" ve "ogretmen" aynı anahtara iner → meslek önerilerinde
+ * yazım/harf farkına takılmadan eşleşme sağlar.
+ */
+function normalizeTr(s: string): string {
+  return s
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
 export default function PersonForm({
   people,
   initial,
@@ -168,6 +185,33 @@ export default function PersonForm({
     [people, personId]
   );
 
+  /**
+   * Meslek önerileri — ağaçta girilmiş mesleklerden türetilir (çoktan-seçmeli
+   * datalist). Türkçe-duyarlı anahtarla tekilleştirilir; en sık kullanılan
+   * yazım kanonik kabul edilir. `occupationCanon` ile "ogretmen" → "Öğretmen".
+   */
+  const occupationOptions = useMemo(() => {
+    const byKey = new Map<string, { display: string; count: number }>();
+    for (const p of people) {
+      const v = p.occupation?.trim();
+      if (!v) continue;
+      const key = normalizeTr(v);
+      if (!key) continue;
+      const cur = byKey.get(key);
+      if (cur) cur.count++;
+      else byKey.set(key, { display: v, count: 1 });
+    }
+    return [...byKey.values()]
+      .sort((a, b) => b.count - a.count || a.display.localeCompare(b.display, "tr"))
+      .map((o) => o.display);
+  }, [people]);
+
+  const occupationCanon = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of occupationOptions) m.set(normalizeTr(d), d);
+    return m;
+  }, [occupationOptions]);
+
   /** Avatar seçici için aynı kişinin farklı görünümleri */
   const avatarSecenekleri = useMemo(() => {
     const seed = personId || `${form.firstName} ${form.lastName}`.trim() || "yeni";
@@ -258,7 +302,9 @@ export default function PersonForm({
   const validate = (): boolean => {
     const e: Errors = {};
     if (!form.firstName.trim()) e.firstName = t("form.errFirstName");
-    if (!form.lastName.trim()) e.lastName = t("form.errLastName");
+    // Baba adı (patronim) varsa soyad zorunlu değil — Soyadı Kanunu öncesi
+    // kuşaklar "Şaban oğlu Hüseyin" gibi soyadsız kaydedilebilir.
+    if (!form.lastName.trim() && !form.patronymic.trim()) e.lastName = t("form.errLastName");
     if (!isValidDateInput(form.birthDate)) e.birthDate = t("form.errDate");
     if (!isValidDateInput(form.deathDate)) e.deathDate = t("form.errDate");
 
@@ -330,7 +376,9 @@ export default function PersonForm({
       language: form.language.trim() || undefined,
       ethnicity: form.ethnicity.trim() || undefined,
       nationality: form.nationality.trim() || undefined,
-      occupation: form.occupation.trim() || undefined,
+      occupation: form.occupation.trim()
+        ? occupationCanon.get(normalizeTr(form.occupation)) ?? form.occupation.trim()
+        : undefined,
       education: form.education.trim() || undefined,
       congenitalCondition: form.congenitalCondition.trim() || undefined,
       healthCondition: form.healthCondition.trim() || undefined,
@@ -569,7 +617,9 @@ export default function PersonForm({
           {errors.firstName && <p className="text-[11px] text-danger mt-1">{errors.firstName}</p>}
         </div>
         <div>
-          <label className={label} htmlFor="pf-soyad">Soyad *</label>
+          <label className={label} htmlFor="pf-soyad">
+            Soyad {form.patronymic.trim() ? <span className="text-text-subtle font-normal">(baba adı var — opsiyonel)</span> : "*"}
+          </label>
           <input
             id="pf-soyad"
             className={`${field} ${errors.lastName ? "border-danger ring-2 ring-danger/15" : ""}`}
@@ -716,7 +766,20 @@ export default function PersonForm({
             <div>
               <label className={label} htmlFor="pf-meslek">Meslek</label>
               <input id="pf-meslek" className={field} value={form.occupation}
-                onChange={(e) => set("occupation", e.target.value)} placeholder="Öğretmen, Balıkçı, Terzi…" />
+                list="pf-meslek-list"
+                onChange={(e) => set("occupation", e.target.value)}
+                onBlur={() => {
+                  // Yazımı ağaçtaki kanonik mesleğe hizala (ogretmen → Öğretmen).
+                  const v = form.occupation.trim();
+                  const canon = v ? occupationCanon.get(normalizeTr(v)) : undefined;
+                  if (canon && canon !== form.occupation) set("occupation", canon);
+                }}
+                placeholder="Öğretmen, Balıkçı, Terzi…" />
+              <datalist id="pf-meslek-list">
+                {occupationOptions.map((o) => (
+                  <option key={o} value={o} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className={label} htmlFor="pf-egitim">{t("form.education")}</label>

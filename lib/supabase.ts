@@ -53,6 +53,29 @@ export function supabaseAdmin(): SupabaseClient {
 }
 
 /**
+ * Auth (giriş/parola) işlemleri için istemci — Faz 3c.
+ *
+ * `signInWithPassword` gibi son-kullanıcı auth çağrıları için kullanılır.
+ * Anon/publishable anahtar tercih edilir; yoksa servis-rolüne düşülür
+ * (anahtar sunucuda kalır). HER ÇAĞRIDA YENİ istemci döner (paylaşımlı
+ * bellek-içi oturum yarışını önlemek için) ve oturum saklamaz.
+ * Yapılandırma yoksa `null` döner → çağıran taraf mevcut yola düşer.
+ */
+export function supabaseAuthClient(): SupabaseClient | null {
+  const url = pick("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+  const key = pick(
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SECRET_KEY"
+  );
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/**
  * Sağlık kontrolü: Supabase'e gerçekten ulaşılıyor mu ve şema hazır mı?
  * Basit bir sorgu (trees tablosundan tek satır) dener — bağlantı + servis-rolü
  * anahtarı + tablonun varlığını birlikte doğrular. Sır/değer sızdırmaz.

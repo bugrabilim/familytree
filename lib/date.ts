@@ -19,9 +19,27 @@ export function storedToDisplay(stored?: string): string {
   return y ?? "";
 }
 
-/** "23.04.1985" → "1985-04-23" ・ "1985" → "1985" */
+/**
+ * Serbest kullanıcı girişini GG.AA.YYYY / AA.YYYY / YYYY biçimine esnetir:
+ *  - Ayraç olarak `.` `/` `-` boşluk kabul eder → `.`
+ *  - Yalnız rakam: 8 hane "GGAAYYYY" (01022022 → 01.02.2022), 6 hane "AAYYYY",
+ *    4 hane "YYYY". Böylece takvim seçmeden de tarih yazılabilir.
+ * Belirsiz uzunlukları (5/7 hane) olduğu gibi bırakır; doğrulama eler.
+ */
+export function normalizeDateInput(input: string): string {
+  const s = (input ?? "").trim();
+  if (!s) return "";
+  if (/^\d+$/.test(s)) {
+    if (s.length === 8) return `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4)}`;
+    if (s.length === 6) return `${s.slice(0, 2)}.${s.slice(2)}`;
+    return s; // 4 hane (YYYY) ya da belirsiz → dokunma
+  }
+  return s.replace(/[./\-\s]+/g, ".").replace(/^\.|\.$/g, "");
+}
+
+/** "23.04.1985" → "1985-04-23" ・ "1985" → "1985" (esnek giriş kabul eder) */
 export function displayToStored(display: string): string {
-  const s = display.trim();
+  const s = normalizeDateInput(display);
   if (!s) return "";
   if (/^\d{4}$/.test(s)) return s;
   const parts = s.split(".").map((p) => p.trim());
@@ -38,7 +56,7 @@ export function displayToStored(display: string): string {
 
 /** Kullanıcının yazdığı GG.AA.YYYY / AA.YYYY / YYYY geçerli mi? */
 export function isValidDateInput(display: string): boolean {
-  const s = display.trim();
+  const s = normalizeDateInput(display);
   if (!s) return true; // boş = opsiyonel
 
   const year = (y: number) => y >= 1 && y <= new Date().getFullYear() + 1;

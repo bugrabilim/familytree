@@ -16,9 +16,15 @@ export interface FieldFilters {
   place: string;
   /** Meslek — içerir. */
   occupation: string;
-  /** Eğitim seviyesi anahtarı — tam eşleşme; boş = hepsi. */
+  /**
+   * Eğitim seviyesi anahtarı — tam eşleşme; boş = hepsi. Özel değer
+   * `NO_EDUCATION` → yalnız eğitim bilgisi OLMAYAN kişiler.
+   */
   education: string;
 }
+
+/** "Okul bilgisi yok" süzgeci için özel eğitim değeri. */
+export const NO_EDUCATION = "__none__";
 
 export function emptyFieldFilters(): FieldFilters {
   return { genders: [], place: "", occupation: "", education: "" };
@@ -65,7 +71,13 @@ export function matchesFields(p: Person, f: FieldFilters): boolean {
 
   if (f.place.trim() && !norm(p.birthPlace ?? "").includes(norm(f.place))) return false;
   if (f.occupation.trim() && !norm(p.occupation ?? "").includes(norm(f.occupation))) return false;
-  if (f.education && p.education !== f.education) return false;
+  if (f.education) {
+    if (f.education === NO_EDUCATION) {
+      if (p.education?.trim()) return false; // eğitim bilgisi var → ele
+    } else if (p.education !== f.education) {
+      return false;
+    }
+  }
   return true;
 }
 

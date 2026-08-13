@@ -16,6 +16,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
+  const [exportFmt, setExportFmt] = useState<"gedcom" | "csv" | "json">("gedcom");
   const [busy, setBusy] = useState<"" | "export" | "import" | "demo">("");
   const [error, setError] = useState("");
   const [demoOnay, setDemoOnay] = useState(false);
@@ -38,11 +39,12 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     setBusy("export");
     setError("");
     try {
-      const res = await fetch("/api/family/export");
+      const res = await fetch(`/api/family/export?format=${exportFmt}`);
       if (!res.ok) throw new Error(t("gedcom.exportFailed"));
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
-      const name = cd.match(/filename="([^"]+)"/)?.[1] ?? "aile-agaci.ged";
+      const ext = exportFmt === "gedcom" ? "ged" : exportFmt;
+      const name = cd.match(/filename="([^"]+)"/)?.[1] ?? `aile-agaci.${ext}`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -89,9 +91,23 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
           <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.exportTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
             {t("gedcom.exportBodyBefore", { count: peopleCount })}{" "}
-            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
+            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">{t("common.export.formatLabel")}</code>{" "}
             {t("gedcom.exportBodyAfter")}
           </p>
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
+            {(["gedcom", "csv", "json"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setExportFmt(f)}
+                className={`h-8 rounded-lg text-xs font-medium uppercase transition-all ${
+                  exportFmt === f ? "bg-bg-elevated text-text shadow-soft" : "text-text-muted hover:text-text"
+                }`}
+              >
+                {f === "gedcom" ? "GEDCOM" : f.toUpperCase()}
+              </button>
+            ))}
+          </div>
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={busy !== ""}>
             {busy === "export" ? t("gedcom.preparing") : t("gedcom.download")}
           </Button>
@@ -102,11 +118,12 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
         {/* İçe aktar */}
         <section>
           <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.importTitle")}</h3>
-          <p className="text-xs text-text-muted leading-relaxed mb-3">
+          <p className="text-xs text-text-muted leading-relaxed mb-2">
             {t("gedcom.importBodyBefore")}{" "}
             <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
             {t("gedcom.importBodyAfter")}
           </p>
+          <p className="text-[11px] text-text-subtle leading-relaxed mb-3">{t("common.import.formatsNote")}</p>
 
           <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
             {([
@@ -143,7 +160,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
           <input
             ref={fileRef}
             type="file"
-            accept=".ged,.gedcom,text/plain"
+            accept=".ged,.gedcom,.csv,.tsv,.json,.txt,text/plain,text/csv,application/json"
             className="hidden"
             onChange={handleImport}
           />

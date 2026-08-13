@@ -11,13 +11,12 @@ import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
 import type { TreeMeta } from "@/lib/trees";
 
-export type ViewKey = "agac" | "soy" | "torunlar" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
+export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
 
 /** Simgeler ve anahtarlar sabit; etiket/ipucu metinleri i18n sözlüğünden okunur. */
 export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
   { key: "agac", icon: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3" },
   { key: "soy", icon: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8" },
-  { key: "torunlar", icon: "M12 3v18M12 16l-6 4M12 16l6 4M6 8V4M18 8V4M6 6h12" },
   { key: "yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4" },
   { key: "zaman", icon: "M4 7h11M4 12h16M4 17h7M18 15l3 2-3 2" },
   { key: "liste", icon: "M4 6h16M4 12h16M4 18h16" },
@@ -66,7 +65,7 @@ export default function TopBar({
   const { readOnly, setReadOnly, forced } = useReadOnly();
 
   return (
-    <header className="relative z-30 shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
+    <header className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
       <div className="h-14 px-3 sm:px-4 flex items-center gap-3">
         {/* Marka */}
         <div className="flex items-center gap-2.5 min-w-0">

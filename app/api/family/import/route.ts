@@ -3,6 +3,7 @@ import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { importGedcom } from "@/lib/gedcom";
+import { detectFormat, parseNonGedcom } from "@/lib/import";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -36,11 +37,19 @@ export async function POST(req: NextRequest) {
   const text = await file.text();
   const mode = (formData.get("mode") as string) ?? "merge";
 
-  let imported: ReturnType<typeof importGedcom>;
+  // Çok-biçimli: GEDCOM / CSV / JSON (uzantı + içerik sezgisiyle belirlenir).
+  const format = detectFormat(file.name || "", text);
+  if (!format) {
+    return NextResponse.json(
+      { error: "Dosya biçimi tanınamadı (GEDCOM, CSV veya JSON bekleniyor)." },
+      { status: 400 }
+    );
+  }
+  let imported: Person[];
   try {
-    imported = importGedcom(text);
-  } catch {
-    return NextResponse.json({ error: "GEDCOM dosyası okunamadı" }, { status: 400 });
+    imported = format === "gedcom" ? importGedcom(text) : parseNonGedcom(format, text);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message || "Dosya okunamadı" }, { status: 400 });
   }
 
   if (mode === "replace") {
@@ -53,5 +62,5 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ count: imported.length });
+  return NextResponse.json({ count: imported.length, format });
 }
