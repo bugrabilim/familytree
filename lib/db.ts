@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { FamilyData, Person } from "@/types/family";
-import type { Invite, Member } from "@/types/user";
+import type { Invite, Member, User } from "@/types/user";
 
 /**
  * Postgres (Supabase) veri katmanı — Faz 2.
@@ -162,6 +162,32 @@ export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null
   let updatedAt = "";
   for (const r of rows) if (r.updated_at > updatedAt) updatedAt = r.updated_at;
   return { people: rows.map((r) => r.data), updatedAt };
+}
+
+/* ── Hesaplar (founder) — Faz 3, şimdilik yalnız çift-yazma aynası ─────────── */
+
+/** Founder hesabını ekle/güncelle (çift-yazma). */
+export async function dbUpsertAccount(u: User): Promise<void> {
+  const { error } = await supabaseAdmin().from("accounts").upsert(
+    {
+      id: u.id,
+      family_name: u.familyName,
+      password_hash: u.passwordHash,
+      recovery_code_hash: u.recoveryCodeHash ?? "",
+      created_at: u.createdAt,
+    },
+    { onConflict: "id" }
+  );
+  if (error) throw new Error(`accounts upsert: ${error.message}`);
+}
+
+/** Founder şifresini güncelle (çift-yazma). Büyük/küçük harf duyarsız eşleşme. */
+export async function dbUpdateAccountPassword(familyName: string, passwordHash: string): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("accounts")
+    .update({ password_hash: passwordHash })
+    .ilike("family_name", familyName);
+  if (error) throw new Error(`accounts password update: ${error.message}`);
 }
 
 /** Doğrulama: Postgres'te bu ağaç için kaç kişi var? */

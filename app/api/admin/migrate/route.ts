@@ -5,11 +5,13 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { getFamilyData } from "@/lib/blob";
 import { getTreeAccess } from "@/lib/members";
 import { listTrees } from "@/lib/trees";
+import { findUserByFamilyName } from "@/lib/users";
 import {
   dbCountPeople,
   dbReplaceInvites,
   dbReplaceMembers,
   dbReplacePeople,
+  dbUpsertAccount,
   dbUpsertTree,
 } from "@/lib/db";
 
@@ -86,6 +88,18 @@ export async function POST() {
   const g = await guard();
   if ("error" in g) return g.error;
 
+  // Founder hesabını da Postgres aynasına taşı (giriş verisi).
+  let account: string | boolean = false;
+  try {
+    const me = await findUserByFamilyName(g.homeName);
+    if (me) {
+      await dbUpsertAccount(me);
+      account = true;
+    }
+  } catch (e) {
+    account = `hata: ${(e as Error).message}`;
+  }
+
   const trees = await listTrees(g.accountId, g.homeName);
   const summary: Array<Record<string, unknown>> = [];
 
@@ -121,7 +135,7 @@ export async function POST() {
 
   const ok = summary.every((s) => s.ok);
   return NextResponse.json(
-    { migratedAt: new Date().toISOString(), account: g.accountId, ok, trees: summary },
+    { migratedAt: new Date().toISOString(), account: g.accountId, accountMirrored: account, ok, trees: summary },
     { status: ok ? 200 : 207 }
   );
 }

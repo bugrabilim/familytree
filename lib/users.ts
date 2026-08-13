@@ -1,5 +1,6 @@
 import { put, list, get } from "@vercel/blob";
 import type { User, UsersData } from "@/types/user";
+import { dbUpdateAccountPassword, dbUpsertAccount } from "@/lib/db";
 
 const USERS_PATHNAME = "users.json";
 
@@ -44,6 +45,13 @@ export async function createUser(
   };
   data.users.push(user);
   await saveUsersData(data);
+  // Faz 3 — çift-yazma (best-effort): hesabı Postgres'e de yaz. Giriş hâlâ
+  // Blob'dan doğrulanıyor; hata giriş/kayıt akışını ETKİLEMEZ.
+  try {
+    await dbUpsertAccount(user);
+  } catch (e) {
+    console.warn(`[cift-yazma] account→postgres (${user.id}):`, (e as Error).message);
+  }
   return user;
 }
 
@@ -58,5 +66,11 @@ export async function updateUserPassword(
   if (!user) return false;
   user.passwordHash = newPasswordHash;
   await saveUsersData(data);
+  // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
+  try {
+    await dbUpdateAccountPassword(user.familyName, newPasswordHash);
+  } catch (e) {
+    console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
+  }
   return true;
 }
