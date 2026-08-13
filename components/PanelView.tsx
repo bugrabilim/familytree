@@ -20,6 +20,8 @@ import {
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
 import { findIssues } from "@/lib/consistency";
+import { findDuplicatePairs } from "@/lib/duplicates";
+import MergeDialog from "./MergeDialog";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -179,6 +181,10 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   // Tutarlılık uyarıları — olası veri hataları (imkânsız tarih, çok genç ebeveyn…).
   const issues = useMemo(() => findIssues(people), [people]);
 
+  // Olası kopyalar (aynı kişi iki kez) — düzenleyici birleştirebilir.
+  const duplicates = useMemo(() => findDuplicatePairs(people), [people]);
+  const [mergePair, setMergePair] = useState<{ a: Person; b: Person } | null>(null);
+
   // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
   const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
   const openDrill = (title: string, list: Person[]) => {
@@ -312,6 +318,47 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                 {issues.length > 12 && (
                   <li className="px-2 pt-1 text-[11px] text-text-subtle">
                     {t("panel.card.issuesMore", { count: issues.length - 12 })}
+                  </li>
+                )}
+              </ul>
+            </Card>
+          )}
+
+          {/* Olası kopyalar — aynı kişi iki kez girilmiş olabilir (yalnız varsa) */}
+          {duplicates.length > 0 && (
+            <Card
+              title={t("panel.card.duplicates", { count: duplicates.length })}
+              hint={t("panel.card.duplicatesHint")}
+              className="lg:col-span-2"
+            >
+              <ul className="space-y-1">
+                {duplicates.slice(0, 10).map((d, i) => {
+                  const a = idx.get(d.aId);
+                  const b = idx.get(d.bId);
+                  if (!a || !b) return null;
+                  return (
+                    <li
+                      key={`${d.aId}-${d.bId}-${i}`}
+                      className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-xl hover:bg-surface-2 transition-colors"
+                    >
+                      <span className="text-sm text-text truncate flex-1 min-w-0">
+                        {fullName(view(a))} · {fullName(view(b))}
+                      </span>
+                      <span className="text-[11px] text-text-subtle shrink-0">{t(`panel.dup.${d.reason}`)}</span>
+                      {!readOnly && (
+                        <button
+                          onClick={() => setMergePair({ a, b })}
+                          className="text-[11px] font-medium text-primary hover:underline shrink-0"
+                        >
+                          {t("panel.dup.merge")}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+                {duplicates.length > 10 && (
+                  <li className="px-2 pt-1 text-[11px] text-text-subtle">
+                    {t("panel.card.issuesMore", { count: duplicates.length - 10 })}
                   </li>
                 )}
               </ul>
@@ -520,6 +567,11 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
           </Card>
         </div>
       </div>
+
+      {/* Olası kopyaları birleştir */}
+      {mergePair && (
+        <MergeDialog a={mergePair.a} b={mergePair.b} onClose={() => setMergePair(null)} />
+      )}
 
       {/* #1 — rakama tıklayınca ilgili kişiler */}
       {drill && (
