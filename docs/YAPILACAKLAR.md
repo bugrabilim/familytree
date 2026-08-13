@@ -17,25 +17,23 @@ Ayrıntı: `docs/SUPABASE-GECIS.md`.
 
 ---
 
-## Bug listesi (kullanıcı bildirimi — düzeltiliyor)
+## Bug listesi (kullanıcı bildirimi — TAMAMLANDI ✓, PR #48)
 
-1. Panel: özet tablosundaki rakamlar tıklanabilir olsun (ilgili filtreye götürsün).
-2. Panel: özet alanına görsel istatistik (ör. kadın/erkek pasta grafik).
-3. Liste gelişmiş filtre: okul bölümüne "okul bilgisi yok" seçeneği ekle.
-4. Meslek alanı: girilen verilerden türeyen çoktan-seçmeli; harf/normalizasyon
-   toleransı (öğretmen=ogretmen).
-5. Zaman sayfası: aşağı indikçe sağa kayma; ortaya gelince daha fazla kaymasın,
-   yıllar yukarıdan kaysın.
-6. Panel: "yaşayan en yaşlılar" ve "en gençler" alanları.
-7. Panel: tüm zamanların (yaşamış/ölmüş dâhil) en yaşlıları.
-8. Panel özet: hastalıktan ölenler, doğuştan engelliler, sonradan engelliler,
-   LGBT, çok eşlilik, birden fazla evlilik vb. (veri modeli el verdiğince).
-9. Yelpaze: boş/kök başındayken profil kapansın.
-10. Yelpaze: "Osman oğlu Mehmed" gibi ad tanımlarında yelpazede yalnız isim
-    gösterilsin (ön tanım/soyad değil).
-11. Torunlar sayfası gereksiz → kaldır (ağaçtan zaten bulunuyor).
-12. Demo hesaba girince profil sayfası açık gelmesin.
-13. Profil açıkken sağ üstteki üç-nokta menüsü profilin altında kalıyor (z-index).
-14. Fotoğraf yoksa avatar otomatik gelsin.
-15. Yeni kişi: baba adı varsa soyad zorunluluğu kalksın.
-16. Doğum tarihi: "01022022" gibi girişi kabul et / takvim seçici.
+1. ✓ Panel özet rakamları tıklanabilir → ilgili kişileri alt pencerede listeler.
+2. ✓ Panel: cinsiyet dağılımı donut (pasta) grafiği + tıklanabilir açıklama.
+3. ✓ Liste gelişmiş filtre → Eğitim'e "Okul bilgisi yok" seçeneği.
+4. ✓ Meslek: ağaçtaki mesleklerden datalist + Türkçe-duyarlı eşleşme
+   (ogretmen → Öğretmen).
+5. ✓ Zaman: yalnız dikey kaydırma; sağa kayma giderildi, yıllar üstte yapışık.
+6. ✓ Panel: "Yaşayan en yaşlılar" ve "En gençler" kartları.
+7. ✓ Panel: "En uzun yaşamışlar" (yaşayan/ölmüş, en yüksek yaş).
+8. ✓ Panel: doğuştan/sonradan rahatsızlık, ölüm nedeni, cinsel yönelim,
+   çok eşlilik, birden çok evlilik (yalnız veri varsa; maskeli; tıklanır).
+9. ✓ Yelpaze: boş alana tıklayınca profil kapanır.
+10. ✓ Yelpaze: dilimlerde yalnız isim (patronim/soyad değil).
+11. ✓ "Torunlar" görünümü kaldırıldı.
+12. ✓ İlk yüklemede profil paneli kendiliğinden açılmaz (demo dâhil).
+13. ✓ Üç-nokta menüsü artık açık profilin üstünde (z-index).
+14. ✓ Fotoğraf yoksa avatar her zaman otomatik üretilir.
+15. ✓ Baba adı varsa soyad zorunlu değil.
+16. ✓ Esnek tarih girişi ("01022022", / ve - ayraçları, AAYYYY, YYYY).
