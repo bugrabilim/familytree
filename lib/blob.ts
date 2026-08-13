@@ -38,9 +38,16 @@ async function readFromBlob(userId: string): Promise<FamilyData> {
   return JSON.parse(text) as FamilyData;
 }
 
-/** Sağlık kontrolü: Blob deposuna (token) ulaşılıyor mu? (sır sızdırmaz) */
+/**
+ * Sağlık kontrolü: Blob deposuna gerçekten ulaşılıyor mu? (sır sızdırmaz)
+ *
+ * Doğrudan bir `list()` çağrısı dener — token'ın env değişkeni ADINI tahmin
+ * etmeye çalışmaz. Bu ortamdaki özelleştirilmiş `@vercel/blob`, kimlik
+ * doğrulamayı `BLOB_READ_WRITE_TOKEN` dışında bir yolla çözebildiği için
+ * (uygulama fiilen okuyup yazabiliyor) env-adı ön kontrolü yanlış negatif
+ * veriyordu. Gerçek çağrı, yeteneği en doğru şekilde ölçer.
+ */
 export async function pingBlob(): Promise<{ ok: boolean; error?: string }> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return { ok: false, error: "env eksik" };
   try {
     await list({ limit: 1 });
     return { ok: true };
