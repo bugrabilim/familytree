@@ -1,0 +1,102 @@
+import type { Person } from "@/types/family";
+
+/**
+ * Ağaç tutarlılık denetimi (MyHeritage'ın "tree consistency checker"ına benzer)
+ * — SAF, test edilebilir mantık (server-only değil). Ağaçtaki olası veri
+ * hatalarını (imkânsız tarihler, çok genç ebeveyn, döngü…) işaretler. Yanlış
+ * pozitifi azaltmak için yalnız NET durumlar bildirilir; eksik/kısmi tarihlerde
+ * temkinli davranılır.
+ */
+
+export type IssueKind =
+  | "deathBeforeBirth"
+  | "bornInFuture"
+  | "diedInFuture"
+  | "implausibleAge"
+  | "parentYoungerThanChild"
+  | "tooYoungParent"
+  | "bornAfterParentDeath"
+  | "selfSpouse"
+  | "selfParent";
+
+export interface Issue {
+  personId: string;
+  kind: IssueKind;
+  severity: "error" | "warning";
+}
+
+/** "YYYY[-MM[-DD]]" → yıl (sayı) ya da null. */
+function year(d?: string): number | null {
+  if (!d) return null;
+  const y = parseInt(d.slice(0, 4), 10);
+  return Number.isFinite(y) ? y : null;
+}
+
+/**
+ * İki depolanmış tarihi karşılaştırır (-1/0/1). Kesin karşılaştırma yalnız her
+ * ikisi de tam (YYYY-MM-DD) ise; aksi hâlde yıl bazında. Belirsizse null.
+ */
+function cmp(a?: string, b?: string): number | null {
+  const ya = year(a);
+  const yb = year(b);
+  if (ya === null || yb === null) return null;
+  if (ya !== yb) return ya < yb ? -1 : 1;
+  // Aynı yıl: her ikisi de tam tarihse gün bazında karşılaştır.
+  if (a && b && a.length === 10 && b.length === 10) {
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+  return 0;
+}
+
+const MAX_AGE = 120;
+const MIN_PARENT_AGE = 13;
+
+/** Ağaçtaki olası tutarsızlıkları döndürür. */
+export function findIssues(people: Person[]): Issue[] {
+  const issues: Issue[] = [];
+  const idx = new Map(people.map((p) => [p.id, p]));
+  const nowYear = new Date().getFullYear();
+
+  for (const p of people) {
+    // Kendine eş / kendine ebeveyn
+    if (p.spouseIds?.includes(p.id) || p.formerSpouseIds?.includes(p.id))
+      issues.push({ personId: p.id, kind: "selfSpouse", severity: "error" });
+    if (p.parentIds?.includes(p.id))
+      issues.push({ personId: p.id, kind: "selfParent", severity: "error" });
+
+    // Ölüm doğumdan önce
+    if (cmp(p.deathDate, p.birthDate) === -1)
+      issues.push({ personId: p.id, kind: "deathBeforeBirth", severity: "error" });
+
+    // Gelecekte doğum / ölüm
+    const by = year(p.birthDate);
+    const dy = year(p.deathDate);
+    if (by !== null && by > nowYear)
+      issues.push({ personId: p.id, kind: "bornInFuture", severity: "warning" });
+    if (dy !== null && dy > nowYear)
+      issues.push({ personId: p.id, kind: "diedInFuture", severity: "warning" });
+
+    // İmkânsız yaşam süresi (>120)
+    if (by !== null && dy !== null && dy - by > MAX_AGE)
+      issues.push({ personId: p.id, kind: "implausibleAge", severity: "warning" });
+
+    // Ebeveyn/çocuk tarih tutarlılığı
+    for (const pid of p.parentIds ?? []) {
+      const parent = idx.get(pid);
+      if (!parent) continue;
+      const pby = year(parent.birthDate);
+      if (by !== null && pby !== null) {
+        if (pby > by)
+          issues.push({ personId: p.id, kind: "parentYoungerThanChild", severity: "error" });
+        else if (by - pby < MIN_PARENT_AGE)
+          issues.push({ personId: p.id, kind: "tooYoungParent", severity: "warning" });
+      }
+      // Ebeveynin ölümünden (baba için +1 yıl tolerans) sonra doğum
+      const pdy = year(parent.deathDate);
+      if (by !== null && pdy !== null && by > pdy + 1)
+        issues.push({ personId: p.id, kind: "bornAfterParentDeath", severity: "warning" });
+    }
+  }
+
+  return issues;
+}

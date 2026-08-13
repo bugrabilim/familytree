@@ -19,6 +19,7 @@ import {
   relativesByGeneration,
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
+import { findIssues } from "@/lib/consistency";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -175,6 +176,9 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
     return c;
   }, [shown]);
 
+  // Tutarlılık uyarıları — olası veri hataları (imkânsız tarih, çok genç ebeveyn…).
+  const issues = useMemo(() => findIssues(people), [people]);
+
   // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
   const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
   const openDrill = (title: string, list: Person[]) => {
@@ -273,6 +277,47 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
         </section>
 
         <div className="grid gap-6 lg:grid-cols-2">
+          {/* Tutarlılık uyarıları — olası veri hataları (yalnız varsa) */}
+          {issues.length > 0 && (
+            <Card
+              title={t("panel.card.issues", { count: issues.length })}
+              hint={t("panel.card.issuesHint")}
+              className="lg:col-span-2"
+            >
+              <ul className="space-y-1">
+                {issues.slice(0, 12).map((iss, i) => {
+                  const raw = idx.get(iss.personId);
+                  if (!raw) return null;
+                  const p = view(raw);
+                  return (
+                    <li key={`${iss.personId}-${iss.kind}-${i}`}>
+                      <button
+                        onClick={() => onSelect(p.id)}
+                        className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            iss.severity === "error" ? "bg-danger" : "bg-accent"
+                          }`}
+                          aria-hidden
+                        />
+                        <span className="text-sm text-text truncate min-w-0 shrink-0 max-w-[40%]">{fullName(p)}</span>
+                        <span className="text-[11px] text-text-muted truncate flex-1">
+                          {t(`panel.issue.${iss.kind}`)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {issues.length > 12 && (
+                  <li className="px-2 pt-1 text-[11px] text-text-subtle">
+                    {t("panel.card.issuesMore", { count: issues.length - 12 })}
+                  </li>
+                )}
+              </ul>
+            </Card>
+          )}
+
           {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
           <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
             <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
