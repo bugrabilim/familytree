@@ -1,6 +1,6 @@
 import { put, list, get } from "@vercel/blob";
 import type { FamilyData } from "@/types/family";
-import { dbReplacePeople } from "@/lib/db";
+import { dbGetFamilyData, dbReplacePeople } from "@/lib/db";
 
 function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
@@ -66,6 +66,18 @@ export async function getFamilyData(
     if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
       return JSON.parse(hit.json) as FamilyData;
     }
+  }
+  // Faz 2d — okuma yolu: ÖNCE Postgres. Ağaç Postgres'te yoksa (null) ya da
+  // bir hata olursa Blob'a düşülür (yedek). Yazma yolu iki yere yazmaya devam
+  // ettiği için Blob canlı bir yedek olarak güncel kalır.
+  try {
+    const fromDb = await dbGetFamilyData(userId);
+    if (fromDb) {
+      cache.set(userId, { json: JSON.stringify(fromDb), at: Date.now() });
+      return fromDb;
+    }
+  } catch (e) {
+    console.warn(`[okuma] postgres→blob yedek (${userId}):`, (e as Error).message);
   }
   try {
     return await readFromBlob(userId);
