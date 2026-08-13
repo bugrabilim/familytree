@@ -5,6 +5,19 @@ import Link from "next/link";
 
 type Result = { ok?: boolean; dryRun?: boolean; error?: string } & Record<string, unknown>;
 
+/** `authUser` alanını (önizlemede boolean|null, göçte metin) okunur etikete çevirir. */
+function authUserLabel(kind: "preview" | "migrate" | "", v: unknown) {
+  if (kind === "preview") {
+    if (v === true) return <span className="text-primary">✓ Auth&apos;a taşınmış</span>;
+    if (v === false) return <span className="text-text-muted">henüz taşınmadı (Göçü başlat)</span>;
+    return <span className="text-text-subtle">belirsiz</span>;
+  }
+  if (v === "created") return <span className="text-primary">✓ Auth&apos;a aktarıldı</span>;
+  if (v === "exists") return <span className="text-primary">✓ zaten Auth&apos;ta</span>;
+  if (v === "skipped" || v === "atlandı") return <span className="text-text-muted">atlandı</span>;
+  return <span className="text-danger">{String(v ?? "—")}</span>;
+}
+
 /**
  * Blob → Postgres göç aracının istemci arayüzü. İki adım:
  *  1) Önizle (GET /api/admin/migrate) — hiçbir şey yazmaz, sayıları gösterir.
@@ -121,6 +134,12 @@ export default function MigrateClient() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Faz 3b — hesabın Supabase Auth durumu (giriş bundan etkilenmez). */}
+                <div className="mt-3 pt-3 border-t border-border/60 text-sm">
+                  <span className="text-text-subtle">Supabase Auth hesabı: </span>
+                  {authUserLabel(kind, result.authUser)}
                 </div>
               </>
             )}

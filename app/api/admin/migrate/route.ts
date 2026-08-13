@@ -6,6 +6,7 @@ import { getFamilyData } from "@/lib/blob";
 import { getTreeAccess } from "@/lib/members";
 import { listTrees } from "@/lib/trees";
 import { findUserByFamilyName } from "@/lib/users";
+import { authUserExists, importAccountToAuth, type AuthImportResult } from "@/lib/auth-users";
 import {
   dbCountPeople,
   dbReplaceInvites,
@@ -75,9 +76,14 @@ export async function GET() {
       invites: access.invites.length,
     });
   }
+  // Faz 3b — bu hesabın Supabase Auth kullanıcısı hazır mı? (yalnız gösterge;
+  // yazma yok). null → belirsiz/kapalı.
+  const authUser = await authUserExists(g.accountId);
+
   return NextResponse.json({
     dryRun: true,
     account: g.accountId,
+    authUser, // true: Auth'a taşınmış · false: henüz değil · null: belirsiz
     note: "Bu bir önizlemedir; hiçbir şey yazılmadı. 'Kişi' Blob'daki, 'Postgres' ise DB'deki sayıdır; çift-yazma çalışıyorsa eşit olmalılar.",
     trees: preview,
   });
@@ -88,13 +94,19 @@ export async function POST() {
   const g = await guard();
   if ("error" in g) return g.error;
 
-  // Founder hesabını da Postgres aynasına taşı (giriş verisi).
+  // Founder hesabını da Postgres aynasına taşı (giriş verisi) ve Faz 3b —
+  // hesabı Supabase Auth'a aktar (mevcut bcrypt hash'iyle; düz-metin gerekmez).
+  // GİRİŞ AKIŞI DEĞİŞMEZ: giriş hâlâ Blob/Postgres bcrypt ile doğrulanıyor;
+  // bu adım yalnız arka planda Auth kullanıcısını hazırlar (best-effort).
   let account: string | boolean = false;
+  let authUser: AuthImportResult | string = "atlandı";
   try {
     const me = await findUserByFamilyName(g.homeName);
     if (me) {
       await dbUpsertAccount(me);
       account = true;
+      const r = await importAccountToAuth(me);
+      authUser = typeof r === "string" ? r : `hata: ${r.error}`;
     }
   } catch (e) {
     account = `hata: ${(e as Error).message}`;
@@ -135,7 +147,14 @@ export async function POST() {
 
   const ok = summary.every((s) => s.ok);
   return NextResponse.json(
-    { migratedAt: new Date().toISOString(), account: g.accountId, accountMirrored: account, ok, trees: summary },
+    {
+      migratedAt: new Date().toISOString(),
+      account: g.accountId,
+      accountMirrored: account,
+      authUser, // "created" | "exists" | "skipped" | "hata: …"
+      ok,
+      trees: summary,
+    },
     { status: ok ? 200 : 207 }
   );
 }

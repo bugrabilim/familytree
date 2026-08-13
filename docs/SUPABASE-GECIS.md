@@ -42,21 +42,41 @@ Yalnız altyapı; hiçbir mevcut rota değişmez, uygulama tümüyle Blob üzeri
 - Doğrulama sonrası okuma/yazma tümüyle Postgres; Blob veri katmanı kaldırılır
   (Blob yalnız gerekiyorsa dosya için kalır — fotoğraf/ses zaten Cloudinary'de).
 
-## Faz 3 — Supabase Auth'a geçiş
+## Faz 3 — Supabase Auth'a geçiş (kademeli, kesintisiz)
 
-- Her mevcut ağaç/üye için Supabase Auth kimliği oluşturulur (göç sırasında).
-- Mevcut *soyad + şifre* girişi korunur: ilk girişte eski şifre doğrulanır →
-  arka planda Supabase kimliğine bağlanır → sonraki girişler Supabase üzerinden.
-  Kullanıcı hiçbir kesinti yaşamaz.
-- NextAuth Credentials sağlayıcısı Supabase oturumuna köprülenir; oturum/rol
-  modeli (founder/üye, viewer/editor/admin) aynı kalır.
+**Anahtar bulgu:** GoTrue admin API'si hazır **bcrypt hash** ile kullanıcı içe
+aktarmayı destekliyor (`password_hash`; bcrypt/scrypt/argon2). Yani mevcut
+hesapları **düz-metin şifreye gerek olmadan** Supabase Auth'a taşıyabiliyoruz —
+girişte "tembel backfill" gerekmez, giriş hot-path'i hiç değişmez.
 
-## Faz 4 — E-posta ile bağlama & hesapsız giriş
+Kimlik kayıpsız: accountId zaten bir UUID olduğundan auth kullanıcısının id'si
+ona eşitlenir → `auth.users.id === accounts.id === treeId`. GoTrue e-posta
+zorunlu tuttuğu için her hesaba **sentetik iç e-posta** (`<accountId>@…`)
+verilir; bu adrese e-posta gönderilmez (Faz 3e'de gerçek e-postayla değişir).
 
-- **Hesapsız (anonim) giriş** (Supabase Anonymous sign-in) — özellikle mobil için.
-- İsteğe bağlı **e-posta ile kalıcı hesaba bağlama**: anonim kullanıcı e-posta +
-  doğrulama ekleyerek verisini kaybetmeden hesabını kalıcılaştırır.
-- E-posta doğrulama/parola sıfırlama Supabase'in yerleşik akışlarıyla.
+- **Faz 3a — hesap aynası (bitti):** founder hesapları `accounts` tablosuna
+  çift-yazılır. Giriş değişmedi.
+- **Faz 3b — Auth'a içe aktarım (bu PR):** yönetici göç aracı, hesabı mevcut
+  bcrypt hash'iyle Supabase Auth'a **aktarır** (`lib/auth-users.ts`). Giriş
+  akışına HİÇ dokunulmaz — giriş hâlâ Blob/Postgres bcrypt ile doğrulanır; bu
+  adım yalnız arka planda Auth kullanıcısını hazırlar (idempotent, best-effort).
+  Göç önizlemesi/sonucu her hesabın Auth durumunu gösterir.
+- **Faz 3c — giriş doğrulamasını çevir:** yeterli hesap aktarıldıktan sonra
+  `authorize()` önce Supabase `signInWithPassword(sentetikEposta, şifre)` dener,
+  başarısızsa mevcut bcrypt yoluna düşer (yedek). Oturum/rol modeli aynı kalır.
+  _Ön koşul:_ Supabase panelinde **Email** sağlayıcısı açık olmalı.
+- **Faz 3d — hesapsız (misafir) giriş:** Supabase Anonymous sign-in.
+- **Faz 3e — gerçek e-posta ile bağlama:** kullanıcı sentetik e-postayı kendi
+  e-postasıyla değiştirip hesabını kalıcılaştırır (doğrulama + parola sıfırlama
+  Supabase'in yerleşik akışlarıyla).
+
+## Faz 4 — Eski yolu kaldırma (temizlik)
+
+Faz 3c–3e oturduktan ve tüm hesaplar Supabase Auth'a taşındıktan sonra:
+
+- NextAuth Credentials bcrypt yedeği kaldırılır (giriş tümüyle Supabase Auth).
+- Blob tabanlı `users.json` kimlik deposu emekliye ayrılır (veri zaten
+  Postgres + Auth'ta). Blob yalnız gerekiyorsa dosya için kalır.
 
 ---
 
