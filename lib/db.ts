@@ -68,6 +68,29 @@ export async function dbReplacePeople(treeId: string, people: Person[]): Promise
   return people.length;
 }
 
+/** Yalnız verilen kişileri ekle/güncelle (hedefli — tam yenileme yerine). */
+export async function dbUpsertPeople(treeId: string, people: Person[]): Promise<number> {
+  if (people.length === 0) return 0;
+  const rows = people.map((p) => personToRow(treeId, p));
+  const { error } = await supabaseAdmin()
+    .from("people")
+    .upsert(rows, { onConflict: "tree_id,person_id" });
+  if (error) throw new Error(`people upsert: ${error.message}`);
+  return people.length;
+}
+
+/** Verilen kişi kimliklerini sil (hedefli). */
+export async function dbDeletePeople(treeId: string, personIds: string[]): Promise<number> {
+  if (personIds.length === 0) return 0;
+  const { error } = await supabaseAdmin()
+    .from("people")
+    .delete()
+    .eq("tree_id", treeId)
+    .in("person_id", personIds);
+  if (error) throw new Error(`people delete (targeted): ${error.message}`);
+  return personIds.length;
+}
+
 /** Ağacın üyelerini Postgres'e tam kopyala. İdempotent. */
 export async function dbReplaceMembers(treeId: string, members: Member[]): Promise<number> {
   const sb = supabaseAdmin();
