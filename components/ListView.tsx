@@ -15,6 +15,7 @@ import {
   emptyFieldFilters,
   matchesFields,
   matchesQuery,
+  NO_EDUCATION,
   type FieldFilters,
 } from "@/lib/search";
 import { useT } from "@/lib/i18n";
@@ -303,6 +304,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                 className={advField}
               >
                 <option value="">{t("list.adv.any")}</option>
+                <option value={NO_EDUCATION}>{t("list.adv.eduNone")}</option>
                 {EDUCATION_LEVELS.map((k) => (
                   <option key={k} value={k}>
                     {t(`education.${k}`)}

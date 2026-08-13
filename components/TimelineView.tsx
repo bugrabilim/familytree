@@ -60,8 +60,11 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
         </span>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <div className="min-w-[640px]">
+      {/* Yalnız dikey kaydırma: aşağı inerken sağa kaymayı önler. Çubuklar
+          yüzde tabanlı olduğundan eksen genişliğe sığar; yıllar üstte yapışık
+          kalır (yukarıdan kaymaz). */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="min-w-0">
           {/* Yıl ekseni (yapışkan) */}
           <div className="sticky top-0 z-10 flex bg-bg/95 backdrop-blur border-b border-border">
             <div className="w-40 shrink-0 border-r border-border" />
