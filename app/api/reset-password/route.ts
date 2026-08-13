@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash, compare } from "bcryptjs";
 import { findUserByFamilyName, updateUserPassword } from "@/lib/users";
+import { updateAccountAuthPassword } from "@/lib/auth-users";
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,6 +34,15 @@ export async function POST(req: NextRequest) {
 
     const newPasswordHash = await hash(newPassword, 12);
     await updateUserPassword(familyName.trim(), newPasswordHash);
+
+    // Faz 3c — Supabase Auth şifresini de senkronla (düz-metinle, en güvenilir
+    // yol). Böylece sıfırlanmış ESKİ şifre Supabase üzerinden kabul edilemez.
+    // Best-effort: hata sıfırlamayı bozmaz (bcrypt zaten güncellendi).
+    try {
+      await updateAccountAuthPassword(user.id, newPassword);
+    } catch (e) {
+      console.warn(`[3c] Supabase Auth şifre senkronu başarısız (${user.id}):`, (e as Error).message);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

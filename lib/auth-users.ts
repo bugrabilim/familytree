@@ -1,5 +1,5 @@
 import "server-only";
-import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured, supabaseAdmin, supabaseAuthClient } from "@/lib/supabase";
 
 /**
  * Supabase Auth kullanıcı katmanı — Faz 3b.
@@ -102,4 +102,62 @@ export async function authUserExists(accountId: string): Promise<boolean | null>
   } catch {
     return null;
   }
+}
+
+/* ── Faz 3c — giriş doğrulamasını Supabase Auth'a çevir (bcrypt yedekli) ─────── */
+
+/**
+ * 3c bayrağı: giriş doğrulaması Supabase Auth'u DENESİN mi?
+ *
+ * Varsayılan KAPALI → davranış bugünküyle bire bir aynı (sıfır ek gecikme).
+ * `SUPABASE_AUTH_LOGIN=1` yapıldığında (Email sağlayıcısı açık + hesaplar
+ * içe aktarılmışken) giriş önce Supabase'i dener, başarısızsa bcrypt'e düşer.
+ * İstediğin an değişkeni kaldırarak anında geri alınır.
+ */
+export function isSupabaseLoginEnabled(): boolean {
+  const v = (process.env.SUPABASE_AUTH_LOGIN || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+const VERIFY_TIMEOUT_MS = 5000;
+
+/**
+ * Şifreyi Supabase Auth ile doğrular.
+ *
+ * SADECE `true` bir şey ifade eder: Supabase temiz bir oturum açtı → doğrulandı.
+ * `false` TEK BAŞINA reddetme gerekçesi DEĞİLDİR — çağıran taraf mevcut bcrypt
+ * yoluna düşmelidir (kullanıcı henüz içe aktarılmamış, Email sağlayıcısı kapalı,
+ * ağ/zaman aşımı, vb. hepsi `false` döner). Hata fırlatmaz; oturum saklamaz.
+ */
+export async function supabaseVerifyPassword(email: string, password: string): Promise<boolean> {
+  const client = supabaseAuthClient();
+  if (!client) return false;
+  try {
+    const signIn = client.auth.signInWithPassword({ email, password });
+    const timeout = new Promise<null>((r) => setTimeout(() => r(null), VERIFY_TIMEOUT_MS));
+    const res = await Promise.race([signIn, timeout]);
+    if (!res) return false; // zaman aşımı → bcrypt'e düş
+    const { data, error } = res;
+    if (error || !data?.session) return false;
+    // Sunucuda oturum tutmuyoruz (persistSession:false) — yine de nazikçe kapat.
+    try {
+      await client.auth.signOut();
+    } catch {
+      /* önemsiz */
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Founder'ın Supabase Auth şifresini DÜZ-METİNLE günceller (parola sıfırlama
+ * sonrası senkron). Böylece sıfırlanmış eski şifre Supabase üzerinden kabul
+ * edilemez. Best-effort — hata fırlatır, çağıran best-effort sarar.
+ */
+export async function updateAccountAuthPassword(accountId: string, newPassword: string): Promise<void> {
+  if (!isSupabaseConfigured() || !isUuid(accountId) || !newPassword) return;
+  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, { password: newPassword });
+  if (error) throw new Error(error.message);
 }

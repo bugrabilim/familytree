@@ -1,6 +1,7 @@
 import { put, list, get } from "@vercel/blob";
 import type { User, UsersData } from "@/types/user";
 import { dbUpdateAccountPassword, dbUpsertAccount } from "@/lib/db";
+import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 
 const USERS_PATHNAME = "users.json";
 
@@ -51,6 +52,16 @@ export async function createUser(
     await dbUpsertAccount(user);
   } catch (e) {
     console.warn(`[cift-yazma] account→postgres (${user.id}):`, (e as Error).message);
+  }
+  // Faz 3c — yeni founder'ı Supabase Auth'a da aktar (mevcut bcrypt hash'iyle),
+  // böylece bayrak açıkken Supabase üzerinden giriş yapabilir. Yalnız gerçek
+  // (UUID) hesaplar; demo (UUID değil) dışlanır. Best-effort — kaydı bozmaz.
+  if (isUuid(user.id)) {
+    try {
+      await importAccountToAuth(user);
+    } catch (e) {
+      console.warn(`[3c] account→auth (${user.id}):`, (e as Error).message);
+    }
   }
   return user;
 }

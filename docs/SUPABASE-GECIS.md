@@ -61,10 +61,18 @@ verilir; bu adrese e-posta gönderilmez (Faz 3e'de gerçek e-postayla değişir)
   akışına HİÇ dokunulmaz — giriş hâlâ Blob/Postgres bcrypt ile doğrulanır; bu
   adım yalnız arka planda Auth kullanıcısını hazırlar (idempotent, best-effort).
   Göç önizlemesi/sonucu her hesabın Auth durumunu gösterir.
-- **Faz 3c — giriş doğrulamasını çevir:** yeterli hesap aktarıldıktan sonra
-  `authorize()` önce Supabase `signInWithPassword(sentetikEposta, şifre)` dener,
-  başarısızsa mevcut bcrypt yoluna düşer (yedek). Oturum/rol modeli aynı kalır.
-  _Ön koşul:_ Supabase panelinde **Email** sağlayıcısı açık olmalı.
+- **Faz 3c — giriş doğrulamasını çevir (bu PR):** `authorize()` **bayrak
+  açıksa** önce Supabase `signInWithPassword(sentetikEposta, şifre)` dener;
+  yalnız temiz doğrulamada kabul eder, aksi hâlde mevcut **bcrypt** yoluna
+  düşer (yedek — kimse kilitlenmez). Oturum/rol modeli aynı kalır.
+  - **Bayrak:** `SUPABASE_AUTH_LOGIN=1` (varsayılan kapalı → davranış bugünküyle
+    bire bir; değişkeni kaldırmak anında geri alır). 5 sn zaman aşımı → bcrypt.
+  - **Senkron:** parola sıfırlama artık Supabase Auth şifresini de günceller
+    (düz-metinle) → sıfırlanmış eski şifre Supabase üzerinden kabul edilemez.
+    Yeni kayıtlar da otomatik Auth'a aktarılır.
+  - **Ön koşullar (bayrağı açmadan önce):** (1) Supabase → Authentication →
+    Providers → **Email açık**; (2) `NEXT_PUBLIC_SUPABASE_ANON_KEY` mevcut;
+    (3) hesaplar göç aracıyla Auth'a aktarılmış (3b).
 - **Faz 3d — hesapsız (misafir) giriş:** Supabase Anonymous sign-in.
 - **Faz 3e — gerçek e-posta ile bağlama:** kullanıcı sentetik e-postayı kendi
   e-postasıyla değiştirip hesabını kalıcılaştırır (doğrulama + parola sıfırlama
