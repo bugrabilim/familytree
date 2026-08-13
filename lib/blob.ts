@@ -1,5 +1,6 @@
 import { put, list, get } from "@vercel/blob";
 import type { FamilyData } from "@/types/family";
+import { dbReplacePeople } from "@/lib/db";
 
 function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
@@ -101,4 +102,14 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
   });
   // Yazdıktan sonra önbelleği tazele: aynı örnekteki sonraki okumalar güncel.
   cache.set(userId, { json, at: Date.now() });
+
+  // Faz 2c — çift-yazma (best-effort): Postgres'i de tazele. Blob kaynaktır;
+  // Postgres yazması başarısız olursa kullanıcının kaydı ETKİLENMEZ (yalnız
+  // uyarı loglanır). Okuma yolu Postgres'e çevrildiğinde bu tam-yenileme,
+  // hedefli upsert'e dönüşecek.
+  try {
+    await dbReplacePeople(userId, data.people);
+  } catch (e) {
+    console.warn(`[cift-yazma] people→postgres (${userId}):`, (e as Error).message);
+  }
 }

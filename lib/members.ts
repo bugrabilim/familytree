@@ -2,6 +2,7 @@ import { put, list, get } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
 import type { Invite, Member, TreeAccess, TreeRole } from "@/types/user";
+import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 
 /**
  * Ağaç erişim (üye + davet) deposu — Madde 13.
@@ -40,6 +41,14 @@ async function saveTreeAccess(treeId: string, data: TreeAccess): Promise<void> {
     allowOverwrite: true,
     contentType: "application/json",
   });
+  // Faz 2c — çift-yazma (best-effort): üye/davetleri Postgres'e de yaz.
+  // Blob kaynaktır; hata kullanıcının işlemini etkilemez.
+  try {
+    await dbReplaceMembers(treeId, data.members);
+    await dbReplaceInvites(treeId, data.invites);
+  } catch (e) {
+    console.warn(`[cift-yazma] access→postgres (${treeId}):`, (e as Error).message);
+  }
 }
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");

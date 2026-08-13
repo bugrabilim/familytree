@@ -107,6 +107,18 @@ export async function dbReplaceInvites(treeId: string, invites: Invite[]): Promi
   return invites.length;
 }
 
+/** Ağaç adını güncelle (çift-yazma). */
+export async function dbRenameTree(treeId: string, name: string): Promise<void> {
+  const { error } = await supabaseAdmin().from("trees").update({ name }).eq("id", treeId);
+  if (error) throw new Error(`trees rename: ${error.message}`);
+}
+
+/** Ağacı sil (çift-yazma). people/members/invites FK cascade ile silinir. */
+export async function dbDeleteTree(treeId: string): Promise<void> {
+  const { error } = await supabaseAdmin().from("trees").delete().eq("id", treeId);
+  if (error) throw new Error(`trees delete: ${error.message}`);
+}
+
 /** Doğrulama: Postgres'te bu ağaç için kaç kişi var? */
 export async function dbCountPeople(treeId: string): Promise<number> {
   const { count, error } = await supabaseAdmin()

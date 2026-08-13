@@ -1,6 +1,7 @@
 import { put, list, get, del } from "@vercel/blob";
 import { saveFamilyData } from "@/lib/blob";
 import { hasTreeAccess, type TreeMeta } from "@/lib/tree-access";
+import { dbDeleteTree, dbRenameTree, dbUpsertTree } from "@/lib/db";
 
 /**
  * Çoklu ağaç (Blob, "hafif kapsam") — bir founder hesabının sahip olduğu
@@ -67,6 +68,19 @@ export async function createTree(accountId: string, name: string): Promise<TreeM
     name: name.trim() || "Yeni ağaç",
     createdAt: new Date().toISOString(),
   };
+  // Çift-yazma: Postgres'te ağaç satırını ÖNCE oluştur (people FK'sı için),
+  // sonra boş veriyi yaz. Best-effort — hata mevcut akışı bozmaz.
+  try {
+    await dbUpsertTree({
+      treeId: meta.treeId,
+      ownerAccount: accountId,
+      name: meta.name,
+      isHome: false,
+      createdAt: meta.createdAt,
+    });
+  } catch (e) {
+    console.warn(`[cift-yazma] tree upsert (${meta.treeId}):`, (e as Error).message);
+  }
   // Boş ağaç verisi oluştur, sonra kayda ekle.
   await saveFamilyData(meta.treeId, { people: [], updatedAt: new Date().toISOString() });
   const owned = await readRegistry(accountId);
@@ -81,6 +95,11 @@ export async function renameTree(accountId: string, treeId: string, name: string
   if (!t) return false;
   t.name = name.trim() || t.name;
   await writeRegistry(accountId, owned);
+  try {
+    await dbRenameTree(treeId, t.name);
+  } catch (e) {
+    console.warn(`[cift-yazma] tree rename (${treeId}):`, (e as Error).message);
+  }
   return true;
 }
 
@@ -95,5 +114,11 @@ export async function deleteTree(accountId: string, treeId: string): Promise<boo
     del(`family-data-${treeId}.json`),
     del(`tree-access-${treeId}.json`),
   ]);
+  // Çift-yazma: Postgres'ten de sil (people/members/invites FK cascade ile gider).
+  try {
+    await dbDeleteTree(treeId);
+  } catch (e) {
+    console.warn(`[cift-yazma] tree delete (${treeId}):`, (e as Error).message);
+  }
   return true;
 }
