@@ -51,16 +51,68 @@ export default function PlacesMap({ people, onSelect }: Props) {
   const t = useT();
   const { lang } = useLang();
   const [activePlace, setActivePlace] = useState<string | null>(null);
+  const [showMigration, setShowMigration] = useState(false);
+
+  // Doğum yılı sınırları + dönem (era) süzgeci — haritayı zamanda daralt.
+  const yearBounds = useMemo(() => {
+    let mn = Infinity;
+    let mx = -Infinity;
+    for (const p of people) {
+      const y = p.birthDate ? parseInt(p.birthDate.slice(0, 4), 10) : NaN;
+      if (Number.isFinite(y)) { mn = Math.min(mn, y); mx = Math.max(mx, y); }
+    }
+    return mn === Infinity || mn === mx ? null : { min: mn, max: mx };
+  }, [people]);
+
+  const [era, setEra] = useState<[number, number] | null>(null);
+  const a0 = era ? era[0] : yearBounds?.min ?? null;
+  const a1 = era ? era[1] : yearBounds?.max ?? null;
+
+  // Dönem süzgeci uygulanmış kişiler (tarihsizler daima dâhil).
+  const eraFiltered = useMemo(() => {
+    if (a0 === null || a1 === null || !yearBounds || (a0 <= yearBounds.min && a1 >= yearBounds.max))
+      return people;
+    return people.filter((p) => {
+      const y = p.birthDate ? parseInt(p.birthDate.slice(0, 4), 10) : NaN;
+      return !Number.isFinite(y) || (y >= a0 && y <= a1);
+    });
+  }, [people, a0, a1, yearBounds]);
 
   // GİZLİLİK: kişileri görüntü katmanından geçir; maskeli (gizli yaşayan)
   // kişide `birthPlace` bulunmadığından doğum yeri sızmaz.
   const aggregates = useMemo(
-    () => aggregatePlaces(people.map((p) => priv(p))),
-    [people, priv]
+    () => aggregatePlaces(eraFiltered.map((p) => priv(p))),
+    [eraFiltered, priv]
   );
 
   const located = useMemo(() => aggregates.filter((a) => a.coords), [aggregates]);
   const unlocated = useMemo(() => aggregates.filter((a) => !a.coords), [aggregates]);
+
+  // Kişi → doğum yeri koordinatı (maskeli aggregate'lerden → gizlilik korunur).
+  const personCoord = useMemo(() => {
+    const m = new Map<string, { lat: number; lng: number }>();
+    for (const a of located) if (a.coords) for (const id of a.personIds) m.set(id, a.coords);
+    return m;
+  }, [located]);
+
+  // Göç yolları — ebeveyn doğum yeri → çocuk doğum yeri (farklıysa). Yinelenen
+  // aynı yol kalınlaşır. Gizli kişiler koordinatsız olduğundan otomatik dışlanır.
+  const migrations = useMemo(() => {
+    const map = new Map<string, { from: { lat: number; lng: number }; to: { lat: number; lng: number }; n: number }>();
+    for (const p of eraFiltered) {
+      const c = personCoord.get(p.id);
+      if (!c) continue;
+      for (const pid of p.parentIds ?? []) {
+        const pc = personCoord.get(pid);
+        if (!pc || (pc.lat === c.lat && pc.lng === c.lng)) continue;
+        const key = `${pc.lat},${pc.lng}>${c.lat},${c.lng}`;
+        const e = map.get(key);
+        if (e) e.n++;
+        else map.set(key, { from: pc, to: c, n: 1 });
+      }
+    }
+    return [...map.values()];
+  }, [eraFiltered, personCoord]);
 
   const maxCount = useMemo(
     () => located.reduce((m, a) => Math.max(m, a.count), 1),
@@ -246,6 +298,55 @@ export default function PlacesMap({ people, onSelect }: Props) {
           </p>
         </div>
 
+        {/* Denetimler — göç yolları + dönem süzgeci */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button
+            onClick={() => setShowMigration((v) => !v)}
+            aria-pressed={showMigration}
+            className={`flex items-center gap-2 h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
+              showMigration
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-border bg-surface hover:bg-surface-2 text-text-muted"
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M5 19c6-1 8-13 14-14M13 5h6v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {t("map.migration")}
+            {showMigration && migrations.length > 0 && <span className="tabular-nums">· {migrations.length}</span>}
+          </button>
+
+          {yearBounds && a0 !== null && a1 !== null && (
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <span className="shrink-0">{t("map.era")}</span>
+              <input
+                type="range"
+                min={yearBounds.min}
+                max={yearBounds.max}
+                value={a0}
+                onChange={(e) => setEra([Math.min(Number(e.target.value), a1), a1])}
+                className="w-20 accent-[var(--primary)]"
+                aria-label={t("map.eraFrom")}
+              />
+              <span className="tabular-nums w-[5.5rem] text-center text-text">{a0}–{a1}</span>
+              <input
+                type="range"
+                min={yearBounds.min}
+                max={yearBounds.max}
+                value={a1}
+                onChange={(e) => setEra([a0, Math.max(Number(e.target.value), a0)])}
+                className="w-20 accent-[var(--primary)]"
+                aria-label={t("map.eraTo")}
+              />
+              {(a0 > yearBounds.min || a1 < yearBounds.max) && (
+                <button onClick={() => setEra(null)} className="text-[11px] text-text-subtle hover:text-text">
+                  {t("map.eraAll")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* Harita tuvali — zoom + pan */}
           <div className="relative rounded-2xl border border-border bg-surface p-2 sm:p-3">
@@ -334,6 +435,32 @@ export default function PlacesMap({ people, onSelect }: Props) {
                         </text>
                       </g>
                     ))}
+                  </g>
+                )}
+
+                {/* Göç yolları — ebeveyn → çocuk doğum yeri (hafif yay) */}
+                {showMigration && (
+                  <g fill="none" stroke="var(--accent)" strokeLinecap="round" style={{ pointerEvents: "none" }}>
+                    {migrations.map((mg, i) => {
+                      const p1 = projectEquirectangular(mg.from.lat, mg.from.lng, VW, VH);
+                      const p2 = projectEquirectangular(mg.to.lat, mg.to.lng, VW, VH);
+                      const mx = (p1.x + p2.x) / 2;
+                      const my = (p1.y + p2.y) / 2;
+                      const dx = p2.x - p1.x;
+                      const dy = p2.y - p1.y;
+                      const len = Math.hypot(dx, dy) || 1;
+                      const off = Math.min(len * 0.15, VH * 0.08);
+                      const cx = mx - (dy / len) * off;
+                      const cy = my + (dx / len) * off;
+                      return (
+                        <path
+                          key={i}
+                          d={`M${p1.x} ${p1.y} Q${cx} ${cy} ${p2.x} ${p2.y}`}
+                          strokeWidth={s(0.6 + Math.min(mg.n, 5) * 0.28)}
+                          strokeOpacity={0.5}
+                        />
+                      );
+                    })}
                   </g>
                 )}
 
