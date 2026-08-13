@@ -36,11 +36,15 @@ interface Props {
   onPrintView: () => void;
   /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
   onManageMembers?: () => void;
+  /** Yalnız yönetici (admin) için — herkese açık paylaşım bağlantısı. */
+  onShare?: () => void;
   peopleCount: number;
   /** Çoklu ağaç (yalnız founder). Verilmezse marka adı statik gösterilir. */
   trees?: Array<TreeMeta & { home: boolean }>;
   activeTreeId?: string;
   isFounder?: boolean;
+  /** Herkese açık salt-okunur görünüm: sahip menüsü/çıkış gizlenir, kayıt CTA'sı gösterilir. */
+  publicView?: boolean;
 }
 
 export default function TopBar({
@@ -52,10 +56,12 @@ export default function TopBar({
   onPrint,
   onPrintView,
   onManageMembers,
+  onShare,
   peopleCount,
   trees,
   activeTreeId,
   isFounder,
+  publicView,
 }: Props) {
   const showSwitcher = !!(isFounder && trees && trees.length > 0 && activeTreeId);
   const router = useRouter();
@@ -245,6 +251,14 @@ export default function TopBar({
 
           <ThemeToggle />
 
+          {publicView ? (
+            <a
+              href="/register"
+              className="flex items-center gap-2 h-9 px-3 rounded-lg bg-primary text-primary-text text-xs font-medium hover:brightness-110 transition-all whitespace-nowrap"
+            >
+              {t("public.createOwn")}
+            </a>
+          ) : (
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -289,6 +303,20 @@ export default function TopBar({
                       {t("members.menu")}
                     </button>
                   )}
+                  {onShare && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onShare();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                        <path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {t("share.menu")}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setMenuOpen(false);
@@ -331,6 +359,7 @@ export default function TopBar({
               </>
             )}
           </div>
+          )}
         </div>
       </div>
     </header>

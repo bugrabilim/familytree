@@ -5,6 +5,15 @@
 - **Her geliştirme/bug/değişikliğin İngilizcesi de yapılır** (i18n TR+EN),
   onay beklemeden. (Kullanıcı talebi, 2026-08-13.)
 
+## Yapıldı — herkese açık salt-okunur paylaşım (üyeliksiz)
+
+- Ağaç sahibi (admin) bir **bağlantı + kod + QR** üretir; bunu bilen herkes
+  **üye olmadan** ağacı yalnızca görüntüler. `/g/<token>` (genel), `/g` (kod
+  yapıştır). Sahip arayüzü: `ShareDialog` (aç/kapat, yenile, yaşayanları gizle).
+- Salt-okunur + gizlilik `role=viewer`/`publicView` ile zorlanır; sunucu API'si
+  zaten anonim ziyaretçiye yazma vermez (401). Jeton tahmin-edilemez bearer.
+- QR sunucuda üretilir (`qrcode`), istemciye PNG data-URL olarak gider.
+
 ## Yapıldı — çok-biçimli aktarım + MyHeritage incelemesi
 
 - MyHeritage incelemesi: `docs/MYHERITAGE-INCELEME.md`.
