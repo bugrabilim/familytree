@@ -61,6 +61,20 @@ create table if not exists public.tree_invites (
   primary key (tree_id, token_hash)
 );
 
+-- ── Hesaplar (founder) ───────────────────────────────────────────────────────
+-- Ağacı kuran (founder) hesaplar. id = founder/treeId. Giriş şimdilik Blob'dan
+-- doğrulanıyor; bu tablo çift-yazmayla ayna tutulur (Faz 3 — sonraki adımda
+-- okuma buraya çevrilecek). family_name benzersiz (büyük/küçük harf duyarsız).
+create table if not exists public.accounts (
+  id                text primary key,           -- founder/treeId
+  family_name       text not null,
+  password_hash     text not null,
+  recovery_code_hash text not null default '',
+  created_at        timestamptz not null default now()
+);
+create unique index if not exists accounts_family_name_key
+  on public.accounts (lower(family_name));
+
 -- ── Satır Düzeyi Güvenlik (RLS) ──────────────────────────────────────────────
 -- Tüm erişim SUNUCUDAN servis-rolü anahtarıyla yapılır (RLS'yi atlar). Yetki
 -- denetimi uygulamada (NextAuth + resolveActiveTree) yapılır. anon/authenticated
@@ -69,3 +83,4 @@ alter table public.trees        enable row level security;
 alter table public.people       enable row level security;
 alter table public.tree_members enable row level security;
 alter table public.tree_invites enable row level security;
+alter table public.accounts     enable row level security;
