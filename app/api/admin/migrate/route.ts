@@ -54,11 +54,21 @@ export async function GET() {
   for (const t of trees) {
     const fam = await getFamilyData(t.treeId, { skipCache: true });
     const access = await getTreeAccess(t.treeId);
+    // Postgres'teki güncel kişi sayısı — çift-yazma tutarlılığını gözle teyit
+    // etmek için Blob sayısıyla yan yana gösterilir.
+    let postgresPeople: number | null = null;
+    try {
+      postgresPeople = await dbCountPeople(t.treeId);
+    } catch {
+      postgresPeople = null;
+    }
     preview.push({
       tree: t.name,
       treeId: t.treeId,
       home: t.home,
       people: fam.people.length,
+      postgresPeople,
+      inSync: postgresPeople === fam.people.length,
       members: access.members.length,
       invites: access.invites.length,
     });
@@ -66,7 +76,7 @@ export async function GET() {
   return NextResponse.json({
     dryRun: true,
     account: g.accountId,
-    note: "Bu bir önizlemedir; hiçbir şey yazılmadı. Göçü başlatmak için aynı adrese POST isteği gönderin (arayüzdeki düğme).",
+    note: "Bu bir önizlemedir; hiçbir şey yazılmadı. 'Kişi' Blob'daki, 'Postgres' ise DB'deki sayıdır; çift-yazma çalışıyorsa eşit olmalılar.",
     trees: preview,
   });
 }
