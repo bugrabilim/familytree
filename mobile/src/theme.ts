@@ -1,4 +1,17 @@
-export const palette = {
+export interface AppColors {
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  text: string;
+  textMuted: string;
+  border: string;
+  primary: string;
+  primaryPressed: string;
+  danger: string;
+  shadow: string;
+}
+
+export const palette: Record<"light" | "dark", AppColors> = {
   light: {
     background: "#F7F3ED",
     surface: "#FFFFFF",
@@ -23,9 +36,7 @@ export const palette = {
     danger: "#F28B7C",
     shadow: "#000000",
   },
-} as const;
-
-export type AppColors = (typeof palette)["light"];
+};
 
 export const spacing = {
   xs: 6,
