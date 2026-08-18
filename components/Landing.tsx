@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
@@ -88,6 +88,50 @@ function ProductShot({ name, alt, priority = false }: { name: "tree" | "book"; a
       <img src={`/shots/${name}-dark${suffix}.webp`} alt={alt} width={1600} height={911}
         loading={priority ? "eager" : "lazy"} decoding="async"
         className={`${common} hidden dark:block`} />
+    </>
+  );
+}
+
+/**
+ * Hareket azaltma tercihi — `useSyncExternalStore` ile (efektte setState yok).
+ * Sunucu anlık görüntüsü `false`: ilk render videoyu verir, istemci gerekirse
+ * durağan görsele düşer.
+ */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false
+  );
+}
+
+/**
+ * Hero ortamı — sessiz, döngüsel ürün turu videosu (ağaç → kişi → yelpaze →
+ * harita → kitap). Poster olarak aynı çerçeveli ekran görüntüsü kullanılır, bu
+ * yüzden video yüklenene kadar da doğru görüntü durur. Hareket azaltma
+ * tercihinde yalnız durağan görsel gösterilir.
+ */
+function HeroMedia({ t }: { t: ReturnType<typeof useT> }) {
+  const { lang } = useLang();
+  const sfx = lang === "en" ? "-en" : "";
+  const reduced = usePrefersReducedMotion();
+  const alt = t("land.shot.treeAlt");
+  if (reduced) return <ProductShot name="tree" alt={alt} priority />;
+  const common = "w-full h-auto";
+  return (
+    <>
+      <video className={`${common} block dark:hidden`} autoPlay muted loop playsInline
+        preload="metadata" poster={`/shots/tree-light${sfx}.webp`} aria-label={alt}>
+        <source src={`/shots/demo-light${sfx}.webm`} type="video/webm" />
+      </video>
+      <video className={`${common} hidden dark:block`} autoPlay muted loop playsInline
+        preload="metadata" poster={`/shots/tree-dark${sfx}.webp`} aria-label={alt}>
+        <source src={`/shots/demo-dark${sfx}.webm`} type="video/webm" />
+      </video>
     </>
   );
 }
@@ -241,7 +285,7 @@ export default function Landing() {
                 <span className="w-2.5 h-2.5 rounded-full bg-primary/60" aria-hidden />
                 <span className="ml-2 text-[10px] text-text-subtle tabular-nums">soylus.com</span>
               </div>
-              <ProductShot name="tree" alt={t("land.shot.treeAlt")} priority />
+              <HeroMedia t={t} />
             </div>
 
             {/* Motto kanıtı — restore + video, ekranın köşesine bindirilmiş */}

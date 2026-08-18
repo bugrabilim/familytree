@@ -7,7 +7,7 @@ export default auth((req) => {
   const isPublic =
     // Statik varlıklar (public/): görseller, ikonlar, yazı tipleri —
     // bunlar korumaya takılırsa <img> istekleri /login'e yönlenir.
-    /\.(?:webp|png|jpe?g|gif|svg|ico|avif|woff2?|txt|xml|webmanifest)$/i.test(pathname) ||
+    /\.(?:webp|webm|mp4|png|jpe?g|gif|svg|ico|avif|woff2?|txt|xml|webmanifest)$/i.test(pathname) ||
     pathname === "/" ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
