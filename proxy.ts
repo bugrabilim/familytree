@@ -13,6 +13,13 @@ export default auth((req) => {
     pathname.startsWith("/api/reset-password") ||
     pathname.startsWith("/join") ||
     pathname.startsWith("/api/tree/join") ||
+    // Herkese açık salt-okunur paylaşım görünümü (üyeliksiz).
+    pathname === "/g" ||
+    pathname.startsWith("/g/") ||
+    // Eşleştirme daveti kabul sayfası (giriş yönlendirmesini kendi yönetir;
+    // jetonu kaybetmemek için önce sayfa yüklenmeli).
+    pathname === "/pair" ||
+    /^\/pair\/[^/]+$/.test(pathname) ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
 
