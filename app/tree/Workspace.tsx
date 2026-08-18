@@ -13,6 +13,7 @@ import GedcomDialog from "@/components/GedcomDialog";
 import PrintView from "@/components/PrintView";
 import MembersDialog from "@/components/MembersDialog";
 import ShareDialog from "@/components/ShareDialog";
+import PairDialog from "@/components/PairDialog";
 import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
 import PanelView from "@/components/PanelView";
@@ -128,6 +129,7 @@ function WorkspaceInner({
   const [printingView, setPrintingView] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
@@ -389,6 +391,7 @@ function WorkspaceInner({
         onPrintView={printCurrentView}
         onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
         onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
+        onPair={role === "admin" && !publicView ? () => setPairOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
         activeTreeId={activeTreeId}
@@ -559,6 +562,10 @@ function WorkspaceInner({
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+      )}
+
+      {pairOpen && role === "admin" && !publicView && (
+        <PairDialog onClose={() => setPairOpen(false)} />
       )}
 
       {shareOpen && role === "admin" && !publicView && (

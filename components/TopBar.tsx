@@ -38,6 +38,8 @@ interface Props {
   onManageMembers?: () => void;
   /** Yalnız yönetici (admin) için — herkese açık paylaşım bağlantısı. */
   onShare?: () => void;
+  /** Yalnız yönetici (admin) için — hesaplar arası ağaç eşleştirme. */
+  onPair?: () => void;
   peopleCount: number;
   /** Çoklu ağaç (yalnız founder). Verilmezse marka adı statik gösterilir. */
   trees?: Array<TreeMeta & { home: boolean }>;
@@ -57,6 +59,7 @@ export default function TopBar({
   onPrintView,
   onManageMembers,
   onShare,
+  onPair,
   peopleCount,
   trees,
   activeTreeId,
@@ -315,6 +318,20 @@ export default function TopBar({
                         <path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       {t("share.menu")}
+                    </button>
+                  )}
+                  {onPair && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onPair();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                        <path d="M8 7a3 3 0 100 6 3 3 0 000-6zm8-2a3 3 0 100 6 3 3 0 000-6zM11 10h2M3 20v-1a4 4 0 014-4h2M14 20v-1a4 4 0 014-4h1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {t("pair.menu")}
                     </button>
                   )}
                   <button
