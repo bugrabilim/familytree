@@ -20,49 +20,46 @@ function BrandMark({ className, stroke = "currentColor" }: { className?: string;
 }
 
 /**
- * Hero görseli — motto'yu yansıtır: e-Devlet'ten içe aktarılmış bir profil,
- * fotoğraf + ses/video/hikâye ile zenginleştirilmiş. Arkada soluk bir soy ağacı.
+ * Hero görseli — motto: eski profil fotoğrafını restore et + kısa videoyla
+ * canlandır. İki "polaroid": arkada eski (sepya, çizik), önde restore edilmiş
+ * renkli + oynatma rozeti. Altta e-Devlet ve açıklama.
  */
-function EnrichPreview({ t }: { t: ReturnType<typeof useT> }) {
-  const chips = [
-    { icon: "📷", key: "photo" },
-    { icon: "🎧", key: "audio" },
-    { icon: "🎬", key: "video" },
-    { icon: "📖", key: "story" },
-  ] as const;
+function RestorePreview({ t }: { t: ReturnType<typeof useT> }) {
   return (
-    <div className="rounded-3xl border border-border bg-surface shadow-card p-5 sm:p-7">
-      {/* Soluk ağaç filigranı */}
-      <svg viewBox="0 0 400 200" className="w-full h-auto opacity-[0.12]" aria-hidden>
-        <g stroke="var(--text-subtle)" strokeWidth="2" fill="none">
-          <path d="M70 40 V80 H330 V40 M200 80 V120" />
-        </g>
-        {[70, 200, 330].map((x) => (
-          <circle key={x} cx={x} cy={30} r={16} fill="var(--surface-2)" stroke="var(--border)" strokeWidth="1.5" />
-        ))}
-        <circle cx={200} cy={140} r={20} fill="var(--primary-soft)" stroke="var(--primary)" strokeWidth="2.5" />
-      </svg>
+    <div className="rounded-3xl border border-border bg-surface shadow-card p-6 sm:p-8">
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary-soft text-primary mb-4">
+        <span aria-hidden>🏛️</span> {t("land.hero.badge")}
+      </span>
 
-      {/* Zenginleştirilmiş profil kartı */}
-      <div className="-mt-24 relative rounded-2xl border border-border bg-bg-elevated shadow-float p-4">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary-soft text-primary mb-3">
-          <span aria-hidden>🏛️</span> {t("land.hero.badge")}
-        </span>
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-accent-soft grid place-items-center text-2xl shrink-0" aria-hidden>👵</div>
-          <div className="min-w-0">
-            <p className="font-serif font-semibold text-text leading-tight">Ayşe Yıldız</p>
-            <p className="text-xs text-text-subtle">1928 – 2011 · Kastamonu</p>
+      <div className="relative h-56 sm:h-64">
+        {/* Önce — eski, sepya, çizik */}
+        <figure className="absolute left-2 top-3 w-36 sm:w-40 -rotate-6 rounded-xl bg-[#efe6d4] p-2 pb-6 shadow-lg border border-black/10">
+          <div className="relative aspect-[4/5] rounded-md overflow-hidden grid place-items-center" style={{ background: "linear-gradient(145deg,#cbb48c,#9c815a)" }}>
+            <span className="text-6xl" style={{ filter: "sepia(0.7) contrast(1.05) brightness(0.95)" }} aria-hidden>👵</span>
+            {/* çizikler */}
+            <span className="absolute inset-0" style={{ background: "repeating-linear-gradient(115deg, transparent, transparent 22px, rgba(60,40,20,0.10) 23px, transparent 24px)" }} aria-hidden />
+            <span className="absolute -top-1 right-2 w-6 h-6 bg-[#efe6d4] rotate-45" aria-hidden />
           </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-4">
-          {chips.map((c) => (
-            <span key={c.key} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg bg-surface-2 text-text">
-              <span aria-hidden>{c.icon}</span> {t(`land.hero.chip.${c.key}`)}
+          <figcaption className="absolute bottom-1 left-0 right-0 text-center text-[11px] font-medium text-neutral-600">{t("land.hero.before")}</figcaption>
+        </figure>
+
+        {/* Sonra — restore edilmiş, renkli, oynatma rozeti */}
+        <figure className="absolute right-2 top-6 w-40 sm:w-44 rotate-3 rounded-xl bg-white p-2 pb-6 shadow-xl border border-black/10 z-10">
+          <div className="relative aspect-[4/5] rounded-md overflow-hidden grid place-items-center" style={{ background: "linear-gradient(145deg,#f6ede0,#e7cfa6)" }}>
+            <span className="text-6xl" aria-hidden>👵</span>
+            {/* oynatma rozeti + süre */}
+            <span className="absolute inset-0 grid place-items-center">
+              <span className="w-11 h-11 rounded-full bg-black/45 backdrop-blur grid place-items-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white" aria-hidden><path d="M8 5v14l11-7z" /></svg>
+              </span>
             </span>
-          ))}
-        </div>
+            <span className="absolute bottom-1.5 right-1.5 text-[10px] font-semibold text-white bg-black/50 px-1.5 py-0.5 rounded">0:14</span>
+          </div>
+          <figcaption className="absolute bottom-1 left-0 right-0 text-center text-[11px] font-medium text-neutral-700">{t("land.hero.after")}</figcaption>
+        </figure>
       </div>
+
+      <p className="text-sm text-text-muted leading-relaxed mt-3">{t("land.hero.restoreCap")}</p>
     </div>
   );
 }
@@ -173,7 +170,7 @@ export default function Landing() {
               aria-hidden
             />
             <div className="relative">
-              <EnrichPreview t={t} />
+              <RestorePreview t={t} />
             </div>
           </div>
         </div>
