@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
-import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
-import { buildChatPrompt, buildChatSystem } from "@/lib/ai-chat";
+import { isGeminiConfigured, geminiGenerateParts } from "@/lib/gemini";
+import { buildChatPrompt } from "@/lib/ai-chat";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,7 +36,14 @@ export async function POST(req: NextRequest) {
   const prompt = buildChatPrompt(people, question, lang);
 
   try {
-    const answer = await geminiGenerate(prompt, buildChatSystem(lang));
+    // Yönerge isteme gömülü (sistem yok) → eko yok. Düşük sıcaklık = tutarlı,
+    // daha yüksek çıktı sınırı = yanıt yarıda kesilmesin.
+    const answer = await geminiGenerateParts([{ text: prompt }], undefined, {
+      temperature: 0.2,
+      maxOutputTokens: 1024,
+      timeoutMs: 30000,
+      retries: 1,
+    });
     return NextResponse.json({ answer });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message || "AI hatası" }, { status: 502 });
