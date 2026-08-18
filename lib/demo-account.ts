@@ -6,7 +6,7 @@ import type { User } from "@/types/user";
 
 /** Herkesin şifresiz girebildiği ortak demo hesabı. */
 export const DEMO_FAMILY_NAME = "Demirtaş (demo)";
-const DEMO_USER_ID = "demo-hesap";
+export const DEMO_USER_ID = "demo-hesap";
 
 /**
  * Demo hesabını hazırlar ve ağacını başlangıç hâline döndürür.

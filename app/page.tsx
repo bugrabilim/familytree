@@ -1,13 +1,19 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { DEMO_USER_ID } from "@/lib/demo-account";
 import Landing from "@/components/Landing";
 
 /**
- * Kök (`/`): giriş yapmış kullanıcı ağacına gider; giriş yapmamış ziyaretçi
- * herkese açık tanıtım (landing) sayfasını görür.
+ * Kök (`/`):
+ *  · Gerçek hesapla giriş yapmış kullanıcı → ağacına (`/tree`).
+ *  · Giriş yapmamış ZİYARETÇİ ya da yalnız DEMO oturumu → tanıtım (landing).
+ *
+ * Demo oturumu kalıcı bir çerez bıraktığından, kapatıp yeniden girince eskiden
+ * doğrudan demo ağaca düşülüyordu; artık demo oturumları da landing'de başlar
+ * (kullanıcı isterse "Demo" ile devam eder).
  */
 export default async function HomePage() {
   const session = await auth();
-  if (session) redirect("/tree");
+  if (session && session.user?.id !== DEMO_USER_ID) redirect("/tree");
   return <Landing />;
 }

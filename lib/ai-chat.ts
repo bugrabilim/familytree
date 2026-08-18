@@ -44,9 +44,34 @@ export function buildTreeContext(people: Person[], cap = 400): string {
   return lines.join("\n") + more;
 }
 
-/** Sohbet istemi: bağlam + kullanıcı sorusu. */
+/**
+ * Sohbet istemi — kurallar + bağlam + soru tek metinde. Yönerge sistem yerine
+ * isteme gömülür: bazı modeller sistem yönergesini yanıt sanıp aynen geri
+ * döndürebiliyordu; bu yapı o "eko"yu önler ve tutarlılığı artırır.
+ */
 export function buildChatPrompt(people: Person[], question: string, lang: "tr" | "en" = "tr"): string {
-  const header = lang === "en" ? "FAMILY TREE:" : "SOY AĞACI:";
-  const q = lang === "en" ? "QUESTION:" : "SORU:";
-  return `${header}\n${buildTreeContext(people)}\n\n${q} ${question.trim()}`;
+  if (lang === "en") {
+    return [
+      "Below is a family tree's data. Answer the QUESTION using ONLY this data, briefly and factually, in English.",
+      "If the answer is not in the data, say \"That isn't in the tree.\" Do NOT repeat these rules or the data.",
+      "",
+      "FAMILY TREE:",
+      buildTreeContext(people),
+      "",
+      `QUESTION: ${question.trim()}`,
+      "",
+      "ANSWER:",
+    ].join("\n");
+  }
+  return [
+    "Aşağıda bir soy ağacının verisi var. SORU'yu YALNIZ bu veriye dayanarak, kısa ve olgusal biçimde Türkçe yanıtla.",
+    "Yanıt veride yoksa \"Bu bilgi ağaçta yok.\" de. Kuralları ya da veriyi tekrar ETME; yalnız yanıtı yaz.",
+    "",
+    "SOY AĞACI:",
+    buildTreeContext(people),
+    "",
+    `SORU: ${question.trim()}`,
+    "",
+    "YANIT:",
+  ].join("\n");
 }
