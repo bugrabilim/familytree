@@ -276,7 +276,7 @@ export default function Landing() {
       {/* ---- Alt bilgi (çok kolon) ---- */}
       <footer className="border-t border-border bg-surface">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             {/* Marka */}
             <div className="lg:col-span-1">
               <div className="flex items-center gap-2.5 mb-3">
@@ -313,6 +313,15 @@ export default function Landing() {
               <ul className="space-y-2 text-sm">
                 <li><a href="#sss" className="text-text-muted hover:text-text transition-colors">{t("land.nav.faq")}</a></li>
                 <li><div className="pt-1"><LanguageSwitch /></div></li>
+              </ul>
+            </div>
+
+            {/* Yasal */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.legal")}</h3>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/privacy" className="text-text-muted hover:text-text transition-colors">{t("land.footer.privacy")}</Link></li>
+                <li><Link href="/terms" className="text-text-muted hover:text-text transition-colors">{t("land.footer.terms")}</Link></li>
               </ul>
             </div>
           </div>
