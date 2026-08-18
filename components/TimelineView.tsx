@@ -67,7 +67,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
         <div className="min-w-0">
           {/* Yıl ekseni (yapışkan) */}
           <div className="sticky top-0 z-10 flex bg-bg/95 backdrop-blur border-b border-border">
-            <div className="w-40 shrink-0 border-r border-border" />
+            <div className="w-28 sm:w-40 shrink-0 border-r border-border" />
             <div className="relative flex-1 h-7">
               {ticks.map((y) => (
                 <span
@@ -98,7 +98,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
                       isSel ? "bg-primary-soft" : ""
                     }`}
                   >
-                    <span className="w-40 shrink-0 px-3 py-1.5 border-r border-border/60 min-w-0">
+                    <span className="w-28 sm:w-40 shrink-0 px-3 py-1.5 border-r border-border/60 min-w-0">
                       <span className="block text-xs text-text truncate leading-tight">{fullName(p)}</span>
                       <span className="block text-[10px] text-text-subtle tabular-nums leading-tight">
                         {r.startYear}

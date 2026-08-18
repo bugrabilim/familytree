@@ -8,7 +8,7 @@ import LanguageSwitch from "./LanguageSwitch";
 import TreeSwitcher from "./TreeSwitcher";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
-import { useT } from "@/lib/i18n";
+import { useT, type TFunction } from "@/lib/i18n";
 import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
@@ -23,6 +23,47 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
   { key: "harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" },
   { key: "panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z" },
 ];
+
+/** Görünüm sekmeleri — masaüstünde ortalanmış nav, mobilde tam-genişlik satır
+ *  için ortak render. Mobilde eşit paylaşımla (flex-1) yeterli dokunma hedefi;
+ *  taşarsa yatay kaydırılabilir. */
+function ViewTabs({
+  view,
+  onViewChange,
+  t,
+}: {
+  view: ViewKey;
+  onViewChange: (v: ViewKey) => void;
+  t: TFunction;
+}) {
+  return (
+    <>
+      {VIEWS.map((v) => (
+        <button
+          key={v.key}
+          onClick={() => onViewChange(v.key)}
+          title={t(`view.${v.key}.hint`)}
+          aria-current={view === v.key}
+          className={`
+            flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5
+            h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium
+            transition-all duration-150 min-w-0
+            ${
+              view === v.key
+                ? "bg-bg-elevated text-text shadow-soft"
+                : "text-text-muted hover:text-text"
+            }
+          `}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+            <path d={v.icon} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="hidden sm:inline">{t(`view.${v.key}.label`)}</span>
+        </button>
+      ))}
+    </>
+  );
+}
 
 interface Props {
   familyName?: string;
@@ -75,9 +116,9 @@ export default function TopBar({
 
   return (
     <header className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
-      <div className="h-14 px-3 sm:px-4 flex items-center gap-3">
+      <div className="h-14 px-3 sm:px-4 flex items-center gap-2 sm:gap-3">
         {/* Marka */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-primary grid place-items-center shrink-0 shadow-soft">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -92,11 +133,11 @@ export default function TopBar({
             </svg>
           </div>
           {showSwitcher ? (
-            <div className="min-w-0 hidden xs:block sm:block">
+            <div className="min-w-0 hidden sm:block">
               <TreeSwitcher trees={trees!} activeTreeId={activeTreeId!} peopleCount={peopleCount} />
             </div>
           ) : (
-            <div className="min-w-0 hidden xs:block sm:block">
+            <div className="min-w-0 hidden sm:block">
               <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
                 {familyName ? `${familyName}` : t("topbar.appName")}
               </p>
@@ -107,37 +148,17 @@ export default function TopBar({
           )}
         </div>
 
-        {/* Görünüm seçici — segmented control */}
+        {/* Görünüm seçici — segmented control (masaüstü: ortalanmış).
+            Mobilde bu satırda yer olmadığından aşağıdaki tam-genişlik satıra taşınır. */}
         <nav
-          className="mx-auto flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border"
+          className="hidden sm:flex mx-auto items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border"
           aria-label={t("topbar.viewAria")}
         >
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              onClick={() => onViewChange(v.key)}
-              title={t(`view.${v.key}.hint`)}
-              aria-current={view === v.key}
-              className={`
-                flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-lg text-xs font-medium
-                transition-all duration-150
-                ${
-                  view === v.key
-                    ? "bg-bg-elevated text-text shadow-soft"
-                    : "text-text-muted hover:text-text"
-                }
-              `}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d={v.icon} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="hidden sm:inline">{t(`view.${v.key}.label`)}</span>
-            </button>
-          ))}
+          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
         </nav>
 
         {/* Sağ aksiyonlar */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
           <button
             onClick={onSearch}
             className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
@@ -378,6 +399,17 @@ export default function TopBar({
           </div>
           )}
         </div>
+      </div>
+
+      {/* Görünüm seçici — mobil satır: tam genişlik, taşarsa yatay kaydırılabilir.
+          Masaüstünde gizli (nav yukarıda ortalanmış gösterilir). */}
+      <div className="sm:hidden px-3 pb-2">
+        <nav
+          className="flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border overflow-x-auto no-scrollbar"
+          aria-label={t("topbar.viewAria")}
+        >
+          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
+        </nav>
       </div>
     </header>
   );
