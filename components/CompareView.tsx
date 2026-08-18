@@ -1,0 +1,88 @@
+"use client";
+
+import Link from "next/link";
+import { useT } from "@/lib/i18n";
+
+export interface MatchRow {
+  reason: "yearMatch" | "sharedParent" | "sharedSpouse";
+  mine: { id: string; name: string; span: string };
+  peer: { id: string; name: string; span: string };
+}
+
+/**
+ * Bağlı iki ağacın kesişimleri (P2). Olası ortak kişileri yan yana gösterir;
+ * kişiye tıklanınca ilgili ağaçta açılır. (P3/P4 eylemleri sonraki fazlarda
+ * bu görünüme eklenecek.)
+ */
+export default function CompareView({
+  peerTreeId,
+  peerName,
+  rows,
+  mineCount,
+  peerCount,
+}: {
+  peerTreeId: string;
+  peerName: string;
+  rows: MatchRow[];
+  mineCount: number;
+  peerCount: number;
+}) {
+  const t = useT();
+
+  return (
+    <div className="min-h-screen bg-bg text-text">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-xl font-semibold">{t("compare.title", { peer: peerName })}</h1>
+            <p className="text-sm text-text-muted">
+              {t("compare.subtitle", { count: rows.length, mine: mineCount, peer: peerCount })}
+            </p>
+          </div>
+          <Link href="/tree" className="text-sm text-text-muted hover:text-text underline shrink-0">
+            {t("compare.back")}
+          </Link>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+            <p className="text-4xl mb-3">🔍</p>
+            <p className="text-sm text-text-muted">{t("compare.empty")}</p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            <li className="grid grid-cols-[1fr_auto_1fr] gap-3 px-3 text-[11px] font-medium text-text-subtle">
+              <span>{t("compare.mineCol")}</span>
+              <span />
+              <span className="text-right">{t("compare.peerCol", { peer: peerName })}</span>
+            </li>
+            {rows.map((r, i) => (
+              <li
+                key={`${r.mine.id}-${r.peer.id}-${i}`}
+                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl border border-border bg-surface p-3"
+              >
+                <Link href={`/tree?kisi=${encodeURIComponent(r.mine.id)}`} className="min-w-0 hover:opacity-80">
+                  <p className="text-sm text-text truncate">{r.mine.name}</p>
+                  <p className="text-[11px] text-text-subtle tabular-nums">{r.mine.span || "—"}</p>
+                </Link>
+                <span
+                  className="text-[10px] font-medium px-2 py-1 rounded-lg bg-primary-soft text-primary text-center whitespace-nowrap"
+                  title={t(`panel.dup.${r.reason}`)}
+                >
+                  ↔
+                </span>
+                <Link
+                  href={`/p/${encodeURIComponent(peerTreeId)}?kisi=${encodeURIComponent(r.peer.id)}`}
+                  className="min-w-0 text-right hover:opacity-80"
+                >
+                  <p className="text-sm text-text truncate">{r.peer.name}</p>
+                  <p className="text-[11px] text-text-subtle tabular-nums">{r.peer.span || "—"}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}

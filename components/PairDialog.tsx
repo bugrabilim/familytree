@@ -108,6 +108,9 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
               {pairings.map((p) => (
                 <li key={p.peerTreeId} className="flex items-center gap-2">
                   <span className="text-sm text-text truncate flex-1 min-w-0">{p.peerName}</span>
+                  <a href={`/pair/compare/${encodeURIComponent(p.peerTreeId)}`} className="text-[11px] font-medium text-primary hover:underline shrink-0">
+                    {t("pair.compare")}
+                  </a>
                   <a href={`/p/${encodeURIComponent(p.peerTreeId)}`} className="text-[11px] font-medium text-primary hover:underline shrink-0">
                     {t("pair.view")}
                   </a>
