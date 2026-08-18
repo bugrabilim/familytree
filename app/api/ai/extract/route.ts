@@ -4,6 +4,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
 import { buildExtractPrompt, buildExtractSystem, parseExtractedJson } from "@/lib/ai-extract";
+import { xlsxToText, docxToText } from "@/lib/office-extract";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -34,6 +35,18 @@ async function filePart(file: File): Promise<GeminiPart> {
     const b64 = Buffer.from(await file.arrayBuffer()).toString("base64");
     return { inlineData: { mimeType: isPdf ? "application/pdf" : mime || "image/jpeg", data: b64 } };
   }
+
+  // Excel → metin (CSV); Word (.docx) → metin. İkili ofis dosyaları önce
+  // sunucuda çözülür, sonra metin olarak modele verilir.
+  const isXlsx = /\.(xlsx|xlsm|xlsb|xls)$/.test(name) || mime.includes("spreadsheet") || mime.includes("ms-excel");
+  const isDocx = name.endsWith(".docx") || mime.includes("wordprocessingml");
+  if (isXlsx || isDocx) {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const extracted = isXlsx ? await xlsxToText(buf) : await docxToText(buf);
+    if (!extracted.trim()) throw new Error("BINARY");
+    return { text: `--- DOSYA: ${file.name} ---\n${extracted.slice(0, 60000)}` };
+  }
+
   // Metin olarak çöz (txt/csv/tsv/json/gedcom/xml…). İkili ise reddet.
   const text = await file.text();
   const control = (text.match(BINARY_RE) || []).length;
