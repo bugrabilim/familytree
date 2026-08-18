@@ -5,7 +5,7 @@ import type { Gender, Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
 import Modal from "./ui/Modal";
-import { calcAge, daysUntilAnniversary, daysUntilBirthday, humanizeDays, lifeSpan } from "@/lib/date";
+import { calcAge, humanizeDays, lifeSpan, signedDaysToAnniversary } from "@/lib/date";
 import {
   ancestorDepths,
   bloodDegrees,
@@ -45,9 +45,10 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   // Yıldönümleri, gizlilik için maskeli kopyadan türetilir: gizli yaşayan bir
   // kişinin evlilik tarihi (maskeli kopyada `events` yok) sızmaz.
   const upcoming = useMemo(() => {
-    // Yaklaşan olaylar penceresi (gün). Etiket metniyle (i18n
-    // "panel.card.upcomingHint") uyumlu tutulmalı.
-    const WINDOW_DAYS = 30;
+    // Olay penceresi (gün): 10 gün öncesinden 30 gün sonrasına kadar. Etiket
+    // metniyle (i18n "panel.card.upcomingHint") uyumlu tutulmalı.
+    const PAST_DAYS = 10;
+    const FUTURE_DAYS = 30;
     type Ev = {
       key: string;
       kind: "birthday" | "anniversary" | "memorial";
@@ -66,18 +67,18 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
     };
 
     for (const p of people) {
-      // 🎂 Doğum günü — yalnızca yaşayanlar (mevcut davranış korunur)
-      if (!p.deathDate && p.birthDate) {
-        const days = daysUntilBirthday(p.birthDate);
-        if (days !== null && days <= WINDOW_DAYS) {
+      // 🎂 Doğum günü — yalnızca yaşayanlar; gün/ay bilgisi gerekir.
+      if (!p.deathDate && p.birthDate && p.birthDate.split("-").length >= 3) {
+        const days = signedDaysToAnniversary(p.birthDate, PAST_DAYS, FUTURE_DAYS);
+        if (days !== null) {
           out.push({ key: `b-${p.id}`, kind: "birthday", rawPerson: p, days, icon: "🎂", label: "" });
         }
       }
 
       // 🕯️ Anma günü — vefat edenler. Gizli (confidential) kayıtlar hariç.
       if (p.deathDate && !isMasked(p, hideLiving)) {
-        const days = daysUntilAnniversary(p.deathDate);
-        if (days !== null && days <= WINDOW_DAYS) {
+        const days = signedDaysToAnniversary(p.deathDate, PAST_DAYS, FUTURE_DAYS);
+        if (days !== null) {
           const years = occYearOf(days) - Number(p.deathDate.slice(0, 4));
           out.push({
             key: `m-${p.id}`,
@@ -95,8 +96,8 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       if (events) {
         for (const ev of events) {
           if (ev.type !== "evlilik" || !ev.date) continue;
-          const days = daysUntilAnniversary(ev.date);
-          if (days === null || days > WINDOW_DAYS) continue;
+          const days = signedDaysToAnniversary(ev.date, PAST_DAYS, FUTURE_DAYS);
+          if (days === null) continue;
           const years = occYearOf(days) - Number(ev.date.slice(0, 4));
           out.push({
             key: `a-${p.id}-${ev.id}`,
@@ -110,20 +111,14 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
       }
     }
 
-    return out.sort((a, b) => a.days - b.days).slice(0, 8);
+    // Geçmiş (−) en üstte, bugüne ve geleceğe doğru — zaman çizelgesi gibi.
+    return out.sort((a, b) => a.days - b.days).slice(0, 10);
   }, [people, view, hideLiving, t]);
 
   const eldest = useMemo(() => {
     return [...people]
       .filter((p) => p.birthDate)
       .sort((a, b) => (a.birthDate ?? "").localeCompare(b.birthDate ?? ""))
-      .slice(0, 5);
-  }, [people]);
-
-  const newest = useMemo(() => {
-    return [...people]
-      .filter((p) => p.birthDate)
-      .sort((a, b) => (b.birthDate ?? "").localeCompare(a.birthDate ?? ""))
       .slice(0, 5);
   }, [people]);
 
@@ -144,8 +139,13 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
     () => byAge.filter((x) => x.living).sort((a, b) => b.age - a.age).slice(0, 5),
     [byAge]
   );
-  const youngest = useMemo(
-    () => byAge.filter((x) => x.living).sort((a, b) => a.age - b.age).slice(0, 5),
+  // #3 — en gençleri iki gruba böl: yeni doğanlar (0–1) ve çocuklar (2–12).
+  const newborns = useMemo(
+    () => byAge.filter((x) => x.living && x.age <= 1).sort((a, b) => a.age - b.age).slice(0, 8),
+    [byAge]
+  );
+  const children = useMemo(
+    () => byAge.filter((x) => x.living && x.age >= 2 && x.age <= 12).sort((a, b) => a.age - b.age).slice(0, 8),
     [byAge]
   );
   const longestLived = useMemo(
@@ -402,7 +402,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                     <p className="text-[11px] text-text-subtle leading-tight">{t("common.living")}</p>
                   ) : age !== null ? (
                     <p className="text-[11px] text-text-subtle leading-tight">
-                      {t("panel.birthday.turning", { age: age + (ev.days === 0 ? 0 : 1) })}
+                      {t("panel.birthday.turning", { age: age + (ev.days > 0 ? 1 : 0) })}
                     </p>
                   ) : (
                     <p className="text-[11px] text-text-subtle leading-tight">{t("panel.birthday.generic")}</p>
@@ -429,7 +429,7 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
                       </div>
                       <span
                         className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${
-                          ev.days <= 1
+                          Math.abs(ev.days) <= 1
                             ? "bg-accent-soft text-accent"
                             : "bg-surface-2 text-text-muted"
                         }`}
@@ -486,47 +486,24 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             <AgeList rows={livingOldest} onSelect={onSelect} />
           </Card>
 
-          {/* #6 En gençler (yaşayan) */}
-          <Card title={t("panel.card.youngest")} empty={youngest.length === 0 ? t("panel.card.noDated") : undefined}>
-            <AgeList rows={youngest} onSelect={onSelect} />
+          {/* #3 Yeni doğanlar (0–1 yaş, yaşayan) */}
+          <Card title={t("panel.card.newborns")} hint={t("panel.card.newbornsHint")} empty={newborns.length === 0 ? t("panel.card.noDated") : undefined}>
+            <AgeList rows={newborns} onSelect={onSelect} />
+          </Card>
+
+          {/* #3 Çocuklar (2–12 yaş, yaşayan) */}
+          <Card title={t("panel.card.children")} hint={t("panel.card.childrenHint")} empty={children.length === 0 ? t("panel.card.noDated") : undefined}>
+            <AgeList rows={children} onSelect={onSelect} />
+          </Card>
+
+          {/* #4 Yaş aralığı filtresi — ör. yaşayan 25–35 yaş */}
+          <Card title={t("panel.card.ageRange")} hint={t("panel.card.ageRangeHint")}>
+            <AgeRangeFinder rows={byAge} onSelect={onSelect} />
           </Card>
 
           {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
           <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
             <AgeList rows={longestLived} onSelect={onSelect} />
-          </Card>
-
-          {/* En yeni kayıtlar */}
-          <Card title={t("panel.card.newest")} hint={t("panel.card.newestHint")} empty={newest.length === 0 ? t("panel.card.noDated") : undefined}>
-            <ul className="space-y-1">
-              {newest.map((rawP) => {
-                const p = view(rawP);
-                const masked = isMasked(rawP, hideLiving);
-                return (
-                  <li key={p.id}>
-                    <button
-                      onClick={() => onSelect(p.id)}
-                      className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
-                    >
-                      <Avatar person={p} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-text truncate leading-tight">
-                          {fullName(p)}
-                        </p>
-                        {!masked && p.birthPlace && (
-                          <p className="text-[11px] text-text-subtle truncate leading-tight">
-                            {p.birthPlace}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-xs text-text-muted tabular-nums shrink-0">
-                        {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
           </Card>
 
           {/* Soyadları + uyarılar */}
@@ -701,6 +678,67 @@ function AgeList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** #4 — Yaş aralığı filtresi. Serbest min/max ve "yalnız yaşayanlar" ile
+ *  aralığa giren kişileri listeler (ör. yaşayan 25–35 yaş). */
+function AgeRangeFinder({
+  rows,
+  onSelect,
+}: {
+  rows: Array<{ p: Person; age: number; living: boolean }>;
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const [min, setMin] = useState("25");
+  const [max, setMax] = useState("35");
+  const [livingOnly, setLivingOnly] = useState(true);
+
+  const matches = useMemo(() => {
+    const lo = min.trim() === "" ? 0 : Number(min);
+    const hi = max.trim() === "" ? 200 : Number(max);
+    if (Number.isNaN(lo) || Number.isNaN(hi)) return [];
+    const a = Math.min(lo, hi);
+    const b = Math.max(lo, hi);
+    return rows
+      .filter((r) => (!livingOnly || r.living) && r.age >= a && r.age <= b)
+      .sort((x, y) => x.age - y.age)
+      .slice(0, 100);
+  }, [rows, min, max, livingOnly]);
+
+  const inputCls =
+    "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end gap-2">
+        <label className="flex-1 min-w-0">
+          <span className="block text-[11px] text-text-muted mb-1">{t("panel.ageRange.min")}</span>
+          <input type="number" inputMode="numeric" min={0} max={130} value={min}
+            onChange={(e) => setMin(e.target.value)} className={inputCls} />
+        </label>
+        <span className="pb-2 text-text-subtle">–</span>
+        <label className="flex-1 min-w-0">
+          <span className="block text-[11px] text-text-muted mb-1">{t("panel.ageRange.max")}</span>
+          <input type="number" inputMode="numeric" min={0} max={130} value={max}
+            onChange={(e) => setMax(e.target.value)} className={inputCls} />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-text cursor-pointer select-none">
+        <input type="checkbox" checked={livingOnly} onChange={(e) => setLivingOnly(e.target.checked)}
+          className="w-4 h-4 rounded border-border accent-primary" />
+        {t("panel.ageRange.livingOnly")}
+      </label>
+      <p className="text-[11px] text-text-subtle">{t("panel.ageRange.count", { count: matches.length })}</p>
+      {matches.length === 0 ? (
+        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.ageRange.empty")}</p>
+      ) : (
+        <div className="max-h-72 overflow-y-auto pr-0.5">
+          <AgeList rows={matches} onSelect={onSelect} />
+        </div>
+      )}
+    </div>
   );
 }
 

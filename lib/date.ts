@@ -159,10 +159,55 @@ export function daysUntilAnniversary(stored?: string): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86400000);
 }
 
-/** "12 gün sonra" / "Bugün!" / "Yarın" */
+/**
+ * Bir tarihin yıldönümüne İŞARETLİ gün uzaklığı: gelecek için +, yakın
+ * geçmiş için −. `pastWindow` gün öncesine ve `futureWindow` gün sonrasına
+ * kadar olan en yakın yinelenmeyi döndürür; ikisi de pencere dışındaysa null.
+ *
+ * Yaklaşan olaylar listesine "10 gün öncesine kadar geçmiş" olayları da
+ * katmak için kullanılır (Madde 1). Bugün = 0.
+ */
+export function signedDaysToAnniversary(
+  stored: string | undefined,
+  pastWindow: number,
+  futureWindow: number
+): number | null {
+  if (!stored) return null;
+  const parts = stored.split("-");
+  if (parts.length < 2) return null;
+  const [, m, d] = parts.map(Number);
+  if (!m) return null;
+  const day = d || 1;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mk = (yr: number) => new Date(yr, m - 1, day);
+  const dayMs = 86400000;
+
+  // Yaklaşan yinelenme (bugün dahil, ≥ 0)
+  let next = mk(today.getFullYear());
+  if (next < today) next = mk(today.getFullYear() + 1);
+  const untilNext = Math.round((next.getTime() - today.getTime()) / dayMs);
+
+  // En son geçen yinelenme (bugün dahil, ≥ 0)
+  let prev = mk(today.getFullYear());
+  if (prev > today) prev = mk(today.getFullYear() - 1);
+  const sincePrev = Math.round((today.getTime() - prev.getTime()) / dayMs);
+
+  const futureOk = untilNext <= futureWindow;
+  const pastOk = sincePrev > 0 && sincePrev <= pastWindow;
+  // Pencere içindeki en yakın yinelenmeyi seç (geçmiş −, gelecek +)
+  if (pastOk && (!futureOk || sincePrev < untilNext)) return -sincePrev;
+  if (futureOk) return untilNext;
+  return null;
+}
+
+/** "12 gün sonra" / "Bugün" / "Yarın" / "Dün" / "3 gün önce" */
 export function humanizeDays(days: number): string {
   if (days === 0) return "Bugün";
   if (days === 1) return "Yarın";
+  if (days === -1) return "Dün";
+  if (days < 0) return `${-days} gün önce`;
   return `${days} gün sonra`;
 }
 
