@@ -10,6 +10,7 @@ import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
+import { useT } from "@/lib/i18n";
 
 export interface PersonNodeData extends Record<string, unknown> {
   person: Person;
@@ -95,7 +96,10 @@ function PersonNode({ data }: NodeProps) {
     fn();
   };
 
+  const t = useT();
   const alt = secondaryName(person);
+  // Başlangıç iskeleti kartı: adı henüz girilmemiş, rol etiketi gösterilir.
+  const isPlaceholder = !!person.placeholder && !person.firstName?.trim();
 
   return (
     <div className="group relative" data-sel={selected}>
@@ -155,8 +159,10 @@ function PersonNode({ data }: NodeProps) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className={`font-semibold leading-tight text-text truncate ${detail === 0 ? "text-[12px]" : "text-[13px]"}`}>
-              {primaryName(person)}
+            <p className={`font-semibold leading-tight truncate ${detail === 0 ? "text-[12px]" : "text-[13px]"} ${
+              isPlaceholder ? "text-text-subtle italic font-medium" : "text-text"
+            }`}>
+              {isPlaceholder ? t(`starter.role.${person.placeholder}`) : primaryName(person)}
             </p>
             {alt && (
               <p className="text-[12px] leading-tight text-text-muted truncate">

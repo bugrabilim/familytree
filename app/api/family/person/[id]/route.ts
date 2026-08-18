@@ -33,6 +33,10 @@ export async function PUT(
   const updated = {
     ...data.people[index],
     firstName: body.firstName ?? data.people[index].firstName,
+    // Başlangıç iskeleti etiketi, gerçek bir ad girilir girilmez düşer.
+    placeholder: (body.firstName ?? data.people[index].firstName)?.trim()
+      ? undefined
+      : data.people[index].placeholder,
     lastName: body.lastName ?? data.people[index].lastName,
     gender: body.gender ?? data.people[index].gender,
     nickname: body.nickname ?? data.people[index].nickname,

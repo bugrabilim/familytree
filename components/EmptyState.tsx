@@ -6,12 +6,15 @@ import { useT } from "@/lib/i18n";
 
 interface Props {
   onAdd: () => void;
+  /** Başlangıç iskeleti: anne–baba ve büyükanne/büyükbaba için boş kartlar. */
+  onStarter: () => void;
+  starterLoading?: boolean;
   onImport: () => void;
   onDemo: () => void;
   demoLoading?: boolean;
 }
 
-export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Props) {
+export default function EmptyState({ onAdd, onStarter, starterLoading, onImport, onDemo, demoLoading }: Props) {
   const { readOnly } = useReadOnly();
   const t = useT();
   return (
@@ -66,13 +69,22 @@ export default function EmptyState({ onAdd, onImport, onDemo, demoLoading }: Pro
         ) : (
           <>
             <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-              <Button size="lg" onClick={onAdd}>
-                {t("empty.addSelf")}
+              <Button size="lg" onClick={onStarter} disabled={!!starterLoading}>
+                {starterLoading ? t("empty.starterLoading") : t("empty.starter")}
               </Button>
               <Button size="lg" variant="secondary" onClick={onImport}>
                 {t("empty.haveGedcom")}
               </Button>
             </div>
+            <p className="mt-2.5 text-xs text-text-subtle leading-relaxed">
+              {t("empty.starterHint")}
+            </p>
+            <button
+              onClick={onAdd}
+              className="mt-3 text-xs text-text-muted hover:text-primary underline underline-offset-4"
+            >
+              {t("empty.addSelf")}
+            </button>
 
             <button
               onClick={onDemo}
