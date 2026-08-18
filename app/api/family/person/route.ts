@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
     deathCause: body.deathCause || undefined,
     photo: body.photo || undefined,
     photos: Array.isArray(body.photos) ? body.photos : undefined,
+    videos: Array.isArray(body.videos) ? body.videos : undefined,
+    documents: Array.isArray(body.documents) ? body.documents : undefined,
     bio: body.bio || undefined,
     events: Array.isArray(body.events) ? body.events : undefined,
     sources: Array.isArray(body.sources) ? body.sources : undefined,

@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  const kind = formData.get("kind") === "audio" ? "audio" : "photo";
+  const rawKind = formData.get("kind");
+  const kind =
+    rawKind === "audio" ? "audio" : rawKind === "video" ? "video" : rawKind === "document" ? "document" : "photo";
 
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 

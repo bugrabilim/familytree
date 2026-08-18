@@ -31,6 +31,8 @@ export interface PersonPayload {
   deathCause?: string;
   photo?: string;
   photos?: string[];
+  videos?: string[];
+  documents?: string[];
   bio?: string;
   events?: LifeEvent[];
   sources?: Source[];
@@ -122,6 +124,26 @@ export async function uploadAudio(file: File): Promise<string> {
   fd.append("kind", "audio");
   const res = await fetch("/api/upload", { method: "POST", body: fd });
   if (!res.ok) throw new Error(await parseError(res, "Ses yüklenemedi."));
+  const { url } = await res.json();
+  return url;
+}
+
+export async function uploadVideo(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("kind", "video");
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  if (!res.ok) throw new Error(await parseError(res, "Video yüklenemedi."));
+  const { url } = await res.json();
+  return url;
+}
+
+export async function uploadDocument(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("kind", "document");
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  if (!res.ok) throw new Error(await parseError(res, "Belge yüklenemedi."));
   const { url } = await res.json();
   return url;
 }
