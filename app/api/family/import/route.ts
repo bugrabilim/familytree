@@ -6,6 +6,8 @@ import { importGedcom } from "@/lib/gedcom";
 import { detectFormat, parseNonGedcom } from "@/lib/import";
 import { parseFttText } from "@/lib/ftz";
 import { extractNodeFtt } from "@/lib/ftz-unzip";
+import { parseEdevletText } from "@/lib/edevlet";
+import { extractPdfText } from "@/lib/pdf-extract";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
 
   const mode = (formData.get("mode") as string) ?? "merge";
   const isFtz = /\.ftz$/i.test(file.name || "");
+  const isPdf = /\.pdf$/i.test(file.name || "") || file.type === "application/pdf";
 
   let imported: Person[];
   let format: string;
@@ -47,6 +50,17 @@ export async function POST(req: NextRequest) {
       const buf = Buffer.from(await file.arrayBuffer());
       imported = parseFttText(extractNodeFtt(buf));
       format = "ftz";
+    } else if (isPdf) {
+      // e-Devlet "Alt-Üst Soy Belgesi" PDF'i: metni çıkar, kişilere çöz.
+      const buf = Buffer.from(await file.arrayBuffer());
+      imported = parseEdevletText(await extractPdfText(buf));
+      if (imported.length === 0) {
+        return NextResponse.json(
+          { error: "PDF'ten kişi çıkarılamadı. e-Devlet 'Alt-Üst Soy Belgesi' PDF'i bekleniyor." },
+          { status: 400 }
+        );
+      }
+      format = "edevlet";
     } else {
       const text = await file.text();
       // Çok-biçimli: GEDCOM / CSV / JSON (uzantı + içerik sezgisiyle belirlenir).
