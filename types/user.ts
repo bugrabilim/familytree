@@ -54,10 +54,38 @@ export interface ShareLink {
   createdAt: string;
 }
 
+/**
+ * Hesaplar arası ağaç eşleştirmesi (P1–P4). İki uzak akrabanın AYRI ağaçları
+ * karşılıklı ONAYLA bağlanır: birbirini görebilir (P1), kesişimleri bulabilir
+ * (P2), dal aşılayabilir (P3) ya da tümüyle birleştirebilir (P4). Eşleştirme
+ * KAYIT her iki ağacın erişim blob'unda ayrı ayrı tutulur (çift taraflı onay).
+ */
+export interface Pairing {
+  /** Karşı ağacın kimliği. */
+  peerTreeId: string;
+  /** Karşı ağacın adı (gösterim). */
+  peerName: string;
+  createdAt: string;
+}
+
+/** Bekleyen eşleştirme daveti — ham jeton `<treeId>.<secret>`, blob'da özet. */
+export interface PairInvite {
+  tokenHash: string;
+  /** Daveti oluşturan ağacın adı (kabul eden taraf peerName için kullanır). */
+  inviterName: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 /** Bir ağacın erişim kaydı — blob `tree-access-<treeId>.json`. */
 export interface TreeAccess {
   members: Member[];
   invites: Invite[];
   /** Herkese açık salt-okunur paylaşım (yoksa/undefined → paylaşım kapalı). */
   share?: ShareLink | null;
+  /** Onaylı bağlı ağaçlar (hesaplar arası). */
+  pairings?: Pairing[];
+  /** Bekleyen eşleştirme davetleri. */
+  pairInvites?: PairInvite[];
 }

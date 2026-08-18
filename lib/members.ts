@@ -1,7 +1,7 @@
 import { put, list, get } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
-import type { Invite, Member, ShareLink, TreeAccess, TreeRole } from "@/types/user";
+import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
 import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 
 /**
@@ -28,7 +28,13 @@ export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
     const result = await get(latest.pathname, { access: "private", useCache: false });
     if (!result || result.statusCode !== 200) return empty();
     const data = (await new Response(result.stream).json()) as TreeAccess;
-    return { members: data.members ?? [], invites: data.invites ?? [], share: data.share ?? null };
+    return {
+      members: data.members ?? [],
+      invites: data.invites ?? [],
+      share: data.share ?? null,
+      pairings: data.pairings ?? [],
+      pairInvites: data.pairInvites ?? [],
+    };
   } catch {
     return empty();
   }
@@ -217,4 +223,98 @@ export async function findValidShare(
     return { treeId: parsed.treeId, share: data.share };
   }
   return null;
+}
+
+/* ── Hesaplar arası eşleştirme (P1–P4) ─────────────────────────────────────── */
+
+/** Ağacın onaylı bağlı ağaçları. */
+export async function listPairings(treeId: string): Promise<Pairing[]> {
+  const data = await getTreeAccess(treeId);
+  return data.pairings ?? [];
+}
+
+/** İki ağaç onaylı bağlı mı? (her iki blob'da da kayıt olması beklenir). */
+export async function arePaired(treeId: string, peerTreeId: string): Promise<boolean> {
+  const data = await getTreeAccess(treeId);
+  return (data.pairings ?? []).some((p) => p.peerTreeId === peerTreeId);
+}
+
+/**
+ * Eşleştirme daveti oluştur. Ham jeton `<treeId>.<secret>` döner (bağlantıda);
+ * blob'da secret'ın özeti + davet edenin adı saklanır. Varsayılan 14 gün.
+ */
+export async function createPairInvite(
+  treeId: string,
+  inviterName: string,
+  ttlDays = 14
+): Promise<string> {
+  const secret = randomBytes(24).toString("hex");
+  const token = `${treeId}.${secret}`;
+  const now = Date.now();
+  const invite: PairInvite = {
+    tokenHash: sha256(secret),
+    inviterName,
+    createdBy: treeId,
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + ttlDays * 86400_000).toISOString(),
+  };
+  const data = await getTreeAccess(treeId);
+  data.pairInvites = [...(data.pairInvites ?? []), invite];
+  await saveTreeAccess(treeId, data);
+  return token;
+}
+
+/**
+ * Eşleştirme davetini kabul et: her iki ağaca da karşılıklı `Pairing` yazar ve
+ * daveti tüketir. Kabul eden taraf `peerTreeId` (kendi ağacı) ve `peerName`'ini
+ * verir. Kendi kendine ya da zaten bağlıysa hata döndürür.
+ */
+export async function acceptPairInvite(
+  token: string,
+  accepterTreeId: string,
+  accepterName: string
+): Promise<{ inviterTreeId: string; inviterName: string } | { error: string }> {
+  const parsed = parseInviteToken(token);
+  if (!parsed) return { error: "Geçersiz davet." };
+  const inviterTreeId = parsed.treeId;
+  if (inviterTreeId === accepterTreeId) return { error: "Bir ağacı kendisiyle eşleştiremezsiniz." };
+
+  const hash = sha256(parsed.secret);
+  const inviterData = await getTreeAccess(inviterTreeId);
+  const invite = (inviterData.pairInvites ?? []).find((iv) => iv.tokenHash === hash);
+  if (!invite) return { error: "Davet bulunamadı ya da kullanılmış." };
+  if (new Date(invite.expiresAt).getTime() < Date.now()) return { error: "Davetin süresi dolmuş." };
+
+  const inviterName = invite.inviterName;
+
+  // Daveti tüket + karşılıklı eşleştirme yaz (iki ayrı blob).
+  inviterData.pairInvites = (inviterData.pairInvites ?? []).filter((iv) => iv.tokenHash !== hash);
+  if (!(inviterData.pairings ?? []).some((p) => p.peerTreeId === accepterTreeId)) {
+    inviterData.pairings = [
+      ...(inviterData.pairings ?? []),
+      { peerTreeId: accepterTreeId, peerName: accepterName, createdAt: new Date().toISOString() },
+    ];
+  }
+  await saveTreeAccess(inviterTreeId, inviterData);
+
+  const accepterData = await getTreeAccess(accepterTreeId);
+  if (!(accepterData.pairings ?? []).some((p) => p.peerTreeId === inviterTreeId)) {
+    accepterData.pairings = [
+      ...(accepterData.pairings ?? []),
+      { peerTreeId: inviterTreeId, peerName: inviterName, createdAt: new Date().toISOString() },
+    ];
+    await saveTreeAccess(accepterTreeId, accepterData);
+  }
+
+  return { inviterTreeId, inviterName };
+}
+
+/** Eşleştirmeyi kaldır — her iki taraftan da siler. */
+export async function removePairing(treeId: string, peerTreeId: string): Promise<void> {
+  const a = await getTreeAccess(treeId);
+  a.pairings = (a.pairings ?? []).filter((p) => p.peerTreeId !== peerTreeId);
+  await saveTreeAccess(treeId, a);
+  const b = await getTreeAccess(peerTreeId);
+  b.pairings = (b.pairings ?? []).filter((p) => p.peerTreeId !== treeId);
+  await saveTreeAccess(peerTreeId, b);
 }
