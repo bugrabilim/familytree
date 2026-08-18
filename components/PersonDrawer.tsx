@@ -9,6 +9,7 @@ import {
 } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
+import RecordHints from "./RecordHints";
 import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
@@ -107,6 +108,13 @@ export default function PersonDrawer({
   const referencePerson = referenceId ? idx.get(referenceId) : undefined;
   const age = calcAge(person.birthDate, person.deathDate);
   const years = lifeSpan(person.birthDate, person.deathDate);
+  // Tarihsel kayıt ipucu yalnız geçmiş kuşaklar için (gizli olmayan): vefat
+  // etmiş ya da 100+ yıl önce doğmuş kişiler. Yaşayanların adı dış servise
+  // gönderilmez.
+  const birthYr = person.birthDate ? parseInt(person.birthDate.slice(0, 4), 10) : NaN;
+  const isHistorical =
+    !person.confidential &&
+    (!!person.deathDate || (Number.isFinite(birthYr) && birthYr < new Date().getFullYear() - 100));
 
   // Zaman çizelgesi: doğum + yaşam olayları + vefat tek bir dikey akışta.
   // Maskeli (yaşayan) kişide `events`/`birthDate` taşınmadığı için doğal olarak boş kalır.
@@ -422,6 +430,13 @@ export default function PersonDrawer({
                   );
                 })}
               </ul>
+            </section>
+          )}
+
+          {isHistorical && (
+            <section>
+              <SectionTitle>{t("drawer.records")}</SectionTitle>
+              <RecordHints person={person} />
             </section>
           )}
 
