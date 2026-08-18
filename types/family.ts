@@ -83,6 +83,12 @@ export interface Person {
    * Lakap — özellikle Soyadı Kanunu (1934) öncesi kuşaklarda: "Topal",
    * "Avcı", "Kör" gibi. Adın önünde gösterilir: "Topal Mehmed".
    */
+  /**
+   * Başlangıç iskeleti kartı — yeni kullanıcıya doldurulacak boş kartlar
+   * (anne, baba, dede, babaanne…) gösterilirken hangi rolü temsil ettiğini
+   * tutar. Ad girilince temizlenir; yalnızca görüntü etiketi içindir.
+   */
+  placeholder?: string;
   nickname?: string;
   /**
    * Baba adına dayalı anılma — soyadı olmayan eski kuşaklar için:

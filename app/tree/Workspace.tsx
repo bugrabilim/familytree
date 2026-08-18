@@ -135,6 +135,19 @@ function WorkspaceInner({
   const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [starterLoading, setStarterLoading] = useState(false);
+
+  /** Başlangıç iskeleti — anne/baba ve büyükanne-büyükbaba için boş kartlar. */
+  const createStarter = useCallback(async () => {
+    setStarterLoading(true);
+    try {
+      const res = await fetch("/api/family/starter", { method: "POST" });
+      if (!res.ok) throw new Error("starter");
+      router.refresh();
+    } catch {
+      setStarterLoading(false);
+    }
+  }, [router]);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
    * Ağaçta ne gösterilsin:
@@ -175,6 +188,10 @@ function WorkspaceInner({
    * ilk kişi. Böylece hem ağaç hem soy görünümü boş/sığ açılmaz.
    */
   const varsayilanKok = useMemo(() => {
+    // Başlangıç iskeletinde odak her zaman kullanıcının kendisi olsun —
+    // böylece her iki taraftaki büyükanne/büyükbaba da ilk açılışta görünür.
+    const iskeletBen = people.find((p) => p.placeholder === "self");
+    if (iskeletBen) return iskeletBen.id;
     // Çocuk sayısını tek geçişte hazırla (1. derece bağlantı hesabı için)
     const childCount = new Map<string, number>();
     for (const p of people) {
@@ -412,6 +429,8 @@ function WorkspaceInner({
         {isEmpty ? (
           <EmptyState
             onAdd={openAdd}
+            onStarter={createStarter}
+            starterLoading={starterLoading}
             onImport={() => setGedcomOpen(true)}
             onDemo={loadDemoDirect}
             demoLoading={demoLoading}
