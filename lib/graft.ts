@@ -70,8 +70,24 @@ export function graftFromPeer(
 ): GraftResult {
   const peerIdx = new Map(peerPeople.map((p) => [p.id, p]));
   if (!peerIdx.has(rootPeerId)) return { people: minePeople, added: 0, linked: 0 };
+  return graftClosure(minePeople, peerPeople, ancestorClosure(peerPeople, rootPeerId));
+}
 
-  const closure = ancestorClosure(peerPeople, rootPeerId);
+/**
+ * Tam birleştirme (P4) — TÜM peer ağacını `minePeople`'a katar; kesişimlerde
+ * (ad + yıl ±1) yeniden kullanır, gerisini ekler. Kaynağı değiştirmez.
+ */
+export function mergeTree(minePeople: Person[], peerPeople: Person[]): GraftResult {
+  return graftClosure(minePeople, peerPeople, new Set(peerPeople.map((p) => p.id)));
+}
+
+/**
+ * Verilen peer kişileri kümesini `minePeople`'a aşılayan çekirdek. Kümede olan
+ * her kişi yerelde eşleşiyorsa yeniden kullanılır; değilse klonlanır. Kümedeki
+ * kişiler arası bağlar korunur, dışarı sarkanlar atılır.
+ */
+function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<string>): GraftResult {
+  const peerIdx = new Map(peerPeople.map((p) => [p.id, p]));
 
   // peer id → yerel id (eşleşen) ya da yeni id (klon)
   const idMap = new Map<string, string>();
@@ -116,10 +132,9 @@ export function graftFromPeer(
       // Eşleşen yerel kişi → eksik ata/eş bağlarını birleştir (üste aşıla)
       const L = resIdx.get(localId);
       if (L) {
-        const before = new Set(L.parentIds ?? []);
         L.parentIds = [...new Set([...(L.parentIds ?? []), ...parents])];
         L.spouseIds = [...new Set([...(L.spouseIds ?? []), ...spouses])];
-        if (L.parentIds.length > before.size) linked++;
+        linked++;
       }
     } else {
       const clone: Person = { ...peer, id: localId, parentIds: parents, spouseIds: spouses };
