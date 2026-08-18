@@ -33,6 +33,30 @@ export default function CompareView({
   const router = useRouter();
   const [status, setStatus] = useState<Record<string, "busy" | { added: number; linked: number } | string>>({});
 
+  const [fullBusy, setFullBusy] = useState(false);
+  const [fullDone, setFullDone] = useState<{ added: number; linked: number } | string | null>(null);
+
+  const mergeAll = async () => {
+    if (!window.confirm(t("compare.mergeAllConfirm", { peer: peerName }))) return;
+    setFullBusy(true);
+    setFullDone(null);
+    try {
+      const res = await fetch("/api/tree/merge-tree", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peerTreeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? t("compare.mergeAllFailed"));
+      setFullDone({ added: data.added ?? 0, linked: data.linked ?? 0 });
+      router.refresh();
+    } catch (e) {
+      setFullDone((e as Error).message);
+    } finally {
+      setFullBusy(false);
+    }
+  };
+
   const graft = async (peerRootId: string) => {
     setStatus((s) => ({ ...s, [peerRootId]: "busy" }));
     try {
@@ -63,6 +87,29 @@ export default function CompareView({
           <Link href="/tree" className="text-sm text-text-muted hover:text-text underline shrink-0">
             {t("compare.back")}
           </Link>
+        </div>
+
+        {/* P4 — tüm karşı ağacı kendi ağacıma kat (kesişimlerde dedup) */}
+        <div className="rounded-2xl border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text">{t("compare.mergeAllTitle")}</p>
+            <p className="text-[11px] text-text-subtle">{t("compare.mergeAllHint")}</p>
+          </div>
+          {fullDone && typeof fullDone === "object" ? (
+            <span className="text-xs text-primary">
+              {t("compare.grafted", { added: fullDone.added, linked: fullDone.linked })}
+            </span>
+          ) : typeof fullDone === "string" ? (
+            <span className="text-xs text-danger">{fullDone}</span>
+          ) : (
+            <button
+              onClick={mergeAll}
+              disabled={fullBusy}
+              className="h-9 px-4 rounded-lg border border-border bg-surface-2 hover:bg-surface text-sm font-medium text-text disabled:opacity-50 shrink-0"
+            >
+              {fullBusy ? t("compare.merging") : t("compare.mergeAll")}
+            </button>
+          )}
         </div>
 
         {rows.length === 0 ? (

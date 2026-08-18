@@ -1,4 +1,4 @@
-import { graftFromPeer, ancestorClosure } from "../lib/graft.ts";
+import { graftFromPeer, ancestorClosure, mergeTree } from "../lib/graft.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0,
@@ -49,6 +49,15 @@ check("mine orijinali değişmedi", mine.length === 1);
 const empty: Person[] = [];
 const g2 = graftFromPeer(empty, peer, "gc");
 check("boş ağaca 3 kişi", g2.added === 3 && g2.people.length === 3);
+
+// mergeTree: tüm peer ağacı; kesişimde dedup
+const mineFull = [P({ id: "m1", firstName: "Dede", birthDate: "1940" })]; // Dede zaten bende
+const mt = mergeTree(mineFull, peer);
+check("mergeTree: Dede yeniden kullanıldı", mt.linked >= 1);
+check("mergeTree: Torun + Baba eklendi (Dede hariç)", mt.added === 2);
+check("mergeTree: toplam 3 kişi", mt.people.length === 3);
+const babaM = mt.people.find((p) => p.firstName === "Baba")!;
+check("mergeTree: babanın dedesi mevcut m1'e bağlandı", babaM.parentIds.includes("m1"));
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);
