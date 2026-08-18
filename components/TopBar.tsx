@@ -82,6 +82,8 @@ interface Props {
   onShare?: () => void;
   /** Yalnız yönetici (admin) için — hesaplar arası ağaç eşleştirme. */
   onPair?: () => void;
+  /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
+  onAiChat?: () => void;
   peopleCount: number;
   /** Çoklu ağaç (yalnız founder). Verilmezse marka adı statik gösterilir. */
   trees?: Array<TreeMeta & { home: boolean }>;
@@ -102,6 +104,7 @@ export default function TopBar({
   onManageMembers,
   onShare,
   onPair,
+  onAiChat,
   peopleCount,
   trees,
   activeTreeId,
@@ -299,6 +302,18 @@ export default function TopBar({
             {menuOpen && (
               <>
                 <div className="absolute right-0 top-11 z-20 w-52 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden animate-scale-in origin-top-right">
+                  {onAiChat && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onAiChat();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                    >
+                      <span className="text-base leading-none" aria-hidden>✨</span>
+                      {t("ai.chat.menu")}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setMenuOpen(false);
