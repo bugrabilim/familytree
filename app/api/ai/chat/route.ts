@@ -6,6 +6,7 @@ import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
 import { buildChatPrompt, buildChatSystem } from "@/lib/ai-chat";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Ağaç hakkında AI soru-cevap (madde 3). Kullanıcının sorusunu, ağacın metin

@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     const out = await geminiGenerateParts(
       [{ text: buildExtractPrompt(lang) }, part],
       buildExtractSystem(lang),
-      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 55000 }
+      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 55000, retries: 0 }
     );
     imported = parseExtractedJson(out);
   } catch (e) {

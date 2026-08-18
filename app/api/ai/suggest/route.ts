@@ -5,6 +5,7 @@ import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
 import { buildSuggestPrompt, isSuggestMode } from "@/lib/ai-suggest";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * AI asistanı (Gemini) — kullanıcının SEÇTİĞİ moda göre bir kişi için öneri
