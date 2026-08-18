@@ -4,7 +4,7 @@ import "server-only";
  * Google Gemini istemcisi (sunucu-taraflı). Ücretsiz kotalı; anahtar
  * `GEMINI_API_KEY` env ile verilir. Yoksa `isGeminiConfigured()` false döner ve
  * AI özellikleri kibarca kapalı kalır. Model `GEMINI_MODEL` ile değiştirilebilir
- * (varsayılan gemini-2.0-flash — hızlı/ucuz).
+ * (varsayılan gemini-3.6-flash — hızlı/ucuz).
  */
 
 export function isGeminiConfigured(): boolean {
@@ -12,7 +12,7 @@ export function isGeminiConfigured(): boolean {
 }
 
 function model(): string {
-  return process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  return process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 }
 
 /** Metin üretimi. Hata durumunda anlamlı bir Error fırlatır. */
