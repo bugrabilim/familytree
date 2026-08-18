@@ -318,3 +318,31 @@ body {
   body.print-view .react-flow__background,
   body.print-view .react-flow__attribution { display: none !important; }
 }
+
+/* ----------------------------------------------------------------------
+ * Aile kitabı (ekran) — nostaljik sayfa çevirme (Madde 4).
+ * Sayfa sağdan sola çevrilir: yeni sayfa sağdan gelir, eski sola gider.
+ * -------------------------------------------------------------------- */
+@keyframes book-in-next {
+  from { transform: perspective(1600px) rotateY(-14deg) translateX(28px); opacity: 0; }
+  to   { transform: perspective(1600px) rotateY(0) translateX(0); opacity: 1; }
+}
+@keyframes book-in-prev {
+  from { transform: perspective(1600px) rotateY(14deg) translateX(-28px); opacity: 0; }
+  to   { transform: perspective(1600px) rotateY(0) translateX(0); opacity: 1; }
+}
+.book-turn-next { animation: book-in-next 0.42s cubic-bezier(0.22, 0.61, 0.36, 1); transform-origin: left center; }
+.book-turn-prev { animation: book-in-prev 0.42s cubic-bezier(0.22, 0.61, 0.36, 1); transform-origin: right center; }
+
+/* Yıpranmış kâğıt dokusu — sıcak, hafif damarlı */
+.book-paper {
+  background-color: #f6efe0;
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(0,0,0,0.04), transparent 60%),
+    radial-gradient(100% 60% at 100% 100%, rgba(120,72,20,0.06), transparent 55%);
+  color: #2b2117;
+}
+.book-paper-edge { box-shadow: inset 0 0 60px rgba(120,80,30,0.10), inset 0 0 3px rgba(80,50,20,0.15); }
+@media (prefers-reduced-motion: reduce) {
+  .book-turn-next, .book-turn-prev { animation: none; }
+}

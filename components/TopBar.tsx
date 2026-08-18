@@ -74,6 +74,8 @@ interface Props {
   onImportExport: () => void;
   /** Aile kitabı (PDF) — PrintView'i açar. */
   onPrint: () => void;
+  /** Aile kitabı (ekran, nostaljik kitap) — BookView'i açar. */
+  onBook: () => void;
   /** Açık görünümü (ağaç/harita/soy/panel) yazdır (Madde 8). */
   onPrintView: () => void;
   /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
@@ -100,6 +102,7 @@ export default function TopBar({
   onSearch,
   onImportExport,
   onPrint,
+  onBook,
   onPrintView,
   onManageMembers,
   onShare,
@@ -368,6 +371,18 @@ export default function TopBar({
                       {t("pair.menu")}
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onBook();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                      <path d="M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t("book.menu")}
+                  </button>
                   <button
                     onClick={() => {
                       setMenuOpen(false);
