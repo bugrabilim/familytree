@@ -19,46 +19,50 @@ function BrandMark({ className, stroke = "currentColor" }: { className?: string;
   );
 }
 
-/** Hero görseli — soy ağacı önizlemesi (soyağacı düğümleri + bağlar). */
-function TreePreview() {
-  // kişi başı yuvarlağı (fotoğraf yerine avatar) çizen yardımcı
-  const node = (x: number, y: number, r: number, fill: string, focus = false) => (
-    <g>
-      <circle cx={x} cy={y} r={r} fill={fill} stroke={focus ? "var(--primary)" : "var(--border)"} strokeWidth={focus ? 3 : 1.5} />
-      <circle cx={x} cy={y - r * 0.18} r={r * 0.34} fill={focus ? "var(--primary)" : "var(--text-subtle)"} opacity={focus ? 0.9 : 0.5} />
-      <path
-        d={`M${x - r * 0.5} ${y + r * 0.62} a ${r * 0.5} ${r * 0.5} 0 0 1 ${r} 0`}
-        fill={focus ? "var(--primary)" : "var(--text-subtle)"}
-        opacity={focus ? 0.9 : 0.5}
-      />
-    </g>
-  );
-  const soft = "var(--surface-2)";
+/**
+ * Hero görseli — motto'yu yansıtır: e-Devlet'ten içe aktarılmış bir profil,
+ * fotoğraf + ses/video/hikâye ile zenginleştirilmiş. Arkada soluk bir soy ağacı.
+ */
+function EnrichPreview({ t }: { t: ReturnType<typeof useT> }) {
+  const chips = [
+    { icon: "📷", key: "photo" },
+    { icon: "🎧", key: "audio" },
+    { icon: "🎬", key: "video" },
+    { icon: "📖", key: "story" },
+  ] as const;
   return (
     <div className="rounded-3xl border border-border bg-surface shadow-card p-5 sm:p-7">
-      <svg viewBox="0 0 400 300" className="w-full h-auto" role="img" aria-label="Soy ağacı önizlemesi">
-        {/* bağlar */}
-        <g stroke="var(--border)" strokeWidth="2" fill="none">
-          {/* büyükanne/dedeler → ebeveynler */}
-          <path d="M70 74 V116 H150 V74" />
-          <path d="M250 74 V116 H330 V74" />
-          <path d="M110 116 V150" />
-          <path d="M290 116 V150" />
-          {/* ebeveynler → odak */}
-          <path d="M110 174 V212 H290 V174" />
-          <path d="M200 212 V236" />
+      {/* Soluk ağaç filigranı */}
+      <svg viewBox="0 0 400 200" className="w-full h-auto opacity-[0.12]" aria-hidden>
+        <g stroke="var(--text-subtle)" strokeWidth="2" fill="none">
+          <path d="M70 40 V80 H330 V40 M200 80 V120" />
         </g>
-        {/* büyükanne/dedeler */}
-        {node(70, 56, 20, soft)}
-        {node(150, 56, 20, soft)}
-        {node(250, 56, 20, soft)}
-        {node(330, 56, 20, soft)}
-        {/* ebeveynler */}
-        {node(110, 156, 22, "var(--primary-soft)")}
-        {node(290, 156, 22, "var(--accent-soft)")}
-        {/* odak kişi */}
-        {node(200, 262, 26, "var(--primary-soft)", true)}
+        {[70, 200, 330].map((x) => (
+          <circle key={x} cx={x} cy={30} r={16} fill="var(--surface-2)" stroke="var(--border)" strokeWidth="1.5" />
+        ))}
+        <circle cx={200} cy={140} r={20} fill="var(--primary-soft)" stroke="var(--primary)" strokeWidth="2.5" />
       </svg>
+
+      {/* Zenginleştirilmiş profil kartı */}
+      <div className="-mt-24 relative rounded-2xl border border-border bg-bg-elevated shadow-float p-4">
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary-soft text-primary mb-3">
+          <span aria-hidden>🏛️</span> {t("land.hero.badge")}
+        </span>
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-accent-soft grid place-items-center text-2xl shrink-0" aria-hidden>👵</div>
+          <div className="min-w-0">
+            <p className="font-serif font-semibold text-text leading-tight">Ayşe Yıldız</p>
+            <p className="text-xs text-text-subtle">1928 – 2011 · Kastamonu</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-4">
+          {chips.map((c) => (
+            <span key={c.key} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg bg-surface-2 text-text">
+              <span aria-hidden>{c.icon}</span> {t(`land.hero.chip.${c.key}`)}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -138,7 +142,7 @@ export default function Landing() {
             <span className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] px-3 py-1 rounded-full bg-primary-soft text-primary">
               {t("land.hero.kicker")}
             </span>
-            <h1 className="font-serif text-4xl sm:text-5xl xl:text-6xl font-semibold leading-[1.08] mt-5">
+            <h1 className="font-serif text-[2rem] sm:text-4xl xl:text-5xl font-semibold leading-[1.12] mt-5">
               {t("land.hero.title")}
             </h1>
             <p className="text-base sm:text-lg text-text-muted mt-5 max-w-xl mx-auto lg:mx-0 leading-relaxed">
@@ -169,7 +173,7 @@ export default function Landing() {
               aria-hidden
             />
             <div className="relative">
-              <TreePreview />
+              <EnrichPreview t={t} />
             </div>
           </div>
         </div>
