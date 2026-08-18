@@ -10,7 +10,7 @@ import {
 import Avatar from "./ui/Avatar";
 import Button from "./ui/Button";
 import RecordHints from "./RecordHints";
-import AiStory from "./AiStory";
+import AiAssist from "./AiAssist";
 import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
@@ -496,7 +496,7 @@ export default function PersonDrawer({
           {!readOnly && !person.confidential && (
             <section>
               <SectionTitle>{t("drawer.aiStory")}</SectionTitle>
-              <AiStory person={person} />
+              <AiAssist person={person} />
             </section>
           )}
 
