@@ -44,7 +44,7 @@ export function isMasked(p: Person, hideLiving: boolean): boolean {
 const PRIVATE_GROUP_FIELDS: Record<string, Array<keyof Person>> = {
   story: ["bio"],
   health: ["congenitalCondition", "healthCondition", "deathCause", "healthNote"],
-  photo: ["photo", "photos"],
+  photo: ["photo", "photos", "videos", "documents"],
   orientation: ["orientation"],
   memories: ["memories"],
   birthPlace: ["birthPlace"],

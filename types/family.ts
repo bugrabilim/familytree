@@ -104,6 +104,10 @@ export interface Person {
    * herhangi bir fotoğraf kapak yapılabilir.
    */
   photos?: string[];
+  /** Video kayıtları — Cloudinary URL listesi (anlatım, kutlama, röportaj…). */
+  videos?: string[];
+  /** Belge / el yazısı taramaları — Cloudinary URL listesi (mektup, nüfus, vasiyet…). */
+  documents?: string[];
   bio?: string;
   /* --- Kimlik ve aidiyet (hepsi isteğe bağlı) ---
      Soy ağaçlarında sıkça kaydedilen bilgiler. "ırk" yerine "etnik köken"

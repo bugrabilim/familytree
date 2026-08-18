@@ -396,6 +396,58 @@ export default function PersonDrawer({
             </section>
           )}
 
+          {/* Videolar */}
+          {person.videos && person.videos.length > 0 && (
+            <section>
+              <SectionTitle>{t("drawer.videos")}</SectionTitle>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {person.videos.map((src) => (
+                  <video
+                    key={src}
+                    src={src}
+                    controls
+                    preload="metadata"
+                    className="w-full aspect-video rounded-lg border border-border bg-black"
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Belgeler / el yazısı */}
+          {person.documents && person.documents.length > 0 && (
+            <section>
+              <SectionTitle>{t("drawer.documents")}</SectionTitle>
+              <div className="grid grid-cols-3 gap-1.5">
+                {person.documents.map((src) => {
+                  const isImg = /\.(jpe?g|png|gif|webp|bmp|tiff?)(?:$|[?#])/i.test(src);
+                  return isImg ? (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => setLightbox(src)}
+                      aria-label={t("drawer.enlargePhoto")}
+                      className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ) : (
+                    <a
+                      key={src}
+                      href={src}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="aspect-square rounded-lg border border-border grid place-items-center text-[10px] text-text-muted hover:border-primary transition-colors"
+                    >
+                      📄
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Kaynaklar — maskeli (yaşayan) kişide `sources` taşınmadığı için boş kalır */}
           {person.sources && person.sources.length > 0 && (
             <section>

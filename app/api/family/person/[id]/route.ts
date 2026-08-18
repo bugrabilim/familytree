@@ -53,6 +53,8 @@ export async function PUT(
     deathCause: body.deathCause ?? data.people[index].deathCause,
     photo: body.photo ?? data.people[index].photo,
     photos: Array.isArray(body.photos) ? body.photos : data.people[index].photos,
+    videos: Array.isArray(body.videos) ? body.videos : data.people[index].videos,
+    documents: Array.isArray(body.documents) ? body.documents : data.people[index].documents,
     bio: body.bio ?? data.people[index].bio,
     events: Array.isArray(body.events) ? body.events : data.people[index].events,
     sources: Array.isArray(body.sources) ? body.sources : data.people[index].sources,

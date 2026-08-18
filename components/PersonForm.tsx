@@ -29,6 +29,8 @@ import {
   createPerson,
   updatePerson,
   uploadPhoto,
+  uploadVideo,
+  uploadDocument,
   type PersonPayload,
   type RelationType,
 } from "@/lib/actions";
@@ -97,6 +99,8 @@ export default function PersonForm({
   const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     firstName: initial?.firstName ?? "",
@@ -111,6 +115,8 @@ export default function PersonForm({
     bio: initial?.bio ?? "",
     photo: initial?.photo ?? "",
     photos: (initial?.photos ?? []) as string[],
+    videos: (initial?.videos ?? []) as string[],
+    documents: (initial?.documents ?? []) as string[],
     religion: initial?.religion ?? "",
     denomination: initial?.denomination ?? "",
     language: initial?.language ?? "",
@@ -163,6 +169,7 @@ export default function PersonForm({
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState<"videos" | "documents" | null>(null);
   const [saving, setSaving] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [avatarSecici, setAvatarSecici] = useState(false);
@@ -257,6 +264,28 @@ export default function PersonForm({
 
   const removeGalleryPhoto = (url: string) =>
     setForm((f) => ({ ...f, photos: f.photos.filter((u) => u !== url) }));
+
+  /** Video / belge yükleme — tek dosya, ilgili listeye eklenir. */
+  const handleMedia = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    kind: "videos" | "documents"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMediaUploading(kind);
+    try {
+      const url = kind === "videos" ? await uploadVideo(file) : await uploadDocument(file);
+      setForm((f) => ({ ...f, [kind]: [...f[kind], url] }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, form: (err as Error).message }));
+    } finally {
+      setMediaUploading(null);
+      const ref = kind === "videos" ? videoRef : docRef;
+      if (ref.current) ref.current.value = "";
+    }
+  };
+  const removeMedia = (kind: "videos" | "documents", url: string) =>
+    setForm((f) => ({ ...f, [kind]: f[kind].filter((u) => u !== url) }));
 
   /** Galerideki bir fotoğrafı kapak (avatar) yap. */
   const setCover = (url: string) => set("photo", url);
@@ -386,6 +415,8 @@ export default function PersonForm({
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
       photos: form.photos.length ? form.photos : undefined,
+      videos: form.videos.length ? form.videos : undefined,
+      documents: form.documents.length ? form.documents : undefined,
       events: builtEvents,
       sources: builtSources.length ? builtSources : undefined,
       memories: builtMemories.length ? builtMemories : undefined,
@@ -587,6 +618,82 @@ export default function PersonForm({
             className="hidden"
             onChange={handleGallery}
           />
+        </div>
+
+        {/* Video kayıtları */}
+        <div className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-medium text-text">
+              {t("form.videos")}
+              {form.videos.length > 0 && <span className="ml-1.5 text-primary">· {form.videos.length}</span>}
+            </span>
+            <Button type="button" variant="secondary" size="sm" onClick={() => videoRef.current?.click()} disabled={mediaUploading !== null}>
+              {mediaUploading === "videos" ? t("form.uploading") : t("form.addVideo")}
+            </Button>
+          </div>
+          {form.videos.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">{t("form.videosEmpty")}</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {form.videos.map((src) => (
+                <div key={src} className="relative rounded-lg overflow-hidden border border-border bg-black">
+                  <video src={src} className="w-full aspect-video object-cover" controls preload="metadata" />
+                  <button
+                    type="button"
+                    onClick={() => removeMedia("videos", src)}
+                    aria-label={t("form.remove")}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 grid place-items-center rounded-md bg-black/55 text-white hover:bg-danger transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => handleMedia(e, "videos")} />
+        </div>
+
+        {/* Belge / el yazısı taramaları */}
+        <div className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-medium text-text">
+              {t("form.documents")}
+              {form.documents.length > 0 && <span className="ml-1.5 text-primary">· {form.documents.length}</span>}
+            </span>
+            <Button type="button" variant="secondary" size="sm" onClick={() => docRef.current?.click()} disabled={mediaUploading !== null}>
+              {mediaUploading === "documents" ? t("form.uploading") : t("form.addDocument")}
+            </Button>
+          </div>
+          {form.documents.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">{t("form.documentsEmpty")}</p>
+          ) : (
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {form.documents.map((src) => {
+                const isImg = /\.(jpe?g|png|gif|webp|bmp|tiff?)(?:$|[?#])/i.test(src);
+                return (
+                  <div key={src} className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-surface">
+                    {isImg ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <a href={src} target="_blank" rel="noopener noreferrer" className="w-full h-full grid place-items-center text-[10px] text-text-muted">
+                        📄 {t("form.document")}
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeMedia("documents", src)}
+                      aria-label={t("form.remove")}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 grid place-items-center rounded-md bg-black/55 text-white hover:bg-danger transition-colors"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <input ref={docRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => handleMedia(e, "documents")} />
         </div>
       </div>
 
@@ -1241,7 +1348,7 @@ export default function PersonForm({
       )}
 
       <div className="flex gap-2 pt-1">
-        <Button type="submit" disabled={saving || uploading || galleryUploading} full>
+        <Button type="submit" disabled={saving || uploading || galleryUploading || mediaUploading !== null} full>
           {saving ? "Kaydediliyor…" : personId ? "Güncelle" : "Kaydet"}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel}>
