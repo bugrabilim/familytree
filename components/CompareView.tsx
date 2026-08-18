@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
 
@@ -28,6 +30,25 @@ export default function CompareView({
   peerCount: number;
 }) {
   const t = useT();
+  const router = useRouter();
+  const [status, setStatus] = useState<Record<string, "busy" | { added: number; linked: number } | string>>({});
+
+  const graft = async (peerRootId: string) => {
+    setStatus((s) => ({ ...s, [peerRootId]: "busy" }));
+    try {
+      const res = await fetch("/api/tree/graft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peerTreeId, rootPeerId: peerRootId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? t("compare.graftFailed"));
+      setStatus((s) => ({ ...s, [peerRootId]: { added: data.added ?? 0, linked: data.linked ?? 0 } }));
+      router.refresh();
+    } catch (e) {
+      setStatus((s) => ({ ...s, [peerRootId]: (e as Error).message }));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -56,30 +77,54 @@ export default function CompareView({
               <span />
               <span className="text-right">{t("compare.peerCol", { peer: peerName })}</span>
             </li>
-            {rows.map((r, i) => (
-              <li
-                key={`${r.mine.id}-${r.peer.id}-${i}`}
-                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl border border-border bg-surface p-3"
-              >
-                <Link href={`/tree?kisi=${encodeURIComponent(r.mine.id)}`} className="min-w-0 hover:opacity-80">
-                  <p className="text-sm text-text truncate">{r.mine.name}</p>
-                  <p className="text-[11px] text-text-subtle tabular-nums">{r.mine.span || "—"}</p>
-                </Link>
-                <span
-                  className="text-[10px] font-medium px-2 py-1 rounded-lg bg-primary-soft text-primary text-center whitespace-nowrap"
-                  title={t(`panel.dup.${r.reason}`)}
+            {rows.map((r, i) => {
+              const st = status[r.peer.id];
+              const done = st && typeof st === "object";
+              return (
+                <li
+                  key={`${r.mine.id}-${r.peer.id}-${i}`}
+                  className="rounded-xl border border-border bg-surface p-3 space-y-2"
                 >
-                  ↔
-                </span>
-                <Link
-                  href={`/p/${encodeURIComponent(peerTreeId)}?kisi=${encodeURIComponent(r.peer.id)}`}
-                  className="min-w-0 text-right hover:opacity-80"
-                >
-                  <p className="text-sm text-text truncate">{r.peer.name}</p>
-                  <p className="text-[11px] text-text-subtle tabular-nums">{r.peer.span || "—"}</p>
-                </Link>
-              </li>
-            ))}
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <Link href={`/tree?kisi=${encodeURIComponent(r.mine.id)}`} className="min-w-0 hover:opacity-80">
+                      <p className="text-sm text-text truncate">{r.mine.name}</p>
+                      <p className="text-[11px] text-text-subtle tabular-nums">{r.mine.span || "—"}</p>
+                    </Link>
+                    <span
+                      className="text-[10px] font-medium px-2 py-1 rounded-lg bg-primary-soft text-primary text-center whitespace-nowrap"
+                      title={t(`panel.dup.${r.reason}`)}
+                    >
+                      ↔
+                    </span>
+                    <Link
+                      href={`/p/${encodeURIComponent(peerTreeId)}?kisi=${encodeURIComponent(r.peer.id)}`}
+                      className="min-w-0 text-right hover:opacity-80"
+                    >
+                      <p className="text-sm text-text truncate">{r.peer.name}</p>
+                      <p className="text-[11px] text-text-subtle tabular-nums">{r.peer.span || "—"}</p>
+                    </Link>
+                  </div>
+                  {/* P3 — bu kişinin (karşı ağaçtaki) ata soyunu benim ağacıma ekle */}
+                  <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-2">
+                    {done ? (
+                      <span className="text-[11px] text-primary">
+                        {t("compare.grafted", { added: (st as { added: number }).added, linked: (st as { linked: number }).linked })}
+                      </span>
+                    ) : typeof st === "string" && st !== "busy" ? (
+                      <span className="text-[11px] text-danger">{st}</span>
+                    ) : (
+                      <button
+                        onClick={() => graft(r.peer.id)}
+                        disabled={st === "busy"}
+                        className="text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
+                      >
+                        {st === "busy" ? t("compare.grafting") : t("compare.graft")}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
