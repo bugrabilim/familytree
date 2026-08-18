@@ -83,6 +83,21 @@ gömülü SVG olarak üretilir — dış servise bağımlılık yok.
 - **Cloudinary** — fotoğraflar
 - **@xyflow/react + dagre** — ağaç görselleştirme
 
+## Mobil uygulama
+
+`mobile/` klasörü Expo tabanlı iOS/Android istemcisidir. İlk sürüm mevcut web
+uygulamasını `react-native-webview` içinde açar; NextAuth oturumu, demo girişi,
+GEDCOM aktarımı ve yetki modeli aynı sunucuda kalır.
+
+```bash
+cd mobile
+npm install
+npm start
+```
+
+İlk açılışta web uygulamasının adresi istenir. Yerelde testte `localhost`
+yerine telefondan erişilebilen LAN IP adresini kullan.
+
 ## Kurulum
 
 ```bash
