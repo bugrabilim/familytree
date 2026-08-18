@@ -196,23 +196,20 @@ export default function TopBar({
                 : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
             }`}
           >
+            {/* Gizlilik = göz. Açıkken üstü çizili göz (yaşayanlar gizli),
+                kapalıyken açık göz. Kilit değil — düzenleme kilidiyle (readOnly)
+                karışmasın (Madde 2: mobilde iki kilit görünüyordu). */}
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-              {hideLiving ? (
-                <path
-                  d="M6 10V8a6 6 0 0112 0v2M5 10h14v10H5V10z"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ) : (
-                <path
-                  d="M6 10V8a6 6 0 0111.5-2.4M5 10h14v10H5V10z"
-                  stroke="currentColor"
-                  strokeWidth="1.9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <path
+                d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
+              {hideLiving && (
+                <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
               )}
             </svg>
             <span className="hidden md:inline text-xs">{t("topbar.hideLiving")}</span>
@@ -243,19 +240,18 @@ export default function TopBar({
                 : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
             }`}
           >
+            {/* Düzenleme kilidi = asma kilit. Açıkken kapalı kilit (salt-okunur),
+                kapalıyken açık kilit (düzenleme serbest). */}
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
               {readOnly ? (
-                // Göz — görüntüleme modu açık
-                <>
-                  <path
-                    d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
-                    stroke="currentColor"
-                    strokeWidth="1.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.9" />
-                </>
+                // Kapalı kilit — salt-okunur
+                <path
+                  d="M7 10V7a5 5 0 0110 0v3M6 10h12v10H6V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               ) : (
                 // Açık kilit — düzenleme serbest
                 <path

@@ -1,4 +1,4 @@
-import { normalizeDateInput, displayToStored, isValidDateInput } from "../lib/date.ts";
+import { normalizeDateInput, displayToStored, isValidDateInput, signedDaysToAnniversary, humanizeDays } from "../lib/date.ts";
 
 // [giriş, beklenen normalize, beklenen stored, geçerli mi]
 const cases: Array<[string, string, string, boolean]> = [
@@ -26,5 +26,25 @@ for (const [input, expNorm, expStored, expValid] of cases) {
     console.log(`✗ "${input}" → norm "${norm}"(bekl "${expNorm}") valid ${valid}(bekl ${expValid}) stored "${stored}"(bekl "${expStored}")`);
   }
 }
+// signedDaysToAnniversary — işaretli gün uzaklığı (geçmiş −, gelecek +)
+let ok2 = 0, fail2 = 0;
+const check = (name: string, cond: boolean) => { if (cond) ok2++; else { fail2++; console.log(`✗ ${name}`); } };
+const iso = (offsetDays: number) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+check("bugün = 0", signedDaysToAnniversary(iso(0), 10, 30) === 0);
+check("3 gün sonra = +3", signedDaysToAnniversary(iso(3), 10, 30) === 3);
+check("5 gün önce = -5 (pencere içinde)", signedDaysToAnniversary(iso(-5), 10, 30) === -5);
+check("40 gün sonra = null (gelecek pencere dışı)", signedDaysToAnniversary(iso(40), 10, 30) === null);
+check("20 gün önce = null (geçmiş pencere dışı)", signedDaysToAnniversary(iso(-20), 10, 30) === null);
+check("yalnız yıl = null", signedDaysToAnniversary("1990", 10, 30) === null);
+check("humanize dün", humanizeDays(-1) === "Dün");
+check("humanize 3 gün önce", humanizeDays(-3) === "3 gün önce");
+check("humanize bugün", humanizeDays(0) === "Bugün");
+console.log(`${ok2}/${ok2 + fail2} tarih-yıldönümü geçti${fail2 ? `, ${fail2} başarısız` : " ✓"}`);
+
 console.log(`\n${ok}/${cases.length} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
-if (fail) process.exit(1);
+if (fail || fail2) process.exit(1);
