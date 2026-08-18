@@ -4,6 +4,8 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { importGedcom } from "@/lib/gedcom";
 import { detectFormat, parseNonGedcom } from "@/lib/import";
+import { parseFttText } from "@/lib/ftz";
+import { extractNodeFtt } from "@/lib/ftz-unzip";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
@@ -34,20 +36,30 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "Dosya bulunamadı" }, { status: 400 });
 
-  const text = await file.text();
   const mode = (formData.get("mode") as string) ?? "merge";
+  const isFtz = /\.ftz$/i.test(file.name || "");
 
-  // Çok-biçimli: GEDCOM / CSV / JSON (uzantı + içerik sezgisiyle belirlenir).
-  const format = detectFormat(file.name || "", text);
-  if (!format) {
-    return NextResponse.json(
-      { error: "Dosya biçimi tanınamadı (GEDCOM, CSV veya JSON bekleniyor)." },
-      { status: 400 }
-    );
-  }
   let imported: Person[];
+  let format: string;
   try {
-    imported = format === "gedcom" ? importGedcom(text) : parseNonGedcom(format, text);
+    if (isFtz) {
+      // .ftz ikili bir ZIP paketidir — metin olarak okunamaz. node.ftt'yi aç.
+      const buf = Buffer.from(await file.arrayBuffer());
+      imported = parseFttText(extractNodeFtt(buf));
+      format = "ftz";
+    } else {
+      const text = await file.text();
+      // Çok-biçimli: GEDCOM / CSV / JSON (uzantı + içerik sezgisiyle belirlenir).
+      const detected = detectFormat(file.name || "", text);
+      if (!detected) {
+        return NextResponse.json(
+          { error: "Dosya biçimi tanınamadı (GEDCOM, CSV, JSON veya .ftz bekleniyor)." },
+          { status: 400 }
+        );
+      }
+      imported = detected === "gedcom" ? importGedcom(text) : parseNonGedcom(detected, text);
+      format = detected;
+    }
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message || "Dosya okunamadı" }, { status: 400 });
   }

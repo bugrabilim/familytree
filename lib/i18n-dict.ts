@@ -24,7 +24,7 @@ export const tr: Dict = {
   "common.addPerson": "Kişi ekle",
   "common.gedcom": "GEDCOM aktar / al",
   "common.export.formatLabel": ".ged / .csv / .json",
-  "common.import.formatsNote": "GEDCOM (.ged), CSV ve JSON desteklenir; biçim otomatik algılanır. CSV/JSON'da bağları korumak için id, baba, anne, eş sütunları/alanları kullanılabilir.",
+  "common.import.formatsNote": "GEDCOM (.ged), CSV, JSON ve Quick Family Tree (.ftz) desteklenir; biçim otomatik algılanır. CSV/JSON'da bağları korumak için id, baba, anne, eş sütunları/alanları kullanılabilir.",
   "common.noPeopleToShow": "Görüntülenecek kişi yok",
 
   /* --- Dil değiştirici --- */
@@ -858,7 +858,7 @@ export const en: Dict = {
   "common.addPerson": "Add person",
   "common.gedcom": "Import / export GEDCOM",
   "common.export.formatLabel": ".ged / .csv / .json",
-  "common.import.formatsNote": "GEDCOM (.ged), CSV and JSON are supported; the format is detected automatically. In CSV/JSON, use id, father, mother, spouse columns/fields to preserve links.",
+  "common.import.formatsNote": "GEDCOM (.ged), CSV, JSON and Quick Family Tree (.ftz) are supported; the format is detected automatically. In CSV/JSON, use id, father, mother, spouse columns/fields to preserve links.",
   "common.noPeopleToShow": "No one to show",
 
   /* --- Language switch --- */
