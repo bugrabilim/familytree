@@ -176,6 +176,54 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ---- Aile kitabı (flipbook) — ikinci sıra ---- */}
+      <section className="bg-surface border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="order-2 lg:order-1" style={{ perspective: "1400px" }}>
+            <div
+              className="relative mx-auto max-w-md rounded-lg shadow-2xl"
+              style={{ transform: "rotateX(6deg) rotateY(-12deg)", transformStyle: "preserve-3d" }}
+            >
+              <div className="flex h-64 sm:h-72">
+                {/* Sol sayfa — solgun parşömen */}
+                <div className="flex-1 rounded-l-lg p-5 font-serif" style={{ background: "linear-gradient(145deg,#e7d7b4,#d9c398)", color: "#5a4a34", boxShadow: "inset 0 0 60px rgba(120,80,30,0.22)" }}>
+                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-60 text-center mb-2">3. Kuşak</p>
+                  <p className="font-semibold">Ayşe Yıldız</p>
+                  <p className="text-xs italic opacity-70 mb-2">1928 – 2011</p>
+                  <p className="text-[11px] leading-relaxed opacity-80">Köyün ebesiydi; kırk yıl boyunca doğumlara girdi. Sesi güzeldi, düğünlerde türkü söylerdi…</p>
+                </div>
+                {/* Cilt */}
+                <div className="w-1.5 bg-gradient-to-r from-black/25 via-black/10 to-black/25" aria-hidden />
+                {/* Sağ sayfa — temiz kâğıt + kıvrılan köşe */}
+                <div className="relative flex-1 rounded-r-lg p-5 font-serif" style={{ background: "linear-gradient(145deg,#faf6ec,#f0e6d2)", color: "#2b2117", boxShadow: "inset 0 0 40px rgba(120,80,30,0.10)" }}>
+                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-50 text-center mb-2">6. Kuşak</p>
+                  <p className="font-semibold">Bade Acar</p>
+                  <p className="text-xs italic opacity-60 mb-2">2025 –</p>
+                  <p className="text-[11px] leading-relaxed opacity-80">Ailenin en küçüğü. Beşinci kuşağı; büyük büyük büyük anneannesi onu kucağına aldı.</p>
+                  {/* kıvrılan sayfa köşesi */}
+                  <div className="absolute bottom-0 right-0 w-10 h-10 rounded-tl-xl" style={{ background: "linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.10) 50%, #efe4cc 52%)", boxShadow: "-2px -2px 6px rgba(0,0,0,0.12)" }} aria-hidden />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="order-1 lg:order-2 text-center lg:text-left">
+            <span className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] px-3 py-1 rounded-full bg-accent-soft text-accent">
+              📖 {t("land.book.badge")}
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl font-semibold mt-4">{t("land.book.title")}</h2>
+            <p className="text-text-muted mt-4 leading-relaxed max-w-md mx-auto lg:mx-0">{t("land.book.body")}</p>
+            <button
+              onClick={startDemo}
+              disabled={demoLoading}
+              className="mt-6 h-11 inline-flex items-center justify-center px-6 rounded-xl bg-primary text-primary-text font-medium hover:brightness-110 transition-all disabled:opacity-60"
+            >
+              {demoLoading ? t("land.demo.loading") : t("land.book.cta")}
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ---- Özellikler ---- */}
       <section id="ozellikler" className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
         <div className="text-center mb-10">

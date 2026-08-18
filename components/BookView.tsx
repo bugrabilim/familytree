@@ -47,7 +47,6 @@ export default function BookView({ people, familyName, onClose }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const [index, setIndex] = useState(0);
-  const [dir, setDir] = useState<"next" | "prev">("next");
   const [wide, setWide] = useState(false);
   useEscapeKey(onClose);
 
@@ -108,20 +107,39 @@ export default function BookView({ people, familyName, onClose }: Props) {
   const total = pages.length;
   const step = wide ? 2 : 1;
 
+  // Flipbook: çevrilen yaprak (eski sayfa) cilt ekseninde döner.
+  const [leaf, setLeaf] = useState<{ half: "left" | "right" | "full"; front: Page | undefined; dir: "next" | "prev" } | null>(null);
+  const leafTimer = useRef<number | null>(null);
+
   const go = (d: "next" | "prev") => {
-    setDir(d);
-    setIndex((i) => Math.min(total - 1, Math.max(0, i + (d === "next" ? step : -step))));
+    if (leaf) return; // çevirme sürerken yok say
+    const oldIndex = index;
+    const ni = Math.min(total - 1, Math.max(0, oldIndex + (d === "next" ? step : -step)));
+    if (ni === oldIndex) return;
+    // Çevrilen sayfanın ön yüzü (eski sayfa) ve hangi yarıyı kapladığı
+    let half: "left" | "right" | "full";
+    let front: Page | undefined;
+    if (!wide) { half = "full"; front = pages[oldIndex]; }
+    else if (d === "next") { half = "right"; front = pages[oldIndex + 1]; }
+    else { half = "left"; front = pages[oldIndex]; }
+    setIndex(ni);
+    setLeaf({ half, front, dir: d });
+    if (leafTimer.current) window.clearTimeout(leafTimer.current);
+    leafTimer.current = window.setTimeout(() => setLeaf(null), 620);
   };
 
+  useEffect(() => () => { if (leafTimer.current) window.clearTimeout(leafTimer.current); }, []);
+
+  const goRef = useRef(go);
+  useEffect(() => { goRef.current = go; });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") go("next");
-      else if (e.key === "ArrowLeft") go("prev");
+      if (e.key === "ArrowRight") goRef.current("next");
+      else if (e.key === "ArrowLeft") goRef.current("prev");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total, step]);
+  }, []);
 
   const touchX = useRef<number | null>(null);
   const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
@@ -216,13 +234,32 @@ export default function BookView({ people, familyName, onClose }: Props) {
               aria-hidden
             />
 
-            <div
-              key={index}
-              className={`flex-1 h-full flex ${dir === "next" ? "book-turn-next" : "book-turn-prev"} shadow-2xl`}
-            >
+            <div className="book-scene relative flex-1 h-full flex shadow-2xl">
               {renderPage(left, "left")}
               {wide && <div className="w-px bg-black/20 shrink-0" aria-hidden />}
               {wide && renderPage(right, "right")}
+
+              {/* Çevrilen yaprak — ön yüz eski sayfa, arka yüz parşömen alt yüzü */}
+              {leaf && (
+                <div
+                  className={`leaf ${leaf.dir === "next" ? "leaf-next" : "leaf-prev"}`}
+                  style={
+                    leaf.half === "full"
+                      ? { left: 0, right: 0 }
+                      : leaf.half === "right"
+                      ? { left: "50%", right: 0 }
+                      : { left: 0, right: "50%" }
+                  }
+                >
+                  <div className="leaf-face flex">{renderPage(leaf.front, leaf.half === "left" ? "right" : "left")}</div>
+                  <div
+                    className="leaf-face leaf-back"
+                    style={paperStyle(0.55)}
+                  >
+                    <div className="leaf-shadow" style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.12), transparent 40%)" }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Kalan sayfalar (sağ yığın) */}
