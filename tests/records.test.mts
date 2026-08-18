@@ -1,4 +1,4 @@
-import { buildWikidataSearchUrl, parseWikidataSearch } from "../lib/records.ts";
+import { buildWikidataSearchUrl, parseWikidataSearch, recordSearchName } from "../lib/records.ts";
 
 let ok = 0,
   fail = 0;
@@ -27,6 +27,11 @@ check("iki sonuç", hints.length === 2);
 check("wiki bağlantısı https + /wiki/", hints[0].url === "https://www.wikidata.org/wiki/Q517");
 check("concepturi yoksa id'den url", hints[1].url === "https://www.wikidata.org/wiki/Q999");
 check("bozuk yanıt → boş", parseWikidataSearch({}).length === 0 && parseWikidataSearch(null).length === 0);
+
+// recordSearchName: katalog adı sade tutulur (patronim/lakap dışlanır)
+check("ad + soyad", recordSearchName({ firstName: "Ali", lastName: "Yıldırım" }) === "Ali Yıldırım");
+check("soyadsız → yalnız ad", recordSearchName({ firstName: "Karacaoğlan", lastName: "" }) === "Karacaoğlan");
+check("boş alanlar temizlenir", recordSearchName({ firstName: "  Veli  " }) === "Veli");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

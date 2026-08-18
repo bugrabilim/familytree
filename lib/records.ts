@@ -15,6 +15,18 @@ export interface RecordHint {
   url: string;
 }
 
+/**
+ * Kayıt aramasında kullanılacak ad — arşiv/katalog adı gibi sade tutulur.
+ * Yalnız verilen ad + resmî soyad; babadan türetilen patronim ("Osman oğlu")
+ * ve lakap ("Topal") dış katalogda geçmediğinden aramayı kirletir, dışlanır.
+ * Soyadsız (1934 öncesi) kayıtlarda yalnız verilen ad kalır.
+ */
+export function recordSearchName(
+  p: { firstName?: string; lastName?: string }
+): string {
+  return [p.firstName?.trim(), p.lastName?.trim()].filter(Boolean).join(" ");
+}
+
 /** Wikidata `wbsearchentities` arama URL'i. */
 export function buildWikidataSearchUrl(name: string, lang = "tr"): string {
   const q = new URLSearchParams({

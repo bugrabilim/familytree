@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import type { Person } from "@/types/family";
-import { fullName } from "@/lib/name";
 import { useLang, useT } from "@/lib/i18n";
-import type { RecordHint } from "@/lib/records";
+import { recordSearchName, type RecordHint } from "@/lib/records";
 
 /**
  * Tarihsel kayıt ipucu (Record Matches ince dilimi) — Wikidata'da ada göre
@@ -23,7 +22,7 @@ export default function RecordHints({ person }: { person: Person }) {
     setError("");
     try {
       const res = await fetch(
-        `/api/records/search?name=${encodeURIComponent(fullName(person))}&lang=${lang === "en" ? "en" : "tr"}`
+        `/api/records/search?name=${encodeURIComponent(recordSearchName(person))}&lang=${lang === "en" ? "en" : "tr"}`
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? t("records.failed"));
