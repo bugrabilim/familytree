@@ -160,7 +160,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
           <input
             ref={fileRef}
             type="file"
-            accept=".ged,.gedcom,.csv,.tsv,.json,.txt,text/plain,text/csv,application/json"
+            accept=".ged,.gedcom,.csv,.tsv,.json,.txt,.ftz,text/plain,text/csv,application/json"
             className="hidden"
             onChange={handleImport}
           />
