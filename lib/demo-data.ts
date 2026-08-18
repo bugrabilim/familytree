@@ -326,15 +326,15 @@ const K0D: Seed[] = [
    ================================================================ */
 const K1: Seed[] = [
   {
-    id: "k1-veli", ad: "Veli", soyad: "Karaosmanoğlu", c: "male", d: "1668", o: "1741", yer: "Develi",
-    eb: ["k0d-osman", "k0d-mihriban"],
+    id: "k1-veli", ad: "Karacaoğlan", soyad: "Karaosmanoğlu", c: "male", d: "1668", o: "1741", yer: "Develi",
+    eb: ["k0d-osman", "k0d-mihriban"], meslek: "Âşık (halk ozanı)",
     din: "İslam", mez: "Hanefi", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
-    bio: "Kara Osman'ın oğlu. Değirmeni babasından devraldı, üstüne bir de bezirhane kurdu.\n\nDevelii'deki aile mezarlığında adı okunabilen en eski taşlardan biri ona ait; tarihler taştaki ebced hesabından çıkarıldı.",
+    bio: "Ailenin yazılı kayda geçen ilk atası; \"Kara Osman\"ın oğlu. Değirmeni babasından devraldı ama asıl sazıyla, söylediği türkülerle anıldı — çevrede \"Âşık Karacaoğlan\" derlerdi.\n\nÜnünün, adını taşıyan büyük halk ozanına mı karıştığı yoksa onun mu olduğu bugün bile tartışılır. Develii'deki aile mezarlığında adı okunabilen en eski taşlardan biri ona ait; doğum ve ölüm yılları taştaki ebced hesabından çıkarıldı, kesin değil.",
   },
   {
     id: "k1-ayse", ad: "Ayşe", soyad: "Karaosmanoğlu", c: "female", d: "1676", o: "1749", yer: "Develi",
     es: ["k1-veli"], din: "İslam", dil: "Türkçe", etnik: "Türkmen", uyruk: "Osmanlı",
-    bio: "Veli'nin eşi. Mezar taşı yok; adı oğlu İbrahim'in nikâh kaydından biliniyor.",
+    bio: "Karacaoğlan'ın eşi. Mezar taşı yok; adı oğlu İbrahim'in nikâh kaydından biliniyor.",
   },
   {
     id: "k1-bilinmeyen", ad: "Adı bilinmeyen", soyad: "Karaosmanoğlu", c: "unknown",
@@ -345,7 +345,7 @@ const K1: Seed[] = [
 
 
 /* ================================================================
-   1B. KUŞAK — ~1710 · Veli ile İbrahim arasındaki halka
+   1B. KUŞAK — ~1710 · Karacaoğlan ile İbrahim arasındaki halka
    ================================================================ */
 const K1B: Seed[] = [
   {
@@ -473,7 +473,7 @@ const K4: Seed[] = [
   { id: "k4-hatice", ad: "Hatice", soyad: "Kozanoğlu", c: "female", d: "1845", o: "1918", yer: "Kozan", es: ["k4-osman"] },
 
   // Hüseyin'in ikinci ve üçüncü eşlerinden
-  { id: "k4-veli-h", ad: "Veli", soyad: "Değirmencioğlu", c: "male", d: "1843", o: "1901", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es2"], bio: "Adını, ailenin bilinen ilk atası Veli'den aldı — kuşak atlayan ad tekrarının ilk örneği." },
+  { id: "k4-veli-h", ad: "Karacaoğlan", soyad: "Değirmencioğlu", c: "male", d: "1843", o: "1901", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es2"], bio: "Adını, ailenin bilinen ilk atası Karacaoğlan'dan aldı — kuşak atlayan ad tekrarının ilk örneği." },
   { id: "k4-guller", ad: "Güller", soyad: "Değirmencioğlu", c: "female", d: "1849", o: "1912", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es2"] },
   { id: "k4-mahmut", ad: "Mahmut", soyad: "Değirmencioğlu", c: "male", d: "1855", o: "1923", yer: "Develi", eb: ["k3-huseyin", "k3-huseyin-es3"] },
 ];
