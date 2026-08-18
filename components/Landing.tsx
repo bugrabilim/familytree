@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
-import { useT } from "@/lib/i18n";
+import { useLang, useT } from "@/lib/i18n";
 import { demoGirisi } from "@/app/login/actions";
 
 /** Marka simgesi (üç kuşaklık düğüm). */
@@ -70,47 +70,25 @@ function Stat({ value, label, suffix = "" }: { value: number; label: string; suf
   );
 }
 
-/** Hero — kendini çizen soy ağacı (yüklenince akar). */
-function AnimatedTree() {
-  const edges = [
-    "M60 46 V78 H200 V46",
-    "M200 46 V78 H340 V46",
-    "M130 78 V112",
-    "M270 78 V112",
-    "M130 140 V172 H270 V140",
-    "M200 172 V196",
-  ];
-  const tops = [60, 200, 340];
+/**
+ * Gerçek ürün ekranı — demo ağaçtan alınmış görüntü. Tema ve dile göre doğru
+ * varyant gösterilir (dark: sınıf tabanlı; dil `useLang`'den).
+ */
+function ProductShot({ name, alt, priority = false }: { name: "tree" | "book"; alt: string; priority?: boolean }) {
+  const { lang } = useLang();
+  const suffix = lang === "en" ? "-en" : "";
+  const common = "w-full h-auto rounded-xl border border-border-strong/60";
   return (
-    <svg viewBox="0 0 400 240" className="w-full h-auto" role="img" aria-label="Soy ağacı">
-      <g stroke="var(--tree-edge)" strokeWidth="2.5" fill="none" strokeLinecap="round">
-        {edges.map((d, i) => (
-          <path key={d} d={d} className="draw-line" style={{ animationDelay: `${0.25 + i * 0.12}s` }} />
-        ))}
-      </g>
-      {tops.map((x, i) => (
-        <g key={x} className="node-pop" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
-          <circle cx={x} cy={30} r={17} fill="var(--surface-2)" stroke="var(--border-strong)" strokeWidth="2" />
-          <circle cx={x} cy={26} r={5.5} fill="var(--text-subtle)" opacity="0.55" />
-          <path d={`M${x - 8} ${36} a 8 8 0 0 1 16 0`} fill="var(--text-subtle)" opacity="0.55" />
-        </g>
-      ))}
-      {[
-        { x: 130, y: 126, fill: "var(--male-soft)", stroke: "var(--male)", d: 0.9 },
-        { x: 270, y: 126, fill: "var(--female-soft)", stroke: "var(--female)", d: 1.0 },
-      ].map((c) => (
-        <g key={c.x} className="node-pop" style={{ animationDelay: `${c.d}s` }}>
-          <circle cx={c.x} cy={c.y} r={19} fill={c.fill} stroke={c.stroke} strokeWidth="2.2" />
-          <circle cx={c.x} cy={c.y - 4} r={6} fill={c.stroke} opacity="0.75" />
-          <path d={`M${c.x - 9} ${c.y + 7} a 9 9 0 0 1 18 0`} fill={c.stroke} opacity="0.75" />
-        </g>
-      ))}
-      <g className="node-pop" style={{ animationDelay: "1.35s" }}>
-        <circle cx={200} cy={210} r={22} fill="var(--primary-soft)" stroke="var(--primary)" strokeWidth="3" />
-        <circle cx={200} cy={205} r={7} fill="var(--primary)" opacity="0.85" />
-        <path d="M190 219 a 10 10 0 0 1 20 0" fill="var(--primary)" opacity="0.85" />
-      </g>
-    </svg>
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/shots/${name}-light${suffix}.webp`} alt={alt} width={1600} height={911}
+        loading={priority ? "eager" : "lazy"} decoding="async"
+        className={`${common} block dark:hidden`} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/shots/${name}-dark${suffix}.webp`} alt={alt} width={1600} height={911}
+        loading={priority ? "eager" : "lazy"} decoding="async"
+        className={`${common} hidden dark:block`} />
+    </>
   );
 }
 
@@ -255,12 +233,20 @@ export default function Landing() {
           </div>
 
           <div className="relative">
-            <div className="rounded-3xl border border-border bg-surface/80 backdrop-blur shadow-card p-5 sm:p-7">
-              <AnimatedTree />
-              <div className="mt-2">
-                <RestoreCard t={t} />
+            {/* Gerçek ürün ekranı — tarayıcı çerçevesinde */}
+            <div className="rounded-2xl border border-border bg-surface shadow-xl overflow-hidden">
+              <div className="flex items-center gap-1.5 px-3 h-8 bg-surface-2 border-b border-border">
+                <span className="w-2.5 h-2.5 rounded-full bg-danger/60" aria-hidden />
+                <span className="w-2.5 h-2.5 rounded-full bg-accent/60" aria-hidden />
+                <span className="w-2.5 h-2.5 rounded-full bg-primary/60" aria-hidden />
+                <span className="ml-2 text-[10px] text-text-subtle tabular-nums">soylus.com</span>
               </div>
-              <p className="text-xs text-text-muted leading-relaxed mt-2">{t("land.hero.restoreCap")}</p>
+              <ProductShot name="tree" alt={t("land.shot.treeAlt")} priority />
+            </div>
+
+            {/* Motto kanıtı — restore + video, ekranın köşesine bindirilmiş */}
+            <div className="absolute -bottom-10 -left-3 sm:-left-8 w-60 origin-bottom-left scale-[0.66] sm:scale-[0.82] pointer-events-none">
+              <RestoreCard t={t} />
             </div>
           </div>
         </div>
@@ -293,24 +279,10 @@ export default function Landing() {
       {/* ---- Aile kitabı (flipbook) ---- */}
       <section className="bg-bg border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="order-2 lg:order-1 sd-reveal" style={{ perspective: "1400px" }}>
-            <div className="relative mx-auto max-w-md rounded-lg shadow-2xl" style={{ transform: "rotateX(6deg) rotateY(-12deg)", transformStyle: "preserve-3d" }}>
-              <div className="flex h-64 sm:h-72">
-                <div className="flex-1 rounded-l-lg p-5 font-serif" style={{ background: "linear-gradient(145deg,#e7d7b4,#d9c398)", color: "#5a4a34", boxShadow: "inset 0 0 60px rgba(120,80,30,0.22)" }}>
-                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-60 text-center mb-2">3. Kuşak</p>
-                  <p className="font-semibold">Ayşe Yıldız</p>
-                  <p className="text-xs italic opacity-70 mb-2">1928 – 2011</p>
-                  <p className="text-[11px] leading-relaxed opacity-80">Köyün ebesiydi; kırk yıl boyunca doğumlara girdi. Sesi güzeldi, düğünlerde türkü söylerdi…</p>
-                </div>
-                <div className="w-1.5 bg-gradient-to-r from-black/25 via-black/10 to-black/25" aria-hidden />
-                <div className="relative flex-1 rounded-r-lg p-5 font-serif" style={{ background: "linear-gradient(145deg,#faf6ec,#f0e6d2)", color: "#2b2117", boxShadow: "inset 0 0 40px rgba(120,80,30,0.10)" }}>
-                  <p className="text-[10px] uppercase tracking-[0.2em] opacity-50 text-center mb-2">6. Kuşak</p>
-                  <p className="font-semibold">Bade Acar</p>
-                  <p className="text-xs italic opacity-60 mb-2">2025 –</p>
-                  <p className="text-[11px] leading-relaxed opacity-80">Ailenin en küçüğü. Beşinci kuşağı; büyük büyük büyük anneannesi onu kucağına aldı.</p>
-                  <div className="absolute bottom-0 right-0 w-10 h-10 rounded-tl-xl" style={{ background: "linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.10) 50%, #efe4cc 52%)", boxShadow: "-2px -2px 6px rgba(0,0,0,0.12)" }} aria-hidden />
-                </div>
-              </div>
+          <div className="order-2 lg:order-1 sd-reveal" style={{ perspective: "1600px" }}>
+            <div className="relative mx-auto max-w-xl rounded-2xl overflow-hidden border border-border shadow-2xl"
+              style={{ transform: "rotateX(4deg) rotateY(-9deg)", transformStyle: "preserve-3d" }}>
+              <ProductShot name="book" alt={t("land.shot.bookAlt")} />
             </div>
           </div>
 
