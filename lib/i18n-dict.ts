@@ -101,6 +101,7 @@ export const tr: Dict = {
 
   /* --- Kimlik ekranları (AuthShell + login/register/forgot) --- */
   "auth.brand": "Soy Ağacı",
+  "auth.kicker": "Aile tarihi platformu",
   "auth.heroTitle1": "Ailenin hikâyesi,",
   "auth.heroTitle2": "kuşaklar boyu.",
   "auth.heroBody":
@@ -109,8 +110,15 @@ export const tr: Dict = {
   "auth.highlight.views.body": "Ağaç, soy çizgisi, liste ve özet paneli.",
   "auth.highlight.kinship.title": "Türkçe akrabalık",
   "auth.highlight.kinship.body": "Amca mı dayı mı — uygulama hesaplar.",
+  "auth.highlight.privacy.title": "Gizlilik önce",
+  "auth.highlight.privacy.body": "Yaşayanları tek dokunuşla gizle (KVKK/GDPR).",
+  "auth.highlight.ai.title": "Yapay zekâ desteği",
+  "auth.highlight.ai.body": "Biyografi, özet ve eksik bilgi önerileri.",
+  "auth.highlight.sharing.title": "Paylaş ve birleştir",
+  "auth.highlight.sharing.body": "Bağlantıyla paylaş, akraba ağaçlarını eşleştir.",
   "auth.highlight.gedcom.title": "GEDCOM uyumlu",
   "auth.highlight.gedcom.body": "Verini dilediğin an dışa aktar.",
+  "auth.trust": "11 kuşaklık demo · GEDCOM, CSV, JSON ve Quick Family Tree (.ftz) içe aktarma",
 
   "login.title": "Tekrar hoş geldin",
   "login.subtitle": "Aile hesabına giriş yap",
@@ -935,6 +943,7 @@ export const en: Dict = {
 
   /* --- Auth screens --- */
   "auth.brand": "Family Tree",
+  "auth.kicker": "Family history platform",
   "auth.heroTitle1": "A family’s story,",
   "auth.heroTitle2": "across generations.",
   "auth.heroBody":
@@ -943,8 +952,15 @@ export const en: Dict = {
   "auth.highlight.views.body": "Tree, pedigree, list and dashboard.",
   "auth.highlight.kinship.title": "Turkish kinship",
   "auth.highlight.kinship.body": "Paternal or maternal uncle — the app works it out.",
+  "auth.highlight.privacy.title": "Privacy first",
+  "auth.highlight.privacy.body": "Hide living people in one tap (KVKK/GDPR).",
+  "auth.highlight.ai.title": "AI assist",
+  "auth.highlight.ai.body": "Biography, summary and missing-info suggestions.",
+  "auth.highlight.sharing.title": "Share & merge",
+  "auth.highlight.sharing.body": "Share by link, match relatives’ trees.",
   "auth.highlight.gedcom.title": "GEDCOM compatible",
   "auth.highlight.gedcom.body": "Export your data anytime.",
+  "auth.trust": "11-generation demo · import GEDCOM, CSV, JSON and Quick Family Tree (.ftz)",
 
   "login.title": "Welcome back",
   "login.subtitle": "Sign in to your family account",
