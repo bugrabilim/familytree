@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
-import { useT } from "@/lib/i18n";
+import { useLang, useT } from "@/lib/i18n";
 
 interface Props {
   peopleCount: number;
@@ -14,10 +14,12 @@ interface Props {
 
 export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoLoaded }: Props) {
   const t = useT();
+  const { lang } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
+  const aiRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [exportFmt, setExportFmt] = useState<"gedcom" | "csv" | "json">("gedcom");
-  const [busy, setBusy] = useState<"" | "export" | "import" | "demo">("");
+  const [busy, setBusy] = useState<"" | "export" | "import" | "ai" | "demo">("");
   const [error, setError] = useState("");
   const [demoOnay, setDemoOnay] = useState(false);
 
@@ -76,6 +78,29 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
       setBusy("");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleAiImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy("ai");
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("mode", mode);
+      fd.append("lang", lang === "en" ? "en" : "tr");
+      const res = await fetch("/api/ai/extract", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.status === 503) throw new Error(t("ai.story.notConfigured"));
+      if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
+      onImported(data.count ?? 0);
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy("");
+    } finally {
+      if (aiRef.current) aiRef.current.value = "";
     }
   };
 
@@ -164,6 +189,26 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
             className="hidden"
             onChange={handleImport}
           />
+
+          {/* Yapay zekâ ile herhangi bir dosyadan içe aktarma (madde 7) */}
+          <div className="mt-4 rounded-xl border border-primary/25 bg-primary-soft/40 p-3.5">
+            <p className="text-sm font-semibold text-text mb-0.5">✨ {t("ai.import.title")}</p>
+            <p className="text-xs text-text-muted leading-relaxed mb-2.5">{t("ai.import.body")}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => aiRef.current?.click()}
+              disabled={busy !== ""}
+            >
+              {busy === "ai" ? t("ai.import.working") : t("ai.import.choose")}
+            </Button>
+            <input
+              ref={aiRef}
+              type="file"
+              className="hidden"
+              onChange={handleAiImport}
+            />
+          </div>
         </section>
 
         <div className="h-px bg-border" />
