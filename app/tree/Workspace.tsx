@@ -12,6 +12,7 @@ import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
 import AiChat from "@/components/AiChat";
 import PrintView from "@/components/PrintView";
+import BookView from "@/components/BookView";
 import MembersDialog from "@/components/MembersDialog";
 import ShareDialog from "@/components/ShareDialog";
 import PairDialog from "@/components/PairDialog";
@@ -127,6 +128,7 @@ function WorkspaceInner({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
   const [printingView, setPrintingView] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -390,6 +392,7 @@ function WorkspaceInner({
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
         onPrint={() => setPrintOpen(true)}
+        onBook={() => setBookOpen(true)}
         onPrintView={printCurrentView}
         onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
         onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
@@ -567,6 +570,10 @@ function WorkspaceInner({
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+      )}
+
+      {bookOpen && (
+        <BookView people={people} familyName={familyName} onClose={() => setBookOpen(false)} />
       )}
 
       {pairOpen && role === "admin" && !publicView && (
