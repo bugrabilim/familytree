@@ -10,6 +10,7 @@ import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
+import AiChat from "@/components/AiChat";
 import PrintView from "@/components/PrintView";
 import MembersDialog from "@/components/MembersDialog";
 import ShareDialog from "@/components/ShareDialog";
@@ -131,6 +132,7 @@ function WorkspaceInner({
   const [shareOpen, setShareOpen] = useState(false);
   const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   /**
    * Ağaçta ne gösterilsin:
@@ -392,6 +394,7 @@ function WorkspaceInner({
         onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
         onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
         onPair={role === "admin" && !publicView ? () => setPairOpen(true) : undefined}
+        onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
         activeTreeId={activeTreeId}
@@ -559,6 +562,8 @@ function WorkspaceInner({
           onDemoLoaded={handleDemoLoaded}
         />
       )}
+
+      {aiChatOpen && <AiChat onClose={() => setAiChatOpen(false)} />}
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
