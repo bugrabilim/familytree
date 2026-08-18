@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
 
 type Tree = TreeMeta & { home: boolean };
@@ -30,6 +31,8 @@ export default function TreeSwitcher({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameName, setRenameName] = useState("");
   const [error, setError] = useState<string>();
+  const rootRef = useRef<HTMLDivElement>(null);
+  useClickOutside(rootRef, () => setOpen(false), open);
 
   const active = trees.find((tr) => tr.treeId === activeTreeId) ?? trees[0];
 
@@ -132,7 +135,7 @@ export default function TreeSwitcher({
   };
 
   return (
-    <div className="relative min-w-0">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         onClick={() => {
           setOpen((o) => !o);
@@ -166,7 +169,6 @@ export default function TreeSwitcher({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-11 z-20 w-72 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden animate-scale-in origin-top-left">
             <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle border-b border-border">
               {t("tree.myTrees")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
@@ -9,6 +9,7 @@ import TreeSwitcher from "./TreeSwitcher";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT, type TFunction } from "@/lib/i18n";
+import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
@@ -111,6 +112,8 @@ export default function TopBar({
   const router = useRouter();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
   const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
   const { readOnly, setReadOnly, forced } = useReadOnly();
 
@@ -279,7 +282,7 @@ export default function TopBar({
               {t("public.createOwn")}
             </a>
           ) : (
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-label={t("topbar.menu")}
@@ -295,7 +298,6 @@ export default function TopBar({
 
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-11 z-20 w-52 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden animate-scale-in origin-top-right">
                   <button
                     onClick={() => {
