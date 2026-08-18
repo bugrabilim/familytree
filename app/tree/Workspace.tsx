@@ -388,11 +388,10 @@ function WorkspaceInner({
       <TopBar
         familyName={familyName}
         view={view}
-        onViewChange={setView}
+        onViewChange={(v) => (v === "kitap" ? setBookOpen(true) : setView(v))}
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
         onPrint={() => setPrintOpen(true)}
-        onBook={() => setBookOpen(true)}
         onPrintView={printCurrentView}
         onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
         onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}

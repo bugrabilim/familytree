@@ -12,7 +12,7 @@ import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
 
-export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel";
+export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel" | "kitap";
 
 /** Simgeler ve anahtarlar sabit; etiket/ipucu metinleri i18n sözlüğünden okunur. */
 export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
@@ -23,6 +23,7 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
   { key: "liste", icon: "M4 6h16M4 12h16M4 18h16" },
   { key: "harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" },
   { key: "panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z" },
+  { key: "kitap", icon: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" },
 ];
 
 /** Görünüm sekmeleri — masaüstünde ortalanmış nav, mobilde tam-genişlik satır
@@ -74,8 +75,6 @@ interface Props {
   onImportExport: () => void;
   /** Aile kitabı (PDF) — PrintView'i açar. */
   onPrint: () => void;
-  /** Aile kitabı (ekran, nostaljik kitap) — BookView'i açar. */
-  onBook: () => void;
   /** Açık görünümü (ağaç/harita/soy/panel) yazdır (Madde 8). */
   onPrintView: () => void;
   /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
@@ -102,7 +101,6 @@ export default function TopBar({
   onSearch,
   onImportExport,
   onPrint,
-  onBook,
   onPrintView,
   onManageMembers,
   onShare,
@@ -371,18 +369,6 @@ export default function TopBar({
                       {t("pair.menu")}
                     </button>
                   )}
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onBook();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
-                      <path d="M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    {t("book.menu")}
-                  </button>
                   <button
                     onClick={() => {
                       setMenuOpen(false);
