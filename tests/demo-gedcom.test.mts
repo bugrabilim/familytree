@@ -15,15 +15,17 @@ const cem = back.find(p => p.firstName === "Cem");
 c("6 evlilik: 1 güncel + 5 eski", !!cem && cem.spouseIds.length === 1 && (cem.formerSpouseIds ?? []).length === 5,
   `güncel ${cem?.spouseIds.length}, eski ${(cem?.formerSpouseIds ?? []).length}`);
 
-const ahmet = back.find(p => p.firstName === "Ahmet" && p.lastName === "Değirmencioğlu");
+// Soyadı Kanunu (1934) öncesi kuşak → soyadsız; kimlik ad + doğum yılıyla.
+const ahmet = back.find(p => p.firstName === "Ahmet" && p.birthDate === "1826");
 c("çok eşlilik: 4 güncel eş", !!ahmet && ahmet.spouseIds.length === 4, `${ahmet?.spouseIds.length} eş`);
 
 const denizS = back.find(p => p.firstName === "Deniz" && p.birthDate === "1958-07-04");
 c("interseks cinsiyet (SEX X)", denizS?.gender === "other", String(denizS?.gender));
 
-const tarihsiz = back.find(p => p.firstName === "Mehmed" && p.lastName === "Değirmencioğlu");
+// Soyadsız (patronimli) tarihsiz kişi — GEDCOM gidiş-dönüşünde tarihsiz kalmalı.
+const tarihsiz = back.find(p => p.firstName === "Mehmed" && !p.birthDate && !p.deathDate);
 c("tarihsiz kişi korundu", !!tarihsiz && !tarihsiz.birthDate && !tarihsiz.deathDate,
-  JSON.stringify({ d: tarihsiz?.birthDate, o: tarihsiz?.deathDate }));
+  JSON.stringify({ bulundu: !!tarihsiz }));
 
 const mehmet = back.find(p => p.firstName === "Mehmet" && p.lastName === "Demirtaş");
 c("çok satırlı biyografi", !!mehmet?.bio?.includes("\n"), JSON.stringify(mehmet?.bio?.slice(0,30)));
