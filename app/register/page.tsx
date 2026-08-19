@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [copied, setCopied] = useState(false);
@@ -26,6 +27,10 @@ export default function RegisterPage() {
 
     if (password !== confirm) {
       setError(t("register.passwordMismatch"));
+      return;
+    }
+    if (!agreed) {
+      setError(t("register.consentRequired"));
       return;
     }
 
@@ -157,11 +162,31 @@ export default function RegisterPage() {
           />
         </div>
 
+        {/* Açık rıza — KVKK: gizlilik + şartlar onayı (zorunlu) */}
+        <label className="flex items-start gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
+          />
+          <span className="text-[12px] text-text-muted leading-snug">
+            <Link href="/privacy" target="_blank" className="text-primary hover:underline">
+              {t("register.consentPrivacy")}
+            </Link>{" "}
+            {t("register.consentAnd")}{" "}
+            <Link href="/terms" target="_blank" className="text-primary hover:underline">
+              {t("register.consentTerms")}
+            </Link>
+            {t("register.consentTail")}
+          </span>
+        </label>
+
         {error && (
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
-        <Button type="submit" size="lg" full disabled={loading}>
+        <Button type="submit" size="lg" full disabled={loading || !agreed}>
           {loading ? t("register.creating") : t("register.create")}
         </Button>
       </form>
