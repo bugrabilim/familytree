@@ -3,6 +3,7 @@ import { Geist, Fraunces } from "next/font/google";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { LanguageProvider } from "@/lib/i18n";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,10 +16,41 @@ const fraunces = Fraunces({
   axes: ["SOFT", "WONK", "opsz"],
 });
 
+const DESC =
+  "Ailenizin soy ağacını birlikte oluşturun. Kuşakları görselleştirin, anıları ve fotoğrafları saklayın; GEDCOM, e-Devlet ve yapay zekâ ile içe aktarın.";
+
 export const metadata: Metadata = {
-  title: "Soy Ağacı — Ailenin hikâyesi",
-  description:
-    "Ailenizin soy ağacını birlikte oluşturun. Kuşakları görselleştirin, anıları saklayın, GEDCOM ile taşıyın.",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  title: {
+    default: `${SITE_NAME} — Ailenin hikâyesi`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: DESC,
+  keywords: [
+    "soy ağacı", "aile ağacı", "şecere", "soyağacı", "GEDCOM", "e-Devlet",
+    "aile kitabı", "genealogy", "family tree", "kuşak", "akrabalık",
+  ],
+  authors: [{ name: SITE_NAME }],
+  formatDetection: { telephone: false },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "tr_TR",
+    url: "/",
+    title: `${SITE_NAME} — Hiçbir hikâye kaybolmasın`,
+    description: DESC,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Hiçbir hikâye kaybolmasın`,
+    description: DESC,
+  },
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
