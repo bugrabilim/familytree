@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
 } from "react";
@@ -52,6 +53,12 @@ function readSnapshot(): Lang {
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const lang = useSyncExternalStore(subscribe, readSnapshot, () => "tr" as Lang);
+
+  // Erişilebilirlik/SEO: <html lang> aktif dile eşlensin — ekran okuyucular ve
+  // arama motorları doğru dili görsün (statik layout "tr" ile başlar).
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const setLang = useCallback((l: Lang) => {
     try {
