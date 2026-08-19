@@ -165,23 +165,32 @@ export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null
 }
 
 /**
- * Platform geneli sayaçlar — tanıtım (landing) sosyal kanıtı için (Madde 9):
- * "X aile ağacı oluşturuldu · X kişi eklendi". Supabase yapılandırılmamışsa ya
- * da sorgu başarısızsa `null` döner; çağıran taraf o zaman şeridi gizler.
- * `head: true` + `count: exact` yalnız sayıyı çeker (satırları değil).
+ * Tanıtım (landing) sosyal-kanıt taban değerleri (Madde 9). Gerçek sayaç bunun
+ * ALTINDA kalırsa taban gösterilir; üstüne çıkarsa gerçek sayı gösterilir —
+ * böylece şerit hiçbir zaman bu değerlerden düşük görünmez.
  */
-export async function getPlatformStats(): Promise<{ trees: number; people: number } | null> {
-  if (!isSupabaseConfigured()) return null;
+const SOCIAL_BASELINE = { trees: 108, people: 16782 };
+
+/**
+ * Platform geneli sayaçlar — "X aile ağacı oluşturuldu · X kişi eklendi".
+ * Supabase yapılandırılmamış / sorgu başarısızsa taban değerler döner (şerit
+ * her zaman gösterilir). `head:true` + `count:exact` yalnız sayıyı çeker.
+ */
+export async function getPlatformStats(): Promise<{ trees: number; people: number }> {
+  if (!isSupabaseConfigured()) return SOCIAL_BASELINE;
   try {
     const sb = supabaseAdmin();
     const [tt, pp] = await Promise.all([
       sb.from("trees").select("*", { count: "exact", head: true }),
       sb.from("people").select("*", { count: "exact", head: true }),
     ]);
-    if (tt.error || pp.error) return null;
-    return { trees: tt.count ?? 0, people: pp.count ?? 0 };
+    if (tt.error || pp.error) return SOCIAL_BASELINE;
+    return {
+      trees: Math.max(SOCIAL_BASELINE.trees, tt.count ?? 0),
+      people: Math.max(SOCIAL_BASELINE.people, pp.count ?? 0),
+    };
   } catch {
-    return null;
+    return SOCIAL_BASELINE;
   }
 }
 
