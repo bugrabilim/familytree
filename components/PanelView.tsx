@@ -31,10 +31,11 @@ interface Props {
   people: Person[];
   onSelect: (id: string) => void;
   onAdd: () => void;
-  onImportExport: () => void;
+  /** Özeti / paneli yazdır (Madde 12). */
+  onPrint?: () => void;
 }
 
-export default function PanelView({ people, onSelect, onAdd, onImportExport }: Props) {
+export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
   const t = useT();
@@ -209,6 +210,22 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Özet başlığı + yazdır (Madde 12) */}
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-serif text-lg font-semibold text-text">{t("panel.overviewTitle")}</h1>
+          {onPrint && (
+            <button
+              onClick={onPrint}
+              className="no-print flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted text-xs font-medium transition-colors shrink-0"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t("panel.print")}
+            </button>
+          )}
+        </div>
+
         {/* İstatistikler — rakamlar tıklanabilir (ilgili kişileri listeler) */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Stat value={stats.total} label={t("panel.stats.people")} tone="primary"
@@ -253,7 +270,6 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
             {stats.topBirthPlace && (
               <MiniStat label={t("panel.mini.topBirthPlace")} value={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} wide />
             )}
-            {stats.unlinked > 0 && <MiniStat label={t("panel.mini.unlinked")} value={stats.unlinked} />}
             {/* #8 — sağlık / yönelim / evlilik desenleri (yalnız veri varsa; tıklanır) */}
             {groups.congenital.length > 0 && (
               <MiniStat label={t("panel.mini.congenital")} value={groups.congenital.length}
@@ -520,27 +536,6 @@ export default function PanelView({ people, onSelect, onAdd, onImportExport }: P
               ))}
             </div>
 
-            {stats.unlinked > 0 && (
-              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-accent-soft border border-accent/15">
-                <span className="text-sm" aria-hidden>💡</span>
-                <p className="text-xs text-text leading-relaxed">
-                  <span className="font-semibold">{t("panel.unlinkedTip.bold", { count: stats.unlinked })}</span>{" "}
-                  {t("panel.unlinkedTip.mid")}{" "}
-                  <span className="font-semibold">+</span> {t("panel.unlinkedTip.end")}
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-2 mt-4">
-              <Button size="sm" variant="secondary" onClick={onImportExport}>
-                {t("common.gedcom")}
-              </Button>
-              {!readOnly && (
-                <Button size="sm" variant="secondary" onClick={onAdd}>
-                  {t("common.addPerson")}
-                </Button>
-              )}
-            </div>
           </Card>
         </div>
       </div>

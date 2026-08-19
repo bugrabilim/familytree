@@ -4,12 +4,11 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
-import { calcAge, lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName } from "@/lib/name";
+import { isRainbow } from "@/lib/identity";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
-import { isMasked } from "@/lib/privacy";
 import { useT } from "@/lib/i18n";
 
 export interface PersonNodeData extends Record<string, unknown> {
@@ -19,7 +18,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   focused?: boolean;
   dimmed: boolean;
   canAddParent: boolean;
-  /** 3 = en ayrıntılı (yaş+şehir), 0 = en sade (kalabalık) */
+  /** 3 = en büyük kart, 0 = en sade (kalabalık) */
   detail?: 0 | 1 | 2 | 3;
   width?: number;
   height?: number;
@@ -69,26 +68,24 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person: rawPerson, selected, focused, dimmed, canAddParent, detail = 3, width = 190, height = 98, onSelect, onOpen, onQuickAdd } =
+  const { person: rawPerson, selected, focused, dimmed, canAddParent, detail = 3, width = 140, height = 124, onSelect, onOpen, onQuickAdd } =
     data as unknown as PersonNodeData;
 
-  const { view, hideLiving } = usePrivacy();
+  const { view } = usePrivacy();
   const { readOnly } = useReadOnly();
   const person = view(rawPerson);
-  const masked = isMasked(rawPerson, hideLiving);
 
   const tone = genderTone(person.gender);
-  const years = lifeSpan(person.birthDate, person.deathDate);
-  const age = calcAge(person.birthDate, person.deathDate);
-  const deceased = !!person.deathDate;
+  const rainbow = isRainbow(person);
 
-  // Ayrıntı düzeyine göre kademeli sadeleşme:
-  //   3 → yaş + şehir + yıllar,  2 → şehir + yıllar,  1 → yıllar,  0 → yalnız ad
-  const showYears = detail >= 1;
-  const showCity = detail >= 2 && !!person.birthPlace;
-  const showAge = detail >= 3 && age !== null;
-  const avatarSize = detail >= 2 ? "md" : "sm";
-  const pad = detail >= 2 ? "px-3 py-2.5" : detail === 1 ? "px-2.5 py-2" : "px-2 py-1.5";
+  // Dikey kart (Madde 14): üstte fotoğraf/avatar, altında ad-soyad, altında
+  // doğum yılı. Ölçeğe göre yalnız avatar boyutu ve yazı boyu değişir; içerik
+  // sabit kalır (Madde 13 — başka hiçbir bilgi gösterilmez).
+  const avatarSize = detail >= 3 ? "md" : detail >= 1 ? "sm" : "xs";
+  const nameCls =
+    detail >= 3 ? "text-[13px]" : detail >= 1 ? "text-[12px]" : "text-[11px]";
+  const birthYear = person.birthDate?.slice(0, 4);
+  const showYear = detail >= 1 && !!birthYear;
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,7 +94,7 @@ function PersonNode({ data }: NodeProps) {
   };
 
   const t = useT();
-  const alt = secondaryName(person);
+  const surname = secondaryName(person);
   // Başlangıç iskeleti kartı: adı henüz girilmemiş, rol etiketi gösterilir.
   const isPlaceholder = !!person.placeholder && !person.firstName?.trim();
 
@@ -112,8 +109,9 @@ function PersonNode({ data }: NodeProps) {
         title="Tıkla: profili aç ve merkeze al"
         style={{ width, height }}
         className={`
-          relative text-left overflow-hidden
-          ${tone.bg} rounded-2xl ${pad}
+          relative overflow-hidden
+          flex flex-col items-center justify-center text-center gap-1.5 px-2 py-2.5
+          ${rainbow ? "card-rainbow" : tone.bg} rounded-2xl
           transition-all duration-200
           ${selected
             ? "shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/30 z-10"
@@ -124,73 +122,25 @@ function PersonNode({ data }: NodeProps) {
         {/* Odak rozeti — ağaçta nereden başladığını gösterir */}
         {focused && !selected && (
           <span
-            className="absolute -top-2 -left-2 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft z-10"
+            className="absolute top-1 left-1 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft z-10"
             title="Ağacın odak noktası"
           >
             odak
           </span>
         )}
 
-        {/* Cinsiyet şeridi */}
-        <span
-          className="absolute left-0 top-2 bottom-2 w-[5px] rounded-r-full"
-          style={{ background: tone.css }}
-          aria-hidden
-        />
+        <Avatar person={person} size={avatarSize} />
 
-        {/* Benzersiz kod */}
-        {detail >= 2 && person.code && (
-          <span className="absolute right-1.5 top-1 text-[9px] font-mono text-text-subtle/70 tabular-nums">
-            {person.code}
-          </span>
-        )}
-
-        <div className={`flex items-center h-full ${detail >= 2 ? "gap-2.5" : "gap-2"} pl-1.5`}>
-          <div className="relative shrink-0">
-            <Avatar person={person} size={avatarSize} />
-            {deceased && (
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-surface border border-border grid place-items-center text-[9px] leading-none text-text-subtle"
-                title="Vefat etti"
-              >
-                ✝
-              </span>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className={`font-semibold leading-tight truncate ${detail === 0 ? "text-[12px]" : "text-[13px]"} ${
-              isPlaceholder ? "text-text-subtle italic font-medium" : "text-text"
-            }`}>
-              {isPlaceholder ? t(`starter.role.${person.placeholder}`) : primaryName(person)}
-            </p>
-            {alt && (
-              <p className="text-[12px] leading-tight text-text-muted truncate">
-                {alt}
-              </p>
-            )}
-            {masked ? (
-              detail >= 1 && (
-                <p className="text-[11px] leading-tight text-text-subtle mt-0.5 truncate">
-                  🔒 Yaşayan
-                </p>
-              )
-            ) : (
-              <>
-                {showYears && years && (
-                  <p className="text-[11px] leading-tight text-text-subtle mt-0.5 tabular-nums truncate">
-                    {years}
-                    {showAge && <span> · {person.deathDate ? `${age} yaşında` : `${age} yaş`}</span>}
-                  </p>
-                )}
-                {showCity && (
-                  <p className="text-[10px] leading-tight text-text-subtle truncate">
-                    {person.birthPlace}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+        <div className="min-w-0 w-full leading-tight">
+          <p className={`font-semibold ${nameCls} ${
+            isPlaceholder ? "text-text-subtle italic font-medium" : "text-text"
+          } line-clamp-2 break-words`}>
+            {isPlaceholder ? t(`starter.role.${person.placeholder}`) : primaryName(person)}
+            {!isPlaceholder && surname ? ` ${surname}` : ""}
+          </p>
+          {showYear && (
+            <p className="text-[11px] text-text-subtle mt-0.5 tabular-nums">{birthYear}</p>
+          )}
         </div>
       </button>
 

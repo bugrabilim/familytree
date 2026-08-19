@@ -7,6 +7,7 @@ import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
+import { isRainbow } from "@/lib/identity";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -347,7 +348,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                     onClick={() => onSelect(p.id)}
                     className={`
                       w-full flex items-center gap-3 p-3 rounded-xl text-left
-                      ${genderTone(p.gender).bg} transition-all duration-150
+                      ${isRainbow(p) ? "card-rainbow" : genderTone(p.gender).bg} transition-all duration-150
                       ${p.id === selectedId
                         ? "ring-2 ring-primary/40 shadow-card"
                         : "hover:shadow-card"}
@@ -384,9 +385,6 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
                         </p>
                       )}
                     </div>
-                    {p.deathDate && (
-                      <span className="text-[10px] text-text-subtle shrink-0" title={t("list.deceasedTitle")}>✝</span>
-                    )}
                   </button>
                 </li>
               );

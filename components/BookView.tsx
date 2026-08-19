@@ -6,6 +6,8 @@ import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { getChildren, getParents, getSpouses, getFormerSpouses, indexPeople } from "@/lib/relations";
+import { aggregatePlaces, projectEquirectangular } from "@/lib/places";
+import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
@@ -15,12 +17,53 @@ interface Props {
   people: Person[];
   familyName?: string;
   onClose: () => void;
+  /** "Yazdır / PDF" — bası görünümünü (PrintView) açar (Madde 5). */
+  onPrint?: () => void;
 }
 
 type Page =
   | { kind: "cover" }
   | { kind: "foreword" }
+  | { kind: "places" }
   | { kind: "person"; gen: number; person: Person };
+
+/**
+ * Sayfa çevirme sesi (Madde 2) — kısa, sentezlenmiş "kâğıt hışırtısı".
+ * Dış ses dosyası yok: Web Audio ile filtrelenmiş gürültü patlaması üretilir
+ * (CSP güvenli). AudioContext ilk kullanımda, kullanıcı etkileşimiyle açılır.
+ */
+let _actx: AudioContext | null = null;
+function playFlip() {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    if (!_actx) _actx = new AC();
+    const ctx = _actx;
+    if (ctx.state === "suspended") void ctx.resume();
+    const dur = 0.22;
+    const rate = ctx.sampleRate;
+    const buf = ctx.createBuffer(1, Math.floor(rate * dur), rate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      const t = i / d.length;
+      // Zarf: hızlı yüksel, yavaş sön — sayfanın "fışş" sesi.
+      const env = Math.pow(1 - t, 2.2) * Math.min(1, t * 12);
+      d[i] = (Math.random() * 2 - 1) * env;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 2600;
+    bp.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.value = 0.28;
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start();
+  } catch {
+    /* ses üretilemezse sessizce geç */
+  }
+}
 
 /* Kâğıt yaşlandırma: 0 = yeni/temiz krem, 1 = eski parşömen. */
 const AGED = { bg: [228, 212, 178], text: [74, 58, 40] };
@@ -43,11 +86,14 @@ function paperStyle(age: number): React.CSSProperties {
  * okunan/kalan sayfalar yığın gibi görünür (kitap kalınlığı). Sayfalar sağdan
  * sola çevrilir. Gizlilik: maskeli kopya (`view`).
  */
-export default function BookView({ people, familyName, onClose }: Props) {
+export default function BookView({ people, familyName, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const [index, setIndex] = useState(0);
   const [wide, setWide] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [goTo, setGoTo] = useState(false); // "sayfaya git" / arama panosu açık mı
+  const [query, setQuery] = useState("");
   useEscapeKey(onClose);
 
   useEffect(() => {
@@ -91,6 +137,15 @@ export default function BookView({ people, familyName, onClose }: Props) {
     return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null;
   }, [masked]);
 
+  // Doğum yerleri — kitaba statik dünya haritası sayfası (Madde 8). Gizlilik:
+  // maskeli kopyadan türetildiği için gizli yaşayanların doğum yeri sızmaz.
+  const placeAgg = useMemo(() => {
+    const aggs = aggregatePlaces(masked);
+    const located = aggs.filter((a) => a.coords);
+    const maxCount = located.reduce((m, a) => Math.max(m, a.count), 1);
+    return { located, maxCount, total: aggs.length };
+  }, [masked]);
+
   const pages = useMemo<Page[]>(() => {
     const coll = new Intl.Collator("tr");
     const ordered = [...masked].sort((a, b) => {
@@ -100,12 +155,31 @@ export default function BookView({ people, familyName, onClose }: Props) {
       return ay.localeCompare(by) || coll.compare(fullName(a), fullName(b));
     });
     const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }];
+    if (placeAgg.located.length > 0) p.push({ kind: "places" });
     for (const person of ordered) p.push({ kind: "person", gen: genOf.get(person.id) ?? 1, person });
     return p;
-  }, [masked, genOf]);
+  }, [masked, genOf, placeAgg.located.length]);
 
   const total = pages.length;
   const step = wide ? 2 : 1;
+
+  // Ada ya da yıla göre ara → sayfa numarasını bul (Madde 4).
+  const searchMatches = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr");
+    if (!q) return [] as Array<{ index: number; person: Person }>;
+    const out: Array<{ index: number; person: Person }> = [];
+    for (let i = 0; i < pages.length; i++) {
+      const pg = pages[i];
+      if (pg.kind !== "person") continue;
+      const name = fullName(pg.person).toLocaleLowerCase("tr");
+      const by = pg.person.birthDate?.slice(0, 4) ?? "";
+      const dy = pg.person.deathDate?.slice(0, 4) ?? "";
+      if (name.includes(q) || (by && by.includes(q)) || (dy && dy.includes(q))) {
+        out.push({ index: i, person: pg.person });
+      }
+    }
+    return out.slice(0, 40);
+  }, [query, pages]);
 
   // Flipbook: çevrilen yaprak (eski sayfa) cilt ekseninde döner.
   const [leaf, setLeaf] = useState<{ half: "left" | "right" | "full"; front: Page | undefined; dir: "next" | "prev" } | null>(null);
@@ -124,8 +198,21 @@ export default function BookView({ people, familyName, onClose }: Props) {
     else { half = "left"; front = pages[oldIndex]; }
     setIndex(ni);
     setLeaf({ half, front, dir: d });
+    if (!muted) playFlip();
     if (leafTimer.current) window.clearTimeout(leafTimer.current);
     leafTimer.current = window.setTimeout(() => setLeaf(null), 620);
+  };
+
+  // Belirli bir sayfaya atla (Madde 3/4) — çift-sayfa modunda çift indekse hizala.
+  // Sayfaya atlarken çevirme animasyonu yok; varsa süren yaprak temizlenir
+  // (bekleyen zamanlayıcı zararsızca sönümlenir).
+  const jump = (target: number) => {
+    const clamped = Math.min(total - 1, Math.max(0, target));
+    const aligned = wide ? clamped - (clamped % 2) : clamped;
+    if (aligned === index) return;
+    setLeaf(null);
+    setIndex(aligned);
+    if (!muted) playFlip();
   };
 
   useEffect(() => () => { if (leafTimer.current) window.clearTimeout(leafTimer.current); }, []);
@@ -196,6 +283,15 @@ export default function BookView({ people, familyName, onClose }: Props) {
               </p>
             </div>
           )}
+          {pg.kind === "places" && (
+            <div className="font-serif h-full flex flex-col">
+              <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
+              <p className="text-center text-sm opacity-60 mb-4">
+                {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
+              </p>
+              <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
+            </div>
+          )}
           {pg.kind === "person" && (
             <div className="font-serif">
               <PersonPage person={pg.person} gen={pg.gen} idx={idx} masked={masked} t={t} />
@@ -212,10 +308,110 @@ export default function BookView({ people, familyName, onClose }: Props) {
         <p className="text-sm font-medium truncate">
           {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
         </p>
-        <button onClick={onClose} className="h-9 px-4 rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors">
-          {t("book.close")}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Sayfaya git / ara (Madde 3-4) */}
+          <button
+            onClick={() => setGoTo((v) => !v)}
+            aria-pressed={goTo}
+            title={t("book.goToTitle")}
+            className={`h-9 w-9 grid place-items-center rounded-xl border text-sm transition-colors ${goTo ? "border-white/40 bg-white/15" : "border-white/20 hover:bg-white/10"}`}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.9" />
+              <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            </svg>
+          </button>
+          {/* Sayfa çevirme sesi aç/kapat (Madde 2) */}
+          <button
+            onClick={() => setMuted((m) => !m)}
+            aria-pressed={!muted}
+            title={muted ? t("book.soundOff") : t("book.soundOn")}
+            className="h-9 w-9 grid place-items-center rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M4 9v6h4l5 4V5L8 9H4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              {muted ? (
+                <path d="M17 9l4 6M21 9l-4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              ) : (
+                <path d="M16.5 8.5a5 5 0 010 7M18.5 6a8 8 0 010 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
+          {/* Yazdır / PDF (Madde 5) */}
+          {onPrint && (
+            <button
+              onClick={onPrint}
+              title={t("book.printTitle")}
+              className="h-9 px-3 rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="hidden sm:inline">{t("book.print")}</span>
+            </button>
+          )}
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors">
+            {t("book.close")}
+          </button>
+        </div>
       </div>
+
+      {/* Sayfaya git / ara panosu */}
+      {goTo && (
+        <div className="shrink-0 px-4 sm:px-6 pb-3 -mt-1">
+          <div className="mx-auto max-w-xl rounded-2xl border border-white/15 bg-neutral-800/80 backdrop-blur p-3 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("book.searchPlaceholder")}
+                className="flex-1 h-9 px-3 rounded-xl bg-neutral-900/70 border border-white/15 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-white/40"
+              />
+              <div className="flex items-center gap-1.5 text-neutral-300 text-xs">
+                <span className="hidden sm:inline">{t("book.pageJump")}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={total}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = Number((e.target as HTMLInputElement).value);
+                      if (Number.isFinite(n)) jump(n - 1);
+                    }
+                  }}
+                  placeholder="#"
+                  className="w-16 h-9 px-2 rounded-xl bg-neutral-900/70 border border-white/15 text-sm text-neutral-100 tabular-nums focus:outline-none focus:border-white/40"
+                />
+              </div>
+            </div>
+            {query.trim() && (
+              <ul className="max-h-48 overflow-y-auto space-y-0.5">
+                {searchMatches.length === 0 ? (
+                  <li className="text-xs text-neutral-400 py-1.5 px-1">{t("book.noMatch")}</li>
+                ) : (
+                  searchMatches.map((m) => (
+                    <li key={m.person.id}>
+                      <button
+                        onClick={() => { jump(m.index); setGoTo(false); setQuery(""); }}
+                        className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-white/10 transition-colors"
+                      >
+                        <span className="text-sm text-neutral-100 truncate">
+                          {fullName(m.person)}
+                          {m.person.birthDate && <span className="text-neutral-400"> · {m.person.birthDate.slice(0, 4)}</span>}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 tabular-nums shrink-0">
+                          {t("book.pageN", { n: m.index + 1 })}
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-6 pb-3" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="relative w-full max-w-4xl h-full max-h-[82vh] flex items-center">
@@ -287,6 +483,85 @@ export default function BookView({ people, familyName, onClose }: Props) {
   );
 }
 
+/**
+ * Kitap içi statik doğum-yeri haritası (Madde 8). Etkileşimsiz; noktaları
+ * çevreleyen kırpma kutusuyla ilgili bölgeye odaklanır. Gömülü Natural Earth
+ * sınırları (lib/world-map) — dış istek yok.
+ */
+function BookMap({
+  located,
+  maxCount,
+}: {
+  located: ReturnType<typeof aggregatePlaces>;
+  maxCount: number;
+}) {
+  const VW = WORLD_VIEWBOX.w;
+  const VH = WORLD_VIEWBOX.h;
+  const dots = located
+    .filter((a) => a.coords)
+    .map((a) => {
+      const { x, y } = projectEquirectangular(a.coords!.lat, a.coords!.lng, VW, VH);
+      return { a, x, y };
+    });
+
+  // En büyük 8 yer etiketlenir (kalabalık olmasın).
+  const labelSet = new Set(
+    [...located].sort((a, b) => b.count - a.count).slice(0, 8).map((a) => a.place)
+  );
+
+  // Noktaları çevreleyen kırpma kutusu — kenar payıyla bölgeye odaklan.
+  let minX: number = VW, minY: number = VH, maxX = 0, maxY = 0;
+  for (const d of dots) {
+    minX = Math.min(minX, d.x); minY = Math.min(minY, d.y);
+    maxX = Math.max(maxX, d.x); maxY = Math.max(maxY, d.y);
+  }
+  if (dots.length === 0) { minX = 0; minY = 0; maxX = VW; maxY = VH; }
+  const padX = Math.max(70, (maxX - minX) * 0.3);
+  const padY = Math.max(50, (maxY - minY) * 0.4);
+  const bx = Math.max(0, minX - padX);
+  const by = Math.max(0, minY - padY);
+  const bw = Math.min(VW - bx, maxX - minX + padX * 2);
+  const bh = Math.min(VH - by, maxY - minY + padY * 2);
+  const scale = bw / VW; // etiket/çizgi ölçeğini kutuyla orantıla
+  const rOf = (c: number) => (3 + 7 * Math.sqrt(c / maxCount)) * Math.max(0.5, scale);
+
+  return (
+    <div
+      className="flex-1 min-h-0 rounded-lg overflow-hidden border border-black/15"
+      style={{ background: "rgba(120,150,170,0.14)" }}
+    >
+      <svg viewBox={`${bx} ${by} ${bw} ${bh}`} className="w-full h-full block" role="img">
+        <g fill="rgba(120,95,60,0.30)" stroke="rgba(90,70,45,0.55)" strokeWidth={0.6 * scale} strokeLinejoin="round">
+          {COUNTRIES.map((c, i) => (
+            <path key={i} d={c.d} />
+          ))}
+        </g>
+        {dots.map(({ a, x, y }) => {
+          const r = rOf(a.count);
+          return (
+            <g key={a.place}>
+              <circle cx={x} cy={y} r={r} fill="rgba(150,40,30,0.5)" stroke="rgba(120,30,20,0.9)" strokeWidth={0.5 * scale} />
+              <circle cx={x} cy={y} r={Math.max(0.6, 1.4 * scale)} fill="rgba(90,20,15,0.95)" />
+              {labelSet.has(a.place) && (
+                <text
+                  x={x}
+                  y={y - r - 3 * scale}
+                  textAnchor="middle"
+                  fontSize={9 * scale}
+                  fontWeight={600}
+                  fill="rgba(74,58,40,0.95)"
+                >
+                  {a.place.split(",")[0]}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function NavArrow({ dir, disabled, onClick, label }: { dir: "prev" | "next"; disabled: boolean; onClick: () => void; label: string }) {
   return (
     <button
@@ -330,7 +605,6 @@ function PersonPage({
       )}
       <h2 className="text-xl sm:text-2xl font-semibold leading-tight">
         {fullName(person)}
-        {person.deathDate && <span className="opacity-40 font-normal"> ✝</span>}
       </h2>
       <p className="text-sm italic opacity-60 mt-1 mb-4">
         {span && <span>{span}</span>}

@@ -3,14 +3,13 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
-import { lifeSpan } from "@/lib/date";
 import { primaryName, secondaryName, fullName } from "@/lib/name";
+import { isRainbow } from "@/lib/identity";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
 import { compareSiblings } from "@/lib/siblings";
 import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
-import { isMasked } from "@/lib/privacy";
 import { useT } from "@/lib/i18n";
 
 interface Props {
@@ -24,8 +23,8 @@ interface Props {
 
 /* Sabit kart yüksekliği, yatay yerleşimde bağlantı çizgilerinin hesabını
    mümkün kılar (kartlar dikey yığılır, çizgi merkezleri sabit). */
-const CARD_W = 176;
-const CARD_H = 64;
+const CARD_W = 132;
+const CARD_H = 116;
 const HALF_H = CARD_H / 2;
 const GAP = 16;
 const STUB = 24;
@@ -279,21 +278,24 @@ function PedigreeCard({
   onSelect,
   onSetRoot,
 }: { person: Person; isRoot?: boolean } & BranchProps) {
-  const { view, hideLiving } = usePrivacy();
+  const { view } = usePrivacy();
   const t = useT();
   const person = view(rawPerson);
-  const masked = isMasked(rawPerson, hideLiving);
   const selected = person.id === selectedId;
-  const alt = secondaryName(person);
+  const surname = secondaryName(person);
   const tone = genderTone(person.gender);
+  const rainbow = isRainbow(person);
+  // Madde 13/14 — dikey kart: avatar üstte, ad-soyad altında, doğum yılı altında.
+  const birthYear = person.birthDate?.slice(0, 4);
 
   return (
     <div className="group relative shrink-0" style={{ width: CARD_W }}>
       <button
         onClick={() => onSelect(person.id)}
+        style={{ height: CARD_H }}
         className={`
-          w-full h-[64px] flex items-center gap-2.5 px-2.5 rounded-xl text-left
-          ${tone.bg} transition-all duration-150
+          w-full flex flex-col items-center justify-center text-center gap-1.5 px-2 py-2 rounded-xl
+          ${rainbow ? "card-rainbow" : tone.bg} transition-all duration-150
           ${selected
             ? "shadow-float ring-2 ring-primary/40"
             : isRoot
@@ -302,23 +304,12 @@ function PedigreeCard({
         `}
       >
         <Avatar person={person} size="sm" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-text truncate leading-tight">
-            {primaryName(person)}
+        <div className="min-w-0 w-full leading-tight">
+          <p className="text-[12px] font-medium text-text line-clamp-2 break-words">
+            {primaryName(person)}{surname ? ` ${surname}` : ""}
           </p>
-          {alt ? (
-            <p className="text-[11px] text-text-muted truncate leading-tight">{alt}</p>
-          ) : person.code ? (
-            <p className="text-[10px] font-mono text-text-subtle/70 leading-tight">#{person.code}</p>
-          ) : null}
-          {masked ? (
-            <p className="text-[10px] text-text-subtle leading-tight">{t("common.living")}</p>
-          ) : (
-            lifeSpan(person.birthDate, person.deathDate) && (
-              <p className="text-[10px] text-text-subtle tabular-nums leading-tight">
-                {lifeSpan(person.birthDate, person.deathDate)}
-              </p>
-            )
+          {birthYear && (
+            <p className="text-[10px] text-text-subtle tabular-nums mt-0.5">{birthYear}</p>
           )}
         </div>
       </button>

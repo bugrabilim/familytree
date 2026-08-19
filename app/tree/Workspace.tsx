@@ -408,7 +408,6 @@ function WorkspaceInner({
         onViewChange={(v) => (v === "kitap" ? setBookOpen(true) : setView(v))}
         onSearch={() => setPaletteOpen(true)}
         onImportExport={() => setGedcomOpen(true)}
-        onPrint={() => setPrintOpen(true)}
         onPrintView={printCurrentView}
         onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
         onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
@@ -495,7 +494,7 @@ function WorkspaceInner({
             people={people}
             onSelect={setSelectedId}
             onAdd={openAdd}
-            onImportExport={() => setGedcomOpen(true)}
+            onPrint={printCurrentView}
           />
         )}
 
@@ -591,7 +590,12 @@ function WorkspaceInner({
       )}
 
       {bookOpen && (
-        <BookView people={people} familyName={familyName} onClose={() => setBookOpen(false)} />
+        <BookView
+          people={people}
+          familyName={familyName}
+          onClose={() => setBookOpen(false)}
+          onPrint={() => { setBookOpen(false); setPrintOpen(true); }}
+        />
       )}
 
       {pairOpen && role === "admin" && !publicView && (
