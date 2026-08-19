@@ -287,6 +287,17 @@ body {
 .react-flow__edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
 
 /* ----------------------------------------------------------------------
+ * Erişilebilirlik — klavye odağı görünürlüğü. Yalnız :focus-visible (klavye)
+ * için; fareyle tıklamada çıkmaz. Sıfır özgüllük (:where) ile bileşenlerin
+ * kendi odak halkaları bunu ezebilir.
+ * -------------------------------------------------------------------- */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ----------------------------------------------------------------------
  * LGBT+ kartları — zemin gökkuşağı (Madde 16). Metin okunur kalsın diye
  * soluk pastel bir degrade; yüzey rengi üstüne biner (açık/koyu tema uyumlu).
  * -------------------------------------------------------------------- */
