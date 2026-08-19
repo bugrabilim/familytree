@@ -241,12 +241,13 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           <div className="ml-auto md:ml-0 flex items-center gap-2">
             <LanguageSwitch />
             <ThemeToggle />
+            {/* Sağ üst: giriş yap + hesap oluştur (Madde 1) */}
             <Link href="/login" className="hidden sm:inline-flex h-9 items-center px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-sm font-medium transition-colors">
               {t("land.nav.signin")}
             </Link>
-            <button onClick={startDemo} disabled={demoLoading} className="h-9 inline-flex items-center px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all disabled:opacity-60">
-              {demoLoading ? t("land.demo.loading") : t("land.nav.demo")}
-            </button>
+            <Link href="/register" className="h-9 inline-flex items-center px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all">
+              {t("land.nav.register")}
+            </Link>
           </div>
         </div>
       </header>
@@ -291,15 +292,12 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
               {t("land.hero.body")}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mt-8">
+            {/* Hero'da yalnız demo düğmesi (Madde 2) */}
+            <div className="flex items-center lg:justify-start justify-center mt-8">
               <button onClick={startDemo} disabled={demoLoading}
                 className="w-full sm:w-auto py-3.5 inline-flex items-center justify-center px-8 rounded-xl bg-primary text-primary-text font-semibold hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 shadow-card">
                 {demoLoading ? t("land.demo.loading") : t("land.hero.ctaDemo")}
               </button>
-              <Link href="/register"
-                className="w-full sm:w-auto py-3.5 inline-flex items-center justify-center px-8 rounded-xl border border-border-strong bg-surface hover:bg-surface-2 font-semibold transition-colors">
-                {t("land.final.ctaRegister")}
-              </Link>
             </div>
             <p className="text-xs text-text-subtle mt-4">{t("land.hero.trust")}</p>
           </div>
@@ -364,10 +362,6 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
             </span>
             <h2 className="font-serif text-3xl sm:text-5xl font-semibold mt-4 leading-[1.08]">{t("land.book.title")}</h2>
             <p className="text-text-muted mt-4 leading-relaxed max-w-md mx-auto lg:mx-0">{t("land.book.body")}</p>
-            <button onClick={startDemo} disabled={demoLoading}
-              className="mt-6 h-11 inline-flex items-center justify-center px-6 rounded-xl bg-primary text-primary-text font-medium hover:brightness-110 hover:-translate-y-0.5 transition-all disabled:opacity-60">
-              {demoLoading ? t("land.demo.loading") : t("land.book.cta")}
-            </button>
           </div>
         </div>
       </section>
@@ -480,14 +474,15 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           style={{ background: "radial-gradient(circle, var(--primary), transparent 66%)" }} aria-hidden />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 text-center sd-reveal">
           <h2 className="font-serif text-3xl sm:text-5xl font-semibold max-w-2xl mx-auto leading-[1.08]">{t("land.final.title")}</h2>
+          {/* Alt bölüm: giriş yap + hesap oluştur (Madde 4) */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-            <button onClick={startDemo} disabled={demoLoading}
-              className="w-full sm:w-auto py-3.5 inline-flex items-center justify-center px-8 rounded-xl bg-primary text-primary-text font-semibold hover:brightness-110 hover:-translate-y-0.5 transition-all disabled:opacity-60 shadow-card">
-              {demoLoading ? t("land.demo.loading") : t("land.final.ctaDemo")}
-            </button>
             <Link href="/register"
+              className="w-full sm:w-auto py-3.5 inline-flex items-center justify-center px-8 rounded-xl bg-primary text-primary-text font-semibold hover:brightness-110 hover:-translate-y-0.5 transition-all shadow-card">
+              {t("land.nav.register")}
+            </Link>
+            <Link href="/login"
               className="w-full sm:w-auto py-3.5 inline-flex items-center justify-center px-8 rounded-xl border border-border-strong bg-bg hover:bg-surface-2 font-semibold transition-colors">
-              {t("land.final.ctaRegister")}
+              {t("land.nav.signin")}
             </Link>
           </div>
           <p className="text-xs text-text-subtle mt-5">{t("land.hero.trust")}</p>

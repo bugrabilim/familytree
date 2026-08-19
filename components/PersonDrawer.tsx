@@ -12,6 +12,8 @@ import Button from "./ui/Button";
 import RecordHints from "./RecordHints";
 import AiAssist from "./AiAssist";
 import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
+import { projectEquirectangular } from "@/lib/places";
+import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
   describeRelation,
@@ -310,6 +312,19 @@ export default function PersonDrawer({
               {person.birthPlace && <Fact icon="📍" label={t("drawer.birthPlace")} value={person.birthPlace} />}
               {person.deathDate && <Fact icon="🕯️" label={t("drawer.death")} value={formatLong(person.deathDate)} />}
               {person.deathCause && <Fact icon="🩶" label={t("drawer.deathCause")} value={person.deathCause} />}
+              {(person.burialPlace || person.burialCoords) && (
+                <Fact
+                  icon="🪦"
+                  label={t("burial.label")}
+                  value={
+                    person.burialPlace ||
+                    (person.burialCoords
+                      ? `${person.burialCoords.lat.toFixed(4)}, ${person.burialCoords.lng.toFixed(4)}`
+                      : "")
+                  }
+                />
+              )}
+              {person.burialCoords && <BurialMiniMap coords={person.burialCoords} />}
             </section>
           )}
 
@@ -730,6 +745,30 @@ function Fact({ icon, label, value }: { icon: string; label: string; value: stri
         <span className="text-[11px] text-text-subtle">{label}</span>
         <p className="text-sm text-text leading-tight">{value}</p>
       </div>
+    </div>
+  );
+}
+
+/** Defin yeri için küçük, etkileşimsiz harita — iğneyi çevreleyen bölgeyi gösterir. */
+function BurialMiniMap({ coords }: { coords: { lat: number; lng: number } }) {
+  const VW = WORLD_VIEWBOX.w;
+  const VH = WORLD_VIEWBOX.h;
+  const { x, y } = projectEquirectangular(coords.lat, coords.lng, VW, VH);
+  const w = VW / 14;
+  const h = w * (VH / VW);
+  const bx = Math.min(Math.max(0, x - w / 2), VW - w);
+  const by = Math.min(Math.max(0, y - h / 2), VH - h);
+  const scale = w / VW;
+  return (
+    <div className="rounded-xl overflow-hidden border border-border bg-surface-2 ml-7">
+      <svg viewBox={`${bx} ${by} ${w} ${h}`} className="w-full block" style={{ height: 130 }} role="img">
+        <rect x={0} y={0} width={VW} height={VH} fill="var(--surface-2)" />
+        <g fill="var(--surface-3)" stroke="var(--border-strong)" strokeWidth={0.6 * scale} strokeLinejoin="round">
+          {COUNTRIES.map((c, i) => <path key={i} d={c.d} />)}
+        </g>
+        <circle cx={x} cy={y} r={9 * scale} fill="var(--primary)" fillOpacity={0.25} />
+        <circle cx={x} cy={y} r={2.6 * scale} fill="var(--primary)" stroke="var(--primary-text)" strokeWidth={0.8 * scale} />
+      </svg>
     </div>
   );
 }
