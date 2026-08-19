@@ -1,0 +1,56 @@
+import { StyleSheet } from "react-native";
+import { colors } from "./theme";
+
+/** Kimlik/temel ekranlar için ortak stiller (web tasarımına yakın). */
+export const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  authWrap: { flex: 1, justifyContent: "center", paddingHorizontal: 24, gap: 4 },
+  title: { fontSize: 26, fontWeight: "700", color: colors.text, marginTop: 20 },
+  subtitle: { fontSize: 15, color: colors.textMuted, marginBottom: 20 },
+  label: { fontSize: 12, fontWeight: "600", color: colors.textMuted, marginTop: 14, marginBottom: 6 },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: colors.text,
+  },
+  button: {
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 22,
+  },
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: colors.primaryText, fontWeight: "700", fontSize: 15 },
+  buttonSecondary: {
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  buttonSecondaryText: { color: colors.text, fontWeight: "600", fontSize: 15 },
+  error: { color: colors.danger, fontSize: 13, marginTop: 12 },
+  footerRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
+  footerText: { color: colors.textMuted, fontSize: 14 },
+  link: { color: colors.primary, fontSize: 14, fontWeight: "600" },
+  recoveryBox: {
+    marginTop: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    backgroundColor: "#f6efe4",
+    padding: 16,
+  },
+  recoveryCode: { fontSize: 18, fontWeight: "700", color: colors.text, textAlign: "center", letterSpacing: 2 },
+});

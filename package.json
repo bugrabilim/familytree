@@ -7,18 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "for f in tests/*.test.mts; do node --experimental-strip-types \"$f\" || exit 1; done",
-    "cap:sync": "cap sync",
-    "cap:ios": "cap sync ios && cap open ios",
-    "cap:android": "cap sync android && cap open android",
-    "cap:assets": "capacitor-assets generate --iconBackgroundColor '#1f6b47' --iconBackgroundColorDark '#1f6b47' --splashBackgroundColor '#1f6b47' --splashBackgroundColorDark '#12140f'"
+    "test": "for f in tests/*.test.mts; do node --experimental-strip-types \"$f\" || exit 1; done"
   },
   "dependencies": {
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/keyboard": "^8.0.5",
-    "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.3",
     "@supabase/supabase-js": "^2.112.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/dagre": "^0.7.54",
@@ -42,10 +33,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/ios": "^8.5.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",

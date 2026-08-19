@@ -1,5 +1,7 @@
 # Native Mobil Uygulama Planı (iOS + Android)
 
+> **Durum (güncel):** Capacitor (WebView) kaldırıldı. Backend jeton (JWT) kimliği eklendi (PR: mobil altyapı). Expo uygulaması `apps/mobile/` altında kuruldu — **Aşama 0 (temel) + Aşama 1 (giriş/kayıt/kurtarma kodu)** hazır. Çalıştırma: `apps/mobile/README.md`.
+
 > Karar: **gerçek native uygulama** (WebView değil). Yaklaşım: **Expo / React
 > Native**. Backend (Next.js API'leri + Supabase) aynen kalır; yalnız arayüz
 > native olarak yeniden yazılır. Bu doküman plandır — henüz kod yok.

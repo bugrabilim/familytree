@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Native mobil uygulama kendi araç zincirine sahip (Expo/RN); web lint'i dışında.
+    "apps/**",
   ]),
 ]);
 
