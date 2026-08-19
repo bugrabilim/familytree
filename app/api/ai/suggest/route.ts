@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
+import { rateLimit } from "@/lib/rate-limit";
 import { buildSuggestPrompt, isSuggestMode } from "@/lib/ai-suggest";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,12 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
+  const rl = rateLimit(`ai:suggest:${ctx.accountId}`, { capacity: 12, refillPerSec: 0.2 });
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: "Çok fazla istek. Lütfen biraz bekleyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
   if (!isGeminiConfigured())
     return NextResponse.json({ error: "AI yapılandırılmamış (GEMINI_API_KEY)." }, { status: 503 });
 
