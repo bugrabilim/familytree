@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor — native projeler yerelde üretilir (npx cap add ios/android).
+# İstersen commit edebilirsin; varsayılan olarak yok sayılıyor.
+/ios
+/android
