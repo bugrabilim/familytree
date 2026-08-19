@@ -10,7 +10,7 @@ import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
-import AiChat from "@/components/AiChat";
+import AiChat, { type AiMsg } from "@/components/AiChat";
 import PrintView from "@/components/PrintView";
 import BookView from "@/components/BookView";
 import MembersDialog from "@/components/MembersDialog";
@@ -135,6 +135,8 @@ function WorkspaceInner({
   const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
+  const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
   const [starterLoading, setStarterLoading] = useState(false);
 
   /** Başlangıç iskeleti — anne/baba ve büyükanne-büyükbaba için boş kartlar. */
@@ -302,9 +304,16 @@ function WorkspaceInner({
   // Madde 5 — Sekme (görünüm) değişince açık profil panelini kapat. İlk mount
   // atlanır ki madde 2'nin seçtiği başlangıç seçimi korunsun.
   const ilkGorunum = useRef(true);
+  // AI'dan bir kişiye giderken görünümü "ağaç"a çevirirken seçimi (paneli) KORU:
+  // görünüm değişince seçimi temizleyen aşağıdaki efekt bir kez atlanır.
+  const secimiKoruRef = useRef(false);
   useEffect(() => {
     if (ilkGorunum.current) {
       ilkGorunum.current = false;
+      return;
+    }
+    if (secimiKoruRef.current) {
+      secimiKoruRef.current = false;
       return;
     }
     setSelectedId(undefined);
@@ -397,6 +406,23 @@ function WorkspaceInner({
     setRootId(id);
     setTreeFocus(id);
   }, []);
+
+  // AI yanıtındaki bir kişiye tıklanınca: ağaç görünümüne geç, o kişiyi merkeze
+  // al ve profilini aç. Sohbet paneli kapanır ama geçmişi korunur (aiMessages
+  // üst bileşende). Görünüm zaten "ağaç" değilse seçim-temizleme efekti atlanır.
+  const goToPersonFromAi = useCallback(
+    (id: string) => {
+      if (!idx.has(id)) return;
+      setAiChatOpen(false);
+      if (view !== "agac") {
+        secimiKoruRef.current = true;
+        setView("agac");
+      }
+      focusPerson(id);
+      setSelectedId(id);
+    },
+    [idx, view, focusPerson]
+  );
 
   const isEmpty = people.length === 0;
 
@@ -584,7 +610,15 @@ function WorkspaceInner({
         />
       )}
 
-      {aiChatOpen && <AiChat onClose={() => setAiChatOpen(false)} />}
+      {aiChatOpen && (
+        <AiChat
+          onClose={() => setAiChatOpen(false)}
+          messages={aiMessages}
+          setMessages={setAiMessages}
+          people={people}
+          onGoToPerson={goToPersonFromAi}
+        />
+      )}
 
       {printOpen && (
         <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
