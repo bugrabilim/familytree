@@ -70,6 +70,20 @@ function Stat({ value, label, suffix = "" }: { value: number; label: string; suf
   );
 }
 
+/** Sosyal kanıt şeridi tek satır — ikon + sayan rakam + etiket (Madde 9). */
+function SocialStat({ value, label, icon }: { value: number; label: string; icon: string }) {
+  const { ref, n } = useCountUp(value);
+  return (
+    <span className="inline-flex items-baseline gap-2 text-sm">
+      <span className="text-base" aria-hidden>{icon}</span>
+      <span ref={ref} className="font-serif text-lg sm:text-xl font-semibold tabular-nums text-text">
+        {n.toLocaleString("tr-TR")}
+      </span>
+      <span className="text-text-muted">{label}</span>
+    </span>
+  );
+}
+
 /**
  * Gerçek ürün ekranı — demo ağaçtan alınmış görüntü. Tema ve dile göre doğru
  * varyant gösterilir (dark: sınıf tabanlı; dil `useLang`'den).
@@ -196,7 +210,7 @@ const TICKER = [
 const STEPS = ["1", "2", "3"] as const;
 const FAQS = ["1", "2", "3", "4"] as const;
 
-export default function Landing() {
+export default function Landing({ platform }: { platform?: { trees: number; people: number } }) {
   const t = useT();
   const [demoLoading, setDemoLoading] = useState(false);
   const year = new Date().getFullYear();
@@ -236,6 +250,20 @@ export default function Landing() {
           </div>
         </div>
       </header>
+
+      {/* ---- Sosyal kanıt şeridi (Madde 9) — platform sayaçları ---- */}
+      {platform && (platform.trees > 0 || platform.people > 0) && (
+        <div className="border-b border-border bg-primary-soft/40">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-center gap-x-8 sm:gap-x-12 gap-y-2 text-center">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-subtle">
+              {t("land.social.lead")}
+            </span>
+            <SocialStat value={platform.trees} label={t("land.social.trees")} icon="🌳" />
+            <span className="hidden sm:block w-px h-6 bg-border" aria-hidden />
+            <SocialStat value={platform.people} label={t("land.social.people")} icon="👥" />
+          </div>
+        </div>
+      )}
 
       {/* ---- Hero ---- */}
       <section className="relative overflow-hidden">

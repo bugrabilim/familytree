@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Modal from "./ui/Modal";
+import { createPortal } from "react-dom";
+import useEscapeKey from "@/lib/useEscapeKey";
 import { useLang, useT } from "@/lib/i18n";
 
 type Msg = { role: "user" | "ai"; text: string };
@@ -14,6 +15,7 @@ type Msg = { role: "user" | "ai"; text: string };
 export default function AiChat({ onClose }: { onClose: () => void }) {
   const t = useT();
   const { lang } = useLang();
+  useEscapeKey(onClose);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,9 +51,35 @@ export default function AiChat({ onClose }: { onClose: () => void }) {
 
   const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3")];
 
-  return (
-    <Modal title={t("ai.chat.title")} subtitle={t("ai.chat.subtitle")} onClose={onClose}>
-      <div ref={listRef} className="max-h-[52vh] overflow-y-auto space-y-3 pr-0.5">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex justify-end">
+      {/* Arka plan — tıklayınca kapanır */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] animate-fade-in" onClick={onClose} aria-hidden />
+
+      {/* Yandan kayan sohbet paneli (Madde 5) */}
+      <aside className="relative w-full max-w-md h-full bg-bg-elevated border-l border-border shadow-modal flex flex-col animate-slide-in-right">
+        <header className="shrink-0 flex items-center justify-between gap-3 px-4 h-14 border-b border-border">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text flex items-center gap-1.5">
+              <span aria-hidden>✨</span> {t("ai.chat.title")}
+            </p>
+            <p className="text-[11px] text-text-subtle truncate">{t("ai.chat.subtitle")}</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label={t("book.close")}
+            className="w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors shrink-0"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </header>
+
+        <div className="flex-1 min-h-0 flex flex-col p-4">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-0.5">
         {messages.length === 0 ? (
           <div className="py-2">
             <p className="text-sm text-text-muted mb-3">{t("ai.chat.intro")}</p>
@@ -108,6 +136,9 @@ export default function AiChat({ onClose }: { onClose: () => void }) {
         </button>
       </form>
       <p className="text-[10px] text-text-subtle mt-2">{t("ai.story.note")}</p>
-    </Modal>
+        </div>
+      </aside>
+    </div>,
+    document.body
   );
 }

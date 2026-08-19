@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
 import { useT } from "@/lib/i18n";
@@ -128,9 +129,21 @@ export default function AuthShell({
 
       {/* ---- Form paneli ---- */}
       <main className="flex-1 flex flex-col bg-bg">
-        <div className="flex justify-end items-center gap-2 p-4">
-          <LanguageSwitch />
-          <ThemeToggle />
+        <div className="flex justify-between items-center gap-2 p-4">
+          {/* Tanıtım (ana sayfa) sayfasına dön (Madde 8) */}
+          <Link
+            href="/tanitim"
+            className="inline-flex items-center gap-1.5 h-9 pl-2 pr-3 rounded-lg text-sm text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {t("topbar.home")}
+          </Link>
+          <div className="flex items-center gap-2">
+            <LanguageSwitch />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="flex-1 flex items-center justify-center px-5 pb-14">

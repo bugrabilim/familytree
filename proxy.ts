@@ -9,6 +9,7 @@ export default auth((req) => {
     // bunlar korumaya takılırsa <img> istekleri /login'e yönlenir.
     /\.(?:webp|webm|mp4|png|jpe?g|gif|svg|ico|avif|woff2?|txt|xml|webmanifest)$/i.test(pathname) ||
     pathname === "/" ||
+    pathname.startsWith("/tanitim") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
     pathname.startsWith("/login") ||

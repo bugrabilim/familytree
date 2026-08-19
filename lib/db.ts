@@ -1,5 +1,5 @@
 import "server-only";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import type { FamilyData, Person } from "@/types/family";
 import type { Invite, Member, User } from "@/types/user";
 
@@ -162,6 +162,27 @@ export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null
   let updatedAt = "";
   for (const r of rows) if (r.updated_at > updatedAt) updatedAt = r.updated_at;
   return { people: rows.map((r) => r.data), updatedAt };
+}
+
+/**
+ * Platform geneli sayaçlar — tanıtım (landing) sosyal kanıtı için (Madde 9):
+ * "X aile ağacı oluşturuldu · X kişi eklendi". Supabase yapılandırılmamışsa ya
+ * da sorgu başarısızsa `null` döner; çağıran taraf o zaman şeridi gizler.
+ * `head: true` + `count: exact` yalnız sayıyı çeker (satırları değil).
+ */
+export async function getPlatformStats(): Promise<{ trees: number; people: number } | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const sb = supabaseAdmin();
+    const [tt, pp] = await Promise.all([
+      sb.from("trees").select("*", { count: "exact", head: true }),
+      sb.from("people").select("*", { count: "exact", head: true }),
+    ]);
+    if (tt.error || pp.error) return null;
+    return { trees: tt.count ?? 0, people: pp.count ?? 0 };
+  } catch {
+    return null;
+  }
 }
 
 /* ── Hesaplar (founder) — Faz 3, şimdilik yalnız çift-yazma aynası ─────────── */
