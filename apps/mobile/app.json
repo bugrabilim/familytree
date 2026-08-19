@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Soy Ağacı",
+    "slug": "soyagaci",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "soyagaci",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1f6b47"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bumbateknoloji.soyagaci"
+    },
+    "android": {
+      "package": "com.bumbateknoloji.soyagaci",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1f6b47"
+      }
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "plugins": ["expo-router", "expo-secure-store", "expo-splash-screen"],
+    "extra": {
+      "apiBaseUrl": "https://soyagaci.app"
+    }
+  }
+}
