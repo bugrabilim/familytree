@@ -181,6 +181,14 @@ export function unprojectEquirectangular(
   return { lat, lng };
 }
 
+/**
+ * Google Maps derin bağlantısı (anahtarsız, ücretsiz). Yeni sekmede haritayı
+ * verilen sorguyla açar — koordinat (`"41.0,29.0"`) ya da yer adı olabilir.
+ */
+export function googleMapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 export interface PlaceAggregate {
   place: string;
   count: number;

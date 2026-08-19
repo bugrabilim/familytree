@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GAZETTEER,
+  googleMapsUrl,
   projectEquirectangular,
   resolvePlace,
   unprojectEquirectangular,
@@ -155,6 +156,19 @@ export default function LocationPicker({
           >
             {t("burial.clear")}
           </button>
+        )}
+        {coords && (
+          <a
+            href={googleMapsUrl(`${coords.lat},${coords.lng}`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-primary transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+            </svg>
+            {t("burial.gmaps")}
+          </a>
         )}
         <span className="ml-auto text-[11px] tabular-nums text-text-subtle">
           {coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : t("burial.noPin")}
