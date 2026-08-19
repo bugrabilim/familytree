@@ -29,6 +29,9 @@ export interface PersonPayload {
   congenitalCondition?: string;
   healthCondition?: string;
   deathCause?: string;
+  burialPlace?: string;
+  /** null = konumu temizle; undefined = değiştirme; nesne = ayarla. */
+  burialCoords?: { lat: number; lng: number } | null;
   photo?: string;
   photos?: string[];
   videos?: string[];

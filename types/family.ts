@@ -146,6 +146,10 @@ export interface Person {
   healthCondition?: string;
   /** Ölüm nedeni. Yalnızca vefat edenlerde anlamlı. */
   deathCause?: string;
+  /** Defin / mezar yeri — serbest adres metni. Yalnız vefat edenlerde anlamlı. */
+  burialPlace?: string;
+  /** Defin yeri koordinatı — haritada seçilen konum (enlem/boylam). */
+  burialCoords?: { lat: number; lng: number };
   /**
    * @deprecated Eski, ayrışmamış sağlık notu. Yeni kayıtlar
    * `congenitalCondition` / `healthCondition` kullanır; bu alan yalnızca

@@ -164,6 +164,23 @@ export function projectEquirectangular(
   return { x, y };
 }
 
+/**
+ * SVG koordinatını enlem/boylama geri çevirir (projectEquirectangular tersi).
+ * Konum seçicide tıklanan noktayı coğrafi konuma çevirmek için.
+ */
+export function unprojectEquirectangular(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  bounds: Bounds = DEFAULT_BOUNDS
+): LatLng {
+  const { minLat, maxLat, minLng, maxLng } = bounds;
+  const lng = minLng + (x / width) * (maxLng - minLng);
+  const lat = maxLat - (y / height) * (maxLat - minLat);
+  return { lat, lng };
+}
+
 export interface PlaceAggregate {
   place: string;
   count: number;

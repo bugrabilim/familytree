@@ -17,6 +17,7 @@ import {
 } from "@/types/family";
 import AudioRecorder from "./AudioRecorder";
 import Avatar from "./ui/Avatar";
+import LocationPicker from "./LocationPicker";
 import { generateAvatar } from "@/lib/avatar";
 import Button from "./ui/Button";
 import {
@@ -129,6 +130,8 @@ export default function PersonForm({
     congenitalCondition: initial?.congenitalCondition ?? "",
     healthCondition: initial?.healthCondition ?? "",
     deathCause: initial?.deathCause ?? "",
+    burialPlace: initial?.burialPlace ?? "",
+    burialCoords: (initial?.burialCoords ?? null) as { lat: number; lng: number } | null,
     parentIds: initial?.parentIds ?? [],
     spouseIds: initial?.spouseIds ?? [],
     formerSpouseIds: initial?.formerSpouseIds ?? [],
@@ -418,6 +421,10 @@ export default function PersonForm({
       congenitalCondition: form.congenitalCondition.trim() || undefined,
       healthCondition: form.healthCondition.trim() || undefined,
       deathCause: form.deathCause.trim() || undefined,
+      // Defin yeri yalnız vefat edenlerde saklanır. Temizlemenin de kaydedilmesi
+      // için açıkça boş dize / null gönderilir (undefined "değiştirme" demek olur).
+      burialPlace: form.deathDate.trim() ? form.burialPlace.trim() : "",
+      burialCoords: form.deathDate.trim() ? form.burialCoords : null,
       bio: form.bio.trim() || undefined,
       photo: form.photo || undefined,
       photos: form.photos.length ? form.photos : undefined,
@@ -817,6 +824,27 @@ export default function PersonForm({
             onChange={(e) => set("deathCause", e.target.value)}
             placeholder="Kalp yetmezliği, trafik kazası…"
           />
+        </div>
+      )}
+
+      {/* Defin yeri — yalnızca vefat edenlerde: adres + harita konum seçimi */}
+      {form.deathDate.trim() && (
+        <div>
+          <label className={label} htmlFor="pf-defin">{t("burial.label")}</label>
+          <input
+            id="pf-defin"
+            className={field}
+            value={form.burialPlace}
+            onChange={(e) => set("burialPlace", e.target.value)}
+            placeholder={t("burial.placeholder")}
+          />
+          <div className="mt-2">
+            <LocationPicker
+              coords={form.burialCoords}
+              onChange={(c) => set("burialCoords", c)}
+              addressForGeocode={form.burialPlace || form.birthPlace}
+            />
+          </div>
         </div>
       )}
 

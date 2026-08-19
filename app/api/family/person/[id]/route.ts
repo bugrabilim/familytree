@@ -55,6 +55,11 @@ export async function PUT(
     congenitalCondition: body.congenitalCondition ?? data.people[index].congenitalCondition,
     healthCondition: body.healthCondition ?? data.people[index].healthCondition,
     deathCause: body.deathCause ?? data.people[index].deathCause,
+    // Defin yeri: undefined → değiştirme; "" / null → temizle; değer → ayarla.
+    burialPlace:
+      body.burialPlace === undefined ? data.people[index].burialPlace : (body.burialPlace || undefined),
+    burialCoords:
+      body.burialCoords === undefined ? data.people[index].burialCoords : (body.burialCoords || undefined),
     photo: body.photo ?? data.people[index].photo,
     photos: Array.isArray(body.photos) ? body.photos : data.people[index].photos,
     videos: Array.isArray(body.videos) ? body.videos : data.people[index].videos,

@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     congenitalCondition: body.congenitalCondition || undefined,
     healthCondition: body.healthCondition || undefined,
     deathCause: body.deathCause || undefined,
+    burialPlace: body.burialPlace || undefined,
+    burialCoords: body.burialCoords || undefined,
     photo: body.photo || undefined,
     photos: Array.isArray(body.photos) ? body.photos : undefined,
     videos: Array.isArray(body.videos) ? body.videos : undefined,
