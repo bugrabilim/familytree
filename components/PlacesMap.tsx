@@ -7,6 +7,7 @@ import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import {
   aggregatePlaces,
+  googleMapsUrl,
   projectEquirectangular,
   GAZETTEER,
 } from "@/lib/places";
@@ -588,6 +589,18 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     {t("map.close")}
                   </button>
                 </div>
+                {/* Google Maps'te aç (anahtarsız derin bağlantı) */}
+                <a
+                  href={googleMapsUrl(active.coords ? `${active.coords.lat},${active.coords.lng}` : active.place)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-3 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-primary transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+                  </svg>
+                  {t("map.openGmaps")}
+                </a>
                 <PersonList ids={active.personIds} byId={byId} onSelect={onSelect} />
               </section>
             ) : (

@@ -12,7 +12,7 @@ import Button from "./ui/Button";
 import RecordHints from "./RecordHints";
 import AiAssist from "./AiAssist";
 import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
-import { projectEquirectangular } from "@/lib/places";
+import { googleMapsUrl, projectEquirectangular } from "@/lib/places";
 import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
@@ -309,7 +309,7 @@ export default function PersonDrawer({
               {person.birthDate && (
                 <Fact icon="🎂" label={t("drawer.birth")} value={formatLong(person.birthDate)} />
               )}
-              {person.birthPlace && <Fact icon="📍" label={t("drawer.birthPlace")} value={person.birthPlace} />}
+              {person.birthPlace && <Fact icon="📍" label={t("drawer.birthPlace")} value={person.birthPlace} gmapsQuery={person.birthPlace} />}
               {person.deathDate && <Fact icon="🕯️" label={t("drawer.death")} value={formatLong(person.deathDate)} />}
               {person.deathCause && <Fact icon="🩶" label={t("drawer.deathCause")} value={person.deathCause} />}
               {(person.burialPlace || person.burialCoords) && (
@@ -321,6 +321,11 @@ export default function PersonDrawer({
                     (person.burialCoords
                       ? `${person.burialCoords.lat.toFixed(4)}, ${person.burialCoords.lng.toFixed(4)}`
                       : "")
+                  }
+                  gmapsQuery={
+                    person.burialCoords
+                      ? `${person.burialCoords.lat},${person.burialCoords.lng}`
+                      : person.burialPlace || undefined
                   }
                 />
               )}
@@ -737,15 +742,45 @@ function TimelineRow({
   );
 }
 
-function Fact({ icon, label, value }: { icon: string; label: string; value: string }) {
+function Fact({
+  icon,
+  label,
+  value,
+  gmapsQuery,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  /** Verilirse "Google Maps'te aç" bağlantısı gösterilir (koordinat ya da yer adı). */
+  gmapsQuery?: string;
+}) {
   return (
     <div className="flex items-center gap-2.5">
       <span className="text-sm w-5 text-center shrink-0" aria-hidden>{icon}</span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <span className="text-[11px] text-text-subtle">{label}</span>
         <p className="text-sm text-text leading-tight">{value}</p>
       </div>
+      {gmapsQuery && <GMapsLink query={gmapsQuery} />}
     </div>
+  );
+}
+
+/** Küçük "Google Maps'te aç" bağlantısı — yeni sekmede açar (anahtarsız). */
+function GMapsLink({ query }: { query: string }) {
+  return (
+    <a
+      href={googleMapsUrl(query)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-primary transition-colors"
+      title="Google Maps"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+      </svg>
+      Google Maps
+    </a>
   );
 }
 
