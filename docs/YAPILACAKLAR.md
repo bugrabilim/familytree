@@ -38,6 +38,19 @@ Sonraki adımlar (ayrı PR'lar):
 
 Ayrıntı: `docs/SUPABASE-GECIS.md`.
 
+### Not — e-posta bağlamak (2026-08-19 görüşmesi)
+
+Uygulama e-posta olmadan tam çalışıyor: giriş = soyadı + şifre, kurtarma =
+**kurtarma kodu**, davet/paylaşım = link/jeton. Şu an tek gerçek boşluk:
+kullanıcı **hem şifresini hem kurtarma kodunu** kaybederse hesap kurtarılamıyor.
+
+- **İsteğe bağlı e-posta ile şifre sıfırlama** eklenebilir (asıl fayda: kurtarma
+  güvenlik ağı). Faz 3e ile örtüşür.
+- Gerektirir: bir **e-posta sağlayıcısı** (Resend/Postmark/SMTP) + API anahtarı/env.
+- Gizlilik: **isteğe bağlı ve gizli** tutulmalı; kullanıcının kişisel e-postası
+  asla herkese açık yüzeyde gösterilmez.
+- Karar: lansman için **şart değil**; ileride istenirse eklenecek.
+
 ---
 
 ## Bug listesi (kullanıcı bildirimi — TAMAMLANDI ✓, PR #48)
