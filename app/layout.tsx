@@ -4,6 +4,8 @@ import "./globals.css";
 import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { LanguageProvider } from "@/lib/i18n";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +73,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text">
         <LanguageProvider>{children}</LanguageProvider>
+        {/* Gizlilik dostu ölçüm — çerezsiz, kişisel veri toplamaz (yalnız Vercel'de aktif). */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
