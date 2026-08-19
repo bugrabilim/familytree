@@ -18,6 +18,9 @@ export default auth((req) => {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/register") ||
     pathname.startsWith("/api/reset-password") ||
+    // Native mobil kimlik uçları (jeton alma) — oturum gerektirmez.
+    pathname.startsWith("/api/mobile/login") ||
+    pathname.startsWith("/api/mobile/register") ||
     pathname.startsWith("/join") ||
     pathname.startsWith("/api/tree/join") ||
     // Herkese açık salt-okunur paylaşım görünümü (üyeliksiz).
@@ -30,7 +33,14 @@ export default auth((req) => {
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
 
-  if (!req.auth && !isPublic) {
+  // Native mobil: `Authorization: Bearer` taşıyan API istekleri çerez oturumu
+  // olmadan gelir; /login'e yönlendirme (302) yerine rotaya bırak — rota jetonu
+  // resolveActiveTree ile doğrular. Yalnız /api/* için geçerli.
+  const hasBearer =
+    pathname.startsWith("/api/") &&
+    (req.headers.get("authorization")?.startsWith("Bearer ") ?? false);
+
+  if (!req.auth && !isPublic && !hasBearer) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

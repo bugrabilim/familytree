@@ -1,10 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
-import { findUserByFamilyName } from "@/lib/users";
-import { findMemberByPassword } from "@/lib/members";
+import { verifyLogin } from "@/lib/credentials";
 import { prepareDemoAccount } from "@/lib/demo-account";
-import { authEmailForAccount, isSupabaseLoginEnabled, supabaseVerifyPassword } from "@/lib/auth-users";
 import type { TreeRole } from "@/types/user";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -18,43 +15,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         const familyName = credentials?.familyName as string | undefined;
         const password = credentials?.password as string | undefined;
-        if (!familyName || !password) return null;
-
-        const user = await findUserByFamilyName(familyName);
-        if (!user) return null;
-
-        const founderSession = {
-          id: user.id,
-          name: user.familyName,
-          role: "admin" as const,
-          treeName: user.familyName,
-          isFounder: true,
-        };
-
-        // Faz 3c — giriş doğrulaması. Bayrak açıksa ÖNCE Supabase Auth denenir;
-        // yalnız temiz doğrulamada kabul edilir. Başarısızsa (kullanıcı henüz
-        // içe aktarılmamış, Email sağlayıcısı kapalı, ağ/zaman aşımı, ya da
-        // sadece yanlış şifre) aşağıdaki mevcut bcrypt yoluna DÜŞÜLÜR — kimse
-        // kilitlenmez. Bayrak kapalıyken davranış bugünküyle bire bir aynıdır.
-        if (isSupabaseLoginEnabled()) {
-          if (await supabaseVerifyPassword(authEmailForAccount(user.id), password)) {
-            return founderSession;
-          }
-        }
-
-        // Founder (ağacı kuran) → admin. Kimlik = treeId (veri blob'u buna bağlı).
-        // bcrypt = kaynak doğruluğu / Supabase yolu için yedek.
-        if (await compare(password, user.passwordHash)) {
-          return founderSession;
-        }
-
-        // Aksi hâlde: aynı ağaca davetle katılmış bir üye mi? (rol üyeden gelir)
-        const member = await findMemberByPassword(user.id, password);
-        if (member) {
-          return { id: user.id, name: member.displayName, role: member.role, treeName: user.familyName, isFounder: false };
-        }
-
-        return null;
+        // Doğrulama mantığı web + mobil ortak: lib/credentials.
+        return (await verifyLogin(familyName ?? "", password ?? "")) ?? null;
       },
     }),
 
