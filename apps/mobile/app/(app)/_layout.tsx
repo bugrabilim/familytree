@@ -21,6 +21,8 @@ export default function AppLayout() {
         <Stack.Screen name="home" />
         <Stack.Screen name="menu" options={{ presentation: "modal" }} />
         <Stack.Screen name="person/[id]" />
+        <Stack.Screen name="person/new" />
+        <Stack.Screen name="person/edit/[id]" />
       </Stack>
     </FamilyProvider>
   );

@@ -52,6 +52,43 @@ export function formatLong(stored?: string): string {
   return y;
 }
 
+/** "1985-04-23" → "23.04.1985" ・ "1985" → "1985" (görüntü biçimi). */
+export function storedToDisplay(stored?: string): string {
+  if (!stored) return "";
+  const [y, m, d] = stored.split("-");
+  if (d) return `${d}.${m}.${y}`;
+  if (m) return `${m}.${y}`;
+  return y ?? "";
+}
+
+function normalizeDateInput(input: string): string {
+  const s = (input ?? "").trim();
+  if (!s) return "";
+  if (/^\d+$/.test(s)) {
+    if (s.length === 8) return `${s.slice(0, 2)}.${s.slice(2, 4)}.${s.slice(4)}`;
+    if (s.length === 6) return `${s.slice(0, 2)}.${s.slice(2)}`;
+    return s;
+  }
+  return s.replace(/[./\-\s]+/g, ".").replace(/^\.|\.$/g, "");
+}
+
+/** "23.04.1985" → "1985-04-23" ・ "1985" → "1985" (depolama biçimi). */
+export function displayToStored(display: string): string {
+  const s = normalizeDateInput(display);
+  if (!s) return "";
+  if (/^\d{4}$/.test(s)) return s;
+  const parts = s.split(".").map((p) => p.trim());
+  if (parts.length === 2) {
+    const [m, y] = parts;
+    return `${y}-${m.padStart(2, "0")}`;
+  }
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return s;
+}
+
 function toDate(stored?: string): Date | null {
   if (!stored) return null;
   const [y, m, d] = stored.split("-").map(Number);

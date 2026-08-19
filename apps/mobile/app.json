@@ -24,7 +24,18 @@
       }
     },
     "web": { "favicon": "./assets/favicon.png" },
-    "plugins": ["expo-router", "expo-secure-store", "expo-splash-screen"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-splash-screen",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kişi fotoğrafı eklemek için galeriye erişim izni verin.",
+          "cameraPermission": "Kişi fotoğrafı çekmek için kamera izni verin."
+        }
+      ]
+    ],
     "extra": {
       "apiBaseUrl": "https://soyagaci.app"
     }

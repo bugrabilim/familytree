@@ -67,3 +67,72 @@ export function registerRequest(familyName: string, password: string) {
     body: { familyName, password },
   });
 }
+
+/* ── Kişi CRUD ── */
+
+/** İlişki bağı: yeni kişiyi hedefin ebeveyni/çocuğu/eşi/kardeşi olarak ekler. */
+export type RelationType = "parent" | "child" | "spouse" | "sibling";
+
+export function createPerson(
+  token: string,
+  payload: Record<string, unknown>,
+  relation?: { type: RelationType; targetId: string }
+) {
+  return apiFetch<{ id: string }>("/api/family/person", {
+    method: "POST",
+    token,
+    body: relation ? { ...payload, relation } : payload,
+  });
+}
+
+export function updatePerson(token: string, id: string, payload: Record<string, unknown>) {
+  return apiFetch<{ id: string }>(`/api/family/person/${id}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export function deletePerson(token: string, id: string) {
+  return apiFetch<{ success: boolean }>(`/api/family/person/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+/**
+ * Fotoğraf yükleme — multipart/form-data (Cloudinary'ye). `uri` cihazdaki yerel
+ * dosya yolu (kamera/galeri). Content-Type'ı FormData kendi belirler.
+ */
+export async function uploadPhoto(token: string, uri: string): Promise<string> {
+  const name = uri.split("/").pop() || `photo-${Date.now()}.jpg`;
+  const ext = name.split(".").pop()?.toLowerCase();
+  const type = ext === "png" ? "image/png" : ext === "heic" ? "image/heic" : "image/jpeg";
+
+  const form = new FormData();
+  // React Native FormData dosya biçimi:
+  form.append("file", { uri, name, type } as unknown as Blob);
+  form.append("kind", "photo");
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+  } catch {
+    throw new ApiError("Fotoğraf yüklenemedi. Bağlantıyı kontrol et.", 0);
+  }
+  const text = await res.text();
+  const data = text ? safeJson(text) : null;
+  if (!res.ok) {
+    const msg =
+      (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) ||
+      `Yükleme hatası (${res.status})`;
+    throw new ApiError(String(msg), res.status);
+  }
+  const url = (data as { url?: string } | null)?.url;
+  if (!url) throw new ApiError("Yükleme yanıtı geçersiz.", 500);
+  return url;
+}

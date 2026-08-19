@@ -47,9 +47,25 @@ export default function PersonScreen() {
   const age = calcAge(person.birthDate, person.deathDate);
   const deceased = !!person.deathDate;
 
+  const addRelation = (type: "parent" | "spouse" | "child" | "sibling") =>
+    router.push(
+      `/(app)/person/new?type=${type}&targetId=${person.id}&targetName=${encodeURIComponent(fullName(person))}`
+    );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["left", "right", "bottom"]}>
-      <Stack.Screen options={{ headerShown: true, title: fullName(person), headerBackTitle: "Geri" }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: fullName(person),
+          headerBackTitle: "Geri",
+          headerRight: () => (
+            <Pressable onPress={() => router.push(`/(app)/person/edit/${person.id}`)} hitSlop={10}>
+              <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>Düzenle</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
         {/* Başlık kartı */}
         <View
@@ -96,6 +112,19 @@ export default function PersonScreen() {
         <RelGroup title="Ebeveynler" list={rel.parents} onTap={(pid) => router.push(`/(app)/person/${pid}`)} />
         <RelGroup title="Eş(ler)" list={rel.spouses} onTap={(pid) => router.push(`/(app)/person/${pid}`)} />
         <RelGroup title="Çocuklar" list={rel.children} onTap={(pid) => router.push(`/(app)/person/${pid}`)} />
+
+        {/* İlişki ekle */}
+        <View style={{ marginTop: 24 }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.textSubtle, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+            Bağlı kişi ekle
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            <AddChip label="+ Ebeveyn" onPress={() => addRelation("parent")} />
+            <AddChip label="+ Eş" onPress={() => addRelation("spouse")} />
+            <AddChip label="+ Çocuk" onPress={() => addRelation("child")} />
+            <AddChip label="+ Kardeş" onPress={() => addRelation("sibling")} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -121,6 +150,24 @@ function Fact({ label, value }: { label: string; value?: string }) {
       <Text style={{ color: colors.textMuted, fontSize: 14 }}>{label}</Text>
       <Text style={{ color: colors.text, fontSize: 14, fontWeight: "600", flexShrink: 1, textAlign: "right" }}>{value}</Text>
     </View>
+  );
+}
+
+function AddChip({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        paddingHorizontal: 16,
+        paddingVertical: 11,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        backgroundColor: pressed ? colors.surface2 : colors.surface,
+      })}
+    >
+      <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>{label}</Text>
+    </Pressable>
   );
 }
 

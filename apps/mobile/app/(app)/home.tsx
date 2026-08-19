@@ -136,6 +136,32 @@ export default function Home() {
           renderItem={({ item }) => <PersonRow person={item} />}
         />
       )}
+
+      {/* Kişi ekle (FAB) */}
+      {!loading && !error ? (
+        <Link href="/(app)/person/new" asChild>
+          <Pressable
+            style={{
+              position: "absolute",
+              right: 20,
+              bottom: 28,
+              width: 58,
+              height: 58,
+              borderRadius: 29,
+              backgroundColor: colors.primary,
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: "#000",
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 5,
+            }}
+          >
+            <Text style={{ color: colors.primaryText, fontSize: 30, lineHeight: 32, marginTop: -2 }}>+</Text>
+          </Pressable>
+        </Link>
+      ) : null}
     </SafeAreaView>
   );
 }
