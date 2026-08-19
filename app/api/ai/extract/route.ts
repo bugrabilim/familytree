@@ -3,6 +3,7 @@ import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
+import { rateLimit } from "@/lib/rate-limit";
 import { buildExtractPrompt, buildExtractSystem, parseExtractedJson } from "@/lib/ai-extract";
 import { xlsxToText, docxToText } from "@/lib/office-extract";
 import { nextCode } from "@/lib/code";
@@ -64,6 +65,12 @@ export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!canEdit(ctx.role)) return forbidden();
+  const rl = rateLimit(`ai:extract:${ctx.accountId}`, { capacity: 5, refillPerSec: 0.05 });
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: "Çok fazla istek. Lütfen biraz bekleyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
   if (!isGeminiConfigured())
     return NextResponse.json({ error: "AI yapılandırılmamış (GEMINI_API_KEY)." }, { status: 503 });
 
