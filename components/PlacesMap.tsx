@@ -210,9 +210,11 @@ export default function PlacesMap({ people, onSelect }: Props) {
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    // NOT: İşaretçiyi burada YAKALAMA. pointerdown'da setPointerCapture yapmak
+    // tıklamayı SVG'ye çalıyordu; nokta (<g>) üzerindeki `click` hiç oluşmuyordu
+    // (Madde 1). Yakalama yalnız gerçekten sürükleme başlayınca yapılır.
     drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false };
     didPan.current = false;
-    svgRef.current?.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = drag.current;
@@ -225,6 +227,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
     if (!d.moved && Math.hypot(dx, dy) > 3) {
       d.moved = true;
       didPan.current = true;
+      // Sürükleme eşiği aşıldı → artık işaretçiyi yakala (pürüzsüz pan).
+      svgRef.current?.setPointerCapture(e.pointerId);
     }
     if (!d.moved) return;
     d.sx = e.clientX;
@@ -249,6 +253,24 @@ export default function PlacesMap({ people, onSelect }: Props) {
     zoomAt(factor, 0.5, 0.5);
   };
   const resetView = () => setBox(FULL);
+
+  // Madde 3 — İlk açılışta haritayı ailenin gerçekten bulunduğu bölgeye sığdır
+  // (boş dünya yerine dolu bir çerçeve; harita alanı verimli kullanılır). Yalnız
+  // bir kez; kullanıcı sonradan uzaklaştırıp tüm dünyayı görebilir ("Sıfırla").
+  const fittedOnce = useRef(false);
+  useEffect(() => {
+    if (fittedOnce.current || dots.length === 0) return;
+    fittedOnce.current = true;
+    let minX: number = VW, minY: number = VH, maxX = 0, maxY = 0;
+    for (const d of dots) {
+      minX = Math.min(minX, d.x); minY = Math.min(minY, d.y);
+      maxX = Math.max(maxX, d.x); maxY = Math.max(maxY, d.y);
+    }
+    const padX = Math.max(40, (maxX - minX) * 0.35);
+    const padY = Math.max(30, (maxY - minY) * 0.5);
+    // clamp en-boy oranını (w'den h türeterek) ve dünya sınırlarını uygular.
+    setBox(clamp({ x: minX - padX, y: minY - padY, w: maxX - minX + padX * 2, h: maxY - minY + padY * 2 }));
+  }, [dots, clamp]);
 
   // Bir yeri merkeze alıp yakınlaştır (yan panelden seçince).
   const focusPlace = useCallback(

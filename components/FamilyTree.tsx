@@ -90,7 +90,7 @@ interface Props {
 }
 
 function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd }: Props) {
-  const { fitView, setCenter } = useReactFlow();
+  const { fitView, setCenter, getZoom } = useReactFlow();
   const initialised = useRef(false);
   const prevDepth = useRef(depth);
   const [zoom, setZoom] = useState(1);
@@ -265,16 +265,19 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     if (!selectedId) return;
     const pos = positions.get(selectedId);
     if (!pos) return;
-    const zoom = 0.9;
+    // Madde 7 — Seçince MEVCUT yakınlaştırmayı koru (0.9'a zıplatma yok); yalnız
+    // kartı görünür alanın ortasına doğru yumuşakça kaydır. Böylece bir karta
+    // tıklamak ekranı savurmuyor.
+    const zoom = getZoom();
     const drawerAcik =
       typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
     const kaydir = drawerAcik ? 190 / zoom : 0; // panelin yarısı kadar dünya birimi
     const t = setTimeout(
-      () => setCenter(pos.x + dim.w / 2 + kaydir, pos.y + dim.h / 2, { zoom, duration: 420 }),
+      () => setCenter(pos.x + dim.w / 2 + kaydir, pos.y + dim.h / 2, { zoom, duration: 380 }),
       140
     );
     return () => clearTimeout(t);
-  }, [selectedId, positions, depth, setCenter, dim.w, dim.h]);
+  }, [selectedId, positions, depth, setCenter, getZoom, dim.w, dim.h]);
 
   return (
     <ReactFlow

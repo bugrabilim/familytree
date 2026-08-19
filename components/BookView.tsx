@@ -97,7 +97,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
   useEscapeKey(onClose);
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 720px)");
+    const mq = window.matchMedia("(min-width: 640px)");
     const on = () => setWide(mq.matches);
     on();
     mq.addEventListener("change", on);
@@ -414,7 +414,8 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
       )}
 
       <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-6 pb-3" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <div className="relative w-full max-w-4xl h-full max-h-[82vh] flex items-center">
+        {/* Yatay (roman) format: geniş, alçak açık-kitap (Madde 2). */}
+        <div className="relative w-full max-w-6xl h-full max-h-[70vh] flex items-center">
           <NavArrow dir="prev" disabled={index === 0} onClick={() => go("prev")} label={t("book.prevAria")} />
 
           {/* Kitap: [okunan yığın][sol sayfa][cilt][sağ sayfa][kalan yığın] */}

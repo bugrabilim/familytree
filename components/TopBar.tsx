@@ -271,6 +271,19 @@ export default function TopBar({
           </button>
           )}
 
+          {/* Yapay zekâya sor — üst çubukta görünür düğme (Madde 5) */}
+          {onAiChat && (
+            <button
+              onClick={onAiChat}
+              title={t("ai.chat.menu")}
+              aria-label={t("ai.chat.menu")}
+              className="flex items-center gap-1.5 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:brightness-105 transition-all"
+            >
+              <span className="text-sm leading-none" aria-hidden>✨</span>
+              <span className="hidden md:inline text-xs font-medium">{t("ai.chat.short")}</span>
+            </button>
+          )}
+
           <LanguageSwitch />
 
           <ThemeToggle />
@@ -300,18 +313,20 @@ export default function TopBar({
             {menuOpen && (
               <>
                 <div className="absolute right-0 top-11 z-20 w-52 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden animate-scale-in origin-top-right">
-                  {onAiChat && (
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onAiChat();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
-                    >
-                      <span className="text-base leading-none" aria-hidden>✨</span>
-                      {t("ai.chat.menu")}
-                    </button>
-                  )}
+                  {/* Tanıtım (ana sayfa) sayfasına dön (Madde 8) */}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push("/tanitim");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors text-left"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+                      <path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t("topbar.home")}
+                  </button>
+                  <div className="h-px bg-border" />
                   <button
                     onClick={() => {
                       setMenuOpen(false);

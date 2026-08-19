@@ -438,17 +438,18 @@ function WorkspaceInner({
           <>
             <FamilyTree
               people={treePeople}
-              selectedId={treeFocus}
+              selectedId={selectedId}
               focusId={effectiveRoot}
               depth={treeDepth}
               onSelect={(id) => {
-                // Madde 1 — Karta tek tık: kişiyi merkeze al (treeFocus) VE
-                // profil panelini aç (selectedId). Çift tık da onOpen ile açar.
-                setTreeFocus(id);
+                // Karta tek tık: yalnız profil panelini aç ve kartı yumuşakça
+                // ortala. Görünür kümeyi (treeFocus) DEĞİŞTİRMEZ — böylece ağaç
+                // yeniden yerleşip ekran zıplamıyordu (eski davranış çok
+                // hareketliydi). Yeniden köklemek için panelden "merkeze al".
                 setSelectedId(id);
               }}
               onOpen={setSelectedId}
-              onDeselect={() => setTreeFocus(undefined)}
+              onDeselect={() => setSelectedId(undefined)}
               onQuickAdd={openQuickAdd}
             />
             <TreeDepthControl

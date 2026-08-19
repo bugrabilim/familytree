@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { DEMO_USER_ID } from "@/lib/demo-account";
+import { getPlatformStats } from "@/lib/db";
 import Landing from "@/components/Landing";
 
 /**
@@ -15,5 +16,6 @@ import Landing from "@/components/Landing";
 export default async function HomePage() {
   const session = await auth();
   if (session && session.user?.id !== DEMO_USER_ID) redirect("/tree");
-  return <Landing />;
+  const platform = await getPlatformStats();
+  return <Landing platform={platform ?? undefined} />;
 }

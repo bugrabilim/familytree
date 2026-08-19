@@ -210,12 +210,20 @@ body {
   60% { transform: scale(1.04); }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
 
 .animate-fade-in { animation: fade-in 0.18s ease-out; }
 .animate-scale-in { animation: scale-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .animate-slide-left { animation: slide-left 0.24s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.animate-slide-in-right { animation: slide-in-right 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .animate-pop { animation: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-right { animation: fade-in 0.18s ease-out; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -316,7 +324,9 @@ body {
  * -------------------------------------------------------------------- */
 @media print {
   .no-print { display: none !important; }
-  @page { margin: 14mm; }
+  /* Kâğıt boyutu dialogdan seçilir (A4/A5); içerik akışkan olduğundan hangisi
+     seçilirse ona tam uyar (Madde 4). Kenar boşluğu iki boyda da dengeli. */
+  @page { margin: 13mm; }
 
   /* — Aile kitabı — */
   body.print-book .app-shell { display: none !important; }
@@ -326,6 +336,20 @@ body {
     height: auto !important;
     background: #fff !important;
     color: #000 !important;
+  }
+  /* Sayfa gövdesi AKIŞKAN: sabit max-w-3xl (768px) A5'e sığmıyordu; %100 yapıp
+     kâğıt boyutuna (A4/A5) tam uydur. Ekran gölgesi/pay basılmaz. */
+  body.print-book .print-page {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Portre foto A5'te satırı taşırmasın — biraz küçült. */
+  body.print-book .print-photo {
+    width: 24mm !important;
+    height: 32mm !important;
   }
   .print-entry { break-inside: avoid; }
   .print-cover { break-after: page; }
