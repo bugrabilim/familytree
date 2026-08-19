@@ -25,16 +25,23 @@ npx expo run:android    # Android (Android Studio)
   - `_layout.tsx` — SafeArea + AuthProvider + Stack
   - `index.tsx` — açılış yönlendirmesi (jeton varsa uygulama, yoksa giriş)
   - `(auth)/login.tsx`, `(auth)/register.tsx` — kimlik
-  - `(app)/home.tsx` — geçici ana ekran (kimliği kanıtlar; ağaç sonraki aşama)
+  - `(app)/home.tsx` — kişi listesi + arama (ana ekran)
+  - `(app)/person/[id].tsx` — kişi profili (bilgiler + ebeveyn/eş/çocuk bağları)
+  - `(app)/menu.tsx` — hesap/ağaç bilgisi + çıkış
 - `src/lib/`
   - `config.ts` — API kök adresi
   - `api.ts` — Bearer'lı fetch istemcisi + kimlik uçları
   - `auth.tsx` — jeton bağlamı (SecureStore ile kalıcı)
+  - `family.tsx` — ağaç verisini bir kez çekip tüm ekranlara veren bağlam
+  - `types.ts` / `format.ts` — Person tipi + isim/tarih/kimlik biçimlendirme
   - `theme.ts` / `styles.ts` / `BrandMark.tsx` — tasarım
+- `src/components/PersonAvatar.tsx` — fotoğraf ya da baş harfli avatar
 
 ## Durum
 - ✅ Aşama 0 (temel) + Aşama 1 (kimlik: giriş/kayıt/kurtarma kodu, jeton depolama).
-- ⏭️ Sonraki: kişi listesi/arama → profil → ekle/düzenle → ağaç görünümü → harita
+- ✅ Aşama 2 (kişi listesi + isim/yıl/yer araması, pull-to-refresh, gökkuşağı kartlar).
+- ✅ Aşama 3 (kişi profili: bilgiler + ebeveyn/eş/çocuk bağları arasında gezinme).
+- ⏭️ Sonraki: kişi ekle/düzenle (native kamera + harita) → ağaç görünümü → harita
   → kitap. Bkz. `docs/MOBIL-NATIVE-PLAN.md`.
 
 ## Not
