@@ -23,6 +23,7 @@ export default function AppLayout() {
         <Stack.Screen name="person/[id]" />
         <Stack.Screen name="person/new" />
         <Stack.Screen name="person/edit/[id]" />
+        <Stack.Screen name="tree" />
       </Stack>
     </FamilyProvider>
   );

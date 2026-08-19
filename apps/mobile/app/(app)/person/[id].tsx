@@ -88,6 +88,20 @@ export default function PersonScreen() {
               {deceased ? `${age} yaşında vefat etti` : `${age} yaşında`}
             </Text>
           ) : null}
+          <Pressable
+            onPress={() => router.push(`/(app)/tree?focus=${person.id}`)}
+            style={({ pressed }) => ({
+              marginTop: 14,
+              paddingHorizontal: 18,
+              paddingVertical: 9,
+              borderRadius: 20,
+              backgroundColor: pressed ? colors.surface2 : colors.surface,
+              borderWidth: 1,
+              borderColor: colors.primary,
+            })}
+          >
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>🌳 Ağaçta gör</Text>
+          </Pressable>
         </View>
 
         {/* Bilgiler */}

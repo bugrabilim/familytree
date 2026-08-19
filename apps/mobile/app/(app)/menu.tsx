@@ -36,6 +36,15 @@ export default function Menu() {
           <Row label="Kişi sayısı" value={String(people.length)} />
         </View>
 
+        <Pressable
+          style={[styles.buttonSecondary, { borderColor: colors.primary }]}
+          onPress={() => {
+            router.back();
+            router.push("/(app)/tree");
+          }}
+        >
+          <Text style={[styles.buttonSecondaryText, { color: colors.primary }]}>🌳 Ağaç görünümü</Text>
+        </Pressable>
         <Pressable style={styles.buttonSecondary} onPress={() => router.back()}>
           <Text style={styles.buttonSecondaryText}>Listeye dön</Text>
         </Pressable>
