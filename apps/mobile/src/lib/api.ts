@@ -68,6 +68,15 @@ export function registerRequest(familyName: string, password: string) {
   });
 }
 
+/* ── Yapay zekâ ── */
+export function askAi(token: string, question: string, lang: "tr" | "en" = "tr") {
+  return apiFetch<{ answer: string }>("/api/ai/chat", {
+    method: "POST",
+    token,
+    body: { question, lang },
+  });
+}
+
 /* ── Kişi CRUD ── */
 
 /** İlişki bağı: yeni kişiyi hedefin ebeveyni/çocuğu/eşi/kardeşi olarak ekler. */

@@ -1,8 +1,9 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { API_BASE_URL } from "@/lib/config";
 import { colors } from "@/lib/theme";
 import { styles } from "@/lib/styles";
 import { BrandMark } from "@/lib/BrandMark";
@@ -36,14 +37,19 @@ export default function Menu() {
           <Row label="Kişi sayısı" value={String(people.length)} />
         </View>
 
+        <NavButton label="🌳 Ağaç görünümü" to="/(app)/tree" router={router} />
+        <NavButton label="📍 Yerler / harita" to="/(app)/map" router={router} />
+        <NavButton label="📖 Aile kitabı" to="/(app)/book" router={router} />
+        <NavButton label="🤖 Yapay zekâya sor" to="/(app)/ai" router={router} />
         <Pressable
-          style={[styles.buttonSecondary, { borderColor: colors.primary }]}
-          onPress={() => {
-            router.back();
-            router.push("/(app)/tree");
-          }}
+          style={styles.buttonSecondary}
+          onPress={() =>
+            Share.share({
+              message: `${user?.treeName ?? "Aile ağacımız"} — Soy Ağacı\n${API_BASE_URL}`,
+            })
+          }
         >
-          <Text style={[styles.buttonSecondaryText, { color: colors.primary }]}>🌳 Ağaç görünümü</Text>
+          <Text style={styles.buttonSecondaryText}>📤 Ağacı paylaş</Text>
         </Pressable>
         <Pressable style={styles.buttonSecondary} onPress={() => router.back()}>
           <Text style={styles.buttonSecondaryText}>Listeye dön</Text>
@@ -53,6 +59,28 @@ export default function Menu() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function NavButton({
+  label,
+  to,
+  router,
+}: {
+  label: string;
+  to: string;
+  router: ReturnType<typeof useRouter>;
+}) {
+  return (
+    <Pressable
+      style={[styles.buttonSecondary, { borderColor: colors.primary }]}
+      onPress={() => {
+        router.back();
+        router.push(to as never);
+      }}
+    >
+      <Text style={[styles.buttonSecondaryText, { color: colors.primary }]}>{label}</Text>
+    </Pressable>
   );
 }
 
