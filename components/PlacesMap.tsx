@@ -285,7 +285,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <div className="flex items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-xl font-semibold text-text">{t("map.title")}</h1>
@@ -347,14 +347,15 @@ export default function PlacesMap({ people, onSelect }: Props) {
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        {/* Madde 9 — harita tam genişlik, yan paneller altta. */}
+        <div className="space-y-6">
           {/* Harita tuvali — zoom + pan */}
           <div className="relative rounded-2xl border border-border bg-surface p-2 sm:p-3">
             <div className="relative rounded-xl overflow-hidden">
               <svg
                 ref={svgRef}
                 viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
-                className="w-full h-auto block select-none cursor-grab active:cursor-grabbing"
+                className="w-full h-auto block select-none cursor-grab active:cursor-grabbing max-h-[72vh]"
                 role="img"
                 aria-label={t("map.ariaMap")}
                 style={{ touchAction: "none" }}
@@ -549,8 +550,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
             </div>
           </div>
 
-          {/* Yan panel */}
-          <div className="space-y-6">
+          {/* Yan paneller — harita altında ızgara (Madde 9) */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-start">
             {/* Seçili yerin kişileri */}
             {active ? (
               <section className="rounded-2xl border border-border bg-surface p-4">

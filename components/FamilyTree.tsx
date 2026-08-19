@@ -33,11 +33,12 @@ import type { RelationType } from "@/lib/actions";
  */
 type Detail = 0 | 1 | 2 | 3;
 
+// Dikey (portre) kartlar — üstte avatar, altında ad, altında doğum yılı.
 const DIMS: Record<Detail, { w: number; h: number; gap: number; nodesep: number }> = {
-  3: { w: 190, h: 98, gap: 130, nodesep: 34 },
-  2: { w: 190, h: 82, gap: 108, nodesep: 32 },
-  1: { w: 176, h: 66, gap: 84, nodesep: 28 },
-  0: { w: 150, h: 50, gap: 60, nodesep: 22 },
+  3: { w: 140, h: 126, gap: 116, nodesep: 30 },
+  2: { w: 132, h: 114, gap: 100, nodesep: 28 },
+  1: { w: 118, h: 98, gap: 78, nodesep: 24 },
+  0: { w: 102, h: 82, gap: 60, nodesep: 20 },
 };
 
 /** treeDepth (0-8, büyük değer=Tümü) + görünen kişi sayısı → temel ayrıntı düzeyi */

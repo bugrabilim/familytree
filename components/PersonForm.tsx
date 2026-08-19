@@ -46,7 +46,7 @@ interface Props {
   onSaved: (person: Person) => void;
 }
 
-type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "deathDate" | "events" | "form", string>>;
+type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "deathDate" | "gender" | "events" | "form", string>>;
 
 /** Formda düzenlenen olay satırı — tarih görüntü biçiminde tutulur (GG.AA.YYYY). */
 interface EventRow {
@@ -108,7 +108,9 @@ export default function PersonForm({
     nickname: initial?.nickname ?? "",
     patronymic: initial?.patronymic ?? "",
     orientation: initial?.orientation ?? "",
-    gender: (initial?.gender ?? "unknown") as Person["gender"],
+    // Madde 15 — "bilinmiyor" cinsiyet yok; yeni kişide seçim zorunlu (boş başlar).
+    // Eski kayıtlarda "unknown" gelirse boş sayılır ve kaydetmeden önce seçtirilir.
+    gender: (initial?.gender && initial.gender !== "unknown" ? initial.gender : "") as Person["gender"] | "",
     birthDate: storedToDisplay(initial?.birthDate),
     deathDate: storedToDisplay(initial?.deathDate),
     birthPlace: initial?.birthPlace ?? "",
@@ -225,7 +227,7 @@ export default function PersonForm({
     const yil = isValidDateInput(form.birthDate) && form.birthDate
       ? Number(displayToStored(form.birthDate).slice(0, 4))
       : undefined;
-    return Array.from({ length: 24 }, (_, i) => generateAvatar(seed, form.gender, yil, i));
+    return Array.from({ length: 24 }, (_, i) => generateAvatar(seed, (form.gender || "unknown") as Person["gender"], yil, i));
   }, [personId, form.firstName, form.lastName, form.gender, form.birthDate]);
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -334,6 +336,10 @@ export default function PersonForm({
     // Baba adı (patronim) varsa soyad zorunlu değil — Soyadı Kanunu öncesi
     // kuşaklar "Şaban oğlu Hüseyin" gibi soyadsız kaydedilebilir.
     if (!form.lastName.trim() && !form.patronymic.trim()) e.lastName = t("form.errLastName");
+    // Madde 15 — cinsiyet zorunlu (bilinmiyor yok).
+    if (form.gender !== "female" && form.gender !== "male" && form.gender !== "other") {
+      e.gender = t("form.errGender");
+    }
     if (!isValidDateInput(form.birthDate)) e.birthDate = t("form.errDate");
     if (!isValidDateInput(form.deathDate)) e.deathDate = t("form.errDate");
 
@@ -396,7 +402,7 @@ export default function PersonForm({
       nickname: form.nickname.trim() || undefined,
       patronymic: form.patronymic.trim() || undefined,
       orientation: form.orientation.trim() || undefined,
-      gender: form.gender,
+      gender: form.gender as Person["gender"],
       birthDate: form.birthDate ? displayToStored(form.birthDate) : undefined,
       deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
       birthPlace: form.birthPlace.trim() || undefined,
@@ -454,7 +460,7 @@ export default function PersonForm({
     id: personId,
     firstName: form.firstName,
     lastName: form.lastName,
-    gender: form.gender,
+    gender: (form.gender || "unknown") as Person["gender"],
     photo: form.photo,
     birthDate: isValidDateInput(form.birthDate) && form.birthDate
       ? displayToStored(form.birthDate)
@@ -738,15 +744,14 @@ export default function PersonForm({
         </div>
       </div>
 
-      {/* Cinsiyet — segmented */}
+      {/* Cinsiyet — segmented (Madde 15: "bilinmiyor" yok) */}
       <div>
         <span className={label}>Cinsiyet</span>
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-surface-2 border border-border">
+        <div className={`grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-2 border ${errors.gender ? "border-danger ring-2 ring-danger/15" : "border-border"}`}>
           {([
             { v: "female", l: "Kadın" },
             { v: "male", l: "Erkek" },
             { v: "other", l: "Diğer" },
-            { v: "unknown", l: "Bilinmiyor" },
           ] as const).map((o) => (
             <button
               key={o.v}
@@ -762,6 +767,7 @@ export default function PersonForm({
             </button>
           ))}
         </div>
+        {errors.gender && <p className="text-[11px] text-danger mt-1">{errors.gender}</p>}
       </div>
 
       {/* Tarihler */}
