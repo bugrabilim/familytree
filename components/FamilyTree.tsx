@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -48,12 +48,6 @@ function detailFor(depth: number, count: number): Detail {
   return Math.min(byDepth, byCount) as Detail;
 }
 
-/** Yakınlaştırma düzeyi de ayrıntıyı yükseltebilir — kullanıcı zoom yapınca
-    kaybolan bilgiler geri gelir. */
-function detailFromZoom(zoom: number): Detail {
-  return zoom >= 1.15 ? 3 : zoom >= 0.8 ? 2 : zoom >= 0.5 ? 1 : 0;
-}
-
 /* ---------------------------------------------------------------- */
 /* Birlik (union) düğümü — çiftleri yan yana tutar                   */
 /* ---------------------------------------------------------------- */
@@ -93,14 +87,11 @@ interface Props {
 
 function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq }: Props) {
   const { fitView, setCenter, getZoom } = useReactFlow();
-  const initialised = useRef(false);
-  const [zoom, setZoom] = useState(1);
 
-  // Temel ayrıntı kuşak/kalabalıktan; yakınlaştırma bunu yükseltebilir.
-  const detail = useMemo(
-    () => Math.max(detailFor(depth, people.length), detailFromZoom(zoom)) as Detail,
-    [depth, people.length, zoom]
-  );
+  // Ayrıntı düzeyi YALNIZ kuşak/kalabalıktan belirlenir — yakınlaştırmadan
+  // BAĞIMSIZ. Böylece zoom yaparken `dim` (dolayısıyla `positions` düzeni)
+  // değişmez; düğümler yer değiştirmez, ekran savrulmaz. Zoom sadece ölçekler.
+  const detail = useMemo(() => detailFor(depth, people.length) as Detail, [depth, people.length]);
   const dim = DIMS[detail];
 
   const ids = useMemo(() => new Set(people.map((p) => p.id)), [people]);
@@ -243,11 +234,16 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
      onInit tek başına yetmiyor: düğümler mount'tan sonra bir effect ile
      yerleşiyor, dolayısıyla ilk fitView eksik bir kümeyi ölçüyordu. */
   const nodeCount = people.length;
+  const fitKey = useRef("");
   useEffect(() => {
-    const t = setTimeout(() => {
-      fitView({ padding: 0.15, duration: initialised.current ? 300 : 0 });
-      initialised.current = true;
-    }, 60);
+    // Yalnız görünür küme (kişi sayısı) ya da kuşak derinliği GERÇEKTEN
+    // değişince yeniden sığdır. Seçim/zoom gibi başka render'larda çalışmaz —
+    // böylece kamera kendiliğinden oynamaz.
+    const key = `${nodeCount}:${depth}`;
+    if (fitKey.current === key) return;
+    const first = fitKey.current === "";
+    fitKey.current = key;
+    const t = setTimeout(() => fitView({ padding: 0.15, duration: first ? 0 : 300 }), 60);
     return () => clearTimeout(t);
   }, [nodeCount, depth, fitView]);
 
@@ -291,7 +287,6 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
          varsayılanı olan zoomOnScroll etkin. Panlama sürükleyerek yapılır. */
       selectionOnDrag={false}
       onPaneClick={onDeselect}
-      onMoveEnd={(_, vp) => setZoom(vp.zoom)}
       className="bg-bg"
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
