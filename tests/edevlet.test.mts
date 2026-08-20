@@ -81,5 +81,44 @@ check("Erdal-Kadriye eş", by("Erdal").spouseIds.includes(by("Kadriye").id) && b
 check("Hüseyin-Nuriye eş", by("Hüseyin").spouseIds.includes(by("Nuriye").id));
 check("en derin ata ebeveynsiz", parentsOf("Hüseyin").length === 0);
 
+// ── Tarih biçimi varyasyonları — tek haneli gün/ay, nokta ayraç, yalın yıl ──
+// Gerçek e-Devlet PDF'lerinde doğum tarihi bu biçimlerde de gelebiliyor; hepsi
+// içeri alınmalı (yoksa hem tarih hem doğum yeri kayboluyordu).
+const varText = [
+  "Sıra C Yakınlık Derecesi",
+  "10 E Kendisi AHMET YILMAZ MEHMET AYŞE ANKARA",
+  "5/7/1980",
+  "Ankara/",
+  "Çankaya/",
+  "MERKEZ",
+  "6-1-1 Evli Sağ",
+  "-",
+  "11 E Babası MEHMET YILMAZ ALİ FATMA SİVAS",
+  "1.3.1850",
+  "Sivas/",
+  "Merkez/",
+  "KÖY",
+  "6-1-2 Evli Ölüm",
+  "1.1.1910",
+  "12 K Annesi AYŞE YILMAZ HASAN ZEYNEP TOKAT",
+  "1955",
+  "Tokat/",
+  "Merkez/",
+  "KÖY",
+  "6-1-3 Evli Sağ",
+  "-",
+  "AÇIKLAMALAR",
+].join("\n");
+
+const vp = parseEdevletText(varText);
+const vby = (n: string) => vp.find((p) => p.firstName === n)!;
+check("var: 3 kişi", vp.length === 3);
+check("tek haneli gün/ay 5/7/1980→ISO", vby("Ahmet").birthDate === "1980-07-05");
+check("nokta ayraç 1.3.1850→ISO", vby("Mehmet").birthDate === "1850-03-01");
+check("yalın yıl 1955 korunur", vby("Ayşe").birthDate === "1955");
+check("var: doğum yeri (Ankara)", vby("Ahmet").birthPlace === "Ankara");
+check("var: doğum yeri (Sivas)", vby("Mehmet").birthPlace === "Sivas");
+check("var: yalın yıl ölüm tarihi", vby("Mehmet").deathDate === "1910-01-01");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);
