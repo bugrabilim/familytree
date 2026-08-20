@@ -21,6 +21,7 @@ import { generatePreface } from "@/lib/preface";
 import { computeAlmanac } from "@/lib/book-stats";
 import BookMap from "./BookMap";
 import TreeSchema from "./TreeSchema";
+import RelationMatrix from "./RelationMatrix";
 
 interface Props {
   people: Person[];
@@ -332,6 +333,15 @@ export default function PrintView({ people, familyName, onClose }: Props) {
             <div className="h-[150mm] max-h-[68vh] flex">
               <TreeSchema people={masked} />
             </div>
+          </section>
+        )}
+
+        {/* — Çapraz İlişki Rehberi (Madde 14) — */}
+        {masked.length > 1 && (
+          <section className="print-section break-before-page">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.matrixTitle")}</h2>
+            <p className="text-center text-xs text-neutral-500 mb-4 max-w-md mx-auto leading-relaxed">{t("book.matrixIntro")}</p>
+            <RelationMatrix people={masked} />
           </section>
         )}
 

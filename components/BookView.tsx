@@ -11,6 +11,7 @@ import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { computeAlmanac } from "@/lib/book-stats";
 import BookMap from "./BookMap";
 import TreeSchema from "./TreeSchema";
+import RelationMatrix from "./RelationMatrix";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useT, useLang } from "@/lib/i18n";
@@ -31,6 +32,7 @@ type Page =
   | { kind: "almanac" }
   | { kind: "places" }
   | { kind: "schema" }
+  | { kind: "matrix" }
   | { kind: "person"; gen: number; person: Person };
 
 /**
@@ -199,6 +201,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }, { kind: "summary" }, { kind: "almanac" }];
     if (placeAgg.located.length > 0) p.push({ kind: "places" });
     if (masked.length > 1) p.push({ kind: "schema" });
+    if (masked.length > 1) p.push({ kind: "matrix" });
     for (const person of ordered) p.push({ kind: "person", gen: genOf.get(person.id) ?? 1, person });
     return p;
   }, [masked, genOf, placeAgg.located.length]);
@@ -440,6 +443,13 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
               <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
                 <TreeSchema people={masked} />
               </div>
+            </div>
+          )}
+          {pg.kind === "matrix" && (
+            <div className="font-serif">
+              <h2 className="text-center text-2xl font-bold mb-1">{t("book.matrixTitle")}</h2>
+              <p className="text-center text-xs opacity-60 mb-4 max-w-md mx-auto leading-relaxed">{t("book.matrixIntro")}</p>
+              <RelationMatrix people={masked} />
             </div>
           )}
           {pg.kind === "person" && (
