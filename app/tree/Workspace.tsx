@@ -18,6 +18,7 @@ import ShareDialog from "@/components/ShareDialog";
 import PairDialog from "@/components/PairDialog";
 import EmptyState from "@/components/EmptyState";
 import ListView from "@/components/ListView";
+import TableView from "@/components/TableView";
 import PanelView from "@/components/PanelView";
 import PedigreeView from "@/components/PedigreeView";
 import FanChart from "@/components/FanChart";
@@ -528,6 +529,8 @@ function WorkspaceInner({
             onSelect={setSelectedId}
             onAdd={openAdd}
           />
+        ) : view === "tablo" ? (
+          <TableView people={people} onAdd={openAdd} onChanged={() => router.refresh()} />
         ) : view === "harita" ? (
           <PlacesMap people={people} onSelect={setSelectedId} />
         ) : (
