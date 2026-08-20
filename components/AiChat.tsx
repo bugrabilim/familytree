@@ -150,11 +150,10 @@ export default function AiChat({
     }
   };
 
-  // Sohbete dosya eklenince anlayıp içe aktarmayı başlat (2C). Dosya türüne göre
-  // normal içe aktarma ya da yapay zekâ (importAnyFile) devreye girer.
-  const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Sohbete dosya eklenince (seç ya da sürükle-bırak) anlayıp içe aktarmayı
+  // başlat (2C/9). Dosya türüne göre normal içe aktarma ya da yapay zekâ.
+  const importFile = async (file: File) => {
+    if (busy) return;
     setError("");
     setMessages((m) => [...m, { role: "user", text: `📎 ${file.name}` }]);
     setBusy(true);
@@ -177,6 +176,19 @@ export default function AiChat({
     }
   };
 
+  const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) importFile(file);
+  };
+
+  const [dragOver, setDragOver] = useState(false);
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) importFile(file);
+  };
+
   const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3")];
 
   if (typeof document === "undefined") return null;
@@ -187,7 +199,17 @@ export default function AiChat({
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] animate-fade-in" onClick={onClose} aria-hidden />
 
       {/* Yandan kayan sohbet paneli */}
-      <aside className="relative w-full max-w-md h-full bg-bg-elevated border-l border-border shadow-modal flex flex-col animate-slide-in-right">
+      <aside
+        className="relative w-full max-w-md h-full bg-bg-elevated border-l border-border shadow-modal flex flex-col animate-slide-in-right"
+        onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+        onDrop={onDrop}
+      >
+        {dragOver && (
+          <div className="absolute inset-0 z-20 grid place-items-center bg-primary-soft/80 backdrop-blur-sm border-2 border-dashed border-primary rounded-l-2xl pointer-events-none">
+            <p className="text-sm font-medium text-primary">{t("ai.chat.dropHere")}</p>
+          </div>
+        )}
         <header className="shrink-0 flex items-center justify-between gap-3 px-4 h-14 border-b border-border">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text flex items-center gap-1.5">

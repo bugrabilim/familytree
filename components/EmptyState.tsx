@@ -10,11 +10,9 @@ interface Props {
   onStarter: () => void;
   starterLoading?: boolean;
   onImport: () => void;
-  onDemo: () => void;
-  demoLoading?: boolean;
 }
 
-export default function EmptyState({ onAdd, onStarter, starterLoading, onImport, onDemo, demoLoading }: Props) {
+export default function EmptyState({ onAdd, onStarter, starterLoading, onImport }: Props) {
   const { readOnly } = useReadOnly();
   const t = useT();
   return (
@@ -84,14 +82,6 @@ export default function EmptyState({ onAdd, onStarter, starterLoading, onImport,
               className="mt-3 text-xs text-text-muted hover:text-primary underline underline-offset-4"
             >
               {t("empty.addSelf")}
-            </button>
-
-            <button
-              onClick={onDemo}
-              disabled={demoLoading}
-              className="mt-4 text-xs text-text-muted hover:text-primary underline underline-offset-4 disabled:opacity-50"
-            >
-              {demoLoading ? t("empty.demoLoading") : t("empty.tryDemo")}
             </button>
           </>
         )}

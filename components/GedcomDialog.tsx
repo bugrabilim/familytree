@@ -6,23 +6,25 @@ import Button from "./ui/Button";
 import { useLang, useT } from "@/lib/i18n";
 import { importAnyFile } from "@/lib/import-client";
 
+type ExportChoice = "gedcom" | "csv" | "json" | "xlsx" | "book";
+
 interface Props {
   peopleCount: number;
   onClose: () => void;
   onImported: (count: number) => void;
-  onDemoLoaded: (count: number) => void;
   onCleared: () => void;
+  /** "Aile Kitabı" dışa aktarımı — bası (PDF) görünümünü açar. */
+  onPrintBook: () => void;
 }
 
-export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoLoaded, onCleared }: Props) {
+export default function GedcomDialog({ peopleCount, onClose, onImported, onCleared, onPrintBook }: Props) {
   const t = useT();
   const { lang } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [exportFmt, setExportFmt] = useState<"gedcom" | "csv" | "json">("gedcom");
-  const [busy, setBusy] = useState<"" | "export" | "import" | "ai" | "demo" | "clear">("");
+  const [exportFmt, setExportFmt] = useState<ExportChoice>("gedcom");
+  const [busy, setBusy] = useState<"" | "export" | "import" | "clear">("");
   const [error, setError] = useState("");
-  const [demoOnay, setDemoOnay] = useState(false);
   const [clearOnay, setClearOnay] = useState(false);
 
   const handleClear = async () => {
@@ -39,21 +41,12 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     }
   };
 
-  const handleDemo = async () => {
-    setBusy("demo");
-    setError("");
-    try {
-      const res = await fetch("/api/family/demo", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? t("gedcom.demoFailed"));
-      onDemoLoaded(data.count ?? 0);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy("");
-    }
-  };
-
   const handleExport = async () => {
+    // "Aile Kitabı" = bası (PDF) görünümü; dosya indirmek yerine kitabı açar.
+    if (exportFmt === "book") {
+      onPrintBook();
+      return;
+    }
     setBusy("export");
     setError("");
     try {
@@ -110,26 +103,30 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
         <section>
           <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.exportTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
-            {t("gedcom.exportBodyBefore", { count: peopleCount })}{" "}
-            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">{t("common.export.formatLabel")}</code>{" "}
-            {t("gedcom.exportBodyAfter")}
+            {t("gedcom.exportBody2", { count: peopleCount })}
           </p>
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
-            {(["gedcom", "csv", "json"] as const).map((f) => (
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
+            {([
+              { v: "gedcom", l: "GEDCOM" },
+              { v: "csv", l: "CSV" },
+              { v: "json", l: "JSON" },
+              { v: "xlsx", l: t("gedcom.fmtExcel") },
+              { v: "book", l: t("gedcom.fmtBook") },
+            ] as const).map((f) => (
               <button
-                key={f}
+                key={f.v}
                 type="button"
-                onClick={() => setExportFmt(f)}
-                className={`h-8 rounded-lg text-xs font-medium uppercase transition-all ${
-                  exportFmt === f ? "bg-bg-elevated text-text shadow-soft" : "text-text-muted hover:text-text"
+                onClick={() => setExportFmt(f.v)}
+                className={`h-8 rounded-lg text-xs font-medium transition-all ${
+                  exportFmt === f.v ? "bg-bg-elevated text-text shadow-soft" : "text-text-muted hover:text-text"
                 }`}
               >
-                {f === "gedcom" ? "GEDCOM" : f.toUpperCase()}
+                {f.l}
               </button>
             ))}
           </div>
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={busy !== ""}>
-            {busy === "export" ? t("gedcom.preparing") : t("gedcom.download")}
+            {busy === "export" ? t("gedcom.preparing") : t("gedcom.export")}
           </Button>
         </section>
 
@@ -185,45 +182,6 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
             className="hidden"
             onChange={handleFile}
           />
-        </section>
-
-        <div className="h-px bg-border" />
-
-        {/* Demo ağacı */}
-        <section>
-          <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.demoTitle")}</h3>
-          <p className="text-xs text-text-muted leading-relaxed mb-3">
-            {t("gedcom.demoBody")}
-          </p>
-
-          {demoOnay || peopleCount === 0 ? (
-            <div className="space-y-2.5">
-              {peopleCount > 0 && (
-                <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg leading-relaxed">
-                  {t("gedcom.demoReplaceWarn", { count: peopleCount })}
-                </p>
-              )}
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleDemo} disabled={busy !== ""}>
-                  {busy === "demo" ? t("gedcom.demoLoading") : t("gedcom.loadDemo")}
-                </Button>
-                {peopleCount > 0 && (
-                  <Button size="sm" variant="ghost" onClick={() => setDemoOnay(false)}>
-                    {t("gedcom.cancel")}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setDemoOnay(true)}
-              disabled={busy !== ""}
-            >
-              {t("gedcom.loadDemo")}
-            </Button>
-          )}
         </section>
 
         {peopleCount > 0 && (
