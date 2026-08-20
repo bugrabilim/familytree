@@ -654,6 +654,7 @@ function WorkspaceInner({
           setMessages={setAiMessages}
           people={people}
           onGoToPerson={goToPersonFromAi}
+          onImported={() => router.refresh()}
         />
       )}
 

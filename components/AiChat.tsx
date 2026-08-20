@@ -6,6 +6,7 @@ import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useLang, useT } from "@/lib/i18n";
+import { importAnyFile } from "@/lib/import-client";
 
 export type AiMsg = { role: "user" | "ai"; text: string };
 
@@ -70,12 +71,15 @@ export default function AiChat({
   setMessages,
   people,
   onGoToPerson,
+  onImported,
 }: {
   onClose: () => void;
   messages: AiMsg[];
   setMessages: React.Dispatch<React.SetStateAction<AiMsg[]>>;
   people: Person[];
   onGoToPerson: (id: string) => void;
+  /** Dosyadan içe aktarma başarılı olunca ağacı tazele. */
+  onImported: (count: number) => void;
 }) {
   const t = useT();
   const { lang } = useLang();
@@ -84,6 +88,7 @@ export default function AiChat({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Kişi adı dizini — en uzun ad önce (alt-ad yanlış eşleşmesin). 3 harften kısa
   // adlar (ör. kısaltmalar) atlanır; gürültüyü azaltır.
@@ -107,14 +112,26 @@ export default function AiChat({
   // Açılışta (geçmiş varsa) en alta kaydır.
   useEffect(() => { scrollToEnd(); }, []);
 
+  // "Dışa aktar / yedek / GEDCOM indir" gibi istekleri modele göndermeden,
+  // yerelde nereden yapılacağını tarif ederek yanıtla (2C).
+  const EXPORT_RE =
+    /(dış[ae]?r?ı?\s*(aktar|çıkar)|dışarı aktar|export|yedek|(gedcom|csv|json)['’]?\s*(indir|al|kaydet)|indir.*(gedcom|csv|json|dosya|yedek))/i;
+
   const ask = async (q: string) => {
     const question = q.trim();
     if (!question || busy) return;
     setError("");
     setInput("");
     setMessages((m) => [...m, { role: "user", text: question }]);
-    setBusy(true);
     scrollToEnd();
+
+    if (EXPORT_RE.test(question)) {
+      setMessages((m) => [...m, { role: "ai", text: t("ai.chat.exportHelp") }]);
+      scrollToEnd();
+      return;
+    }
+
+    setBusy(true);
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -130,6 +147,33 @@ export default function AiChat({
     } finally {
       setBusy(false);
       scrollToEnd();
+    }
+  };
+
+  // Sohbete dosya eklenince anlayıp içe aktarmayı başlat (2C). Dosya türüne göre
+  // normal içe aktarma ya da yapay zekâ (importAnyFile) devreye girer.
+  const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setMessages((m) => [...m, { role: "user", text: `📎 ${file.name}` }]);
+    setBusy(true);
+    scrollToEnd();
+    try {
+      const count = await importAnyFile(file, {
+        mode: "merge",
+        lang: lang === "en" ? "en" : "tr",
+        aiNotConfigured: t("ai.story.notConfigured"),
+        emptyMessage: t("gedcom.importEmpty"),
+      });
+      setMessages((m) => [...m, { role: "ai", text: t("ai.chat.importDone", { count }) }]);
+      onImported(count);
+    } catch (err) {
+      setMessages((m) => [...m, { role: "ai", text: (err as Error).message }]);
+    } finally {
+      setBusy(false);
+      scrollToEnd();
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
@@ -215,6 +259,19 @@ export default function AiChat({
             }}
             className="flex items-center gap-2 mt-4"
           >
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              title={t("ai.chat.attach")}
+              aria-label={t("ai.chat.attach")}
+              className="h-11 w-11 shrink-0 grid place-items-center rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-50 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M21 11.5l-8.5 8.5a5 5 0 01-7-7l8.5-8.5a3.3 3.3 0 014.7 4.7l-8.5 8.5a1.6 1.6 0 01-2.3-2.3l7.8-7.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <input ref={fileRef} type="file" className="hidden" onChange={handleAttach} />
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
