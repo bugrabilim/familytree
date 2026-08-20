@@ -151,7 +151,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
 
       {/* Tablo */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm border-collapse min-w-[720px]">
+        <table className="w-full text-sm border-collapse min-w-[2000px]">
           <thead className="sticky top-0 z-10 bg-bg-elevated border-b border-border">
             <tr className="text-left text-xs text-text-muted">
               {!readOnly && (
@@ -161,10 +161,24 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               )}
               <th className="px-3 py-2 font-medium">{t("table.col.name")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.surname")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.nickname")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.patronymic")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.birth")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.death")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.gender")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.place")}</th>
+              <th className="px-3 py-2 font-medium">{t("burial.label")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.occupation")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.education")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.religion")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.language")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.ethnicity")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.nationality")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.orientation")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.deathCause")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.congenital")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.health")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.bio")}</th>
             </tr>
           </thead>
           <tbody>
@@ -177,6 +191,8 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 )}
                 <Cell readOnly={readOnly} defaultValue={p.firstName} onSave={(v) => saveField(p.id, { firstName: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.lastName} onSave={(v) => saveField(p.id, { lastName: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.nickname ?? ""} onSave={(v) => saveField(p.id, { nickname: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.patronymic ?? ""} onSave={(v) => saveField(p.id, { patronymic: v })} />
                 <Cell
                   readOnly={readOnly}
                   defaultValue={storedToDisplay(p.birthDate)}
@@ -206,6 +222,18 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                   )}
                 </td>
                 <Cell readOnly={readOnly} defaultValue={p.birthPlace ?? ""} onSave={(v) => saveField(p.id, { birthPlace: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.burialPlace ?? ""} onSave={(v) => saveField(p.id, { burialPlace: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.occupation ?? ""} onSave={(v) => saveField(p.id, { occupation: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.education ?? ""} onSave={(v) => saveField(p.id, { education: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.religion ?? ""} onSave={(v) => saveField(p.id, { religion: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.language ?? ""} onSave={(v) => saveField(p.id, { language: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.ethnicity ?? ""} onSave={(v) => saveField(p.id, { ethnicity: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.nationality ?? ""} onSave={(v) => saveField(p.id, { nationality: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.orientation ?? ""} onSave={(v) => saveField(p.id, { orientation: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.deathCause ?? ""} onSave={(v) => saveField(p.id, { deathCause: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.congenitalCondition ?? ""} onSave={(v) => saveField(p.id, { congenitalCondition: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.healthCondition ?? ""} onSave={(v) => saveField(p.id, { healthCondition: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.bio ?? ""} onSave={(v) => saveField(p.id, { bio: v })} />
               </tr>
             ))}
           </tbody>

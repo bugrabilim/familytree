@@ -28,7 +28,8 @@ import TimelineView from "@/components/TimelineView";
 import Modal from "@/components/ui/Modal";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
-import { PrivacyProvider } from "@/components/PrivacyContext";
+import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
+import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
@@ -114,6 +115,7 @@ function WorkspaceInner({
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
+  const { view: maskView } = usePrivacy();
   const t = useT();
 
   // Madde 9 — İyimser kilitleme: değiştirme istekleri, düzenlemenin dayandığı
@@ -476,31 +478,40 @@ function WorkspaceInner({
           />
         ) : view === "agac" ? (
           <>
-            <FamilyTree
-              people={treePeople}
-              selectedId={selectedId}
-              focusId={effectiveRoot}
-              depth={treeDepth}
-              onSelect={(id) => {
-                // Karta tek tık: yalnız profil panelini aç ve kartı yumuşakça
-                // ortala. Görünür kümeyi (treeFocus) DEĞİŞTİRMEZ — böylece ağaç
-                // yeniden yerleşip ekran zıplamıyordu (eski davranış çok
-                // hareketliydi). Yeniden köklemek için panelden "merkeze al".
-                setSelectedId(id);
-              }}
-              onOpen={setSelectedId}
-              onDeselect={() => setSelectedId(undefined)}
-              onQuickAdd={openQuickAdd}
-              locateReq={locateReq}
-            />
-            <TreeDepthControl
-              depth={treeDepth}
-              onChange={setTreeDepth}
-              shown={treePeople.length}
-              total={people.length}
-              focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
-              onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
-            />
+            {/* Etkileşimli ağaç (React Flow) yazdırılamıyor (transform'lu tuval);
+                Madde 6 — yazdırırken bunu gizle, yerine statik şema bas. */}
+            <div className="no-print h-full">
+              <FamilyTree
+                people={treePeople}
+                selectedId={selectedId}
+                focusId={effectiveRoot}
+                depth={treeDepth}
+                onSelect={(id) => {
+                  // Karta tek tık: yalnız profil panelini aç ve kartı yumuşakça
+                  // ortala. Görünür kümeyi (treeFocus) DEĞİŞTİRMEZ — böylece ağaç
+                  // yeniden yerleşip ekran zıplamıyordu (eski davranış çok
+                  // hareketliydi). Yeniden köklemek için panelden "merkeze al".
+                  setSelectedId(id);
+                }}
+                onOpen={setSelectedId}
+                onDeselect={() => setSelectedId(undefined)}
+                onQuickAdd={openQuickAdd}
+                locateReq={locateReq}
+              />
+              <TreeDepthControl
+                depth={treeDepth}
+                onChange={setTreeDepth}
+                shown={treePeople.length}
+                total={people.length}
+                focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
+                onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
+              />
+            </div>
+            {/* Yazdırma-özel statik şema (yalnız @media print'te görünür).
+                Normal akışta sabit yükseklikle basılır (React Flow gizli). */}
+            <div className="hidden print:flex print:h-[240mm] w-full bg-white">
+              <TreeSchema people={treePeople.map(maskView)} />
+            </div>
           </>
         ) : view === "soy" ? (
           <PedigreeView

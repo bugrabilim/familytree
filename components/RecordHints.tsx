@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Person } from "@/types/family";
 import { useLang, useT } from "@/lib/i18n";
-import { recordSearchName, type RecordHint } from "@/lib/records";
+import { buildWebSearchUrl, recordSearchName, type RecordHint } from "@/lib/records";
 
 /**
  * Tarihsel kayıt ipucu (Record Matches ince dilimi) — Wikidata'da ada göre
@@ -16,6 +16,9 @@ export default function RecordHints({ person }: { person: Person }) {
   const [results, setResults] = useState<RecordHint[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const living = !person.deathDate;
+  const webUrl = buildWebSearchUrl(recordSearchName(person), person.birthDate?.slice(0, 4));
 
   const search = async () => {
     setBusy(true);
@@ -37,16 +40,31 @@ export default function RecordHints({ person }: { person: Person }) {
 
   return (
     <div>
-      <p className="text-xs text-text-muted leading-relaxed mb-2">{t("records.intro")}</p>
-      {results === null ? (
-        <button
-          onClick={search}
-          disabled={busy}
-          className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text disabled:opacity-50"
+      <p className="text-xs text-text-muted leading-relaxed mb-2">{living ? t("records.introLiving") : t("records.intro")}</p>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        {results === null && (
+          <button
+            onClick={search}
+            disabled={busy}
+            className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text disabled:opacity-50"
+          >
+            {busy ? t("records.searching") : t("records.search")}
+          </button>
+        )}
+        {/* Normal web araması (Google) — yaşayanlar dâhil herkes için (Madde 3). */}
+        <a
+          href={webUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text"
         >
-          {busy ? t("records.searching") : t("records.search")}
-        </button>
-      ) : results.length === 0 ? (
+          {t("records.google")}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-subtle">
+            <path d="M14 5h5v5M19 5l-9 9M11 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </div>
+      {results === null ? null : results.length === 0 ? (
         <p className="text-sm text-text-subtle">{t("records.none")}</p>
       ) : (
         <ul className="space-y-1.5">

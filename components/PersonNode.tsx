@@ -35,13 +35,14 @@ function AddNub({
   onClick,
 }: {
   label: string;
-  position: "top" | "bottom" | "right";
+  position: "top" | "bottom" | "right" | "left";
   onClick: (e: React.MouseEvent) => void;
 }) {
   const pos = {
     top: "left-1/2 -translate-x-1/2 -top-3",
     bottom: "left-1/2 -translate-x-1/2 -bottom-3",
     right: "-right-3 top-1/2 -translate-y-1/2",
+    left: "-left-3 top-1/2 -translate-y-1/2",
   }[position];
 
   return (
@@ -152,6 +153,7 @@ function PersonNode({ data }: NodeProps) {
           )}
           <AddNub label="Çocuk ekle" position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
           <AddNub label="Eş ekle" position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
+          <AddNub label="Kardeş ekle" position="left" onClick={stop(() => onQuickAdd("sibling", person.id))} />
         </>
       )}
     </div>
