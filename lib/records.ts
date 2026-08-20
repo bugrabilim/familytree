@@ -27,6 +27,15 @@ export function recordSearchName(
   return [p.firstName?.trim(), p.lastName?.trim()].filter(Boolean).join(" ");
 }
 
+/**
+ * Anahtarsız genel web araması (Google). Yaşayan kişiler için Wikidata
+ * yanında normal arama da sunulur (Madde 3). Ad + varsa doğum yılı ile daraltır.
+ */
+export function buildWebSearchUrl(name: string, birthYear?: string): string {
+  const q = birthYear ? `${name} ${birthYear}` : name;
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
 /** Wikidata `wbsearchentities` arama URL'i. */
 export function buildWikidataSearchUrl(name: string, lang = "tr"): string {
   const q = new URLSearchParams({
