@@ -368,11 +368,25 @@ function WorkspaceInner({
   const handleImported = useCallback(
     (count: number) => {
       setGedcomOpen(false);
-      notify(t("ws.toast.imported", { count }));
+      // Mevcut veriye eklendiyse yeni kişiler ayrı bir "ada" olarak gelebilir;
+      // kullanıcıyı Panel'deki "olası eşleşmeler → birleştir" akışına yönlendir.
+      const hadPeople = people.length > 0;
       router.refresh();
+      if (hadPeople && count > 0) {
+        setView("panel");
+        notify(t("ws.toast.importedMerge", { count }));
+      } else {
+        notify(t("ws.toast.imported", { count }));
+      }
     },
-    [router, notify, t]
+    [people.length, router, notify, t]
   );
+
+  const handleCleared = useCallback(() => {
+    setGedcomOpen(false);
+    notify(t("ws.toast.cleared"));
+    router.refresh();
+  }, [router, notify, t]);
 
   const handleDemoLoaded = useCallback(
     (count: number) => {
@@ -607,6 +621,7 @@ function WorkspaceInner({
           onClose={() => setGedcomOpen(false)}
           onImported={handleImported}
           onDemoLoaded={handleDemoLoaded}
+          onCleared={handleCleared}
         />
       )}
 
