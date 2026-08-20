@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import HTMLFlipBook from "react-pageflip";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import { calcAge, lifeSpan } from "@/lib/date";
@@ -21,7 +22,7 @@ interface Props {
   people: Person[];
   familyName?: string;
   onClose: () => void;
-  /** "Yazdır / PDF" — bası görünümünü (PrintView) açar (Madde 5). */
+  /** "Yazdır / PDF" — bası görünümünü (PrintView) açar. */
   onPrint?: () => void;
 }
 
@@ -35,42 +36,12 @@ type Page =
   | { kind: "matrix" }
   | { kind: "person"; gen: number; person: Person };
 
-/**
- * Sayfa çevirme sesi (Madde 2) — kısa, sentezlenmiş "kâğıt hışırtısı".
- * Dış ses dosyası yok: Web Audio ile filtrelenmiş gürültü patlaması üretilir
- * (CSP güvenli). AudioContext ilk kullanımda, kullanıcı etkileşimiyle açılır.
- */
-let _actx: AudioContext | null = null;
-function playFlip() {
-  try {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    if (!_actx) _actx = new AC();
-    const ctx = _actx;
-    if (ctx.state === "suspended") void ctx.resume();
-    const dur = 0.22;
-    const rate = ctx.sampleRate;
-    const buf = ctx.createBuffer(1, Math.floor(rate * dur), rate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) {
-      const t = i / d.length;
-      // Zarf: hızlı yüksel, yavaş sön — sayfanın "fışş" sesi.
-      const env = Math.pow(1 - t, 2.2) * Math.min(1, t * 12);
-      d[i] = (Math.random() * 2 - 1) * env;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 2600;
-    bp.Q.value = 0.7;
-    const g = ctx.createGain();
-    g.gain.value = 0.28;
-    src.connect(bp).connect(g).connect(ctx.destination);
-    src.start();
-  } catch {
-    /* ses üretilemezse sessizce geç */
-  }
+/** react-pageflip (StPageFlip) örneğinin ihtiyaç duyduğumuz metotları. */
+interface FlipApi {
+  flipNext: () => void;
+  flipPrev: () => void;
+  turnToPage: (page: number) => void;
+  getPageCount: () => number;
 }
 
 /* Kâğıt yaşlandırma: 0 = yeni/temiz krem, 1 = eski parşömen. */
@@ -89,29 +60,22 @@ function paperStyle(age: number): React.CSSProperties {
 }
 
 /**
- * Nostaljik aile kitabı (ekran) — açık kitap gibi YAN YANA İKİ SAYFA (dar
- * ekranda tek). Eski kuşaklar parşömen, yeni kuşaklar temiz kâğıt; kenarda
- * okunan/kalan sayfalar yığın gibi görünür (kitap kalınlığı). Sayfalar sağdan
- * sola çevrilir. Gizlilik: maskeli kopya (`view`).
+ * Nostaljik aile kitabı (ekran) — GERÇEK sayfa çevirme motoru olarak
+ * `react-pageflip` (StPageFlip) kullanılır: sürükleyerek/köşeden ya da alttaki
+ * ileri-geri düğmeleriyle çevrilir. Sayfa içeriği (kapak, önsöz, rakamlar,
+ * harita, şema, ilişki matrisi, kişi biyografileri) korunur; uzun sayfalar
+ * kendi içinde kayar. Eski kuşaklar parşömen, yeni kuşaklar temiz kâğıt.
+ * Gizlilik: maskeli kopya (`view`).
  */
 export default function BookView({ people, familyName, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
-  const [index, setIndex] = useState(0);
-  const [wide, setWide] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const bookRef = useRef<{ pageFlip: () => FlipApi } | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const [goTo, setGoTo] = useState(false); // "sayfaya git" / arama panosu açık mı
   const [query, setQuery] = useState("");
   useEscapeKey(onClose);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    const on = () => setWide(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
 
   const masked = useMemo(() => people.map((p) => view(p)), [people, view]);
   const idx = useMemo(() => indexPeople(masked), [masked]);
@@ -146,8 +110,8 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null;
   }, [masked]);
 
-  // Doğum yerleri — kitaba statik dünya haritası sayfası (Madde 8). Gizlilik:
-  // maskeli kopyadan türetildiği için gizli yaşayanların doğum yeri sızmaz.
+  // Doğum yerleri — kitaba statik dünya haritası sayfası. Gizlilik: maskeli
+  // kopyadan türetildiği için gizli yaşayanların doğum yeri sızmaz.
   const placeAgg = useMemo(() => {
     const aggs = aggregatePlaces(masked);
     const located = aggs.filter((a) => a.coords);
@@ -155,7 +119,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { located, maxCount, total: aggs.length };
   }, [masked]);
 
-  // Panel özeti sayısal veriler (Madde 1) — maskeli kopyadan (gizlilik korunur).
+  // Özet sayısal veriler — maskeli kopyadan (gizlilik korunur).
   const stats = useMemo(() => {
     let living = 0, deceased = 0, male = 0, female = 0;
     for (const p of masked) {
@@ -167,7 +131,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { total: masked.length, living, deceased, male, female };
   }, [masked]);
 
-  // Rakamlarla Aile (Madde 12) — genişletilmiş sayılar + listeler.
+  // Rakamlarla Aile — genişletilmiş sayılar + listeler.
   const famStats = useMemo(() => computeStats(masked), [masked]);
   const almanac = useMemo(() => computeAlmanac(masked), [masked]);
 
@@ -177,7 +141,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return [...aggs].sort((a, b) => b.count - a.count).slice(0, 5).map((a) => a.place);
   }, [masked]);
 
-  // Önsöz metni (Madde 2) — yıl aralığı + en sık şehirler + tarihsel dönemler.
+  // Önsöz metni — yıl aralığı + en sık şehirler + tarihsel dönemler.
   const preface = useMemo(
     () =>
       generatePreface({
@@ -207,9 +171,8 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
   }, [masked, genOf, placeAgg.located.length]);
 
   const total = pages.length;
-  const step = wide ? 2 : 1;
 
-  // Ada ya da yıla göre ara → sayfa numarasını bul (Madde 4).
+  // Ada ya da yıla göre ara → sayfa numarasını bul.
   const searchMatches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
     if (!q) return [] as Array<{ index: number; person: Person }>;
@@ -227,239 +190,198 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return out.slice(0, 40);
   }, [query, pages]);
 
-  // Flipbook: çevrilen yaprak (eski sayfa) cilt ekseninde döner.
-  const [leaf, setLeaf] = useState<{ half: "left" | "right" | "full"; front: Page | undefined; dir: "next" | "prev" } | null>(null);
-  const leafTimer = useRef<number | null>(null);
+  const flip = useCallback((d: "next" | "prev") => {
+    const api = bookRef.current?.pageFlip();
+    if (!api) return;
+    if (d === "next") api.flipNext();
+    else api.flipPrev();
+  }, []);
 
-  const go = (d: "next" | "prev") => {
-    if (leaf) return; // çevirme sürerken yok say
-    const oldIndex = index;
-    const ni = Math.min(total - 1, Math.max(0, oldIndex + (d === "next" ? step : -step)));
-    if (ni === oldIndex) return;
-    // Çevrilen sayfanın ön yüzü (eski sayfa) ve hangi yarıyı kapladığı
-    let half: "left" | "right" | "full";
-    let front: Page | undefined;
-    if (!wide) { half = "full"; front = pages[oldIndex]; }
-    else if (d === "next") { half = "right"; front = pages[oldIndex + 1]; }
-    else { half = "left"; front = pages[oldIndex]; }
-    setIndex(ni);
-    setLeaf({ half, front, dir: d });
-    if (!muted) playFlip();
-    if (leafTimer.current) window.clearTimeout(leafTimer.current);
-    leafTimer.current = window.setTimeout(() => setLeaf(null), 620);
-  };
+  // Sayfaya atlama: ref'e render sırasında dokunmamak için istek state'e yazılır,
+  // gerçek `turnToPage` çağrısı efektte yapılır (react-hooks/refs kuralı).
+  const [pendingJump, setPendingJump] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingJump === null) return;
+    bookRef.current?.pageFlip()?.turnToPage(Math.min(total - 1, Math.max(0, pendingJump)));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingJump(null);
+  }, [pendingJump, total]);
 
-  // Belirli bir sayfaya atla (Madde 3/4) — çift-sayfa modunda çift indekse hizala.
-  // Sayfaya atlarken çevirme animasyonu yok; varsa süren yaprak temizlenir
-  // (bekleyen zamanlayıcı zararsızca sönümlenir).
-  const jump = (target: number) => {
-    const clamped = Math.min(total - 1, Math.max(0, target));
-    const aligned = wide ? clamped - (clamped % 2) : clamped;
-    if (aligned === index) return;
-    setLeaf(null);
-    setIndex(aligned);
-    if (!muted) playFlip();
-  };
-
-  useEffect(() => () => { if (leafTimer.current) window.clearTimeout(leafTimer.current); }, []);
-
-  const goRef = useRef(go);
-  useEffect(() => { goRef.current = go; });
+  // Klavye okları — ileri/geri çevir.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") goRef.current("next");
-      else if (e.key === "ArrowLeft") goRef.current("prev");
+      if (e.key === "ArrowRight") flip("next");
+      else if (e.key === "ArrowLeft") flip("prev");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const touchX = useRef<number | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchX.current;
-    if (Math.abs(dx) > 45) go(dx < 0 ? "next" : "prev");
-    touchX.current = null;
-  };
+  }, [flip]);
 
   if (typeof document === "undefined") return null;
 
-  const ageOf = (pg: Page | undefined): number => {
-    if (!pg) return 1;
+  const ageOf = (pg: Page): number => {
     if (pg.kind === "person") return maxGen > 1 ? (maxGen - pg.gen) / (maxGen - 1) : 0.5;
     return 1; // kapak/önsöz en eski his
   };
 
-  // Yığın kalınlıkları (okunan sol, kalan sağ) — kitap kalınlığı hissi
-  const leftStack = Math.min(46, index * 0.7 + 2);
-  const rightStack = Math.min(46, (total - 1 - index) * 0.7 + 2);
-
-  const left = pages[index];
-  const right = wide ? pages[index + 1] : undefined;
-
-  const renderPage = (pg: Page | undefined, side: "left" | "right") => {
-    if (!pg) return <div className="flex-1" />;
-    return (
-      <div
-        className={`book-paper-edge flex-1 h-full overflow-hidden ${side === "left" ? "rounded-l-md" : "rounded-r-md"}`}
-        style={paperStyle(ageOf(pg))}
-      >
-        <div className="h-full overflow-y-auto px-6 sm:px-10 py-7">
-          {pg.kind === "cover" && (
-            <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center">
-              <p className="text-6xl mb-6">🌳</p>
-              <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">
-                {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
-              </h1>
-              {yearRange && (
-                <p className="text-lg opacity-70 tracking-wide mb-6">
-                  {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
-                </p>
-              )}
-              <div className="w-16 border-t border-current/25 my-6" />
-              <p className="text-sm opacity-70">{t("print.coverMeta", { count: people.length, generations })}</p>
-            </div>
-          )}
-          {pg.kind === "foreword" && (
-            <div className="font-serif">
-              <h2 className="text-center text-2xl font-bold mb-6">{t("print.forewordTitle")}</h2>
-              {preface.map((para, i) => (
-                <p
-                  key={i}
-                  className={`text-[15px] leading-relaxed text-justify mb-3 ${
-                    i === 0
-                      ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]"
-                      : ""
-                  }`}
-                >
-                  {para}
-                </p>
-              ))}
-            </div>
-          )}
-          {pg.kind === "summary" && (
-            <div className="font-serif h-full flex flex-col">
-              <h2 className="text-center text-2xl font-bold mb-1">{t("book.summaryTitle")}</h2>
-              {yearRange && (
-                <p className="text-center text-sm opacity-60 mb-5">
-                  {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <SummaryStat big label={t("book.stat.people")} value={stats.total} />
-                <SummaryStat big label={t("book.stat.generations")} value={generations} />
-                <SummaryStat label={t("book.stat.living")} value={stats.living} />
-                <SummaryStat label={t("book.stat.deceased")} value={stats.deceased} />
-                <SummaryStat label={t("book.stat.male")} value={stats.male} />
-                <SummaryStat label={t("book.stat.female")} value={stats.female} />
-              </div>
-              {topPlaces.length > 0 && (
-                <div className="mt-6">
-                  <p className="text-xs uppercase tracking-wide opacity-60 mb-2">{t("book.stat.topPlaces")}</p>
-                  <p className="text-[15px] leading-relaxed">{topPlaces.join(" · ")}</p>
-                </div>
-              )}
-            </div>
-          )}
-          {pg.kind === "almanac" && (
-            <div className="font-serif">
-              <h2 className="text-center text-2xl font-bold mb-5">{t("book.almanacTitle")}</h2>
-
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <SummaryStat label={t("book.stat.people")} value={famStats.total} />
-                <SummaryStat label={t("book.stat.generations")} value={generations} />
-                <SummaryStat label={t("book.stat.living")} value={famStats.living} />
-              </div>
-
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-5">
-                <Row k={t("panel.mini.marriages")} v={String(famStats.marriages)} />
-                <Row k={t("panel.mini.divorces")} v={String(famStats.divorces)} />
-                {famStats.avgLifespan !== undefined && (
-                  <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: famStats.avgLifespan })} />
-                )}
-                <Row k={t("panel.mini.largestSibship")} v={String(famStats.largestSibship)} />
-                {famStats.topBirthPlace && (
-                  <Row k={t("panel.mini.topBirthPlace")} v={`${famStats.topBirthPlace.name} (${famStats.topBirthPlace.count})`} wide />
-                )}
-              </dl>
-
-              <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-2">{t("book.perGeneration")}</h3>
-              <ul className="mb-5 space-y-1">
-                {almanac.perGeneration.map((g) => (
-                  <li key={g.gen} className="flex items-center gap-2 text-[13px]">
-                    <span className="w-20 shrink-0 opacity-70">{t("print.generation", { n: g.gen })}</span>
-                    <span className="flex-1 h-2.5 rounded-full bg-current/10 overflow-hidden">
-                      <span className="block h-full bg-current/40" style={{ width: `${Math.round((g.count / Math.max(1, famStats.total)) * 100)}%` }} />
-                    </span>
-                    <span className="w-8 text-right tabular-nums opacity-80">{g.count}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                <AlmanacList
-                  title={t("book.eldestTitle")}
-                  rows={almanac.eldest
-                    .map((id) => idx.get(id))
-                    .filter((p): p is Person => !!p)
-                    .map((p) => ({ name: fullName(p), meta: lifeSpan(p.birthDate, p.deathDate) }))}
-                />
-                <AlmanacList
-                  title={t("book.longestLivedTitle")}
-                  rows={almanac.longestLived
-                    .map((r) => ({ p: idx.get(r.id), age: r.age }))
-                    .filter((x): x is { p: Person; age: number } => !!x.p)
-                    .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
-                />
-                <AlmanacList
-                  title={t("book.livingOldestTitle")}
-                  rows={almanac.livingOldest
-                    .map((r) => ({ p: idx.get(r.id), age: r.age }))
-                    .filter((x): x is { p: Person; age: number } => !!x.p)
-                    .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
-                />
-                {famStats.surnames.length > 0 && (
-                  <AlmanacList
-                    title={t("book.surnamesTitle")}
-                    rows={famStats.surnames.map((s) => ({ name: s.name, meta: String(s.count) }))}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-          {pg.kind === "places" && (
-            <div className="font-serif h-full flex flex-col">
-              <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
-              <p className="text-center text-sm opacity-60 mb-4">
-                {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
+  const renderContent = (pg: Page) => {
+    switch (pg.kind) {
+      case "cover":
+        return (
+          <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center">
+            <p className="text-6xl mb-6">🌳</p>
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">
+              {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
+            </h1>
+            {yearRange && (
+              <p className="text-lg opacity-70 tracking-wide mb-6">
+                {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
               </p>
-              <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
+            )}
+            <div className="w-16 border-t border-current/25 my-6" />
+            <p className="text-sm opacity-70">{t("print.coverMeta", { count: people.length, generations })}</p>
+          </div>
+        );
+      case "foreword":
+        return (
+          <div className="font-serif">
+            <h2 className="text-center text-2xl font-bold mb-6">{t("print.forewordTitle")}</h2>
+            {preface.map((para, i) => (
+              <p
+                key={i}
+                className={`text-[15px] leading-relaxed text-justify mb-3 ${
+                  i === 0
+                    ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]"
+                    : ""
+                }`}
+              >
+                {para}
+              </p>
+            ))}
+          </div>
+        );
+      case "summary":
+        return (
+          <div className="font-serif h-full flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.summaryTitle")}</h2>
+            {yearRange && (
+              <p className="text-center text-sm opacity-60 mb-5">
+                {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <SummaryStat big label={t("book.stat.people")} value={stats.total} />
+              <SummaryStat big label={t("book.stat.generations")} value={generations} />
+              <SummaryStat label={t("book.stat.living")} value={stats.living} />
+              <SummaryStat label={t("book.stat.deceased")} value={stats.deceased} />
+              <SummaryStat label={t("book.stat.male")} value={stats.male} />
+              <SummaryStat label={t("book.stat.female")} value={stats.female} />
             </div>
-          )}
-          {pg.kind === "schema" && (
-            <div className="font-serif h-full flex flex-col">
-              <h2 className="text-center text-2xl font-bold mb-4">{t("book.schemaTitle")}</h2>
-              <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
-                <TreeSchema people={masked} />
+            {topPlaces.length > 0 && (
+              <div className="mt-6">
+                <p className="text-xs uppercase tracking-wide opacity-60 mb-2">{t("book.stat.topPlaces")}</p>
+                <p className="text-[15px] leading-relaxed">{topPlaces.join(" · ")}</p>
               </div>
+            )}
+          </div>
+        );
+      case "almanac":
+        return (
+          <div className="font-serif">
+            <h2 className="text-center text-2xl font-bold mb-5">{t("book.almanacTitle")}</h2>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <SummaryStat label={t("book.stat.people")} value={famStats.total} />
+              <SummaryStat label={t("book.stat.generations")} value={generations} />
+              <SummaryStat label={t("book.stat.living")} value={famStats.living} />
             </div>
-          )}
-          {pg.kind === "matrix" && (
-            <div className="font-serif">
-              <h2 className="text-center text-2xl font-bold mb-1">{t("book.matrixTitle")}</h2>
-              <p className="text-center text-xs opacity-60 mb-4 max-w-md mx-auto leading-relaxed">{t("book.matrixIntro")}</p>
-              <RelationMatrix people={masked} />
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-5">
+              <Row k={t("panel.mini.marriages")} v={String(famStats.marriages)} />
+              <Row k={t("panel.mini.divorces")} v={String(famStats.divorces)} />
+              {famStats.avgLifespan !== undefined && (
+                <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: famStats.avgLifespan })} />
+              )}
+              <Row k={t("panel.mini.largestSibship")} v={String(famStats.largestSibship)} />
+              {famStats.topBirthPlace && (
+                <Row k={t("panel.mini.topBirthPlace")} v={`${famStats.topBirthPlace.name} (${famStats.topBirthPlace.count})`} wide />
+              )}
+            </dl>
+            <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-2">{t("book.perGeneration")}</h3>
+            <ul className="mb-5 space-y-1">
+              {almanac.perGeneration.map((g) => (
+                <li key={g.gen} className="flex items-center gap-2 text-[13px]">
+                  <span className="w-20 shrink-0 opacity-70">{t("print.generation", { n: g.gen })}</span>
+                  <span className="flex-1 h-2.5 rounded-full bg-current/10 overflow-hidden">
+                    <span className="block h-full bg-current/40" style={{ width: `${Math.round((g.count / Math.max(1, famStats.total)) * 100)}%` }} />
+                  </span>
+                  <span className="w-8 text-right tabular-nums opacity-80">{g.count}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <AlmanacList
+                title={t("book.eldestTitle")}
+                rows={almanac.eldest
+                  .map((id) => idx.get(id))
+                  .filter((p): p is Person => !!p)
+                  .map((p) => ({ name: fullName(p), meta: lifeSpan(p.birthDate, p.deathDate) }))}
+              />
+              <AlmanacList
+                title={t("book.longestLivedTitle")}
+                rows={almanac.longestLived
+                  .map((r) => ({ p: idx.get(r.id), age: r.age }))
+                  .filter((x): x is { p: Person; age: number } => !!x.p)
+                  .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
+              />
+              <AlmanacList
+                title={t("book.livingOldestTitle")}
+                rows={almanac.livingOldest
+                  .map((r) => ({ p: idx.get(r.id), age: r.age }))
+                  .filter((x): x is { p: Person; age: number } => !!x.p)
+                  .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
+              />
+              {famStats.surnames.length > 0 && (
+                <AlmanacList
+                  title={t("book.surnamesTitle")}
+                  rows={famStats.surnames.map((s) => ({ name: s.name, meta: String(s.count) }))}
+                />
+              )}
             </div>
-          )}
-          {pg.kind === "person" && (
-            <div className="font-serif">
-              <PersonPage person={pg.person} gen={pg.gen} idx={idx} masked={masked} t={t} />
+          </div>
+        );
+      case "places":
+        return (
+          <div className="font-serif h-full flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
+            <p className="text-center text-sm opacity-60 mb-4">
+              {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
+            </p>
+            <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
+          </div>
+        );
+      case "schema":
+        return (
+          <div className="font-serif h-full flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-4">{t("book.schemaTitle")}</h2>
+            <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
+              <TreeSchema people={masked} />
             </div>
-          )}
-        </div>
-      </div>
-    );
+          </div>
+        );
+      case "matrix":
+        return (
+          <div className="font-serif">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.matrixTitle")}</h2>
+            <p className="text-center text-xs opacity-60 mb-4 max-w-md mx-auto leading-relaxed">{t("book.matrixIntro")}</p>
+            <RelationMatrix people={masked} />
+          </div>
+        );
+      case "person":
+        return (
+          <div className="font-serif">
+            <PersonPage person={pg.person} gen={pg.gen} idx={idx} masked={masked} t={t} />
+          </div>
+        );
+    }
   };
 
   return createPortal(
@@ -469,7 +391,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
           {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
         </p>
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Sayfaya git / ara (Madde 3-4) */}
+          {/* Sayfaya git / ara */}
           <button
             onClick={() => setGoTo((v) => !v)}
             aria-pressed={goTo}
@@ -481,23 +403,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
               <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
             </svg>
           </button>
-          {/* Sayfa çevirme sesi aç/kapat (Madde 2) */}
-          <button
-            onClick={() => setMuted((m) => !m)}
-            aria-pressed={!muted}
-            title={muted ? t("book.soundOff") : t("book.soundOn")}
-            className="h-9 w-9 grid place-items-center rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M4 9v6h4l5 4V5L8 9H4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-              {muted ? (
-                <path d="M17 9l4 6M21 9l-4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              ) : (
-                <path d="M16.5 8.5a5 5 0 010 7M18.5 6a8 8 0 010 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              )}
-            </svg>
-          </button>
-          {/* Yazdır / PDF (Madde 5) */}
+          {/* Yazdır / PDF */}
           {onPrint && (
             <button
               onClick={onPrint}
@@ -537,7 +443,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       const n = Number((e.target as HTMLInputElement).value);
-                      if (Number.isFinite(n)) jump(n - 1);
+                      if (Number.isFinite(n)) setPendingJump(n - 1);
                     }
                   }}
                   placeholder="#"
@@ -553,7 +459,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
                   searchMatches.map((m) => (
                     <li key={m.person.id}>
                       <button
-                        onClick={() => { jump(m.index); setGoTo(false); setQuery(""); }}
+                        onClick={() => { setPendingJump(m.index); setGoTo(false); setQuery(""); }}
                         className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-white/10 transition-colors"
                       >
                         <span className="text-sm text-neutral-100 truncate">
@@ -573,76 +479,75 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-6 pb-3" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {/* Yatay (roman) format: geniş, alçak açık-kitap (Madde 2). */}
-        <div className="relative w-full max-w-6xl h-full max-h-[70vh] flex items-center">
-          <NavArrow dir="prev" disabled={index === 0} onClick={() => go("prev")} label={t("book.prevAria")} />
+      <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-8 pb-3">
+        <div className="relative w-full max-w-6xl h-full max-h-[74vh] flex items-center justify-center">
+          <NavArrow dir="prev" disabled={currentPage <= 0} onClick={() => flip("prev")} label={t("book.prevAria")} />
 
-          {/* Kitap: [okunan yığın][sol sayfa][cilt][sağ sayfa][kalan yığın] */}
-          <div className="mx-9 sm:mx-12 flex-1 h-full flex items-stretch justify-center">
-            {/* Okunan sayfalar (sol yığın) */}
-            <div
-              className="shrink-0 h-[94%] my-auto rounded-l-md"
-              style={{
-                width: leftStack,
-                background: "repeating-linear-gradient(90deg, #d8c7a4, #d8c7a4 1px, #efe4cc 1px, #efe4cc 3px)",
-                boxShadow: "inset 2px 0 6px rgba(0,0,0,0.12)",
-              }}
-              aria-hidden
-            />
+          <HTMLFlipBook
+            ref={bookRef}
+            className="mx-auto shadow-2xl"
+            style={{}}
+            startPage={0}
+            size="stretch"
+            width={520}
+            height={720}
+            minWidth={300}
+            maxWidth={640}
+            minHeight={420}
+            maxHeight={900}
+            drawShadow
+            flippingTime={650}
+            usePortrait
+            startZIndex={0}
+            autoSize
+            maxShadowOpacity={0.5}
+            showCover
+            mobileScrollSupport
+            clickEventForward
+            useMouseEvents
+            swipeDistance={30}
+            showPageCorners
+            disableFlipByClick
+            onFlip={(e: { data: number }) => setCurrentPage(e.data)}
+          >
+            {pages.map((pg, i) => (
+              <BookPage key={i} age={ageOf(pg)} hard={pg.kind === "cover"}>
+                {renderContent(pg)}
+              </BookPage>
+            ))}
+          </HTMLFlipBook>
 
-            <div className="book-scene relative flex-1 h-full flex shadow-2xl">
-              {renderPage(left, "left")}
-              {wide && <div className="w-px bg-black/20 shrink-0" aria-hidden />}
-              {wide && renderPage(right, "right")}
-
-              {/* Çevrilen yaprak — ön yüz eski sayfa, arka yüz parşömen alt yüzü */}
-              {leaf && (
-                <div
-                  className={`leaf ${leaf.dir === "next" ? "leaf-next" : "leaf-prev"}`}
-                  style={
-                    leaf.half === "full"
-                      ? { left: 0, right: 0 }
-                      : leaf.half === "right"
-                      ? { left: "50%", right: 0 }
-                      : { left: 0, right: "50%" }
-                  }
-                >
-                  <div className="leaf-face flex">{renderPage(leaf.front, leaf.half === "left" ? "right" : "left")}</div>
-                  <div
-                    className="leaf-face leaf-back"
-                    style={paperStyle(0.55)}
-                  >
-                    <div className="leaf-shadow" style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.12), transparent 40%)" }} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Kalan sayfalar (sağ yığın) */}
-            <div
-              className="shrink-0 h-[94%] my-auto rounded-r-md"
-              style={{
-                width: rightStack,
-                background: "repeating-linear-gradient(90deg, #efe4cc, #efe4cc 1px, #d8c7a4 1px, #d8c7a4 3px)",
-                boxShadow: "inset -2px 0 6px rgba(0,0,0,0.12)",
-              }}
-              aria-hidden
-            />
-          </div>
-
-          <NavArrow dir="next" disabled={index >= total - 1} onClick={() => go("next")} label={t("book.nextAria")} />
+          <NavArrow dir="next" disabled={currentPage >= total - 1} onClick={() => flip("next")} label={t("book.nextAria")} />
         </div>
       </div>
 
       <div className="shrink-0 text-center pb-3 text-neutral-300">
-        <p className="text-xs tabular-nums">{t("book.page", { n: Math.min(index + 1, total), total })}</p>
+        <p className="text-xs tabular-nums">{t("book.page", { n: Math.min(currentPage + 1, total), total })}</p>
         <p className="hidden sm:block text-[11px] text-neutral-400 mt-0.5">{t("book.hint")}</p>
       </div>
     </div>,
     document.body
   );
 }
+
+/* ---------------------------------------------------------------- */
+
+/** Tek kitap yaprağı — react-pageflip yaprağa ref bağlayabilsin diye forwardRef.
+ *  Parşömen zemini + içerik kendi içinde kaydırılır (sabit sayfa boyutu). */
+const BookPage = forwardRef<HTMLDivElement, { children: React.ReactNode; age: number; hard?: boolean }>(
+  function BookPage({ children, age, hard }, ref) {
+    return (
+      <div
+        ref={ref}
+        className="book-leaf overflow-hidden"
+        data-density={hard ? "hard" : "soft"}
+        style={paperStyle(age)}
+      >
+        <div className="h-full overflow-y-auto px-6 sm:px-9 py-7">{children}</div>
+      </div>
+    );
+  }
+);
 
 function SummaryStat({ label, value, big }: { label: string; value: number; big?: boolean }) {
   return (
@@ -750,7 +655,7 @@ function Row({ k, v, wide }: { k: string; v: string; wide?: boolean }) {
   );
 }
 
-/** Almanak listesi — başlık + isim/açıklama satırları (Madde 12). */
+/** Almanak listesi — başlık + isim/açıklama satırları. */
 function AlmanacList({ title, rows }: { title: string; rows: Array<{ name: string; meta?: string | null }> }) {
   if (rows.length === 0) return null;
   return (
