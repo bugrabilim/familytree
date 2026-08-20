@@ -520,7 +520,7 @@ export const tr: Dict = {
   "drawer.ageNow": "{age} yaş",
   "drawer.edit": "Düzenle",
   "drawer.focus": "Merkeze al",
-  "drawer.locate": "Odakla",
+  "drawer.locate": "Ortala",
   "drawer.siblingOrder": "Kardeş sırası: {pos}/{total}",
   "drawer.siblingUp": "Kardeşler arasında öne al",
   "drawer.siblingDown": "Kardeşler arasında geri al",
