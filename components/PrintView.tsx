@@ -13,10 +13,14 @@ import {
   indexPeople,
 } from "@/lib/relations";
 import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
+import { computeStats } from "@/lib/relations";
 import { usePrivacy } from "./PrivacyContext";
 import { useT, useLang } from "@/lib/i18n";
 import { aggregatePlaces } from "@/lib/places";
 import { generatePreface } from "@/lib/preface";
+import { computeAlmanac } from "@/lib/book-stats";
+import BookMap from "./BookMap";
+import TreeSchema from "./TreeSchema";
 
 interface Props {
   people: Person[];
@@ -122,8 +126,27 @@ export default function PrintView({ people, familyName, onClose }: Props) {
     [familyName, yearRange, topPlaces, lang]
   );
 
+  // — Rakamlarla Aile (Madde 12) — Panel'deki sayısal detaylar kitaba taşınır.
+  const stats = useMemo(() => computeStats(masked), [masked]);
+  const almanac = useMemo(() => computeAlmanac(masked), [masked]);
+  const placeAgg = useMemo(() => {
+    const aggs = aggregatePlaces(masked);
+    const located = aggs.filter((a) => a.coords);
+    const maxCount = located.reduce((m, a) => Math.max(m, a.count), 1);
+    return { located, maxCount, total: aggs.length };
+  }, [masked]);
+
   const names = (list: Person[]) => list.map((p) => fullName(p)).join(", ");
   const portraitOf = (p: Person) => p.photo || p.photos?.[0];
+
+  // Almanak listelerini (kimlik→maskeli kişi) çöz.
+  const eldestPeople = almanac.eldest.map((id) => idx.get(id)).filter((x): x is Person => !!x);
+  const livingOldestRows = almanac.livingOldest
+    .map((r) => ({ p: idx.get(r.id), age: r.age }))
+    .filter((x): x is { p: Person; age: number } => !!x.p);
+  const longestLivedRows = almanac.longestLived
+    .map((r) => ({ p: idx.get(r.id), age: r.age }))
+    .filter((x): x is { p: Person; age: number } => !!x.p);
 
   if (typeof document === "undefined") return null;
 
@@ -193,6 +216,127 @@ export default function PrintView({ people, familyName, onClose }: Props) {
             </p>
           ))}
         </section>
+
+        {/* — Rakamlarla Aile (Madde 12) — */}
+        <section className="print-section break-before-page">
+          <h2 className="text-center text-2xl font-bold mb-6">{t("book.almanacTitle")}</h2>
+
+          {/* Ana sayılar */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <PrintStat label={t("book.stat.people")} value={stats.total} />
+            <PrintStat label={t("book.stat.generations")} value={generations} />
+            <PrintStat label={t("book.stat.living")} value={stats.living} />
+            <PrintStat label={t("book.stat.deceased")} value={stats.deceased} />
+            <PrintStat label={t("book.stat.male")} value={stats.male} />
+            <PrintStat label={t("book.stat.female")} value={stats.female} />
+          </div>
+
+          {/* İkincil sayılar */}
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5 text-sm mb-7">
+            <Row k={t("panel.mini.marriages")} v={String(stats.marriages)} />
+            <Row k={t("panel.mini.divorces")} v={String(stats.divorces)} />
+            {stats.avgLifespan !== undefined && (
+              <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: stats.avgLifespan })} />
+            )}
+            <Row k={t("panel.mini.largestSibship")} v={String(stats.largestSibship)} />
+            {stats.oldestBirthYear !== undefined && (
+              <Row k={t("panel.mini.oldestBirth")} v={String(stats.oldestBirthYear)} />
+            )}
+            {stats.topBirthPlace && (
+              <Row k={t("panel.mini.topBirthPlace")} v={`${stats.topBirthPlace.name} (${stats.topBirthPlace.count})`} />
+            )}
+          </dl>
+
+          {/* Kuşak dağılımı */}
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{t("book.perGeneration")}</h3>
+          <ul className="mb-7 space-y-1">
+            {almanac.perGeneration.map((g) => (
+              <li key={g.gen} className="flex items-center gap-3 text-sm">
+                <span className="w-24 shrink-0 text-neutral-600">{t("print.generation", { n: g.gen })}</span>
+                <span className="flex-1 h-3 rounded-full bg-neutral-100 overflow-hidden">
+                  <span
+                    className="block h-full bg-neutral-400"
+                    style={{ width: `${Math.round((g.count / Math.max(1, stats.total)) * 100)}%` }}
+                  />
+                </span>
+                <span className="w-10 text-right tabular-nums text-neutral-700">{g.count}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-6">
+            {/* En eski kuşak */}
+            {eldestPeople.length > 0 && (
+              <div className="break-inside-avoid">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{t("book.eldestTitle")}</h3>
+                <ul className="space-y-0.5">
+                  {eldestPeople.map((p) => (
+                    <PersonLine key={p.id} name={fullName(p)} meta={lifeSpan(p.birthDate, p.deathDate)} />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {/* En uzun yaşamışlar */}
+            {longestLivedRows.length > 0 && (
+              <div className="break-inside-avoid">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{t("book.longestLivedTitle")}</h3>
+                <ul className="space-y-0.5">
+                  {longestLivedRows.map(({ p, age }) => (
+                    <PersonLine key={p.id} name={fullName(p)} meta={t("print.ageYears", { age })} />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {/* Yaşayan en yaşlılar */}
+            {livingOldestRows.length > 0 && (
+              <div className="break-inside-avoid">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{t("book.livingOldestTitle")}</h3>
+                <ul className="space-y-0.5">
+                  {livingOldestRows.map(({ p, age }) => (
+                    <PersonLine key={p.id} name={fullName(p)} meta={t("print.ageYears", { age })} />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {/* Soyadları */}
+            {stats.surnames.length > 0 && (
+              <div className="break-inside-avoid">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{t("book.surnamesTitle")}</h3>
+                <ul className="space-y-0.5">
+                  {stats.surnames.map((s) => (
+                    <PersonLine key={s.name} name={s.name} meta={String(s.count)} />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* — Aile Coğrafyası — tam sayfa yatay harita (Madde 11) — */}
+        {placeAgg.located.length > 0 && (
+          <section className="print-section book-landscape break-before-page min-h-[60vh] flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
+            <p className="text-center text-xs text-neutral-500 mb-3">
+              {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
+              {" · "}
+              <span className="italic">{t("book.landscapeHint")}</span>
+            </p>
+            <div className="book-landscape-body flex-1 min-h-0 flex">
+              <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
+            </div>
+          </section>
+        )}
+
+        {/* — Soy Ağacı Şeması — tam sayfa yatay diyagram (Madde 11) — */}
+        {masked.length > 1 && (
+          <section className="print-section book-landscape break-before-page min-h-[60vh] flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-1">{t("book.schemaTitle")}</h2>
+            <p className="text-center text-xs text-neutral-500 mb-3 italic">{t("book.landscapeHint")}</p>
+            <div className="book-landscape-body flex-1 min-h-0 flex">
+              <TreeSchema people={masked} />
+            </div>
+          </section>
+        )}
 
         {/* — Kuşak bölümleri — */}
         {chapters.map((c) => (
@@ -306,5 +450,25 @@ function Row({ k, v, wide }: { k: string; v: string; wide?: boolean }) {
       <dt className="text-neutral-400 shrink-0">{k}:</dt>
       <dd className="text-neutral-800">{v}</dd>
     </div>
+  );
+}
+
+/** "Rakamlarla Aile" ana sayı kutusu. */
+function PrintStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 text-center break-inside-avoid">
+      <p className="text-2xl font-bold tabular-nums leading-none text-neutral-900">{value.toLocaleString("tr")}</p>
+      <p className="text-[11px] uppercase tracking-wide text-neutral-500 mt-1">{label}</p>
+    </div>
+  );
+}
+
+/** İsim + kısa açıklama (yaş ya da yaşam aralığı) satırı. */
+function PersonLine({ name, meta }: { name: string; meta?: string | null }) {
+  return (
+    <li className="flex items-baseline justify-between gap-3 text-sm">
+      <span className="text-neutral-800 truncate min-w-0">{name}</span>
+      {meta && <span className="text-neutral-500 tabular-nums shrink-0">{meta}</span>}
+    </li>
   );
 }

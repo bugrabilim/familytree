@@ -365,6 +365,21 @@ body {
   .print-entry { break-inside: avoid; }
   .print-cover { break-after: page; }
 
+  /* Yatay (manzara) tam-sayfa bölümler (Madde 11): harita ve ağaç şeması.
+     Adlandırılmış sayfa ile bu bölümler yatay basılır; kullanıcı kâğıdı yan
+     çevirir. Sabit yükseklik (mm) SVG'nin sayfayı doldurmasını sağlar. */
+  @page landscape { size: A4 landscape; margin: 10mm; }
+  body.print-book .book-landscape {
+    page: landscape;
+    break-before: page;
+    break-inside: avoid;
+    height: 180mm !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  body.print-book .book-landscape-body { height: 100% !important; }
+
   /* — Açık görünümü yazdır (ağaç/harita/soy/panel) — */
   body.print-view header,
   body.print-view .print-root { display: none !important; }
