@@ -411,6 +411,15 @@ body {
   .book-turn-next, .book-turn-prev { animation: none; }
 }
 
+/* react-pageflip yaprağı: sayfa tuvalini tam doldursun ve tıklama-imleci kitap
+   hissi versin. Her yaprak StPageFlip tarafından boyutlanır; iç div doldurur. */
+.book-leaf {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.stf__parent, .stf__wrapper { margin: 0 auto; }
+
 /* ----------------------------------------------------------------------
  * Aile kitabı — flipbook 3B sayfa çevirme (Madde: flipbook).
  * Çevrilen "yaprak" cilt ekseni etrafında döner; önü eski sayfa, arkası
