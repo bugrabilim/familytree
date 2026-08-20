@@ -183,8 +183,36 @@ export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
   const issues = useMemo(() => findIssues(people), [people]);
 
   // Olası kopyalar (aynı kişi iki kez) — düzenleyici birleştirebilir.
-  const duplicates = useMemo(() => findDuplicatePairs(people), [people]);
+  const allDuplicates = useMemo(() => findDuplicatePairs(people), [people]);
   const [mergePair, setMergePair] = useState<{ a: Person; b: Person } | null>(null);
+
+  // "Yoksay" edilen çiftler cihazda (localStorage) tutulur; kullanıcı yanlış ya
+  // da bilinçli bir öneriyi kapatabilir, sayfa yenilenince geri gelmez.
+  const IGNORE_KEY = "soyagaci_ignored_pairs";
+  const pairKey = (aId: string, bId: string) => [aId, bId].sort().join("|");
+  const [ignored, setIgnored] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      return new Set(JSON.parse(localStorage.getItem(IGNORE_KEY) || "[]"));
+    } catch {
+      return new Set();
+    }
+  });
+  const ignorePair = (aId: string, bId: string) => {
+    setIgnored((prev) => {
+      const next = new Set(prev).add(pairKey(aId, bId));
+      try {
+        localStorage.setItem(IGNORE_KEY, JSON.stringify([...next]));
+      } catch {
+        /* yoksay */
+      }
+      return next;
+    });
+  };
+  const duplicates = useMemo(
+    () => allDuplicates.filter((d) => !ignored.has(pairKey(d.aId, d.bId))),
+    [allDuplicates, ignored]
+  );
 
   // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
   const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
@@ -357,17 +385,31 @@ export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
                       key={`${d.aId}-${d.bId}-${i}`}
                       className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-xl hover:bg-surface-2 transition-colors"
                     >
-                      <span className="text-sm text-text truncate flex-1 min-w-0">
-                        {fullName(view(a))} · {fullName(view(b))}
+                      <span className="text-sm truncate flex-1 min-w-0">
+                        <button onClick={() => onSelect(a.id)} className="text-text hover:text-primary hover:underline">
+                          {fullName(view(a))}
+                        </button>
+                        <span className="text-text-subtle"> · </span>
+                        <button onClick={() => onSelect(b.id)} className="text-text hover:text-primary hover:underline">
+                          {fullName(view(b))}
+                        </button>
                       </span>
                       <span className="text-[11px] text-text-subtle shrink-0">{t(`panel.dup.${d.reason}`)}</span>
                       {!readOnly && (
-                        <button
-                          onClick={() => setMergePair({ a, b })}
-                          className="text-[11px] font-medium text-primary hover:underline shrink-0"
-                        >
-                          {t("panel.dup.merge")}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setMergePair({ a, b })}
+                            className="text-[11px] font-medium text-primary hover:underline shrink-0"
+                          >
+                            {t("panel.dup.merge")}
+                          </button>
+                          <button
+                            onClick={() => ignorePair(d.aId, d.bId)}
+                            className="text-[11px] text-text-subtle hover:text-text shrink-0"
+                          >
+                            {t("panel.dup.ignore")}
+                          </button>
+                        </>
                       )}
                     </li>
                   );

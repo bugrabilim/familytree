@@ -93,6 +93,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   const { fitView, setCenter, getZoom } = useReactFlow();
   const initialised = useRef(false);
   const prevDepth = useRef(depth);
+  const prevSelected = useRef<string | undefined>(selectedId);
   const [zoom, setZoom] = useState(1);
 
   // Temel ayrıntı kuşak/kalabalıktan; yakınlaştırma bunu yükseltebilir.
@@ -261,6 +262,13 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     const depthChanged = prevDepth.current !== depth;
     prevDepth.current = depth;
     if (depthChanged) return;
+
+    // Yalnızca seçim GERÇEKTEN değişince ortala. Zoom (scroll) sonrası `dim`
+    // değişip bu efekti tekrar tetiklese de, seçim aynıysa ekranı savurmaz —
+    // kullanıcı nereye yakınlaştırdıysa orada kalır (3A hatası).
+    const selectionChanged = prevSelected.current !== selectedId;
+    prevSelected.current = selectedId;
+    if (!selectionChanged) return;
 
     if (!selectedId) return;
     const pos = positions.get(selectedId);

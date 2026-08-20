@@ -23,8 +23,19 @@ function normName(s: string): string {
     .trim();
 }
 
-function fullKey(p: Person): string {
-  return `${normName(p.firstName)}|${normName(p.lastName)}`;
+/** Gruplama anahtarı: yalnız AD. Böylece soyadı boş ("Buğra") ile soyadlı
+ *  ("Buğra Bilim") aynı kişi olabilecek kayıtlar da karşılaştırılır (3C). */
+function firstKey(p: Person): string {
+  return normName(p.firstName);
+}
+
+/** Soyadlar uyumlu mu? En az biri boşsa (soyadsız kuşak / eksik kayıt) ya da
+ *  eşitse uyumlu sayılır. İkisi de doluysa ve farklıysa uyumsuz. */
+function surnameCompatible(a: Person, b: Person): boolean {
+  const la = normName(a.lastName);
+  const lb = normName(b.lastName);
+  if (!la || !lb) return true;
+  return la === lb;
 }
 
 function birthYear(p: Person): number | null {
@@ -55,8 +66,8 @@ export function findDuplicatePairs(people: Person[]): DuplicatePair[] {
   // Ada göre grupla — yalnız aynı ad-anahtarlı kişileri karşılaştır (O(n) + küçük gruplar).
   const groups = new Map<string, Person[]>();
   for (const p of people) {
-    const key = fullKey(p);
-    if (key === "|" || key.trim() === "|") continue; // adsız
+    const key = firstKey(p);
+    if (!key) continue; // adsız
     const arr = groups.get(key);
     if (arr) arr.push(p);
     else groups.set(key, [p]);
@@ -76,8 +87,14 @@ export function findDuplicatePairs(people: Person[]): DuplicatePair[] {
         // Yıllar çelişiyorsa (ikisi de var ve 1'den fazla fark) → farklı kişi.
         if (ya !== null && yb !== null && Math.abs(ya - yb) > 1) continue;
 
+        const compat = surnameCompatible(a, b);
+
+        // Doğrulayıcı: aynı yıl (soyad uyumluysa) YA DA ortak ebeveyn/eş.
+        // Soyadlar hem dolu hem farklıysa yıl tek başına yetmez (farklı ailelerden
+        // aynı ad/yıl kişileri yanlış eşleşmesin); yalnız yapısal bağ (ortak
+        // ebeveyn/eş) kabul edilir.
         let reason: DuplicatePair["reason"] | null = null;
-        if (ya !== null && yb !== null) reason = "yearMatch";
+        if (compat && ya !== null && yb !== null) reason = "yearMatch";
         else if (overlaps(a.parentIds, b.parentIds)) reason = "sharedParent";
         else if (
           overlaps(a.spouseIds, b.spouseIds) ||
