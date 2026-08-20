@@ -32,14 +32,30 @@ const TERMINAL: Record<string, string> = {
 };
 
 const trLower = (s: string) => s.toLocaleLowerCase("tr");
-const isDate = (t: string) => /^\d{2}\/\d{2}\/\d{4}$/.test(t);
-const isCilt = (t: string) => /^\d+-\d+-\d+$/.test(t);
 
-/** "01/07/1842" → "1842-07-01". Geçersizse undefined. */
+// e-Devlet PDF metninde doğum/ölüm tarihi biçimi tek düze değil: PDF çıkarımına
+// göre gün/ay tek ya da çift haneli olabilir, ayraç "/" ya da "." gelebilir ve
+// eski atalarda çoğu zaman yalnız yıl (örn. "1850") yazar. Hepsini yakala; aksi
+// halde tarih token'ı ad bloğuna karışır, hem doğum tarihi hem yeri bozulurdu.
+const FULL_DATE = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/;
+const YEAR_ONLY = /^(1[0-9]{3}|20[0-9]{2})$/; // 1000–2099 arası makul yıl
+const isCilt = (t: string) => /^\d+-\d+-\d+$/.test(t);
+/** Doğum/ölüm tarihi olabilecek bir token mu (tam tarih ya da yalın yıl)? */
+const isDate = (t: string) => FULL_DATE.test(t) || YEAR_ONLY.test(t);
+
+/**
+ * "01/07/1842" → "1842-07-01"; "1.7.1842" → "1842-07-01"; "1850" → "1850".
+ * Tanınmayan biçimde undefined.
+ */
 function toStoredDate(d: string | null): string | undefined {
-  if (!d || !isDate(d)) return undefined;
-  const [dd, mm, yyyy] = d.split("/");
-  return `${yyyy}-${mm}-${dd}`;
+  if (!d) return undefined;
+  const m = FULL_DATE.exec(d);
+  if (m) {
+    const [, dd, mm, yyyy] = m;
+    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+  }
+  if (YEAR_ONLY.test(d)) return d;
+  return undefined;
 }
 
 /** TÜRKÇE başlık düzeni: "MEHMET ÇELİK" → "Mehmet Çelik", "BİLİM" → "Bilim". */
