@@ -195,7 +195,9 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
           <input
             ref={fileRef}
             type="file"
-            accept=".ged,.gedcom,.csv,.tsv,.json,.txt,.ftz,.pdf,text/plain,text/csv,application/json,application/pdf"
+            /* accept KISITI YOK: iOS, tanımadığı uzantıları (.ftz gibi) accept
+               listesi varken soluk/seçilemez yapıyor. Biçimi arka uç doğruluyor
+               (GEDCOM/.ftz/CSV/JSON/PDF), o yüzden tüm dosyalar seçilebilir. */
             className="hidden"
             onChange={handleImport}
           />
