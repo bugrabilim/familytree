@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { canEdit } from "@/lib/roles";
+import { resolveActiveTree } from "@/lib/tree-context";
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canEdit(session.user.role))
+  // Web (çerez) ve native mobil (Bearer) oturumlarının ikisini de kabul eder.
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
+  if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const formData = await req.formData();

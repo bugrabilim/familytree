@@ -72,7 +72,8 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
       const res = await fetch("/api/family/import", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
-      onImported(data.count ?? 0);
+      if (!data.count) throw new Error(t("gedcom.importEmpty"));
+      onImported(data.count);
     } catch (err) {
       setError((err as Error).message);
       setBusy("");
@@ -86,16 +87,26 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     if (!file) return;
     setBusy("ai");
     setError("");
+    // Yapısal soy dosyaları (.ftz / GEDCOM / CSV / JSON) yapay zekâ ile değil,
+    // doğrudan içe aktarıcıyla çözülür — .ftz ikili bir ZIP olduğundan AI onu
+    // okuyamaz. Kullanıcı yanlış kutuyu seçse de doğru yola yönlendiriyoruz.
+    const structured = /\.(ftz|ged|gedcom|csv|tsv|json)$/i.test(file.name || "");
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("mode", mode);
-      fd.append("lang", lang === "en" ? "en" : "tr");
-      const res = await fetch("/api/ai/extract", { method: "POST", body: fd });
+      let res: Response;
+      if (structured) {
+        res = await fetch("/api/family/import", { method: "POST", body: fd });
+      } else {
+        fd.append("lang", lang === "en" ? "en" : "tr");
+        res = await fetch("/api/ai/extract", { method: "POST", body: fd });
+      }
       const data = await res.json();
       if (res.status === 503) throw new Error(t("ai.story.notConfigured"));
       if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
-      onImported(data.count ?? 0);
+      if (!data.count) throw new Error(t("gedcom.importEmpty"));
+      onImported(data.count);
     } catch (err) {
       setError((err as Error).message);
       setBusy("");
@@ -145,8 +156,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
           <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.importTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-2">
             {t("gedcom.importBodyBefore")}{" "}
-            <code className="text-[11px] px-1 py-0.5 rounded bg-surface-2">.ged</code>{" "}
-            {t("gedcom.importBodyAfter")}
+            <span className="text-text">{t("gedcom.importBodyAfter")}</span>
           </p>
           <p className="text-[11px] text-text-subtle leading-relaxed mb-3">{t("common.import.formatsNote")}</p>
 
