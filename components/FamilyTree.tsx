@@ -87,13 +87,13 @@ interface Props {
   onOpen?: (id: string) => void;
   onDeselect?: () => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
+  /** Tek seferlik "Odakla" isteği: seq her istekte artar, kamera o kişiye gider. */
+  locateReq?: { id: string; seq: number };
 }
 
-function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq }: Props) {
   const { fitView, setCenter, getZoom } = useReactFlow();
   const initialised = useRef(false);
-  const prevDepth = useRef(depth);
-  const prevSelected = useRef<string | undefined>(selectedId);
   const [zoom, setZoom] = useState(1);
 
   // Temel ayrıntı kuşak/kalabalıktan; yakınlaştırma bunu yükseltebilir.
@@ -251,41 +251,25 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     return () => clearTimeout(t);
   }, [nodeCount, depth, fitView]);
 
-  // Seçili kişiyi görünür alanın ortasına getir.
-  // Masaüstünde sağdaki 380px'lik detay paneli tuvalin üstüne biniyor;
-  // kartı gerçek görünür alanın ortasına koymak için yatayda kaydırıyoruz.
-  // `positions` bağımlılıkta: yeniden yerleşim olursa efekt tekrar çalışıp
-  // doğru konuma ortalıyor (ilk çalışmada eski konum ölçülse bile).
+  // Kamera OTOMATİK oynamaz. Yalnız kullanıcı profilde "Odakla"ya basınca
+  // (locateReq.seq artar) bir kereliğine o kişiye gider. Seçmek ya da zoom
+  // yapmak ekranı savurmaz (3A: tüm otomatik odaklama/merkezleme kaldırıldı).
+  const lastLocateSeq = useRef(0);
   useEffect(() => {
-    // Madde 3 — Kuşak derinliği değiştiğinde seçili kişiye ortalama; bunun
-    // yerine tüm görünür kümeyi sığdır (yukarıdaki fitView efekti devrede).
-    const depthChanged = prevDepth.current !== depth;
-    prevDepth.current = depth;
-    if (depthChanged) return;
-
-    // Yalnızca seçim GERÇEKTEN değişince ortala. Zoom (scroll) sonrası `dim`
-    // değişip bu efekti tekrar tetiklese de, seçim aynıysa ekranı savurmaz —
-    // kullanıcı nereye yakınlaştırdıysa orada kalır (3A hatası).
-    const selectionChanged = prevSelected.current !== selectedId;
-    prevSelected.current = selectedId;
-    if (!selectionChanged) return;
-
-    if (!selectedId) return;
-    const pos = positions.get(selectedId);
+    if (!locateReq || locateReq.seq === lastLocateSeq.current) return;
+    lastLocateSeq.current = locateReq.seq;
+    const pos = positions.get(locateReq.id);
     if (!pos) return;
-    // Madde 7 — Seçince MEVCUT yakınlaştırmayı koru (0.9'a zıplatma yok); yalnız
-    // kartı görünür alanın ortasına doğru yumuşakça kaydır. Böylece bir karta
-    // tıklamak ekranı savurmuyor.
-    const zoom = getZoom();
+    const zoom = Math.max(getZoom(), 0.7);
     const drawerAcik =
       typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
     const kaydir = drawerAcik ? 190 / zoom : 0; // panelin yarısı kadar dünya birimi
     const t = setTimeout(
-      () => setCenter(pos.x + dim.w / 2 + kaydir, pos.y + dim.h / 2, { zoom, duration: 380 }),
-      140
+      () => setCenter(pos.x + dim.w / 2 + kaydir, pos.y + dim.h / 2, { zoom, duration: 500 }),
+      120
     );
     return () => clearTimeout(t);
-  }, [selectedId, positions, depth, setCenter, getZoom, dim.w, dim.h]);
+  }, [locateReq, positions, setCenter, getZoom, dim.w, dim.h]);
 
   return (
     <ReactFlow

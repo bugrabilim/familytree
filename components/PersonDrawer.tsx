@@ -47,6 +47,7 @@ interface Props {
   onEdit: (id: string) => void;
   onQuickAdd: (relation: RelationType, targetId: string) => void;
   onFocus: (id: string) => void;
+  onLocate: (id: string) => void;
   onDeleted: () => void;
 }
 
@@ -59,6 +60,7 @@ export default function PersonDrawer({
   onEdit,
   onQuickAdd,
   onFocus,
+  onLocate,
   onDeleted,
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -248,6 +250,9 @@ export default function PersonDrawer({
             )}
             <Button size="sm" variant="secondary" onClick={() => onFocus(person.id)}>
               {t("drawer.focus")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => onLocate(person.id)}>
+              {t("drawer.locate")}
             </Button>
             {!readOnly && (
               <div className="ml-auto">

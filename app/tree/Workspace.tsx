@@ -422,6 +422,23 @@ function WorkspaceInner({
     setTreeFocus(id);
   }, []);
 
+  // "Odakla": kamerayı bir kereliğine kişiye götürür (ağacın kökünü/görünür
+  // kümesini DEĞİŞTİRMEZ). seq her istekte artar; FamilyTree bunu izler.
+  const locateSeq = useRef(0);
+  const [locateReq, setLocateReq] = useState<{ id: string; seq: number } | undefined>(undefined);
+  const locatePerson = useCallback(
+    (id: string) => {
+      if (!idx.has(id)) return;
+      if (view !== "agac") {
+        secimiKoruRef.current = true;
+        setView("agac");
+      }
+      locateSeq.current += 1;
+      setLocateReq({ id, seq: locateSeq.current });
+    },
+    [idx, view]
+  );
+
   // AI yanıtındaki bir kişiye tıklanınca: ağaç görünümüne geç, o kişiyi merkeze
   // al ve profilini aç. Sohbet paneli kapanır ama geçmişi korunur (aiMessages
   // üst bileşende). Görünüm zaten "ağaç" değilse seçim-temizleme efekti atlanır.
@@ -492,6 +509,7 @@ function WorkspaceInner({
               onOpen={setSelectedId}
               onDeselect={() => setSelectedId(undefined)}
               onQuickAdd={openQuickAdd}
+              locateReq={locateReq}
             />
             <TreeDepthControl
               depth={treeDepth}
@@ -574,6 +592,7 @@ function WorkspaceInner({
           onSelect={setSelectedId}
           onEdit={openEdit}
           onQuickAdd={openQuickAdd}
+          onLocate={locatePerson}
           onFocus={focusPerson}
           onDeleted={handleDeleted}
         />
