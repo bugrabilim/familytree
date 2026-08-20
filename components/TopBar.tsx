@@ -12,7 +12,7 @@ import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
 
-export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "harita" | "panel" | "kitap";
+export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "tablo" | "harita" | "panel" | "kitap";
 
 /** Simgeler ve anahtarlar sabit; etiket/ipucu metinleri i18n sözlüğünden okunur. */
 export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
@@ -21,6 +21,7 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
   { key: "yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4" },
   { key: "zaman", icon: "M4 7h11M4 12h16M4 17h7M18 15l3 2-3 2" },
   { key: "liste", icon: "M4 6h16M4 12h16M4 18h16" },
+  { key: "tablo", icon: "M4 5h16v14H4zM4 10h16M4 15h16M10 5v14" },
   { key: "harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" },
   { key: "panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z" },
   { key: "kitap", icon: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" },
