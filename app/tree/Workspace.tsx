@@ -151,7 +151,6 @@ function WorkspaceInner({
       setStarterLoading(false);
     }
   }, [router]);
-  const [demoLoading, setDemoLoading] = useState(false);
   /**
    * Ağaçta ne gösterilsin:
    *  0..8      → odak kişinin n kuşak atası + n kuşak soyu (0 = yalnız yakın çevre)
@@ -389,31 +388,6 @@ function WorkspaceInner({
     router.refresh();
   }, [router, notify, t]);
 
-  const handleDemoLoaded = useCallback(
-    (count: number) => {
-      setGedcomOpen(false);
-      setDemoLoading(false);
-      setSelectedId(undefined);
-      setRootId(undefined);
-      notify(t("ws.toast.demoLoaded", { count }));
-      router.refresh();
-    },
-    [router, notify, t]
-  );
-
-  /** Boş durumdan tek tıkla demo yükle */
-  const loadDemoDirect = useCallback(async () => {
-    setDemoLoading(true);
-    try {
-      const res = await fetch("/api/family/demo", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? t("ws.demoFailed"));
-      handleDemoLoaded(data.count ?? 0);
-    } catch (err) {
-      setDemoLoading(false);
-      notify((err as Error).message);
-    }
-  }, [handleDemoLoaded, notify, t]);
 
   // "Merkeze al": ağaçta kişiyi merkeze alır ve şecere kökü yapar; görünüm
   // değiştirmez (eskiden Soy sayfasına atlıyordu).
@@ -489,8 +463,6 @@ function WorkspaceInner({
             onStarter={createStarter}
             starterLoading={starterLoading}
             onImport={() => setGedcomOpen(true)}
-            onDemo={loadDemoDirect}
-            demoLoading={demoLoading}
           />
         ) : view === "agac" ? (
           <>
@@ -642,8 +614,8 @@ function WorkspaceInner({
           peopleCount={people.length}
           onClose={() => setGedcomOpen(false)}
           onImported={handleImported}
-          onDemoLoaded={handleDemoLoaded}
           onCleared={handleCleared}
+          onPrintBook={() => { setGedcomOpen(false); setPrintOpen(true); }}
         />
       )}
 
