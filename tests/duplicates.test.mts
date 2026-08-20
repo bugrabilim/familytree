@@ -44,6 +44,22 @@ check("eşler kopya değil", findDuplicatePairs([P({ id: "a", spouseIds: ["b"] }
 // Farklı ad → kopya değil
 check("farklı ad", findDuplicatePairs([P({ id: "a" }), P({ id: "b", firstName: "Ayşe", gender: "female" })]).length === 0);
 
+// 3C: soyadsız "Buğra" ile soyadlı "Buğra Bilim", aynı yıl → kopya önerisi.
+pairs = findDuplicatePairs([
+  P({ id: "x", firstName: "Buğra", lastName: "", birthDate: "1984" }),
+  P({ id: "y", firstName: "Buğra", lastName: "Bilim", birthDate: "1984" }),
+]);
+check("soyadsız+soyadlı aynı ad/yıl kopya", pairs.length === 1 && pairs[0].reason === "yearMatch");
+
+// Aynı ad, İKİ farklı soyad, yalnız yıl (yapısal bağ yok) → kopya DEĞİL (yanlış-pozitif koruması).
+check(
+  "farklı soyad + yalnız yıl kopya değil",
+  findDuplicatePairs([
+    P({ id: "a", firstName: "Ahmet", lastName: "Yılmaz", birthDate: "1950" }),
+    P({ id: "b", firstName: "Ahmet", lastName: "Kaya", birthDate: "1950" }),
+  ]).length === 0
+);
+
 // Birleştirme: referanslar keep'e taşınır, drop silinir
 const people = [
   P({ id: "keep", birthDate: "1950", photos: ["u1"] }),
