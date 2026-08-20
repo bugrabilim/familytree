@@ -5,10 +5,12 @@ import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import { calcAge, lifeSpan } from "@/lib/date";
-import { getChildren, getParents, getSpouses, getFormerSpouses, indexPeople } from "@/lib/relations";
-import { aggregatePlaces, projectEquirectangular } from "@/lib/places";
-import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
+import { getChildren, getParents, getSpouses, getFormerSpouses, indexPeople, computeStats } from "@/lib/relations";
+import { aggregatePlaces } from "@/lib/places";
 import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
+import { computeAlmanac } from "@/lib/book-stats";
+import BookMap from "./BookMap";
+import TreeSchema from "./TreeSchema";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useT, useLang } from "@/lib/i18n";
@@ -26,7 +28,9 @@ type Page =
   | { kind: "cover" }
   | { kind: "foreword" }
   | { kind: "summary" }
+  | { kind: "almanac" }
   | { kind: "places" }
+  | { kind: "schema" }
   | { kind: "person"; gen: number; person: Person };
 
 /**
@@ -161,6 +165,10 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { total: masked.length, living, deceased, male, female };
   }, [masked]);
 
+  // Rakamlarla Aile (Madde 12) — genişletilmiş sayılar + listeler.
+  const famStats = useMemo(() => computeStats(masked), [masked]);
+  const almanac = useMemo(() => computeAlmanac(masked), [masked]);
+
   // En sık geçen yerler (ada göre, çoktan aza) — özet ve önsöz için.
   const topPlaces = useMemo(() => {
     const aggs = aggregatePlaces(masked);
@@ -188,8 +196,9 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
       const ay = a.birthDate?.slice(0, 4) ?? "9999", by = b.birthDate?.slice(0, 4) ?? "9999";
       return ay.localeCompare(by) || coll.compare(fullName(a), fullName(b));
     });
-    const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }, { kind: "summary" }];
+    const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }, { kind: "summary" }, { kind: "almanac" }];
     if (placeAgg.located.length > 0) p.push({ kind: "places" });
+    if (masked.length > 1) p.push({ kind: "schema" });
     for (const person of ordered) p.push({ kind: "person", gen: genOf.get(person.id) ?? 1, person });
     return p;
   }, [masked, genOf, placeAgg.located.length]);
@@ -350,6 +359,72 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
               )}
             </div>
           )}
+          {pg.kind === "almanac" && (
+            <div className="font-serif">
+              <h2 className="text-center text-2xl font-bold mb-5">{t("book.almanacTitle")}</h2>
+
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <SummaryStat label={t("book.stat.people")} value={famStats.total} />
+                <SummaryStat label={t("book.stat.generations")} value={generations} />
+                <SummaryStat label={t("book.stat.living")} value={famStats.living} />
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-5">
+                <Row k={t("panel.mini.marriages")} v={String(famStats.marriages)} />
+                <Row k={t("panel.mini.divorces")} v={String(famStats.divorces)} />
+                {famStats.avgLifespan !== undefined && (
+                  <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: famStats.avgLifespan })} />
+                )}
+                <Row k={t("panel.mini.largestSibship")} v={String(famStats.largestSibship)} />
+                {famStats.topBirthPlace && (
+                  <Row k={t("panel.mini.topBirthPlace")} v={`${famStats.topBirthPlace.name} (${famStats.topBirthPlace.count})`} wide />
+                )}
+              </dl>
+
+              <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-2">{t("book.perGeneration")}</h3>
+              <ul className="mb-5 space-y-1">
+                {almanac.perGeneration.map((g) => (
+                  <li key={g.gen} className="flex items-center gap-2 text-[13px]">
+                    <span className="w-20 shrink-0 opacity-70">{t("print.generation", { n: g.gen })}</span>
+                    <span className="flex-1 h-2.5 rounded-full bg-current/10 overflow-hidden">
+                      <span className="block h-full bg-current/40" style={{ width: `${Math.round((g.count / Math.max(1, famStats.total)) * 100)}%` }} />
+                    </span>
+                    <span className="w-8 text-right tabular-nums opacity-80">{g.count}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                <AlmanacList
+                  title={t("book.eldestTitle")}
+                  rows={almanac.eldest
+                    .map((id) => idx.get(id))
+                    .filter((p): p is Person => !!p)
+                    .map((p) => ({ name: fullName(p), meta: lifeSpan(p.birthDate, p.deathDate) }))}
+                />
+                <AlmanacList
+                  title={t("book.longestLivedTitle")}
+                  rows={almanac.longestLived
+                    .map((r) => ({ p: idx.get(r.id), age: r.age }))
+                    .filter((x): x is { p: Person; age: number } => !!x.p)
+                    .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
+                />
+                <AlmanacList
+                  title={t("book.livingOldestTitle")}
+                  rows={almanac.livingOldest
+                    .map((r) => ({ p: idx.get(r.id), age: r.age }))
+                    .filter((x): x is { p: Person; age: number } => !!x.p)
+                    .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
+                />
+                {famStats.surnames.length > 0 && (
+                  <AlmanacList
+                    title={t("book.surnamesTitle")}
+                    rows={famStats.surnames.map((s) => ({ name: s.name, meta: String(s.count) }))}
+                  />
+                )}
+              </div>
+            </div>
+          )}
           {pg.kind === "places" && (
             <div className="font-serif h-full flex flex-col">
               <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
@@ -357,6 +432,15 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
                 {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
               </p>
               <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
+            </div>
+          )}
+          {pg.kind === "schema" && (
+            <div className="font-serif h-full flex flex-col">
+              <h2 className="text-center text-2xl font-bold mb-1">{t("book.schemaTitle")}</h2>
+              <p className="text-center text-sm opacity-60 mb-4">{t("book.landscapeHint")}</p>
+              <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
+                <TreeSchema people={masked} />
+              </div>
             </div>
           )}
           {pg.kind === "person" && (
@@ -551,90 +635,11 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
   );
 }
 
-/**
- * Kitap içi statik doğum-yeri haritası (Madde 8). Etkileşimsiz; noktaları
- * çevreleyen kırpma kutusuyla ilgili bölgeye odaklanır. Gömülü Natural Earth
- * sınırları (lib/world-map) — dış istek yok.
- */
 function SummaryStat({ label, value, big }: { label: string; value: number; big?: boolean }) {
   return (
     <div className="rounded-lg border border-current/15 bg-current/[0.03] px-3 py-2.5 text-center">
       <p className={`font-bold tabular-nums ${big ? "text-3xl" : "text-2xl"}`}>{value.toLocaleString("tr")}</p>
       <p className="text-[11px] uppercase tracking-wide opacity-60 mt-0.5">{label}</p>
-    </div>
-  );
-}
-
-function BookMap({
-  located,
-  maxCount,
-}: {
-  located: ReturnType<typeof aggregatePlaces>;
-  maxCount: number;
-}) {
-  const VW = WORLD_VIEWBOX.w;
-  const VH = WORLD_VIEWBOX.h;
-  const dots = located
-    .filter((a) => a.coords)
-    .map((a) => {
-      const { x, y } = projectEquirectangular(a.coords!.lat, a.coords!.lng, VW, VH);
-      return { a, x, y };
-    });
-
-  // En büyük 8 yer etiketlenir (kalabalık olmasın).
-  const labelSet = new Set(
-    [...located].sort((a, b) => b.count - a.count).slice(0, 8).map((a) => a.place)
-  );
-
-  // Noktaları çevreleyen kırpma kutusu — kenar payıyla bölgeye odaklan.
-  let minX: number = VW, minY: number = VH, maxX = 0, maxY = 0;
-  for (const d of dots) {
-    minX = Math.min(minX, d.x); minY = Math.min(minY, d.y);
-    maxX = Math.max(maxX, d.x); maxY = Math.max(maxY, d.y);
-  }
-  if (dots.length === 0) { minX = 0; minY = 0; maxX = VW; maxY = VH; }
-  const padX = Math.max(70, (maxX - minX) * 0.3);
-  const padY = Math.max(50, (maxY - minY) * 0.4);
-  const bx = Math.max(0, minX - padX);
-  const by = Math.max(0, minY - padY);
-  const bw = Math.min(VW - bx, maxX - minX + padX * 2);
-  const bh = Math.min(VH - by, maxY - minY + padY * 2);
-  const scale = bw / VW; // etiket/çizgi ölçeğini kutuyla orantıla
-  const rOf = (c: number) => (3 + 7 * Math.sqrt(c / maxCount)) * Math.max(0.5, scale);
-
-  return (
-    <div
-      className="flex-1 min-h-0 rounded-lg overflow-hidden border border-black/15"
-      style={{ background: "rgba(120,150,170,0.14)" }}
-    >
-      <svg viewBox={`${bx} ${by} ${bw} ${bh}`} className="w-full h-full block" role="img">
-        <g fill="rgba(120,95,60,0.30)" stroke="rgba(90,70,45,0.55)" strokeWidth={0.6 * scale} strokeLinejoin="round">
-          {COUNTRIES.map((c, i) => (
-            <path key={i} d={c.d} />
-          ))}
-        </g>
-        {dots.map(({ a, x, y }) => {
-          const r = rOf(a.count);
-          return (
-            <g key={a.place}>
-              <circle cx={x} cy={y} r={r} fill="rgba(150,40,30,0.5)" stroke="rgba(120,30,20,0.9)" strokeWidth={0.5 * scale} />
-              <circle cx={x} cy={y} r={Math.max(0.6, 1.4 * scale)} fill="rgba(90,20,15,0.95)" />
-              {labelSet.has(a.place) && (
-                <text
-                  x={x}
-                  y={y - r - 3 * scale}
-                  textAnchor="middle"
-                  fontSize={9 * scale}
-                  fontWeight={600}
-                  fill="rgba(74,58,40,0.95)"
-                >
-                  {a.place.split(",")[0]}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
     </div>
   );
 }
@@ -732,6 +737,24 @@ function Row({ k, v, wide }: { k: string; v: string; wide?: boolean }) {
     <div className={`flex gap-1.5 ${wide ? "col-span-2" : ""}`}>
       <dt className="opacity-40 shrink-0">{k}:</dt>
       <dd className="opacity-90">{v}</dd>
+    </div>
+  );
+}
+
+/** Almanak listesi — başlık + isim/açıklama satırları (Madde 12). */
+function AlmanacList({ title, rows }: { title: string; rows: Array<{ name: string; meta?: string | null }> }) {
+  if (rows.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-1.5">{title}</h3>
+      <ul className="space-y-0.5">
+        {rows.map((r, i) => (
+          <li key={`${r.name}-${i}`} className="flex items-baseline justify-between gap-2 text-[13px]">
+            <span className="opacity-90 truncate min-w-0">{r.name}</span>
+            {r.meta && <span className="opacity-60 tabular-nums shrink-0">{r.meta}</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
