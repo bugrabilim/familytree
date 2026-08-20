@@ -11,7 +11,8 @@ import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
+import { generatePreface } from "@/lib/preface";
 
 interface Props {
   people: Person[];
@@ -24,6 +25,7 @@ interface Props {
 type Page =
   | { kind: "cover" }
   | { kind: "foreword" }
+  | { kind: "summary" }
   | { kind: "places" }
   | { kind: "person"; gen: number; person: Person };
 
@@ -89,6 +91,7 @@ function paperStyle(age: number): React.CSSProperties {
 export default function BookView({ people, familyName, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
+  const { lang } = useLang();
   const [index, setIndex] = useState(0);
   const [wide, setWide] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -146,6 +149,37 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { located, maxCount, total: aggs.length };
   }, [masked]);
 
+  // Panel özeti sayısal veriler (Madde 1) — maskeli kopyadan (gizlilik korunur).
+  const stats = useMemo(() => {
+    let living = 0, deceased = 0, male = 0, female = 0;
+    for (const p of masked) {
+      if (p.deathDate) deceased++;
+      else living++;
+      if (p.gender === "male") male++;
+      else if (p.gender === "female") female++;
+    }
+    return { total: masked.length, living, deceased, male, female };
+  }, [masked]);
+
+  // En sık geçen yerler (ada göre, çoktan aza) — özet ve önsöz için.
+  const topPlaces = useMemo(() => {
+    const aggs = aggregatePlaces(masked);
+    return [...aggs].sort((a, b) => b.count - a.count).slice(0, 5).map((a) => a.place);
+  }, [masked]);
+
+  // Önsöz metni (Madde 2) — yıl aralığı + en sık şehirler + tarihsel dönemler.
+  const preface = useMemo(
+    () =>
+      generatePreface({
+        familyName,
+        from: yearRange?.from,
+        to: yearRange?.to,
+        places: topPlaces,
+        lang: lang === "en" ? "en" : "tr",
+      }),
+    [familyName, yearRange, topPlaces, lang]
+  );
+
   const pages = useMemo<Page[]>(() => {
     const coll = new Intl.Collator("tr");
     const ordered = [...masked].sort((a, b) => {
@@ -154,7 +188,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
       const ay = a.birthDate?.slice(0, 4) ?? "9999", by = b.birthDate?.slice(0, 4) ?? "9999";
       return ay.localeCompare(by) || coll.compare(fullName(a), fullName(b));
     });
-    const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }];
+    const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }, { kind: "summary" }];
     if (placeAgg.located.length > 0) p.push({ kind: "places" });
     for (const person of ordered) p.push({ kind: "person", gen: genOf.get(person.id) ?? 1, person });
     return p;
@@ -278,9 +312,42 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
           {pg.kind === "foreword" && (
             <div className="font-serif">
               <h2 className="text-center text-2xl font-bold mb-6">{t("print.forewordTitle")}</h2>
-              <p className="text-[15px] leading-relaxed text-justify first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]">
-                {t("print.foreword", { name: familyName ?? "", generations })}
-              </p>
+              {preface.map((para, i) => (
+                <p
+                  key={i}
+                  className={`text-[15px] leading-relaxed text-justify mb-3 ${
+                    i === 0
+                      ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]"
+                      : ""
+                  }`}
+                >
+                  {para}
+                </p>
+              ))}
+            </div>
+          )}
+          {pg.kind === "summary" && (
+            <div className="font-serif h-full flex flex-col">
+              <h2 className="text-center text-2xl font-bold mb-1">{t("book.summaryTitle")}</h2>
+              {yearRange && (
+                <p className="text-center text-sm opacity-60 mb-5">
+                  {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <SummaryStat big label={t("book.stat.people")} value={stats.total} />
+                <SummaryStat big label={t("book.stat.generations")} value={generations} />
+                <SummaryStat label={t("book.stat.living")} value={stats.living} />
+                <SummaryStat label={t("book.stat.deceased")} value={stats.deceased} />
+                <SummaryStat label={t("book.stat.male")} value={stats.male} />
+                <SummaryStat label={t("book.stat.female")} value={stats.female} />
+              </div>
+              {topPlaces.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs uppercase tracking-wide opacity-60 mb-2">{t("book.stat.topPlaces")}</p>
+                  <p className="text-[15px] leading-relaxed">{topPlaces.join(" · ")}</p>
+                </div>
+              )}
             </div>
           )}
           {pg.kind === "places" && (
@@ -489,6 +556,15 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
  * çevreleyen kırpma kutusuyla ilgili bölgeye odaklanır. Gömülü Natural Earth
  * sınırları (lib/world-map) — dış istek yok.
  */
+function SummaryStat({ label, value, big }: { label: string; value: number; big?: boolean }) {
+  return (
+    <div className="rounded-lg border border-current/15 bg-current/[0.03] px-3 py-2.5 text-center">
+      <p className={`font-bold tabular-nums ${big ? "text-3xl" : "text-2xl"}`}>{value.toLocaleString("tr")}</p>
+      <p className="text-[11px] uppercase tracking-wide opacity-60 mt-0.5">{label}</p>
+    </div>
+  );
+}
+
 function BookMap({
   located,
   maxCount,

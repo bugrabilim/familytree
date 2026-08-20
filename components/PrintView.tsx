@@ -14,7 +14,9 @@ import {
 } from "@/lib/relations";
 import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { usePrivacy } from "./PrivacyContext";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
+import { aggregatePlaces } from "@/lib/places";
+import { generatePreface } from "@/lib/preface";
 
 interface Props {
   people: Person[];
@@ -33,6 +35,7 @@ interface Props {
 export default function PrintView({ people, familyName, onClose }: Props) {
   const { view } = usePrivacy();
   const t = useT();
+  const { lang } = useLang();
 
   // Kitap yazdırma modunu işaretle — @media print yalnız .print-root'u basar
   // (görünüm yazdırma modundan `body.print-view` ile ayrılır).
@@ -102,6 +105,23 @@ export default function PrintView({ people, familyName, onClose }: Props) {
     return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null;
   }, [masked]);
 
+  // Önsöz — kitapla aynı üretici (yıl aralığı + en sık şehirler + tarih).
+  const topPlaces = useMemo(
+    () => [...aggregatePlaces(masked)].sort((a, b) => b.count - a.count).slice(0, 5).map((a) => a.place),
+    [masked]
+  );
+  const preface = useMemo(
+    () =>
+      generatePreface({
+        familyName,
+        from: yearRange?.from,
+        to: yearRange?.to,
+        places: topPlaces,
+        lang: lang === "en" ? "en" : "tr",
+      }),
+    [familyName, yearRange, topPlaces, lang]
+  );
+
   const names = (list: Person[]) => list.map((p) => fullName(p)).join(", ");
   const portraitOf = (p: Person) => p.photo || p.photos?.[0];
 
@@ -160,36 +180,26 @@ export default function PrintView({ people, familyName, onClose }: Props) {
         {/* — Önsöz — */}
         <section className="print-section break-before-page">
           <h2 className="text-center text-2xl font-bold mb-6">{t("print.forewordTitle")}</h2>
-          <p className="text-[15px] leading-relaxed text-justify text-neutral-800 first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]">
-            {t("print.foreword", { name: familyName ?? "", generations })}
-          </p>
-
-          {/* İçindekiler — kuşak dökümü */}
-          <div className="mt-10">
-            <h3 className="text-lg font-semibold mb-3">{t("print.contents")}</h3>
-            <ul className="space-y-1 text-sm">
-              {chapters.map((c) => (
-                <li key={c.gen} className="flex items-baseline gap-2">
-                  <span className="text-neutral-800">{t("print.generation", { n: c.gen })}</span>
-                  <span className="flex-1 border-b border-dotted border-neutral-300 translate-y-[-3px]" />
-                  <span className="text-neutral-500 tabular-nums">
-                    {t("print.generationPeople", { count: c.people.length })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {preface.map((para, i) => (
+            <p
+              key={i}
+              className={`text-[15px] leading-relaxed text-justify text-neutral-800 mb-3 ${
+                i === 0
+                  ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]"
+                  : ""
+              }`}
+            >
+              {para}
+            </p>
+          ))}
         </section>
 
         {/* — Kuşak bölümleri — */}
         {chapters.map((c) => (
           <section key={c.gen} className="print-section break-before-page">
-            <h2 className="print-chapter text-center text-2xl font-bold mb-1">
+            <h2 className="print-chapter text-center text-2xl font-bold mb-8">
               {t("print.generation", { n: c.gen })}
             </h2>
-            <p className="text-center text-xs text-neutral-400 mb-8">
-              {t("print.generationPeople", { count: c.people.length })}
-            </p>
 
             <div className="space-y-8">
               {c.people.map((p) => {
