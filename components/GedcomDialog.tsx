@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import { useLang, useT } from "@/lib/i18n";
+import { importAnyFile } from "@/lib/import-client";
 
 interface Props {
   peopleCount: number;
@@ -17,7 +18,6 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
   const t = useT();
   const { lang } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
-  const aiRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [exportFmt, setExportFmt] = useState<"gedcom" | "csv" | "json">("gedcom");
   const [busy, setBusy] = useState<"" | "export" | "import" | "ai" | "demo" | "clear">("");
@@ -76,58 +76,26 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Tek "Dosya seç": dosya türüne göre normal içe aktarma ↔ yapay zekâ dağıtımı
+  // (importAnyFile). .ftz/GEDCOM/CSV/JSON yapısal; foto/PDF/Excel/Word yapay zekâ.
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy("import");
     setError("");
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("mode", mode);
-      const res = await fetch("/api/family/import", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
-      if (!data.count) throw new Error(t("gedcom.importEmpty"));
-      onImported(data.count);
+      const count = await importAnyFile(file, {
+        mode,
+        lang: lang === "en" ? "en" : "tr",
+        aiNotConfigured: t("ai.story.notConfigured"),
+        emptyMessage: t("gedcom.importEmpty"),
+      });
+      onImported(count);
     } catch (err) {
       setError((err as Error).message);
       setBusy("");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  const handleAiImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBusy("ai");
-    setError("");
-    // Yapısal soy dosyaları (.ftz / GEDCOM / CSV / JSON) yapay zekâ ile değil,
-    // doğrudan içe aktarıcıyla çözülür — .ftz ikili bir ZIP olduğundan AI onu
-    // okuyamaz. Kullanıcı yanlış kutuyu seçse de doğru yola yönlendiriyoruz.
-    const structured = /\.(ftz|ged|gedcom|csv|tsv|json)$/i.test(file.name || "");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("mode", mode);
-      let res: Response;
-      if (structured) {
-        res = await fetch("/api/family/import", { method: "POST", body: fd });
-      } else {
-        fd.append("lang", lang === "en" ? "en" : "tr");
-        res = await fetch("/api/ai/extract", { method: "POST", body: fd });
-      }
-      const data = await res.json();
-      if (res.status === 503) throw new Error(t("ai.story.notConfigured"));
-      if (!res.ok) throw new Error(data?.error ?? t("gedcom.importFailed"));
-      if (!data.count) throw new Error(t("gedcom.importEmpty"));
-      onImported(data.count);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy("");
-    } finally {
-      if (aiRef.current) aiRef.current.value = "";
     }
   };
 
@@ -213,30 +181,10 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onDemoL
             type="file"
             /* accept KISITI YOK: iOS, tanımadığı uzantıları (.ftz gibi) accept
                listesi varken soluk/seçilemez yapıyor. Biçimi arka uç doğruluyor
-               (GEDCOM/.ftz/CSV/JSON/PDF), o yüzden tüm dosyalar seçilebilir. */
+               (GEDCOM/.ftz/CSV/JSON/PDF) ya da yapay zekâ tanıyor; tüm dosyalar seçilebilir. */
             className="hidden"
-            onChange={handleImport}
+            onChange={handleFile}
           />
-
-          {/* Yapay zekâ ile herhangi bir dosyadan içe aktarma (madde 7) */}
-          <div className="mt-4 rounded-xl border border-primary/25 bg-primary-soft/40 p-3.5">
-            <p className="text-sm font-semibold text-text mb-0.5">✨ {t("ai.import.title")}</p>
-            <p className="text-xs text-text-muted leading-relaxed mb-2.5">{t("ai.import.body")}</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => aiRef.current?.click()}
-              disabled={busy !== ""}
-            >
-              {busy === "ai" ? t("ai.import.working") : t("ai.import.choose")}
-            </Button>
-            <input
-              ref={aiRef}
-              type="file"
-              className="hidden"
-              onChange={handleAiImport}
-            />
-          </div>
         </section>
 
         <div className="h-px bg-border" />
