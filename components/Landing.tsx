@@ -229,7 +229,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
             <div className="w-9 h-9 rounded-xl bg-primary grid place-items-center shadow-soft">
               <BrandMark stroke="var(--primary-text)" />
             </div>
-            <span className="font-serif text-lg font-semibold">{t("auth.brand")}</span>
+            <span className="font-serif text-lg font-semibold hidden min-[360px]:inline">{t("auth.brand")}</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-1 mx-auto text-sm">
@@ -239,13 +239,15 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           </nav>
 
           <div className="ml-auto md:ml-0 flex items-center gap-1.5 sm:gap-2">
-            <LanguageSwitch />
-            <ThemeToggle />
+            {/* Dil/tema mobilde başlıkta gizli (footer'da dil anahtarı var); böylece
+                giriş yap + hesap oluştur en dar ekranda bile sığar. */}
+            <LanguageSwitch className="hidden sm:flex shrink-0" />
+            <ThemeToggle className="hidden sm:grid shrink-0" />
             {/* Sağ üst: giriş yap + hesap oluştur (Madde 1) — ikisi de mobilde görünür */}
-            <Link href="/login" className="inline-flex h-9 items-center px-2.5 sm:px-3.5 rounded-lg sm:border sm:border-border sm:bg-surface hover:bg-surface-2 text-sm font-medium transition-colors">
+            <Link href="/login" className="shrink-0 inline-flex h-9 items-center px-3 sm:px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-sm font-medium transition-colors whitespace-nowrap">
               {t("land.nav.signin")}
             </Link>
-            <Link href="/register" className="h-9 inline-flex items-center px-2.5 sm:px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all">
+            <Link href="/register" className="shrink-0 h-9 inline-flex items-center px-3 sm:px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all whitespace-nowrap">
               {t("land.nav.register")}
             </Link>
           </div>

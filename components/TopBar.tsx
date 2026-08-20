@@ -162,7 +162,7 @@ export default function TopBar({
         </nav>
 
         {/* Sağ aksiyonlar */}
-        <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto sm:ml-0">
           <button
             onClick={onSearch}
             className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
@@ -192,7 +192,7 @@ export default function TopBar({
                 ? t("topbar.hideLivingOn")
                 : t("topbar.hideLivingOff")
             }
-            className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+            className={`hidden min-[360px]:flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
               privacyForced ? "cursor-not-allowed" : ""
             } ${
               hideLiving
@@ -223,7 +223,7 @@ export default function TopBar({
           {forced ? (
             <span
               title={t("role.viewer")}
-              className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary bg-primary-soft text-primary"
+              className="hidden min-[360px]:flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary bg-primary-soft text-primary"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
@@ -238,7 +238,7 @@ export default function TopBar({
             aria-label={t("topbar.readOnly")}
             aria-pressed={readOnly}
             title={readOnly ? t("topbar.readOnlyOn") : t("topbar.readOnlyOff")}
-            className={`flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
+            className={`hidden min-[360px]:flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border transition-colors ${
               readOnly
                 ? "border-primary bg-primary-soft text-primary"
                 : "border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted"
