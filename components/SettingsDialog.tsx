@@ -14,7 +14,6 @@ interface Props {
   peopleCount: number;
   onImportExport: () => void;
   onOpenTable: () => void;
-  onAdd: () => void;
   /** Tüm kişiler silindikten sonra (ağacı tazele). */
   onCleared: () => void;
 }
@@ -29,7 +28,6 @@ export default function SettingsDialog({
   peopleCount,
   onImportExport,
   onOpenTable,
-  onAdd,
   onCleared,
 }: Props) {
   const t = useT();
@@ -95,9 +93,6 @@ export default function SettingsDialog({
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={onOpenTable}>
                   {t("view.tablo.label")}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={onAdd}>
-                  {t("common.addPerson")}
                 </Button>
               </div>
 

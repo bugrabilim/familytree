@@ -436,8 +436,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
           )}
           {pg.kind === "schema" && (
             <div className="font-serif h-full flex flex-col">
-              <h2 className="text-center text-2xl font-bold mb-1">{t("book.schemaTitle")}</h2>
-              <p className="text-center text-sm opacity-60 mb-4">{t("book.landscapeHint")}</p>
+              <h2 className="text-center text-2xl font-bold mb-4">{t("book.schemaTitle")}</h2>
               <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
                 <TreeSchema people={masked} />
               </div>

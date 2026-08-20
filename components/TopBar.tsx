@@ -71,6 +71,8 @@ interface Props {
   /** ⋮ menüsünden Ayarlar / Paylaş hub'larını açar. */
   onOpenSettings: () => void;
   onOpenShare: () => void;
+  /** ⋮ menüsündeki "Yazdır" — açık görünümü yazdırır (Madde 8). */
+  onPrintView: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
   onAiChat?: () => void;
   peopleCount: number;
@@ -89,6 +91,7 @@ export default function TopBar({
   onSearch,
   onOpenSettings,
   onOpenShare,
+  onPrintView,
   onAiChat,
   peopleCount,
   trees,
@@ -205,6 +208,11 @@ export default function TopBar({
                     label={t("menu.share")}
                     onClick={() => { setMenuOpen(false); onOpenShare(); }}
                     icon={<path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
+                  />
+                  <MenuBtn
+                    label={t("menu.print")}
+                    onClick={() => { setMenuOpen(false); onPrintView(); }}
+                    icon={<path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
                   />
                   <MenuBtn
                     label={t("menu.settings")}

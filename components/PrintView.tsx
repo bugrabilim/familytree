@@ -312,27 +312,24 @@ export default function PrintView({ people, familyName, onClose }: Props) {
           </div>
         </section>
 
-        {/* — Aile Coğrafyası — tam sayfa yatay harita (Madde 11) — */}
+        {/* — Aile Coğrafyası — doğum yerleri haritası (Madde 11; düz/portre) — */}
         {placeAgg.located.length > 0 && (
-          <section className="print-section book-landscape break-before-page min-h-[60vh] flex flex-col">
+          <section className="print-section break-before-page flex flex-col">
             <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
             <p className="text-center text-xs text-neutral-500 mb-3">
               {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
-              {" · "}
-              <span className="italic">{t("book.landscapeHint")}</span>
             </p>
-            <div className="book-landscape-body flex-1 min-h-0 flex">
+            <div className="h-[150mm] max-h-[68vh] flex">
               <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
             </div>
           </section>
         )}
 
-        {/* — Soy Ağacı Şeması — tam sayfa yatay diyagram (Madde 11) — */}
+        {/* — Soy Ağacı Şeması — diyagram (Madde 11; düz/portre) — */}
         {masked.length > 1 && (
-          <section className="print-section book-landscape break-before-page min-h-[60vh] flex flex-col">
-            <h2 className="text-center text-2xl font-bold mb-1">{t("book.schemaTitle")}</h2>
-            <p className="text-center text-xs text-neutral-500 mb-3 italic">{t("book.landscapeHint")}</p>
-            <div className="book-landscape-body flex-1 min-h-0 flex">
+          <section className="print-section break-before-page flex flex-col">
+            <h2 className="text-center text-2xl font-bold mb-3">{t("book.schemaTitle")}</h2>
+            <div className="h-[150mm] max-h-[68vh] flex">
               <TreeSchema people={masked} />
             </div>
           </section>
