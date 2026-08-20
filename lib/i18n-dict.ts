@@ -61,6 +61,8 @@ export const tr: Dict = {
   "menu.share": "Paylaş",
   "menu.theme": "Tema",
   "menu.language": "Dil",
+  "settings.general": "Genel",
+  "settings.people": "Kişiler",
   "topbar.signOut": "Çıkış yap",
   "topbar.home": "Ana sayfa",
 
@@ -1130,6 +1132,8 @@ export const en: Dict = {
   "menu.share": "Share",
   "menu.theme": "Theme",
   "menu.language": "Language",
+  "settings.general": "General",
+  "settings.people": "People",
   "topbar.signOut": "Sign out",
   "topbar.home": "Home",
 
