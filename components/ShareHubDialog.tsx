@@ -5,7 +5,6 @@ import { useT } from "@/lib/i18n";
 
 interface Props {
   onClose: () => void;
-  onPrintView: () => void;
   /** Yalnız yönetici (admin). Verilmezse ilgili satır gizlenir. */
   onShare?: () => void;
   onManageMembers?: () => void;
@@ -13,10 +12,10 @@ interface Props {
 }
 
 /**
- * Paylaş hub'ı (⋮ → Paylaş). Herkese açık paylaşım, görüntüleme modu, üyeler &
- * davetler, bağlı ağaçlar ve yazdır tek yerde.
+ * Paylaş hub'ı (⋮ → Paylaş). Herkese açık paylaşım, üyeler & davetler ve bağlı
+ * ağaçlar. (Yazdır artık yalnız ⋮ menüsünde.)
  */
-export default function ShareHubDialog({ onClose, onPrintView, onShare, onManageMembers, onPair }: Props) {
+export default function ShareHubDialog({ onClose, onShare, onManageMembers, onPair }: Props) {
   const t = useT();
 
   return (
@@ -28,9 +27,6 @@ export default function ShareHubDialog({ onClose, onPrintView, onShare, onManage
 
         {onManageMembers && <Row label={t("members.menu")} onClick={onManageMembers} />}
         {onPair && <Row label={t("pair.menu")} onClick={onPair} />}
-
-        <div className="h-px bg-border my-1" />
-        <Row label={t("print.currentView")} onClick={onPrintView} />
       </div>
     </Modal>
   );
