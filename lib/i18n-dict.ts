@@ -946,9 +946,10 @@ export const tr: Dict = {
   "gedcom.download": "GEDCOM indir",
   "gedcom.exportFailed": "Dışa aktarma başarısız oldu.",
   "gedcom.importTitle": "İçe aktar",
-  "gedcom.importBodyBefore": "Başka bir programdan indirdiğin",
+  "gedcom.importBodyBefore": "Başka bir programdan ya da e-Devlet'ten indirdiğin dosyayı buraya yükle:",
   "gedcom.importBodyAfter":
-    "dosyasını buraya yükle. Kişiler, tarihler ve aile bağları aktarılır.",
+    "GEDCOM (.ged), e-Devlet / Soy Ağacı (.ftz), CSV, JSON. Kişiler, tarihler ve aile bağları aktarılır.",
+  "gedcom.importEmpty": "Dosyadan kişi bulunamadı. Dosyanın doğru olduğundan emin ol ya da başka bir biçim dene.",
   "gedcom.modeMerge": "Mevcuda ekle",
   "gedcom.modeReplace": "Hepsini değiştir",
   "gedcom.replaceWarn":
@@ -1962,9 +1963,10 @@ export const en: Dict = {
   "gedcom.download": "Download GEDCOM",
   "gedcom.exportFailed": "Export failed.",
   "gedcom.importTitle": "Import",
-  "gedcom.importBodyBefore": "Upload a",
+  "gedcom.importBodyBefore": "Upload a file you downloaded from another program or e-Devlet:",
   "gedcom.importBodyAfter":
-    "file you downloaded from another program. People, dates and family links are imported.",
+    "GEDCOM (.ged), e-Devlet / Family Tree (.ftz), CSV, JSON. People, dates and family links are imported.",
+  "gedcom.importEmpty": "No people found in the file. Make sure the file is correct or try another format.",
   "gedcom.modeMerge": "Add to existing",
   "gedcom.modeReplace": "Replace all",
   "gedcom.replaceWarn":
