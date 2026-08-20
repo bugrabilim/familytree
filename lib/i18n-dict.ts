@@ -57,6 +57,10 @@ export const tr: Dict = {
   "topbar.readOnlyOn": "Görüntüleme modu açık — düzenlemeyi geri açmak için tıkla",
   "topbar.readOnlyOff": "Görüntüleme modu: yalnızca göz at, düzenlemeyi gizle",
   "topbar.menu": "Menü",
+  "menu.settings": "Ayarlar",
+  "menu.share": "Paylaş",
+  "menu.theme": "Tema",
+  "menu.language": "Dil",
   "topbar.signOut": "Çıkış yap",
   "topbar.home": "Ana sayfa",
 
@@ -1106,6 +1110,10 @@ export const en: Dict = {
   "topbar.readOnlyOn": "View mode is on — click to re-enable editing",
   "topbar.readOnlyOff": "View mode: browse only, hide editing",
   "topbar.menu": "Menu",
+  "menu.settings": "Settings",
+  "menu.share": "Share",
+  "menu.theme": "Theme",
+  "menu.language": "Language",
   "topbar.signOut": "Sign out",
   "topbar.home": "Home",
 
