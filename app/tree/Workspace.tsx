@@ -655,7 +655,6 @@ function WorkspaceInner({
       {shareHubOpen && (
         <ShareHubDialog
           onClose={() => setShareHubOpen(false)}
-          onPrintView={() => { setShareHubOpen(false); printCurrentView(); }}
           onShare={role === "admin" && !publicView ? () => { setShareHubOpen(false); setShareOpen(true); } : undefined}
           onManageMembers={role === "admin" && !publicView ? () => { setShareHubOpen(false); setMembersOpen(true); } : undefined}
           onPair={role === "admin" && !publicView ? () => { setShareHubOpen(false); setPairOpen(true); } : undefined}
