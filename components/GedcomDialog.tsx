@@ -12,34 +12,18 @@ interface Props {
   peopleCount: number;
   onClose: () => void;
   onImported: (count: number) => void;
-  onCleared: () => void;
   /** "Aile Kitabı" dışa aktarımı — bası (PDF) görünümünü açar. */
   onPrintBook: () => void;
 }
 
-export default function GedcomDialog({ peopleCount, onClose, onImported, onCleared, onPrintBook }: Props) {
+export default function GedcomDialog({ peopleCount, onClose, onImported, onPrintBook }: Props) {
   const t = useT();
   const { lang } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [exportFmt, setExportFmt] = useState<ExportChoice>("gedcom");
-  const [busy, setBusy] = useState<"" | "export" | "import" | "clear">("");
+  const [busy, setBusy] = useState<"" | "export" | "import">("");
   const [error, setError] = useState("");
-  const [clearOnay, setClearOnay] = useState(false);
-
-  const handleClear = async () => {
-    setBusy("clear");
-    setError("");
-    try {
-      const res = await fetch("/api/family/clear", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? t("gedcom.clearFailed"));
-      onCleared();
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy("");
-    }
-  };
 
   const handleExport = async () => {
     // "Aile Kitabı" = bası (PDF) görünümü; dosya indirmek yerine kitabı açar.
@@ -183,36 +167,6 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onClear
             onChange={handleFile}
           />
         </section>
-
-        {peopleCount > 0 && (
-          <>
-            <div className="h-px bg-border" />
-            {/* Tehlikeli bölge — tüm kişileri tek seferde sil (geri alınamaz). */}
-            <section>
-              <h3 className="text-sm font-semibold text-danger mb-1">{t("gedcom.clearTitle")}</h3>
-              <p className="text-xs text-text-muted leading-relaxed mb-3">{t("gedcom.clearBody")}</p>
-              {clearOnay ? (
-                <div className="space-y-2.5">
-                  <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg leading-relaxed">
-                    {t("gedcom.clearWarn", { count: peopleCount })}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="danger" onClick={handleClear} disabled={busy !== ""}>
-                      {busy === "clear" ? t("gedcom.clearing") : t("gedcom.clearConfirm", { count: peopleCount })}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setClearOnay(false)} disabled={busy !== ""}>
-                      {t("gedcom.cancel")}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button size="sm" variant="secondary" onClick={() => setClearOnay(true)} disabled={busy !== ""}>
-                  {t("gedcom.clearButton")}
-                </Button>
-              )}
-            </section>
-          </>
-        )}
 
         {error && (
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>

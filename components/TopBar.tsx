@@ -3,11 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import ThemeToggle from "./ThemeToggle";
-import LanguageSwitch from "./LanguageSwitch";
 import TreeSwitcher from "./TreeSwitcher";
-import { usePrivacy } from "./PrivacyContext";
-import { useReadOnly } from "./ReadOnlyContext";
 import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
@@ -72,15 +68,9 @@ interface Props {
   view: ViewKey;
   onViewChange: (v: ViewKey) => void;
   onSearch: () => void;
-  onImportExport: () => void;
-  /** Açık görünümü (ağaç/harita/soy/panel) yazdır (Madde 8). */
-  onPrintView: () => void;
-  /** Yalnız yönetici (admin) için — verilmezse üye yönetimi menüsü gizli. */
-  onManageMembers?: () => void;
-  /** Yalnız yönetici (admin) için — herkese açık paylaşım bağlantısı. */
-  onShare?: () => void;
-  /** Yalnız yönetici (admin) için — hesaplar arası ağaç eşleştirme. */
-  onPair?: () => void;
+  /** ⋮ menüsünden Ayarlar / Paylaş hub'larını açar. */
+  onOpenSettings: () => void;
+  onOpenShare: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
   onAiChat?: () => void;
   peopleCount: number;
@@ -97,11 +87,8 @@ export default function TopBar({
   view,
   onViewChange,
   onSearch,
-  onImportExport,
-  onPrintView,
-  onManageMembers,
-  onShare,
-  onPair,
+  onOpenSettings,
+  onOpenShare,
   onAiChat,
   peopleCount,
   trees,
@@ -115,8 +102,6 @@ export default function TopBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
-  const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
-  const { readOnly, setReadOnly, forced } = useReadOnly();
 
   return (
     <header className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
@@ -215,107 +200,18 @@ export default function TopBar({
 
             {menuOpen && (
               <>
-                <div className="absolute right-0 top-11 z-20 w-60 max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-bg-elevated shadow-float animate-scale-in origin-top-right">
-                  {/* ── AYARLAR ── */}
-                  <div className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
-                    {t("menu.settings")}
-                  </div>
-
-                  {/* Yaşayanları gizle (toggle) */}
-                  <MenuSwitch
-                    label={t("topbar.hideLiving")}
-                    on={hideLiving}
-                    disabled={privacyForced}
-                    onClick={() => setHideLiving(!hideLiving)}
-                    icon={<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z M12 9.4a2.6 2.6 0 100 5.2 2.6 2.6 0 000-5.2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-                  />
-
-                  {/* Tema */}
-                  <div className="w-full flex items-center justify-between gap-2.5 px-3.5 py-2 text-sm text-text">
-                    <span className="flex items-center gap-2.5">
-                      <MenuIcon><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6L4.5 4.5M19.5 19.5L18 18M6 18l-1.5 1.5M19.5 4.5L18 6M12 8a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></MenuIcon>
-                      {t("menu.theme")}
-                    </span>
-                    <ThemeToggle />
-                  </div>
-
-                  {/* Dil */}
-                  <div className="w-full flex items-center justify-between gap-2.5 px-3.5 py-2 text-sm text-text">
-                    <span className="flex items-center gap-2.5">
-                      <MenuIcon><path d="M4 5h10M9 3v2M11 5c0 5-3 9-7 11M6 9c0 3 3 5 7 6M13 21l4-9 4 9M15 17h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></MenuIcon>
-                      {t("menu.language")}
-                    </span>
-                    <LanguageSwitch />
-                  </div>
-
-                  {/* İçe / dışa aktar */}
+                <div className="absolute right-0 top-11 z-20 w-48 rounded-xl border border-border bg-bg-elevated shadow-float animate-scale-in origin-top-right py-1">
                   <MenuBtn
-                    label={t("common.gedcom")}
-                    onClick={() => { setMenuOpen(false); onImportExport(); }}
-                    icon={<path d="M12 3v12M12 15l-4-4M12 15l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
+                    label={t("menu.share")}
+                    onClick={() => { setMenuOpen(false); onOpenShare(); }}
+                    icon={<path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
                   />
-
-                  {/* Tablo — toplu düzenle & sil */}
                   <MenuBtn
-                    label={t("view.tablo.label")}
-                    onClick={() => { setMenuOpen(false); onViewChange("tablo"); }}
-                    icon={<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+                    label={t("menu.settings")}
+                    onClick={() => { setMenuOpen(false); onOpenSettings(); }}
+                    icon={<path d="M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 13a1.7 1.7 0 00.4 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1A1.7 1.7 0 004 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 002.6 13H2.5a2 2 0 110-4h.1A1.7 1.7 0 004.6 6.1L4.5 6a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 2.6V2.5a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9h.1a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
                   />
-
-                  {/* Bağlı ağaçlar */}
-                  {onPair && (
-                    <MenuBtn
-                      label={t("pair.menu")}
-                      onClick={() => { setMenuOpen(false); onPair(); }}
-                      icon={<path d="M8 7a3 3 0 100 6 3 3 0 000-6zm8-2a3 3 0 100 6 3 3 0 000-6zM11 10h2M3 20v-1a4 4 0 014-4h2M14 20v-1a4 4 0 014-4h1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-                    />
-                  )}
-
                   <div className="h-px bg-border my-1" />
-
-                  {/* ── PAYLAŞ ── */}
-                  <div className="px-3.5 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
-                    {t("menu.share")}
-                  </div>
-
-                  {onShare && (
-                    <MenuBtn
-                      label={t("share.menu")}
-                      onClick={() => { setMenuOpen(false); onShare(); }}
-                      icon={<path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
-                    />
-                  )}
-
-                  {/* Görüntüleme modu (salt-okunur) */}
-                  <MenuSwitch
-                    label={t("topbar.readOnly")}
-                    on={readOnly || forced}
-                    disabled={forced}
-                    onClick={() => setReadOnly(!readOnly)}
-                    icon={<path d="M7 10V7a5 5 0 0110 0v3M6 10h12v10H6V10z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-                  />
-
-                  {onManageMembers && (
-                    <MenuBtn
-                      label={t("members.menu")}
-                      onClick={() => { setMenuOpen(false); onManageMembers(); }}
-                      icon={<path d="M16 20v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 8v6M22 11h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-                    />
-                  )}
-
-                  <div className="h-px bg-border my-1" />
-
-                  {/* ── Genel ── */}
-                  <MenuBtn
-                    label={t("topbar.home")}
-                    onClick={() => { setMenuOpen(false); router.push("/tanitim"); }}
-                    icon={<path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
-                  />
-                  <MenuBtn
-                    label={t("print.currentView")}
-                    onClick={() => { setMenuOpen(false); onPrintView(); }}
-                    icon={<path d="M3 5h18v12H3zM3 19h18M9 9l3 3 3-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-                  />
                   <MenuBtn
                     label={t("topbar.signOut")}
                     onClick={async () => { setMenuOpen(false); await signOut({ redirect: false }); router.push("/login"); }}
@@ -365,37 +261,3 @@ function MenuBtn({ label, onClick, icon }: { label: string; onClick: () => void;
   );
 }
 
-function MenuSwitch({
-  label,
-  on,
-  disabled,
-  onClick,
-  icon,
-}: {
-  label: string;
-  on: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={on}
-      className="w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-surface-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-left"
-    >
-      <span className="flex items-center gap-2.5">
-        <MenuIcon>{icon}</MenuIcon>
-        {label}
-      </span>
-      <span
-        className={`w-9 h-5 rounded-full flex items-center px-0.5 shrink-0 transition-colors ${
-          on ? "bg-primary justify-end" : "bg-surface-2 border border-border justify-start"
-        }`}
-      >
-        <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
-      </span>
-    </button>
-  );
-}

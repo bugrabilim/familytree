@@ -10,6 +10,8 @@ import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
+import SettingsDialog from "@/components/SettingsDialog";
+import ShareHubDialog from "@/components/ShareHubDialog";
 import AiChat, { type AiMsg } from "@/components/AiChat";
 import PrintView from "@/components/PrintView";
 import BookView from "@/components/BookView";
@@ -135,6 +137,8 @@ function WorkspaceInner({
   const [shareOpen, setShareOpen] = useState(false);
   const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shareHubOpen, setShareHubOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
   const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
@@ -383,7 +387,7 @@ function WorkspaceInner({
   );
 
   const handleCleared = useCallback(() => {
-    setGedcomOpen(false);
+    setSettingsOpen(false);
     notify(t("ws.toast.cleared"));
     router.refresh();
   }, [router, notify, t]);
@@ -439,11 +443,8 @@ function WorkspaceInner({
         view={view}
         onViewChange={(v) => (v === "kitap" ? setBookOpen(true) : setView(v))}
         onSearch={() => setPaletteOpen(true)}
-        onImportExport={() => setGedcomOpen(true)}
-        onPrintView={printCurrentView}
-        onManageMembers={role === "admin" && !publicView ? () => setMembersOpen(true) : undefined}
-        onShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
-        onPair={role === "admin" && !publicView ? () => setPairOpen(true) : undefined}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenShare={() => setShareHubOpen(true)}
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
@@ -608,14 +609,37 @@ function WorkspaceInner({
         />
       )}
 
-      {/* GEDCOM */}
+      {/* İçe/dışa aktar */}
       {gedcomOpen && (
         <GedcomDialog
           peopleCount={people.length}
           onClose={() => setGedcomOpen(false)}
           onImported={handleImported}
-          onCleared={handleCleared}
           onPrintBook={() => { setGedcomOpen(false); setPrintOpen(true); }}
+        />
+      )}
+
+      {/* Ayarlar hub'ı (⋮ → Ayarlar) */}
+      {settingsOpen && (
+        <SettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          editable={!readOnly}
+          peopleCount={people.length}
+          onImportExport={() => { setSettingsOpen(false); setGedcomOpen(true); }}
+          onOpenTable={() => { setSettingsOpen(false); setView("tablo"); }}
+          onAdd={() => { setSettingsOpen(false); openAdd(); }}
+          onCleared={handleCleared}
+        />
+      )}
+
+      {/* Paylaş hub'ı (⋮ → Paylaş) */}
+      {shareHubOpen && (
+        <ShareHubDialog
+          onClose={() => setShareHubOpen(false)}
+          onPrintView={() => { setShareHubOpen(false); printCurrentView(); }}
+          onShare={role === "admin" && !publicView ? () => { setShareHubOpen(false); setShareOpen(true); } : undefined}
+          onManageMembers={role === "admin" && !publicView ? () => { setShareHubOpen(false); setMembersOpen(true); } : undefined}
+          onPair={role === "admin" && !publicView ? () => { setShareHubOpen(false); setPairOpen(true); } : undefined}
         />
       )}
 
