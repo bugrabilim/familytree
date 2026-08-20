@@ -441,10 +441,19 @@ function WorkspaceInner({
       <TopBar
         familyName={familyName}
         view={view}
-        onViewChange={(v) => (v === "kitap" ? setBookOpen(true) : setView(v))}
+        onViewChange={(v) => {
+          // Madde 1 — Veri yokken "Aile Kitabı" açılmaz; diğer görünüm
+          // düğmeleri gibi davranır (boş ağaçta bir şey açmaz).
+          if (v === "kitap") {
+            if (!isEmpty) setBookOpen(true);
+          } else {
+            setView(v);
+          }
+        }}
         onSearch={() => setPaletteOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShare={() => setShareHubOpen(true)}
+        onPrintView={printCurrentView}
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
@@ -627,7 +636,6 @@ function WorkspaceInner({
           peopleCount={people.length}
           onImportExport={() => { setSettingsOpen(false); setGedcomOpen(true); }}
           onOpenTable={() => { setSettingsOpen(false); setView("tablo"); }}
-          onAdd={() => { setSettingsOpen(false); openAdd(); }}
           onCleared={handleCleared}
         />
       )}
