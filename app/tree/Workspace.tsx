@@ -737,6 +737,7 @@ function WorkspaceInner({
           onImportExport={() => { setPeopleOpen(false); setGedcomOpen(true); }}
           onOpenTable={() => { setPeopleOpen(false); setView("tablo"); }}
           onCleared={() => { setPeopleOpen(false); handleCleared(); }}
+          onRestored={() => { setPeopleOpen(false); notify(t("history.restored")); router.refresh(); }}
         />
       )}
 
