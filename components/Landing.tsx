@@ -326,10 +326,10 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
         {/* Sayılarla — özgül rakamlar (görününce sayar) */}
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-4 rounded-2xl border border-border bg-surface/70 backdrop-blur px-6 py-6 text-center sm:text-left">
-            <Stat value={346} label={t("land.stat.people")} />
+            <Stat value={366} label={t("land.stat.people")} />
             <Stat value={17} label={t("land.stat.gen")} />
             <Stat value={505} label={t("land.stat.years")} />
-            <Stat value={7} label={t("land.stat.views")} />
+            <Stat value={9} label={t("land.stat.views")} />
           </div>
         </div>
       </section>

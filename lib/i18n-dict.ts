@@ -163,7 +163,7 @@ export const tr: Dict = {
   "auth.highlight.sharing.body": "Bağlantıyla paylaş, akraba ağaçlarını eşleştir.",
   "auth.highlight.gedcom.title": "GEDCOM uyumlu",
   "auth.highlight.gedcom.body": "Verini dilediğin an dışa aktar.",
-  "auth.trust": "346 kişilik, 17 kuşaklık demo · yapay zekâ ile her dosyayı içeri aktarma",
+  "auth.trust": "Şifresiz demo · yapay zekâ ile her dosyayı içeri aktarma",
 
   /* --- Tanıtım (landing) sayfası --- */
   "land.nav.signin": "Giriş yap",
@@ -215,7 +215,7 @@ export const tr: Dict = {
   "land.ai.b3": "Ağacınıza doğal dille soru sorma",
   "land.ai.chat.q": "En kalabalık kuşak hangisi?",
   "land.ai.chat.a": "5. kuşak — 63 kişi. En geniş kardeş grubu Halıcı Ahmet'in 14 çocuğu.",
-  "land.shot.treeAlt": "Soy Ağacı uygulamasında 346 kişilik demo ağacın görünümü",
+  "land.shot.treeAlt": "Soy Ağacı uygulamasında 366 kişilik demo ağacın görünümü",
   "land.shot.bookAlt": "Aile kitabı: yan yana iki parşömen sayfa ve yığılan sayfa kenarları",
   "land.book.badge": "Flipbook",
   "land.book.title": "Aile kitabınız, gerçek bir kitap gibi",
@@ -223,7 +223,7 @@ export const tr: Dict = {
   "land.book.cta": "Demoda göz at",
   "land.hero.ctaDemo": "Demoyu dene",
   "land.hero.ctaSignin": "Giriş yap",
-  "land.hero.trust": "Ücretsiz kullanım · kurulum yok · 346 kişilik hazır demo · yapay zekâ ile her dosyayı içeri aktarma",
+  "land.hero.trust": "Ücretsiz kullanım · kurulum yok · 366 kişilik hazır demo · yapay zekâ ile her dosyayı içeri aktarma",
   "land.features.title": "Bir aile tarihçisinin ihtiyacı olan her şey",
   "land.features.subtitle": "Görselleştirmeden gizliliğe, yapay zekâdan içe aktarmaya — hepsi tek uygulamada.",
   "land.feat.views.t": "Yedi görünüm",
@@ -252,7 +252,7 @@ export const tr: Dict = {
   "land.step.3.t": "Keşfet & paylaş",
   "land.step.3.b": "Görselleştir, aile kitabı çıkar, akrabalarınla paylaş.",
   "land.demo.title": "Hazır bir aileyle hemen keşfet",
-  "land.demo.body": "17 kuşak, 346 kişilik örnek bir ağaç — çok eşlilik, göç, evlat edinme dahil. Şifre gerekmez.",
+  "land.demo.body": "17 kuşak, 366 kişilik örnek bir ağaç — çok eşlilik, göç, evlat edinme dahil. Şifre gerekmez.",
   "land.demo.cta": "Demo ağacını incele",
   "land.demo.loading": "Açılıyor…",
   "land.faq.title": "Sık sorulanlar",
@@ -291,7 +291,7 @@ export const tr: Dict = {
   "login.demoLoading": "Demo hazırlanıyor…",
   "login.demoButton": "Demo ağacını şifresiz incele",
   "login.demoNote":
-    "300’ü aşkın kişilik, 16 kuşaklık örnek bir aile. Herkese açık ve ortak — her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.",
+    "Örnek bir aile ağacı. Herkese açık ve ortak — her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.",
   "login.demoFailed": "Demo açılamadı. Lütfen tekrar deneyin.",
 
   "register.title": "Ailenin ağacını kur",
@@ -1334,7 +1334,7 @@ export const en: Dict = {
   "auth.highlight.sharing.body": "Share by link, match relatives’ trees.",
   "auth.highlight.gedcom.title": "GEDCOM compatible",
   "auth.highlight.gedcom.body": "Export your data anytime.",
-  "auth.trust": "346-person, 17-generation demo · import any file with AI",
+  "auth.trust": "Passwordless demo · import any file with AI",
 
   /* --- Landing page --- */
   "land.nav.signin": "Sign in",
@@ -1386,7 +1386,7 @@ export const en: Dict = {
   "land.ai.b3": "Ask your tree questions in plain language",
   "land.ai.chat.q": "Which generation is the largest?",
   "land.ai.chat.a": "Generation 5 — 63 people. The largest sibling group is Ahmet the Carpet-Seller's 14 children.",
-  "land.shot.treeAlt": "The 346-person demo tree in the Family Tree app",
+  "land.shot.treeAlt": "The 366-person demo tree in the Family Tree app",
   "land.shot.bookAlt": "The family book: two facing parchment pages with stacked page edges",
   "land.book.badge": "Flipbook",
   "land.book.title": "Your family book, just like a real book",
@@ -1394,7 +1394,7 @@ export const en: Dict = {
   "land.book.cta": "See it in the demo",
   "land.hero.ctaDemo": "Try the demo",
   "land.hero.ctaSignin": "Sign in",
-  "land.hero.trust": "Free to use · no setup · 346-person ready demo · import any file with AI",
+  "land.hero.trust": "Free to use · no setup · 366-person ready demo · import any file with AI",
   "land.features.title": "Everything a family historian needs",
   "land.features.subtitle": "From visualization to privacy, AI to import — all in one app.",
   "land.feat.views.t": "Seven views",
@@ -1423,7 +1423,7 @@ export const en: Dict = {
   "land.step.3.t": "Explore & share",
   "land.step.3.b": "Visualize, make a family book, and share with relatives.",
   "land.demo.title": "Explore right away with a ready-made family",
-  "land.demo.body": "A 17-generation, 346-person sample tree — including polygamy, migration and adoption. No password needed.",
+  "land.demo.body": "A 17-generation, 366-person sample tree — including polygamy, migration and adoption. No password needed.",
   "land.demo.cta": "Open the demo tree",
   "land.demo.loading": "Opening…",
   "land.faq.title": "Frequently asked",
@@ -1462,7 +1462,7 @@ export const en: Dict = {
   "login.demoLoading": "Preparing demo…",
   "login.demoButton": "Explore the demo tree without a password",
   "login.demoNote":
-    "A sample family of over 300 people across 16 generations. Public and shared — reloaded fresh on every visit, so tinker with it however you like.",
+    "A sample family tree. Public and shared — reloaded fresh on every visit, so tinker with it however you like.",
   "login.demoFailed": "Couldn’t open the demo. Please try again.",
 
   "register.title": "Build your family tree",
