@@ -44,14 +44,34 @@ export interface Invite {
  * yalnızca GÖRÜNTÜLER (düzenleyemez). Jeton `<treeId>.<secret>` biçiminde ham
  * (bearer) saklanır — tahmin edilemez; sahibi istediğinde yenileyip/kapatabilir.
  */
+/** Genel bir paylaşım bağlantısına yapılan tek bir ziyaret (anonim; kimlik yok). */
+export interface ShareVisit {
+  at: string;
+  /** Vercel coğrafi başlıklarından (varsa) — ülke kodu / şehir. */
+  country?: string;
+  city?: string;
+  /** Cihaz türü: "mobil" | "masaüstü" | "tablet". */
+  device?: string;
+}
+
 export interface ShareLink {
-  /** Ham bearer jeton: `<treeId>.<secret>`. Bağlantı ve "kod" olarak kullanılır. */
+  /** Kararlı kimlik (yönetim için). */
+  id: string;
+  /** Ham bearer jeton: `<treeId>.<secret>`. Bağlantı olarak kullanılır. */
   token: string;
   /** Ağaç adı (paylaşım anında; genel sayfada başlık için). */
   treeName: string;
   /** Yaşayanların özel bilgileri gizlensin mi? (varsayılan: evet). */
   hideLiving: boolean;
   createdAt: string;
+  /** Kullanıcı etiketi (ör. "WhatsApp grubu"). */
+  label?: string;
+  /** Sona erme (ISO). null/undefined → süresiz. */
+  expiresAt?: string | null;
+  /** Toplam görüntülenme sayısı. */
+  views?: number;
+  /** Son ziyaretler (kim/nereden/ne zaman — anonim; kapalı liste, en yeni önce). */
+  visits?: ShareVisit[];
 }
 
 /**
@@ -82,8 +102,10 @@ export interface PairInvite {
 export interface TreeAccess {
   members: Member[];
   invites: Invite[];
-  /** Herkese açık salt-okunur paylaşım (yoksa/undefined → paylaşım kapalı). */
+  /** Eski tekil paylaşım (geri uyumluluk; okurken `shares`'e taşınır). */
   share?: ShareLink | null;
+  /** Herkese açık salt-okunur paylaşım bağlantıları (çoklu, kalıcı). */
+  shares?: ShareLink[];
   /** Onaylı bağlı ağaçlar (hesaplar arası). */
   pairings?: Pairing[];
   /** Bekleyen eşleştirme davetleri. */

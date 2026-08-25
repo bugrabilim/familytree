@@ -1,16 +1,25 @@
+import { headers } from "next/headers";
 import { getFamilyData } from "@/lib/blob";
-import { findValidShare } from "@/lib/members";
+import { findValidShare, recordShareVisit } from "@/lib/members";
 import Workspace from "@/app/tree/Workspace";
 import Invalid from "./Invalid";
 
 export const dynamic = "force-dynamic";
 
+/** User-Agent'tan kaba cihaz türü (anonim). */
+function deviceOf(ua: string): string {
+  const s = ua.toLowerCase();
+  if (/ipad|tablet/.test(s)) return "tablet";
+  if (/mobi|iphone|android/.test(s)) return "mobil";
+  return "masaüstü";
+}
+
 /**
  * Herkese açık salt-okunur ağaç görünümü — ÜYELİK/GİRİŞ GEREKMEZ.
  *
- * `/g/<token>` — jeton geçerli ve paylaşım etkinse ağaç, salt-okunur ve
- * (sahibin tercihine göre) yaşayanlar gizlenmiş olarak gösterilir. Yazma
- * yolları arayüzde kapalı; sunucu da bu ziyaretçiye oturum vermez.
+ * `/g/<token>` — jeton geçerli, etkin ve süresi dolmamışsa ağaç salt-okunur ve
+ * (sahibin tercihine göre) yaşayanlar gizlenmiş gösterilir. Her görüntüleme
+ * anonim olarak sayılır (sahibin istatistikleri için: ülke/şehir/cihaz/zaman).
  */
 export default async function SharePage({
   params,
@@ -20,6 +29,16 @@ export default async function SharePage({
   const { token } = await params;
   const valid = await findValidShare(decodeURIComponent(token));
   if (!valid) return <Invalid />;
+
+  // Ziyaret kaydı (best-effort, anonim). Vercel coğrafi başlıkları varsa kullan.
+  try {
+    const h = await headers();
+    await recordShareVisit(valid.treeId, valid.share.id, {
+      country: h.get("x-vercel-ip-country") || undefined,
+      city: (() => { const c = h.get("x-vercel-ip-city"); return c ? decodeURIComponent(c) : undefined; })(),
+      device: deviceOf(h.get("user-agent") || ""),
+    });
+  } catch { /* istatistik görüntülemeyi engellemez */ }
 
   const { people, updatedAt } = await getFamilyData(valid.treeId);
 

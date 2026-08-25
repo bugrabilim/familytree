@@ -5,25 +5,23 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { canManage } from "@/lib/roles";
 import { listTrees } from "@/lib/trees";
 import {
-  disableShare,
-  enableShare,
-  getShareLink,
-  updateShareOptions,
+  createShare,
+  deleteShare,
+  listShares,
+  updateShare,
 } from "@/lib/members";
 import type { ShareLink } from "@/types/user";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Herkese açık salt-okunur paylaşım bağlantısı — yalnız ağaç yöneticisi (admin).
+ * Herkese açık salt-okunur paylaşım — yalnız ağaç yöneticisi (admin).
+ * Çoklu, kalıcı bağlantılar + ziyaret istatistikleri + isteğe bağlı süre.
  *
- *  GET    → mevcut paylaşımı (varsa bağlantı + QR ile) döndürür.
- *  POST   → açar / seçenekleri günceller / jetonu yeniler.
- *           body: { hideLiving?: boolean, rotate?: boolean }
- *  DELETE → paylaşımı kapatır.
- *
- * Bağlantıyı bilen HERKES ağacı yalnızca görüntüler (üyelik gerekmez); yazma
- * yetkisi vermez. Jeton tahmin-edilemez; yenilenince eski bağlantı ölür.
+ *  GET    → tüm bağlantılar (bağlantı + QR + istatistik ile).
+ *  POST   → yeni bağlantı. body: { hideLiving?, label?, expiresDays? }
+ *  PATCH  → bağlantıyı güncelle. body: { id, hideLiving?, label?, expiresDays? }
+ *  DELETE → bağlantıyı sil. body: { id }
  */
 
 async function guard() {
@@ -42,8 +40,7 @@ async function guard() {
   return { treeId: ctx.treeId, treeName };
 }
 
-async function payload(origin: string, share: ShareLink | null) {
-  if (!share) return { enabled: false as const };
+async function decorate(origin: string, share: ShareLink) {
   const url = `${origin}/g/${encodeURIComponent(share.token)}`;
   let qr = "";
   try {
@@ -51,48 +48,66 @@ async function payload(origin: string, share: ShareLink | null) {
   } catch {
     qr = "";
   }
+  const expired = !!share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now();
   return {
-    enabled: true as const,
+    id: share.id,
     url,
     token: share.token,
-    treeName: share.treeName,
+    label: share.label ?? "",
     hideLiving: share.hideLiving,
+    createdAt: share.createdAt,
+    expiresAt: share.expiresAt ?? null,
+    expired,
+    views: share.views ?? 0,
+    visits: (share.visits ?? []).slice(0, 20),
     qr,
   };
+}
+
+async function listPayload(origin: string, treeId: string) {
+  const shares = await listShares(treeId);
+  return { shares: await Promise.all(shares.map((s) => decorate(origin, s))) };
 }
 
 export async function GET(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  const share = await getShareLink(g.treeId);
-  return NextResponse.json(await payload(req.nextUrl.origin, share));
+  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
 }
 
 export async function POST(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-
-  let body: { hideLiving?: boolean; rotate?: boolean } = {};
-  try {
-    body = await req.json();
-  } catch {
-    /* boş gövde = varsayılanlar */
-  }
-  const hideLiving = body.hideLiving ?? true;
-
-  const existing = await getShareLink(g.treeId);
-  let share: ShareLink | null;
-  if (!existing || body.rotate) {
-    share = await enableShare(g.treeId, g.treeName, hideLiving);
-  } else {
-    share = await updateShareOptions(g.treeId, g.treeName, hideLiving);
-  }
-  return NextResponse.json(await payload(req.nextUrl.origin, share));
+  let body: { hideLiving?: boolean; label?: string; expiresDays?: number } = {};
+  try { body = await req.json(); } catch { /* varsayılanlar */ }
+  await createShare(g.treeId, g.treeName, {
+    hideLiving: body.hideLiving ?? true,
+    label: body.label,
+    expiresDays: body.expiresDays,
+  });
+  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
 }
 
-export async function DELETE() {
+export async function PATCH(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  await disableShare(g.treeId);
-  return NextResponse.json({ enabled: false });
+  let body: { id?: string; hideLiving?: boolean; label?: string; expiresDays?: number } = {};
+  try { body = await req.json(); } catch { /* boş */ }
+  if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
+  await updateShare(g.treeId, body.id, {
+    hideLiving: body.hideLiving,
+    label: body.label,
+    expiresDays: body.expiresDays,
+  });
+  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
+}
+
+export async function DELETE(req: NextRequest) {
+  const g = await guard();
+  if ("error" in g) return g.error;
+  let body: { id?: string } = {};
+  try { body = await req.json(); } catch { /* boş */ }
+  if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
+  await deleteShare(g.treeId, body.id);
+  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
 }
