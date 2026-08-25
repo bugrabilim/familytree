@@ -19,6 +19,7 @@ import {
   relativesByGeneration,
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
+import { isAssociate, isMember } from "@/lib/associates";
 import { findIssues } from "@/lib/consistency";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
@@ -35,10 +36,23 @@ interface Props {
   onPrint?: () => void;
 }
 
-export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
+export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint }: Props) {
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
   const t = useT();
+
+  // Arkadaş süzgeci: panelin tüm hesapları bu kapsam üzerinden yapılır.
+  // "Herkes" (üye + çevre), yalnız üyeler ya da yalnız arkadaşlar (çevre).
+  const [scope, setScope] = useState<"all" | "uye" | "cevre">("all");
+  const hasAssociates = useMemo(() => rawPeople.some(isAssociate), [rawPeople]);
+  const people = useMemo(
+    () =>
+      scope === "uye" ? rawPeople.filter(isMember)
+      : scope === "cevre" ? rawPeople.filter(isAssociate)
+      : rawPeople,
+    [rawPeople, scope]
+  );
+
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
@@ -220,7 +234,7 @@ export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
     if (list.length) setDrill({ title, list });
   };
 
-  if (people.length === 0) {
+  if (rawPeople.length === 0) {
     return (
       <div className="h-full grid place-items-center p-6">
         <div className="text-center max-w-sm">
@@ -239,8 +253,31 @@ export default function PanelView({ people, onSelect, onAdd, onPrint }: Props) {
     <div className="h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Özet başlığı + yazdır (Madde 12) */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h1 className="font-serif text-lg font-semibold text-text">{t("panel.overviewTitle")}</h1>
+          {/* Arkadaş süzgeci — yalnız ağaçta çevre kişisi varsa göster */}
+          {hasAssociates && (
+            <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs no-print" role="group" aria-label={t("panel.scope.aria")}>
+              {([
+                { k: "all", l: t("panel.scope.all") },
+                { k: "uye", l: t("panel.scope.members") },
+                { k: "cevre", l: t("panel.scope.friends") },
+              ] as const).map((o) => (
+                <button
+                  key={o.k}
+                  onClick={() => setScope(o.k)}
+                  aria-pressed={scope === o.k}
+                  className={`px-3 py-1.5 transition-colors ${
+                    scope === o.k
+                      ? (o.k === "cevre" ? "bg-accent text-white" : "bg-primary text-primary-text")
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          )}
           {onPrint && (
             <button
               onClick={onPrint}
