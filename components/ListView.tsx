@@ -97,6 +97,9 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
       if (filter === "yasayan" && p.deathDate) return false;
       if (filter === "vefat" && !p.deathDate) return false;
       if (filter === "bagsiz") {
+        // Arkadaşlar (çevre) zaten aile bağı taşımaz; onları buraya değil
+        // "Arkadaşlar" süzgecine bırak — "bağsız" yalnız gerçekten kopuk ÜYELER.
+        if (isAssociate(p)) return false;
         const linked =
           p.parentIds.length > 0 || p.spouseIds.length > 0 || childIds.has(p.id);
         if (linked) return false;
@@ -228,7 +231,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
             <div>
               <label className={advLabel}>{t("form.gender")}</label>
               <div className="flex flex-wrap gap-1">
-                {(["female", "male", "other", "unknown"] as Gender[]).map((g) => {
+                {(["female", "male", "other"] as Gender[]).map((g) => {
                   const on = adv.genders.includes(g);
                   return (
                     <button

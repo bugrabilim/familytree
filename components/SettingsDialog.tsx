@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Modal from "./ui/Modal";
-import Button from "./ui/Button";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
 import { usePrivacy } from "./PrivacyContext";
@@ -10,50 +8,22 @@ import { useT } from "@/lib/i18n";
 
 interface Props {
   onClose: () => void;
-  editable: boolean;
-  peopleCount: number;
   /** "Arkadaşları göster" — çevre (aile-dışı) kişileri ağaçta göster/gizle. */
   showAssociates: boolean;
   onToggleAssociates: (v: boolean) => void;
-  onImportExport: () => void;
-  onOpenTable: () => void;
-  /** Tüm kişiler silindikten sonra (ağacı tazele). */
-  onCleared: () => void;
 }
 
 /**
- * Ayarlar hub'ı (⋮ → Ayarlar). Genel tercihler (yaşayanları gizle, tema, dil,
- * içe/dışa aktar) + Kişiler bölümü (tablo, kişi ekle, tüm kişileri sil).
+ * Ayarlar hub'ı (⋮ → Ayarlar). Yalnız genel tercihler: yaşayanları gizle,
+ * arkadaşları göster, tema, dil. Kişi verisi işlemleri "Kişiler" hub'ında.
  */
 export default function SettingsDialog({
   onClose,
-  editable,
-  peopleCount,
   showAssociates,
   onToggleAssociates,
-  onImportExport,
-  onOpenTable,
-  onCleared,
 }: Props) {
   const t = useT();
   const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
-  const [clearOnay, setClearOnay] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleClear = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/family/clear", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? t("gedcom.clearFailed"));
-      onCleared();
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
-  };
 
   return (
     <Modal title={t("menu.settings")} onClose={onClose}>
@@ -90,56 +60,7 @@ export default function SettingsDialog({
             <span>{t("menu.language")}</span>
             <LanguageSwitch />
           </div>
-
-          <div className="pt-1">
-            <Button variant="secondary" size="sm" onClick={onImportExport}>
-              {t("common.gedcom")}
-            </Button>
-          </div>
         </section>
-
-        {editable && (
-          <>
-            <div className="h-px bg-border" />
-            {/* Kişiler */}
-            <section>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle mb-2">{t("settings.people")}</h3>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={onOpenTable}>
-                  {t("view.tablo.label")}
-                </Button>
-              </div>
-
-              {/* Tüm kişileri sil (item 5) */}
-              {peopleCount > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs text-text-muted leading-relaxed mb-2">{t("gedcom.clearBody")}</p>
-                  {clearOnay ? (
-                    <div className="space-y-2">
-                      <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-lg leading-relaxed">
-                        {t("gedcom.clearWarn", { count: peopleCount })}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="danger" onClick={handleClear} disabled={busy}>
-                          {busy ? t("gedcom.clearing") : t("gedcom.clearConfirm", { count: peopleCount })}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setClearOnay(false)} disabled={busy}>
-                          {t("gedcom.cancel")}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button size="sm" variant="secondary" onClick={() => setClearOnay(true)}>
-                      {t("gedcom.clearButton")}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </section>
-          </>
-        )}
-
-        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
       </div>
     </Modal>
   );

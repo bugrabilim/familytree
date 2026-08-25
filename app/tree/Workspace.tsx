@@ -12,6 +12,7 @@ import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
 import SettingsDialog from "@/components/SettingsDialog";
+import PeopleDialog from "@/components/PeopleDialog";
 import ShareHubDialog from "@/components/ShareHubDialog";
 import AiChat, { type AiMsg } from "@/components/AiChat";
 import PrintView from "@/components/PrintView";
@@ -144,6 +145,7 @@ function WorkspaceInner({
   const [pairOpen, setPairOpen] = useState(false);
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const [shareHubOpen, setShareHubOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
@@ -172,11 +174,13 @@ function WorkspaceInner({
   // "Arkadaşları göster" — açıkken çevre (aile-dışı) kişiler ağaçta bağlı
   // oldukları üyenin yanında (kesikli arkadaşlık çizgisiyle) görünür. Cihazda
   // (localStorage) kalıcı; soy-ağacı hesaplarını ETKİLEMEZ, yalnız ağaç görünümü.
-  const [showAssociates, setShowAssociatesState] = useState(false);
+  // Varsayılan AÇIK — arkadaşlar (çevre) ağaçta baştan görünür. Kullanıcı
+  // kapatırsa "0" saklanır; yalnız açıkça "0" ise gizlenir.
+  const [showAssociates, setShowAssociatesState] = useState(true);
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowAssociatesState(localStorage.getItem("soyagaci_show_associates") === "1");
+      setShowAssociatesState(localStorage.getItem("soyagaci_show_associates") !== "0");
     } catch { /* yoksay */ }
   }, []);
   const setShowAssociates = useCallback((v: boolean) => {
@@ -503,6 +507,7 @@ function WorkspaceInner({
         onSearch={() => setPaletteOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShare={() => setShareHubOpen(true)}
+        onOpenPeople={!publicView ? () => setPeopleOpen(true) : undefined}
         onPrintView={printCurrentView}
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
@@ -700,13 +705,20 @@ function WorkspaceInner({
       {settingsOpen && (
         <SettingsDialog
           onClose={() => setSettingsOpen(false)}
-          editable={!readOnly}
-          peopleCount={people.length}
           showAssociates={showAssociates}
           onToggleAssociates={setShowAssociates}
-          onImportExport={() => { setSettingsOpen(false); setGedcomOpen(true); }}
-          onOpenTable={() => { setSettingsOpen(false); setView("tablo"); }}
-          onCleared={handleCleared}
+        />
+      )}
+
+      {/* Kişiler hub'ı (⋮ → Kişiler) */}
+      {peopleOpen && (
+        <PeopleDialog
+          onClose={() => setPeopleOpen(false)}
+          editable={!readOnly}
+          peopleCount={people.length}
+          onImportExport={() => { setPeopleOpen(false); setGedcomOpen(true); }}
+          onOpenTable={() => { setPeopleOpen(false); setView("tablo"); }}
+          onCleared={() => { setPeopleOpen(false); handleCleared(); }}
         />
       )}
 
