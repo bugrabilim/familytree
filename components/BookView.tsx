@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import HTMLFlipBook from "react-pageflip";
 import type { Person } from "@/types/family";
@@ -15,8 +15,9 @@ import TreeSchema from "./TreeSchema";
 import RelationMatrix from "./RelationMatrix";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
-import { useT, useLang } from "@/lib/i18n";
+import { useT, useLang, type TFunction } from "@/lib/i18n";
 import { generatePreface } from "@/lib/preface";
+import { usePaginate, type RenderedPage, type Unit } from "./book/paginate";
 
 interface Props {
   people: Person[];
@@ -26,17 +27,6 @@ interface Props {
   onPrint?: () => void;
 }
 
-type Page =
-  | { kind: "cover" }
-  | { kind: "foreword" }
-  | { kind: "summary" }
-  | { kind: "almanac" }
-  | { kind: "places" }
-  | { kind: "schema" }
-  | { kind: "matrix" }
-  | { kind: "person"; gen: number; person: Person };
-
-/** react-pageflip (StPageFlip) örneğinin ihtiyaç duyduğumuz metotları. */
 interface FlipApi {
   flipNext: () => void;
   flipPrev: () => void;
@@ -52,30 +42,81 @@ const rgb = (c: number[]) => `rgb(${c[0]},${c[1]},${c[2]})`;
 function paperStyle(age: number): React.CSSProperties {
   const bg = AGED.bg.map((a, i) => lerp(FRESH.bg[i], a, age));
   const text = AGED.text.map((a, i) => lerp(FRESH.text[i], a, age));
-  return {
-    backgroundColor: rgb(bg),
-    color: rgb(text),
-    boxShadow: `inset 0 0 ${40 + age * 50}px rgba(120,80,30,${0.06 + age * 0.20})`,
-  };
+  return { backgroundColor: rgb(bg), color: rgb(text) };
+}
+
+/* ---- Sayfa geometrisi (baskı hissi: portre, asimetrik kenar boşlukları) ---- */
+const RATIO = 0.72; // genişlik / yükseklik
+interface Geom {
+  pageW: number;
+  pageH: number;
+  padX: number;
+  padTop: number;
+  padBot: number;
+  contentW: number;
+  contentH: number;
+  spread: boolean;
+  sig: string;
+}
+function computeGeom(w: number, h: number): Geom {
+  const spread = w >= 820;
+  const availW = spread ? (w - 12) / 2 : w;
+  let pageW = Math.min(availW, 560);
+  let pageH = Math.round(pageW / RATIO);
+  if (pageH > h) {
+    pageH = Math.floor(h);
+    pageW = Math.round(pageH * RATIO);
+  }
+  pageW = Math.max(240, Math.floor(pageW));
+  pageH = Math.max(340, Math.floor(pageH));
+  const padX = Math.round(pageW * 0.088);
+  const padTop = Math.round(pageH * 0.05) + 18; // üst kenar + koşan başlık bandı
+  const padBot = Math.round(pageH * 0.055) + 20; // alt kenar + sayfa no bandı
+  const contentW = pageW - padX * 2;
+  const contentH = pageH - padTop - padBot;
+  return { pageW, pageH, padX, padTop, padBot, contentW, contentH, spread, sig: `${contentW}x${contentH}` };
 }
 
 /**
- * Nostaljik aile kitabı (ekran) — GERÇEK sayfa çevirme motoru olarak
- * `react-pageflip` (StPageFlip) kullanılır: sürükleyerek/köşeden ya da alttaki
- * ileri-geri düğmeleriyle çevrilir. Sayfa içeriği (kapak, önsöz, rakamlar,
- * harita, şema, ilişki matrisi, kişi biyografileri) korunur; uzun sayfalar
- * kendi içinde kayar. Eski kuşaklar parşömen, yeni kuşaklar temiz kâğıt.
- * Gizlilik: maskeli kopya (`view`).
+ * Nostaljik aile kitabı (ekran) — BASKI-ÖNCE model: içerik önce sabit sayfalara
+ * bölünür (paginate.tsx), sonra react-pageflip (StPageFlip) ile çevrilir. Uzun
+ * biyografiler arka sayfalara akar, hiçbir şey kırpılmaz. Eski kuşaklar
+ * parşömen, yeni kuşaklar temiz kâğıt. Gizlilik: maskeli kopya (`view`).
  */
 export default function BookView({ people, familyName, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
   const bookRef = useRef<{ pageFlip: () => FlipApi } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [geom, setGeom] = useState<Geom | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [goTo, setGoTo] = useState(false); // "sayfaya git" / arama panosu açık mı
+  const [goTo, setGoTo] = useState(false);
   const [query, setQuery] = useState("");
   useEscapeKey(onClose);
+
+  // Sahne boyutunu ölç → sayfa geometrisi. Yeniden boyutta (debounce) güncelle.
+  useLayoutEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    let timer: number | undefined;
+    const apply = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width < 10 || r.height < 10) return;
+      const g = computeGeom(r.width, r.height);
+      setGeom((prev) => (prev && prev.sig === g.sig && prev.pageW === g.pageW ? prev : g));
+    };
+    apply();
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(apply, 200);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   const masked = useMemo(() => people.map((p) => view(p)), [people, view]);
   const idx = useMemo(() => indexPeople(masked), [masked]);
@@ -100,6 +141,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
 
   const maxGen = useMemo(() => Math.max(1, ...[...genOf.values()]), [genOf]);
   const generations = useMemo(() => new Set([...genOf.values()]).size, [genOf]);
+  const ageOf = useCallback((gen: number) => (maxGen > 1 ? (maxGen - gen) / (maxGen - 1) : 0.5), [maxGen]);
 
   const yearRange = useMemo(() => {
     let from = Infinity, to = -Infinity;
@@ -110,8 +152,6 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null;
   }, [masked]);
 
-  // Doğum yerleri — kitaba statik dünya haritası sayfası. Gizlilik: maskeli
-  // kopyadan türetildiği için gizli yaşayanların doğum yeri sızmaz.
   const placeAgg = useMemo(() => {
     const aggs = aggregatePlaces(masked);
     const located = aggs.filter((a) => a.coords);
@@ -119,7 +159,6 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { located, maxCount, total: aggs.length };
   }, [masked]);
 
-  // Özet sayısal veriler — maskeli kopyadan (gizlilik korunur).
   const stats = useMemo(() => {
     let living = 0, deceased = 0, male = 0, female = 0;
     for (const p of masked) {
@@ -131,64 +170,199 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return { total: masked.length, living, deceased, male, female };
   }, [masked]);
 
-  // Rakamlarla Aile — genişletilmiş sayılar + listeler.
   const famStats = useMemo(() => computeStats(masked), [masked]);
   const almanac = useMemo(() => computeAlmanac(masked), [masked]);
-
-  // En sık geçen yerler (ada göre, çoktan aza) — özet ve önsöz için.
   const topPlaces = useMemo(() => {
     const aggs = aggregatePlaces(masked);
     return [...aggs].sort((a, b) => b.count - a.count).slice(0, 5).map((a) => a.place);
   }, [masked]);
-
-  // Önsöz metni — yıl aralığı + en sık şehirler + tarihsel dönemler.
   const preface = useMemo(
-    () =>
-      generatePreface({
-        familyName,
-        from: yearRange?.from,
-        to: yearRange?.to,
-        places: topPlaces,
-        lang: lang === "en" ? "en" : "tr",
-      }),
+    () => generatePreface({ familyName, from: yearRange?.from, to: yearRange?.to, places: topPlaces, lang: lang === "en" ? "en" : "tr" }),
     [familyName, yearRange, topPlaces, lang]
   );
 
-  const pages = useMemo<Page[]>(() => {
+  const bookTitle = familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle");
+
+  // Kişileri kuşağa, sonra doğum yılına, sonra ada göre sırala.
+  const ordered = useMemo(() => {
     const coll = new Intl.Collator("tr");
-    const ordered = [...masked].sort((a, b) => {
+    return [...masked].sort((a, b) => {
       const ga = genOf.get(a.id) ?? 1, gb = genOf.get(b.id) ?? 1;
       if (ga !== gb) return ga - gb;
       const ay = a.birthDate?.slice(0, 4) ?? "9999", by = b.birthDate?.slice(0, 4) ?? "9999";
       return ay.localeCompare(by) || coll.compare(fullName(a), fullName(b));
     });
-    const p: Page[] = [{ kind: "cover" }, { kind: "foreword" }, { kind: "summary" }, { kind: "almanac" }];
-    if (placeAgg.located.length > 0) p.push({ kind: "places" });
-    if (masked.length > 1) p.push({ kind: "schema" });
-    if (masked.length > 1) p.push({ kind: "matrix" });
-    for (const person of ordered) p.push({ kind: "person", gen: genOf.get(person.id) ?? 1, person });
-    return p;
-  }, [masked, genOf, placeAgg.located.length]);
+  }, [masked, genOf]);
 
-  const total = pages.length;
-
-  // Ada ya da yıla göre ara → sayfa numarasını bul.
-  const searchMatches = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("tr");
-    if (!q) return [] as Array<{ index: number; person: Person }>;
-    const out: Array<{ index: number; person: Person }> = [];
-    for (let i = 0; i < pages.length; i++) {
-      const pg = pages[i];
-      if (pg.kind !== "person") continue;
-      const name = fullName(pg.person).toLocaleLowerCase("tr");
-      const by = pg.person.birthDate?.slice(0, 4) ?? "";
-      const dy = pg.person.deathDate?.slice(0, 4) ?? "";
-      if (name.includes(q) || (by && by.includes(q)) || (dy && dy.includes(q))) {
-        out.push({ index: i, person: pg.person });
+  // Kişinin ilk sayfasına atlamak için: personId → units içindeki sıra bilgisi
+  // (sayfa çözümü pages üzerinden yapılır). Arama bunu kullanır.
+  const units = useMemo<Unit[]>(() => {
+    const u: Unit[] = [];
+    const sectionForeword = t("print.forewordTitle");
+    // Kapak
+    u.push({ kind: "full", key: "cover", age: 1, node: <CoverPage title={bookTitle} yearRange={yearRange} count={people.length} generations={generations} t={t} /> });
+    // Önsöz
+    u.push({ kind: "block", key: "fw-title", age: 1, section: sectionForeword, breakBefore: true, keepWithNext: true, node: <SectionTitle>{sectionForeword}</SectionTitle> });
+    preface.forEach((para, i) => {
+      u.push({
+        kind: "text",
+        key: `fw-${i}`,
+        age: 1,
+        section: sectionForeword,
+        text: para,
+        className: "text-[15px] leading-relaxed text-justify mb-3",
+        leadClassName: i === 0 ? "text-[15px] leading-relaxed text-justify mb-3 first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.8]" : undefined,
+      });
+    });
+    // Ailenin Özeti + Rakamlarla Aile
+    const secAlmanac = t("book.almanacTitle");
+    u.push({ kind: "block", key: "alm-title", age: 1, section: secAlmanac, breakBefore: true, keepWithNext: true, node: <SectionTitle>{secAlmanac}</SectionTitle> });
+    u.push({
+      kind: "block", key: "alm-grid", age: 1, section: secAlmanac, keepWithNext: true,
+      node: (
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <SummaryStat label={t("book.stat.people")} value={famStats.total} />
+          <SummaryStat label={t("book.stat.generations")} value={generations} />
+          <SummaryStat label={t("book.stat.living")} value={famStats.living} />
+          <SummaryStat label={t("book.stat.deceased")} value={stats.deceased} />
+          <SummaryStat label={t("book.stat.male")} value={stats.male} />
+          <SummaryStat label={t("book.stat.female")} value={stats.female} />
+        </div>
+      ),
+    });
+    u.push({
+      kind: "block", key: "alm-nums", age: 1, section: secAlmanac,
+      node: (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-4">
+          <Row k={t("panel.mini.marriages")} v={String(famStats.marriages)} />
+          <Row k={t("panel.mini.divorces")} v={String(famStats.divorces)} />
+          {famStats.avgLifespan !== undefined && <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: famStats.avgLifespan })} />}
+          <Row k={t("panel.mini.largestSibship")} v={String(famStats.largestSibship)} />
+          {famStats.topBirthPlace && <Row k={t("panel.mini.topBirthPlace")} v={`${famStats.topBirthPlace.name} (${famStats.topBirthPlace.count})`} wide />}
+          {topPlaces.length > 0 && <Row k={t("book.stat.topPlaces")} v={topPlaces.join(" · ")} wide />}
+        </dl>
+      ),
+    });
+    u.push({
+      kind: "block", key: "alm-pergen", age: 1, section: secAlmanac, keepWithNext: true,
+      node: (
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-2">{t("book.perGeneration")}</h3>
+          <ul className="space-y-1">
+            {almanac.perGeneration.map((g) => (
+              <li key={g.gen} className="flex items-center gap-2 text-[13px]">
+                <span className="w-20 shrink-0 opacity-70">{t("print.generation", { n: g.gen })}</span>
+                <span className="flex-1 h-2.5 rounded-full bg-current/10 overflow-hidden">
+                  <span className="block h-full bg-current/40" style={{ width: `${Math.round((g.count / Math.max(1, famStats.total)) * 100)}%` }} />
+                </span>
+                <span className="w-8 text-right tabular-nums opacity-80">{g.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    });
+    const lists: Array<{ key: string; title: string; rows: Array<{ name: string; meta?: string | null }> }> = [
+      { key: "eldest", title: t("book.eldestTitle"), rows: almanac.eldest.map((id) => idx.get(id)).filter((p): p is Person => !!p).map((p) => ({ name: fullName(p), meta: lifeSpan(p.birthDate, p.deathDate) })) },
+      { key: "longest", title: t("book.longestLivedTitle"), rows: almanac.longestLived.map((r) => ({ p: idx.get(r.id), age: r.age })).filter((x): x is { p: Person; age: number } => !!x.p).map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) })) },
+      { key: "livingold", title: t("book.livingOldestTitle"), rows: almanac.livingOldest.map((r) => ({ p: idx.get(r.id), age: r.age })).filter((x): x is { p: Person; age: number } => !!x.p).map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) })) },
+      { key: "surnames", title: t("book.surnamesTitle"), rows: famStats.surnames.map((s) => ({ name: s.name, meta: String(s.count) })) },
+    ];
+    for (const l of lists) {
+      if (l.rows.length === 0) continue;
+      u.push({ kind: "block", key: `alm-${l.key}`, age: 1, section: secAlmanac, keepWithNext: true, node: <AlmanacList title={l.title} rows={l.rows} /> });
+    }
+    // Harita, şema, matris — tam sayfa
+    if (placeAgg.located.length > 0) {
+      u.push({ kind: "full", key: "map", age: 1, section: t("book.placesTitle"), node: <FullPageWrap title={t("book.placesTitle")} subtitle={t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}><BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} /></FullPageWrap> });
+    }
+    if (masked.length > 1) {
+      u.push({ kind: "full", key: "schema", age: 1, section: t("book.schemaTitle"), node: <FullPageWrap title={t("book.schemaTitle")}><div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/10 bg-current/[0.03]"><TreeSchema people={masked} /></div></FullPageWrap> });
+      u.push({ kind: "full", key: "matrix", age: 1, section: t("book.matrixTitle"), node: <FullPageWrap title={t("book.matrixTitle")} subtitle={t("book.matrixIntro")}><div className="flex-1 min-h-0 overflow-hidden"><RelationMatrix people={masked} /></div></FullPageWrap> });
+    }
+    // Kişiler — kuşak bölümleri
+    let lastGen = -1;
+    for (const person of ordered) {
+      const gen = genOf.get(person.id) ?? 1;
+      const age = ageOf(gen);
+      const secLabel = t("print.generation", { n: gen });
+      if (gen !== lastGen) {
+        lastGen = gen;
+        u.push({ kind: "block", key: `chap-${gen}`, age, section: secLabel, breakBefore: true, keepWithNext: true, node: <ChapterTitle>{secLabel}</ChapterTitle> });
+      }
+      u.push({ kind: "block", key: `p-${person.id}-h`, age, personId: person.id, section: secLabel, keepWithNext: true, node: <PersonHeader person={person} idx={idx} masked={masked} t={t} /> });
+      if (person.bio) {
+        u.push({ kind: "text", key: `p-${person.id}-bio`, age, personId: person.id, section: secLabel, text: person.bio, className: "text-[14.5px] leading-relaxed text-justify whitespace-pre-line mb-2" });
+      }
+      if (person.events && person.events.length > 0) {
+        for (const ev of person.events) {
+          const meta = LIFE_EVENT_TYPES[ev.type];
+          u.push({
+            kind: "block", key: `p-${person.id}-ev-${ev.id}`, age, personId: person.id, section: secLabel,
+            node: (
+              <p className="text-sm mb-0.5">
+                <span className="opacity-40 tabular-nums">{ev.date?.slice(0, 4) ?? "—"}</span>{" "}
+                {meta?.icon ?? "•"} {ev.title}
+                {ev.place && <span className="opacity-60"> — {ev.place}</span>}
+              </p>
+            ),
+          });
+        }
+      }
+      const mems = person.memories?.filter((m) => m.text) ?? [];
+      if (mems.length > 0) {
+        u.push({ kind: "block", key: `p-${person.id}-mh`, age, personId: person.id, section: secLabel, keepWithNext: true, node: <p className="text-xs font-semibold uppercase tracking-wide opacity-50 mt-2 mb-1">{t("print.memories")}</p> });
+        for (const m of mems) {
+          u.push({
+            kind: "block", key: `p-${person.id}-m-${m.id}`, age, personId: person.id, section: secLabel,
+            node: (
+              <div className="text-sm mb-1.5">
+                {m.prompt && <p className="italic opacity-60 leading-snug">{m.prompt}</p>}
+                <p className="opacity-90 whitespace-pre-line leading-snug">{m.text}</p>
+              </div>
+            ),
+          });
+        }
       }
     }
-    return out.slice(0, 40);
-  }, [query, pages]);
+    return u;
+  }, [ordered, genOf, ageOf, idx, masked, almanac, famStats, stats, placeAgg, topPlaces, preface, yearRange, generations, people.length, bookTitle, t]);
+
+  const geomForPaginate = useMemo(
+    () => ({ contentW: geom?.contentW ?? 400, contentH: geom?.contentH ?? 560, sig: geom?.sig ?? "init" }),
+    [geom]
+  );
+  const { probe, pages } = usePaginate(units, geomForPaginate);
+
+  const total = pages?.length ?? 0;
+
+  // Kişi → ilk sayfa indeksi (arama için).
+  const personFirstPage = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!pages) return m;
+    for (let i = 0; i < pages.length; i++) {
+      const pid = pages[i].personId;
+      if (pid && !m.has(pid)) m.set(pid, i);
+    }
+    return m;
+  }, [pages]);
+
+  const searchMatches = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr");
+    if (!q) return [] as Array<{ person: Person; index: number }>;
+    const out: Array<{ person: Person; index: number }> = [];
+    for (const p of ordered) {
+      const name = fullName(p).toLocaleLowerCase("tr");
+      const by = p.birthDate?.slice(0, 4) ?? "";
+      const dy = p.deathDate?.slice(0, 4) ?? "";
+      if (name.includes(q) || (by && by.includes(q)) || (dy && dy.includes(q))) {
+        const index = personFirstPage.get(p.id);
+        if (index !== undefined) out.push({ person: p, index });
+      }
+      if (out.length >= 40) break;
+    }
+    return out;
+  }, [query, ordered, personFirstPage]);
 
   const flip = useCallback((d: "next" | "prev") => {
     const api = bookRef.current?.pageFlip();
@@ -196,9 +370,6 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     if (d === "next") api.flipNext();
     else api.flipPrev();
   }, []);
-
-  // Sayfaya atlama: ref'e render sırasında dokunmamak için istek state'e yazılır,
-  // gerçek `turnToPage` çağrısı efektte yapılır (react-hooks/refs kuralı).
   const [pendingJump, setPendingJump] = useState<number | null>(null);
   useEffect(() => {
     if (pendingJump === null) return;
@@ -207,7 +378,6 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     setPendingJump(null);
   }, [pendingJump, total]);
 
-  // Klavye okları — ileri/geri çevir.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") flip("next");
@@ -217,181 +387,20 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
     return () => window.removeEventListener("keydown", onKey);
   }, [flip]);
 
+  // Sayfa sayısı / geometri değişince flipbook'u yeniden kur (StPageFlip sabit
+  // çocuk sayısı/boyutuyla çalışır); mevcut sayfayı koru.
+  const flipKey = geom ? `${geom.sig}-${total}` : "init";
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setCurrentPage(0); }, [flipKey]);
+
   if (typeof document === "undefined") return null;
 
-  const ageOf = (pg: Page): number => {
-    if (pg.kind === "person") return maxGen > 1 ? (maxGen - pg.gen) / (maxGen - 1) : 0.5;
-    return 1; // kapak/önsöz en eski his
-  };
-
-  const renderContent = (pg: Page) => {
-    switch (pg.kind) {
-      case "cover":
-        return (
-          <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center">
-            <p className="text-6xl mb-6">🌳</p>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">
-              {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
-            </h1>
-            {yearRange && (
-              <p className="text-lg opacity-70 tracking-wide mb-6">
-                {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
-              </p>
-            )}
-            <div className="w-16 border-t border-current/25 my-6" />
-            <p className="text-sm opacity-70">{t("print.coverMeta", { count: people.length, generations })}</p>
-          </div>
-        );
-      case "foreword":
-        return (
-          <div className="font-serif">
-            <h2 className="text-center text-2xl font-bold mb-6">{t("print.forewordTitle")}</h2>
-            {preface.map((para, i) => (
-              <p
-                key={i}
-                className={`text-[15px] leading-relaxed text-justify mb-3 ${
-                  i === 0
-                    ? "first-letter:text-5xl first-letter:font-bold first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]"
-                    : ""
-                }`}
-              >
-                {para}
-              </p>
-            ))}
-          </div>
-        );
-      case "summary":
-        return (
-          <div className="font-serif h-full flex flex-col">
-            <h2 className="text-center text-2xl font-bold mb-1">{t("book.summaryTitle")}</h2>
-            {yearRange && (
-              <p className="text-center text-sm opacity-60 mb-5">
-                {t("print.coverYears", { from: yearRange.from, to: yearRange.to })}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <SummaryStat big label={t("book.stat.people")} value={stats.total} />
-              <SummaryStat big label={t("book.stat.generations")} value={generations} />
-              <SummaryStat label={t("book.stat.living")} value={stats.living} />
-              <SummaryStat label={t("book.stat.deceased")} value={stats.deceased} />
-              <SummaryStat label={t("book.stat.male")} value={stats.male} />
-              <SummaryStat label={t("book.stat.female")} value={stats.female} />
-            </div>
-            {topPlaces.length > 0 && (
-              <div className="mt-6">
-                <p className="text-xs uppercase tracking-wide opacity-60 mb-2">{t("book.stat.topPlaces")}</p>
-                <p className="text-[15px] leading-relaxed">{topPlaces.join(" · ")}</p>
-              </div>
-            )}
-          </div>
-        );
-      case "almanac":
-        return (
-          <div className="font-serif">
-            <h2 className="text-center text-2xl font-bold mb-5">{t("book.almanacTitle")}</h2>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <SummaryStat label={t("book.stat.people")} value={famStats.total} />
-              <SummaryStat label={t("book.stat.generations")} value={generations} />
-              <SummaryStat label={t("book.stat.living")} value={famStats.living} />
-            </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-5">
-              <Row k={t("panel.mini.marriages")} v={String(famStats.marriages)} />
-              <Row k={t("panel.mini.divorces")} v={String(famStats.divorces)} />
-              {famStats.avgLifespan !== undefined && (
-                <Row k={t("panel.mini.avgLifespan")} v={t("panel.mini.avgLifespanValue", { years: famStats.avgLifespan })} />
-              )}
-              <Row k={t("panel.mini.largestSibship")} v={String(famStats.largestSibship)} />
-              {famStats.topBirthPlace && (
-                <Row k={t("panel.mini.topBirthPlace")} v={`${famStats.topBirthPlace.name} (${famStats.topBirthPlace.count})`} wide />
-              )}
-            </dl>
-            <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-2">{t("book.perGeneration")}</h3>
-            <ul className="mb-5 space-y-1">
-              {almanac.perGeneration.map((g) => (
-                <li key={g.gen} className="flex items-center gap-2 text-[13px]">
-                  <span className="w-20 shrink-0 opacity-70">{t("print.generation", { n: g.gen })}</span>
-                  <span className="flex-1 h-2.5 rounded-full bg-current/10 overflow-hidden">
-                    <span className="block h-full bg-current/40" style={{ width: `${Math.round((g.count / Math.max(1, famStats.total)) * 100)}%` }} />
-                  </span>
-                  <span className="w-8 text-right tabular-nums opacity-80">{g.count}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-              <AlmanacList
-                title={t("book.eldestTitle")}
-                rows={almanac.eldest
-                  .map((id) => idx.get(id))
-                  .filter((p): p is Person => !!p)
-                  .map((p) => ({ name: fullName(p), meta: lifeSpan(p.birthDate, p.deathDate) }))}
-              />
-              <AlmanacList
-                title={t("book.longestLivedTitle")}
-                rows={almanac.longestLived
-                  .map((r) => ({ p: idx.get(r.id), age: r.age }))
-                  .filter((x): x is { p: Person; age: number } => !!x.p)
-                  .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
-              />
-              <AlmanacList
-                title={t("book.livingOldestTitle")}
-                rows={almanac.livingOldest
-                  .map((r) => ({ p: idx.get(r.id), age: r.age }))
-                  .filter((x): x is { p: Person; age: number } => !!x.p)
-                  .map(({ p, age }) => ({ name: fullName(p), meta: t("print.ageYears", { age }) }))}
-              />
-              {famStats.surnames.length > 0 && (
-                <AlmanacList
-                  title={t("book.surnamesTitle")}
-                  rows={famStats.surnames.map((s) => ({ name: s.name, meta: String(s.count) }))}
-                />
-              )}
-            </div>
-          </div>
-        );
-      case "places":
-        return (
-          <div className="font-serif h-full flex flex-col">
-            <h2 className="text-center text-2xl font-bold mb-1">{t("book.placesTitle")}</h2>
-            <p className="text-center text-sm opacity-60 mb-4">
-              {t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}
-            </p>
-            <BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} />
-          </div>
-        );
-      case "schema":
-        return (
-          <div className="font-serif h-full flex flex-col">
-            <h2 className="text-center text-2xl font-bold mb-4">{t("book.schemaTitle")}</h2>
-            <div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/15 bg-current/[0.03]">
-              <TreeSchema people={masked} />
-            </div>
-          </div>
-        );
-      case "matrix":
-        return (
-          <div className="font-serif">
-            <h2 className="text-center text-2xl font-bold mb-1">{t("book.matrixTitle")}</h2>
-            <p className="text-center text-xs opacity-60 mb-4 max-w-md mx-auto leading-relaxed">{t("book.matrixIntro")}</p>
-            <RelationMatrix people={masked} />
-          </div>
-        );
-      case "person":
-        return (
-          <div className="font-serif">
-            <PersonPage person={pg.person} gen={pg.gen} idx={idx} masked={masked} t={t} />
-          </div>
-        );
-    }
-  };
-
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900/90 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900/92 backdrop-blur-sm animate-fade-in">
+      {/* Araç çubuğu */}
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 shrink-0 text-neutral-200">
-        <p className="text-sm font-medium truncate">
-          {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
-        </p>
+        <p className="text-sm font-medium truncate">{bookTitle}</p>
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Sayfaya git / ara */}
           <button
             onClick={() => setGoTo((v) => !v)}
             aria-pressed={goTo}
@@ -403,7 +412,6 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
               <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
             </svg>
           </button>
-          {/* Yazdır / PDF */}
           {onPrint && (
             <button
               onClick={onPrint}
@@ -422,7 +430,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
         </div>
       </div>
 
-      {/* Sayfaya git / ara panosu */}
+      {/* Ara / sayfaya git */}
       {goTo && (
         <div className="shrink-0 px-4 sm:px-6 pb-3 -mt-1">
           <div className="mx-auto max-w-xl rounded-2xl border border-white/15 bg-neutral-800/80 backdrop-blur p-3 space-y-2.5">
@@ -466,9 +474,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
                           {fullName(m.person)}
                           {m.person.birthDate && <span className="text-neutral-400"> · {m.person.birthDate.slice(0, 4)}</span>}
                         </span>
-                        <span className="text-[11px] text-neutral-400 tabular-nums shrink-0">
-                          {t("book.pageN", { n: m.index + 1 })}
-                        </span>
+                        <span className="text-[11px] text-neutral-400 tabular-nums shrink-0">{t("book.pageN", { n: m.index + 1 })}</span>
                       </button>
                     </li>
                   ))
@@ -479,52 +485,64 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-8 pb-3">
-        <div className="relative w-full max-w-6xl h-full max-h-[74vh] flex items-center justify-center">
+      {/* Sahne */}
+      <div className="flex-1 min-h-0 flex items-center justify-center px-2 sm:px-8 pb-2">
+        <div ref={stageRef} className="relative w-full max-w-6xl h-full max-h-[76vh] flex items-center justify-center">
           <NavArrow dir="prev" disabled={currentPage <= 0} onClick={() => flip("prev")} label={t("book.prevAria")} />
 
-          <HTMLFlipBook
-            ref={bookRef}
-            className="mx-auto shadow-2xl"
-            style={{}}
-            startPage={0}
-            size="stretch"
-            width={520}
-            height={720}
-            minWidth={300}
-            maxWidth={640}
-            minHeight={420}
-            maxHeight={900}
-            drawShadow
-            flippingTime={650}
-            usePortrait
-            startZIndex={0}
-            autoSize
-            maxShadowOpacity={0.5}
-            showCover
-            mobileScrollSupport
-            clickEventForward
-            useMouseEvents
-            swipeDistance={30}
-            showPageCorners
-            disableFlipByClick
-            onFlip={(e: { data: number }) => setCurrentPage(e.data)}
-          >
-            {pages.map((pg, i) => (
-              <BookPage key={i} age={ageOf(pg)} hard={pg.kind === "cover"}>
-                {renderContent(pg)}
-              </BookPage>
-            ))}
-          </HTMLFlipBook>
+          {geom && pages && pages.length > 0 && (
+            <HTMLFlipBook
+              key={flipKey}
+              ref={bookRef}
+              className="shadow-2xl"
+              style={{}}
+              startPage={0}
+              size="fixed"
+              width={geom.pageW}
+              height={geom.pageH}
+              minWidth={geom.pageW}
+              maxWidth={geom.pageW}
+              minHeight={geom.pageH}
+              maxHeight={geom.pageH}
+              drawShadow
+              flippingTime={700}
+              usePortrait={!geom.spread}
+              startZIndex={0}
+              autoSize={false}
+              maxShadowOpacity={0.5}
+              showCover
+              mobileScrollSupport={false}
+              clickEventForward
+              useMouseEvents
+              swipeDistance={30}
+              showPageCorners
+              disableFlipByClick={false}
+              onFlip={(e: { data: number }) => setCurrentPage(e.data)}
+            >
+              {pages.map((pg, i) => (
+                <BookPage key={pg.key} page={pg} num={i + 1} geom={geom} bookTitle={bookTitle} t={t} />
+              ))}
+            </HTMLFlipBook>
+          )}
+
+          {(!geom || !pages) && (
+            <div className="flex items-center gap-2.5 text-neutral-300 text-sm">
+              <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white/80 animate-spin" />
+              {t("book.composing")}
+            </div>
+          )}
 
           <NavArrow dir="next" disabled={currentPage >= total - 1} onClick={() => flip("next")} label={t("book.nextAria")} />
         </div>
       </div>
 
       <div className="shrink-0 text-center pb-3 text-neutral-300">
-        <p className="text-xs tabular-nums">{t("book.page", { n: Math.min(currentPage + 1, total), total })}</p>
+        <p className="text-xs tabular-nums">{t("book.page", { n: Math.min(currentPage + 1, total || 1), total: total || 1 })}</p>
         <p className="hidden sm:block text-[11px] text-neutral-400 mt-0.5">{t("book.hint")}</p>
       </div>
+
+      {/* Ölçüm sondası (gizli) */}
+      {geom && probe}
     </div>,
     document.body
   );
@@ -532,22 +550,88 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
 
 /* ---------------------------------------------------------------- */
 
-/** Tek kitap yaprağı — react-pageflip yaprağa ref bağlayabilsin diye forwardRef.
- *  Parşömen zemini + içerik kendi içinde kaydırılır (sabit sayfa boyutu). */
-const BookPage = forwardRef<HTMLDivElement, { children: React.ReactNode; age: number; hard?: boolean }>(
-  function BookPage({ children, age, hard }, ref) {
+const BookPage = forwardRef<HTMLDivElement, { page: RenderedPage; num: number; geom: Geom; bookTitle: string; t: TFunction }>(
+  function BookPage({ page, num, geom, bookTitle, t }, ref) {
+    const isCover = num === 1 && page.isFull; // ilk tam sayfa = kapak
     return (
       <div
         ref={ref}
-        className="book-leaf overflow-hidden"
-        data-density={hard ? "hard" : "soft"}
-        style={paperStyle(age)}
+        data-density={isCover ? "hard" : "soft"}
+        className="book-leaf"
+        style={{ ...paperStyle(page.age), width: "100%", height: "100%", position: "relative", boxSizing: "border-box", overflow: "hidden" }}
       >
-        <div className="h-full overflow-y-auto px-6 sm:px-9 py-7">{children}</div>
+        {page.isFull ? (
+          <div className="absolute inset-0 flex flex-col" style={{ padding: Math.round(geom.padX * 0.7) }}>
+            {page.nodes.map((n, i) => (
+              <Fragment key={i}>{n}</Fragment>
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* Koşan başlık */}
+            <div
+              className="absolute left-0 right-0 flex items-center justify-between text-[10px] uppercase tracking-wider opacity-45"
+              style={{ top: Math.round(geom.padTop * 0.42), paddingLeft: geom.padX, paddingRight: geom.padX }}
+            >
+              <span className="truncate">{page.section ?? bookTitle}</span>
+              <span className="truncate">{bookTitle}</span>
+            </div>
+            {/* İçerik */}
+            <div
+              className="absolute font-serif flex flex-col"
+              style={{ top: geom.padTop, left: geom.padX, width: geom.contentW, height: geom.contentH, overflow: "hidden" }}
+            >
+              {page.continues && <p className="text-[11px] italic opacity-45 mb-1">… {t("book.contd")}</p>}
+              {page.nodes}
+            </div>
+          </>
+        )}
+        {/* Sayfa numarası */}
+        {!isCover && (
+          <div className="absolute left-0 right-0 text-center text-[11px] tabular-nums opacity-50" style={{ bottom: Math.round(geom.padBot * 0.4) }}>
+            {num}
+          </div>
+        )}
       </div>
     );
   }
 );
+
+function CoverPage({ title, yearRange, count, generations, t }: { title: string; yearRange: { from: number; to: number } | null; count: number; generations: number; t: TFunction }) {
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
+      <p className="text-6xl mb-6">🌳</p>
+      <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">{title}</h1>
+      {yearRange && <p className="text-lg opacity-70 tracking-wide mb-6">{t("print.coverYears", { from: yearRange.from, to: yearRange.to })}</p>}
+      <div className="w-16 border-t border-current/25 my-6" />
+      <p className="text-sm opacity-70">{t("print.coverMeta", { count, generations })}</p>
+    </div>
+  );
+}
+
+function FullPageWrap({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <div className="font-serif h-full w-full flex flex-col">
+      <h2 className="text-center text-2xl font-bold mb-1">{title}</h2>
+      {subtitle && <p className="text-center text-xs opacity-60 mb-3 max-w-md mx-auto leading-relaxed">{subtitle}</p>}
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="font-serif text-center text-2xl font-bold mb-5">{children}</h2>;
+}
+
+function ChapterTitle({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-center my-2">
+      <div className="mx-auto w-10 border-t border-current/25 mb-3" />
+      <h2 className="font-serif text-xl font-semibold tracking-[0.15em] uppercase opacity-80">{children}</h2>
+      <div className="mx-auto w-10 border-t border-current/25 mt-3" />
+    </div>
+  );
+}
 
 function SummaryStat({ label, value, big }: { label: string; value: number; big?: boolean }) {
   return (
@@ -573,11 +657,7 @@ function NavArrow({ dir, disabled, onClick, label }: { dir: "prev" | "next"; dis
   );
 }
 
-function PersonPage({
-  person, gen, idx, masked, t,
-}: {
-  person: Person; gen: number; idx: ReturnType<typeof indexPeople>; masked: Person[]; t: ReturnType<typeof useT>;
-}) {
+function PersonHeader({ person, idx, masked, t }: { person: Person; idx: ReturnType<typeof indexPeople>; masked: Person[]; t: TFunction }) {
   const parents = getParents(person, idx);
   const spouses = getSpouses(person, idx);
   const exes = getFormerSpouses(person, idx);
@@ -591,23 +671,23 @@ function PersonPage({
     : undefined;
   const portrait = person.photo || person.photos?.[0];
   const names = (list: Person[]) => list.map((p) => fullName(p)).join(", ");
-
   return (
-    <div>
-      <p className="text-center text-[11px] uppercase tracking-[0.2em] opacity-50 mb-5">{t("print.generation", { n: gen })}</p>
-      {portrait && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={portrait} alt={fullName(person)} className="float-right ml-4 mb-2 w-24 h-32 sm:w-28 sm:h-36 object-cover rounded-md border border-black/10 bg-black/5" />
-      )}
-      <h2 className="text-xl sm:text-2xl font-semibold leading-tight">
-        {fullName(person)}
-      </h2>
-      <p className="text-sm italic opacity-60 mt-1 mb-4">
-        {span && <span>{span}</span>}
-        {age !== null && <span> · {t("print.ageYears", { age })}</span>}
-        {person.birthPlace && <span> · {person.birthPlace}</span>}
-      </p>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm mb-3">
+    <div className="mb-1.5">
+      <div className="flex items-start gap-3 mb-2">
+        {portrait && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={portrait} alt={fullName(person)} className="w-20 object-cover rounded-md border border-black/10 bg-black/5 shrink-0" style={{ height: 104 }} />
+        )}
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold leading-tight">{fullName(person)}</h2>
+          <p className="text-sm italic opacity-60 mt-0.5">
+            {span && <span>{span}</span>}
+            {age !== null && <span> · {t("print.ageYears", { age })}</span>}
+            {person.birthPlace && <span> · {person.birthPlace}</span>}
+          </p>
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
         {person.occupation && <Row k={t("drawer.occupation")} v={person.occupation} />}
         {edu && <Row k={t("drawer.education")} v={edu} />}
         {parents.length > 0 && <Row k={t("print.parents")} v={names(parents)} wide />}
@@ -615,33 +695,6 @@ function PersonPage({
         {exes.length > 0 && <Row k={t("print.formerSpouses")} v={names(exes)} wide />}
         {children.length > 0 && <Row k={t("print.children")} v={names(children)} wide />}
       </dl>
-      {person.bio && <p className="text-[15px] leading-relaxed text-justify whitespace-pre-line">{person.bio}</p>}
-      {person.events && person.events.length > 0 && (
-        <ul className="mt-3 space-y-0.5">
-          {person.events.map((ev) => {
-            const meta = LIFE_EVENT_TYPES[ev.type];
-            return (
-              <li key={ev.id} className="text-sm">
-                <span className="opacity-40 tabular-nums">{ev.date?.slice(0, 4) ?? "—"}</span>{" "}
-                {meta?.icon ?? "•"} {ev.title}
-                {ev.place && <span className="opacity-60"> — {ev.place}</span>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {person.memories?.some((m) => m.text) && (
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-1">{t("print.memories")}</p>
-          {person.memories.filter((m) => m.text).map((m) => (
-            <div key={m.id} className="text-sm mb-1.5">
-              {m.prompt && <p className="italic opacity-60 leading-snug">{m.prompt}</p>}
-              <p className="opacity-90 whitespace-pre-line leading-snug">{m.text}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="clear-both" />
     </div>
   );
 }
@@ -655,11 +708,10 @@ function Row({ k, v, wide }: { k: string; v: string; wide?: boolean }) {
   );
 }
 
-/** Almanak listesi — başlık + isim/açıklama satırları. */
 function AlmanacList({ title, rows }: { title: string; rows: Array<{ name: string; meta?: string | null }> }) {
   if (rows.length === 0) return null;
   return (
-    <div>
+    <div className="mb-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide opacity-50 mb-1.5">{title}</h3>
       <ul className="space-y-0.5">
         {rows.map((r, i) => (
