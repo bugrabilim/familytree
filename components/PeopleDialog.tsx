@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
+import HistoryDialog from "./HistoryDialog";
 import { useT } from "@/lib/i18n";
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   onOpenTable: () => void;
   /** Tüm kişiler silindikten sonra (ağacı tazele). */
   onCleared: () => void;
+  /** Bir güncelleme geri yüklendikten sonra (ağacı tazele). */
+  onRestored: () => void;
 }
 
 /**
@@ -28,11 +31,13 @@ export default function PeopleDialog({
   onImportExport,
   onOpenTable,
   onCleared,
+  onRestored,
 }: Props) {
   const t = useT();
   const [clearOnay, setClearOnay] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const handleClear = async () => {
     setBusy(true);
@@ -59,6 +64,11 @@ export default function PeopleDialog({
             {editable && (
               <Button variant="secondary" size="sm" onClick={onImportExport}>
                 {t("common.gedcom")}
+              </Button>
+            )}
+            {editable && (
+              <Button variant="secondary" size="sm" onClick={() => setHistoryOpen(true)}>
+                {t("history.button")}
               </Button>
             )}
           </div>
@@ -92,6 +102,13 @@ export default function PeopleDialog({
 
         {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
       </div>
+
+      {historyOpen && (
+        <HistoryDialog
+          onClose={() => setHistoryOpen(false)}
+          onRestored={() => { setHistoryOpen(false); onRestored(); }}
+        />
+      )}
     </Modal>
   );
 }

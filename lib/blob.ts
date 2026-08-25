@@ -1,5 +1,5 @@
 import { put, list, get } from "@vercel/blob";
-import type { FamilyData } from "@/types/family";
+import type { FamilyData, Person } from "@/types/family";
 import {
   dbDeletePeople,
   dbGetFamilyData,
@@ -7,6 +7,7 @@ import {
   dbUpsertPeople,
 } from "@/lib/db";
 import { diffPeople } from "@/lib/people-diff";
+import { pushHistorySnapshot } from "@/lib/history";
 
 function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
@@ -46,6 +47,34 @@ async function readFromBlob(userId: string): Promise<FamilyData> {
 }
 
 /**
+ * Ağaç-düzeyi meta (yalnız Blob'da tutulan `coverPhoto` gibi) — Postgres yalnız
+ * `people` sakladığından, DB okuma yolu bu alanları düşürür. Blob'dan hafifçe
+ * okuyup birleştiririz ki oku→değiştir→yaz döngüsünde silinmesin. Ana önbelleğe
+ * DOKUNMAZ (aksi hâlde DB yerine Blob'u döndürmüş gibi olurduk).
+ */
+/** Blob'daki ham FamilyData'yı önbelleğe DOKUNMADAN okur (yoksa null). */
+async function readRawFromBlob(userId: string): Promise<FamilyData | null> {
+  const key = blobPathname(userId);
+  const { blobs } = await list({ prefix: key });
+  if (blobs.length === 0) return null;
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const result = await get(latest.pathname, { access: "private", useCache: false });
+  if (!result || result.statusCode !== 200) return null;
+  try {
+    return JSON.parse(await new Response(result.stream).text()) as FamilyData;
+  } catch {
+    return null;
+  }
+}
+
+async function readMetaFromBlob(userId: string): Promise<{ coverPhoto?: string }> {
+  const d = await readRawFromBlob(userId);
+  return { coverPhoto: d?.coverPhoto };
+}
+
+/**
  * Sağlık kontrolü: Blob deposuna gerçekten ulaşılıyor mu? (sır sızdırmaz)
  *
  * Doğrudan bir `list()` çağrısı dener — token'ın env değişkeni ADINI tahmin
@@ -79,6 +108,11 @@ export async function getFamilyData(
   try {
     const fromDb = await dbGetFamilyData(userId);
     if (fromDb) {
+      // Blob-only meta'yı (kapak fotoğrafı) birleştir — DB bunu tutmaz.
+      try {
+        const meta = await readMetaFromBlob(userId);
+        if (meta.coverPhoto) fromDb.coverPhoto = meta.coverPhoto;
+      } catch { /* meta okunamazsa yoksay */ }
       cache.set(userId, { json: JSON.stringify(fromDb), at: Date.now() });
       return fromDb;
     }
@@ -115,6 +149,22 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
   // güvenli tam-yenilemeye düşeceğiz.
   const hit = cache.get(userId);
   const freshOldJson = hit && Date.now() - hit.at < CACHE_TTL_MS ? hit.json : null;
+
+  // #11 — Güncelleme günlüğü: bu kaydın ÜZERİNE yazdığı ÖNCEKİ durumu geçmişe
+  // ekle (geri alma için). Taze eski görüntü varsa onu kullan; yoksa Blob'dan
+  // oku. Kişi listesi değişmediyse (ör. yalnız kapak) günlüğe eklemeyiz.
+  try {
+    let prevPeople: Person[] | null = null;
+    if (freshOldJson) {
+      prevPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? null;
+    } else {
+      const meta = await readRawFromBlob(userId);
+      prevPeople = meta?.people ?? null;
+    }
+    if (prevPeople && JSON.stringify(prevPeople) !== JSON.stringify(data.people)) {
+      await pushHistorySnapshot(userId, prevPeople);
+    }
+  } catch { /* günlük başarısız olursa kaydı ETKİLEMEZ */ }
 
   data.updatedAt = new Date().toISOString();
   const json = JSON.stringify(data);
