@@ -117,6 +117,56 @@ function PersonNode({ data }: NodeProps) {
   // Başlangıç iskeleti kartı: adı henüz girilmemiş, rol etiketi gösterilir.
   const isPlaceholder = !!person.placeholder && !person.firstName?.trim();
 
+  // Yakın çevre (arkadaş) kartı: YUVARLAK ve sade — gerçek fotoğraf varsa
+  // yalnız fotoğraf, yoksa yalnız isim. Üye kartındaki avatar+soyad+doğum yılı
+  // düzeni KULLANILMAZ (kullanıcı isteği).
+  if (associate) {
+    const circle = Math.min(width, height);
+    const hasPhoto = !!person.photo;
+    const first = primaryName(person);
+    return (
+      <div className="group relative" data-sel={selected}>
+        <Handle type="target" position={Position.Top} />
+        <Handle type="source" position={Position.Bottom} />
+        <div style={{ width, height }} className="flex items-center justify-center">
+          <div className="relative" style={{ width: circle, height: circle }}>
+            <button
+              onClick={() => onSelect(person.id)}
+              onDoubleClick={() => onOpen?.(person.id)}
+              title={first}
+              className={`
+                absolute inset-0 rounded-full overflow-hidden
+                grid place-items-center text-center
+                bg-accent-soft ring-2 ring-accent/50
+                transition-all duration-200
+                ${selected
+                  ? "shadow-float -translate-y-1 scale-105 ring-4 ring-primary/40 z-10"
+                  : "shadow-card hover:shadow-float hover:-translate-y-0.5"}
+                ${dimmed ? "opacity-30" : "opacity-100"}
+              `}
+            >
+              {hasPhoto ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={person.photo} alt={first} className="w-full h-full object-cover" />
+              ) : (
+                <span className={`px-2.5 font-semibold text-accent leading-tight line-clamp-3 break-words ${nameCls}`}>
+                  {first || t("node.friend")}
+                </span>
+              )}
+            </button>
+            <span
+              className="absolute -top-1 -left-1 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
+              title="Çevre"
+              aria-hidden
+            >
+              🤝
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="group relative" data-sel={selected}>
       <Handle type="target" position={Position.Top} />
