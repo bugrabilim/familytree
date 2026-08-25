@@ -84,6 +84,10 @@ export function maskPerson(p: Person): Person {
   // Vefat rozeti ve "yaşıyor mu?" hesabı için ölüm tarihi korunur
   if (p.deathDate !== undefined) masked.deathDate = p.deathDate;
   if (p.confidential !== undefined) masked.confidential = p.confidential;
+  // Üye/çevre ayrımı hassas değil; korunur ki maskeleme sonrası soy-ağacı
+  // süzgeci (çevre kişileri ağaca girmez) tutarlı kalsın. `associations`
+  // BİLEREK aktarılmaz — gizli kişinin yakın-çevre bağları sızmasın.
+  if (p.kind !== undefined) masked.kind = p.kind;
 
   // İlişki yapısı — ağaç bozulmasın
   if (p.parentLinks !== undefined) masked.parentLinks = p.parentLinks;

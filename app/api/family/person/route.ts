@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
     events: Array.isArray(body.events) ? body.events : undefined,
     sources: Array.isArray(body.sources) ? body.sources : undefined,
     memories: Array.isArray(body.memories) ? body.memories : undefined,
+    kind: body.kind === "cevre" ? "cevre" : undefined,
+    associations: Array.isArray(body.associations) ? body.associations : undefined,
     confidential: body.confidential || undefined,
     privateFields:
       Array.isArray(body.privateFields) && body.privateFields.length ? body.privateFields : undefined,

@@ -5,10 +5,12 @@ import {
   EDUCATION_LEVELS,
   ESTRANGEMENT_LABELS,
   LIFE_EVENT_TYPES,
+  ASSOCIATION_TYPES,
   MEMORY_PROMPTS,
   PARENT_KIND_LABELS,
   PRIVATE_GROUPS,
   SOURCE_KINDS,
+  type Association,
   type LifeEvent,
   type Memory,
   type ParentLink,
@@ -36,6 +38,7 @@ import {
   type RelationType,
 } from "@/lib/actions";
 import { useT } from "@/lib/i18n";
+import { fullName } from "@/lib/name";
 
 interface Props {
   people: Person[];
@@ -170,6 +173,10 @@ export default function PersonForm({
 
   const [confidential, setConfidential] = useState(initial?.confidential ?? false);
   const [privateFields, setPrivateFields] = useState<string[]>(initial?.privateFields ?? []);
+
+  // Kişi türü + yakın çevre bağları (aile-dışı yakınlar).
+  const [kind, setKind] = useState<"uye" | "cevre">(initial?.kind === "cevre" ? "cevre" : "uye");
+  const [associations, setAssociations] = useState<Association[]>(initial?.associations ?? []);
 
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
@@ -324,6 +331,23 @@ export default function PersonForm({
   const updateMemory = (id: string, patch: Partial<Memory>) =>
     setMemories((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
+  const addAssociation = () =>
+    setAssociations((as) => [...as, { id: crypto.randomUUID(), personId: "", type: "arkadas" }]);
+  const removeAssociation = (id: string) =>
+    setAssociations((as) => as.filter((a) => a.id !== id));
+  const updateAssociation = (id: string, patch: Partial<Association>) =>
+    setAssociations((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  /** Yazılan etiketi bilinen bir bağ türü anahtarına çevirir; değilse serbest metin. */
+  const assocKeyFromLabel = (val: string): string => {
+    const v = val.trim().toLocaleLowerCase("tr");
+    const hit = Object.entries(ASSOCIATION_TYPES).find(([, meta]) => meta.label.toLocaleLowerCase("tr") === v);
+    return hit ? hit[0] : val.trim();
+  };
+  const sortedPeople = useMemo(() => {
+    const coll = new Intl.Collator("tr");
+    return [...people].sort((a, b) => coll.compare(fullName(a), fullName(b)));
+  }, [people]);
+
   const toggleLink = (kind: "parentIds" | "spouseIds" | "formerSpouseIds", id: string) => {
     setForm((f) => {
       const arr = f[kind];
@@ -433,6 +457,10 @@ export default function PersonForm({
       events: builtEvents,
       sources: builtSources.length ? builtSources : undefined,
       memories: builtMemories.length ? builtMemories : undefined,
+      kind,
+      associations: associations.filter((a) => a.personId).length
+        ? associations.filter((a) => a.personId).map((a) => ({ id: a.id, personId: a.personId, type: (a.type || "diger").trim(), note: a.note?.trim() || undefined }))
+        : undefined,
       confidential: confidential || undefined,
       privateFields: privateFields.length ? privateFields : undefined,
     };
@@ -1203,6 +1231,80 @@ export default function PersonForm({
             </svg>
             {t("memory.add")}
           </button>
+        </div>
+      </details>
+
+      {/* Kişi türü + Yakın çevre (aile-dışı yakınlar) */}
+      <details className="rounded-xl border border-border overflow-hidden group">
+        <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+          <span className="text-xs font-medium text-text">
+            {t("assoc.section")}
+            {kind === "cevre" && <span className="ml-1.5 text-accent">· {t("assoc.isAssociate")}</span>}
+            {associations.length > 0 && <span className="ml-1.5 text-primary">· {associations.length}</span>}
+          </span>
+          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+        </summary>
+        <div className="p-3 space-y-3 bg-surface">
+          {/* Kişi türü */}
+          <div>
+            <p className="text-[11px] text-text-subtle mb-1.5">{t("assoc.kindHint")}</p>
+            <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
+              <button type="button" onClick={() => setKind("uye")}
+                className={`px-3 py-1.5 transition-colors ${kind === "uye" ? "bg-primary text-primary-text" : "text-text-muted hover:text-text"}`}>
+                {t("assoc.kindMember")}
+              </button>
+              <button type="button" onClick={() => { setKind("cevre"); if (initial?.confidential === undefined) setConfidential(true); }}
+                className={`px-3 py-1.5 transition-colors ${kind === "cevre" ? "bg-accent text-white" : "text-text-muted hover:text-text"}`}>
+                {t("assoc.kindAssociate")}
+              </button>
+            </div>
+            {kind === "cevre" && <p className="text-[11px] text-text-subtle mt-1.5">{t("assoc.associateHint")}</p>}
+          </div>
+
+          {/* Bağlar */}
+          <div>
+            <p className="text-[11px] text-text-subtle mb-1.5">{t("assoc.listHint")}</p>
+            <datalist id="pf-assoc-types">
+              {Object.values(ASSOCIATION_TYPES).map((v) => <option key={v.label} value={v.label} />)}
+            </datalist>
+            <div className="space-y-2">
+              {associations.map((a) => (
+                <div key={a.id} className="flex flex-wrap items-center gap-1.5">
+                  <select
+                    value={a.personId}
+                    onChange={(e) => updateAssociation(a.id, { personId: e.target.value })}
+                    className="h-8 min-w-[8rem] flex-1 px-2 rounded-lg bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary"
+                  >
+                    <option value="">{t("common.choosePerson")}</option>
+                    {sortedPeople.filter((p) => p.id !== personId).map((p) => (
+                      <option key={p.id} value={p.id}>{fullName(p)}{p.birthDate ? ` · ${p.birthDate.slice(0, 4)}` : ""}</option>
+                    ))}
+                  </select>
+                  <input
+                    list="pf-assoc-types"
+                    value={ASSOCIATION_TYPES[a.type]?.label ?? a.type}
+                    onChange={(e) => updateAssociation(a.id, { type: assocKeyFromLabel(e.target.value) })}
+                    placeholder={t("assoc.typePlaceholder")}
+                    className="h-8 w-28 px-2 rounded-lg bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary"
+                  />
+                  <input
+                    value={a.note ?? ""}
+                    onChange={(e) => updateAssociation(a.id, { note: e.target.value })}
+                    placeholder={t("assoc.notePlaceholder")}
+                    className="h-8 flex-1 min-w-[6rem] px-2 rounded-lg bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary"
+                  />
+                  <button type="button" onClick={() => removeAssociation(a.id)} aria-label={t("common.remove")}
+                    className="h-8 w-8 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors">
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addAssociation}
+              className="mt-2 h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text">
+              + {t("assoc.add")}
+            </button>
+          </div>
         </div>
       </details>
 
