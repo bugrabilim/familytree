@@ -69,8 +69,32 @@ export interface Memory {
   date?: string;
 }
 
+/**
+ * Çevre bağı — aile üyesi OLMAYAN bir yakınla (arkadaş, komşu, vasi, kirve,
+ * öğretmen…) kurulan bağ. Kan/evlilik değildir; soy ağacı ve akrabalık
+ * hesaplarına KATILMAZ, yalnız kişinin "yakın çevresi"nde gösterilir.
+ */
+export interface Association {
+  id: string;
+  /** Bağlı kişinin id'si. Genelde bir "çevre" kişisi, ama üye de olabilir. */
+  personId: string;
+  /** `ASSOCIATION_TYPES` anahtarı ya da serbest metin. */
+  type: string;
+  note?: string;
+}
+
 export interface Person {
   id: string;
+  /**
+   * Kişi türü: "uye" (kan/evlilik bağıyla soy ağacında yer alan aile üyesi) ya
+   * da "cevre" (aile üyesi olmayan yakın: arkadaş, komşu, vasi…). Belirtilmezse
+   * "uye" sayılır. "cevre" kişileri soy ağacı, kuşak, kan derecesi, istatistik
+   * ve ilişki matrisi hesaplarına KATILMAZ; yalnız bağlı olduğu kişinin
+   * yakın çevresinde ve "Çevre" görünümünde görünür.
+   */
+  kind?: "uye" | "cevre";
+  /** Yakın çevre bağları — aile-dışı yakınlarla (drawer'da çift yönlü gösterilir). */
+  associations?: Association[];
   /**
    * İnsan-okur benzersiz kimlik: 6 haneli, "289" ile başlar (289001…).
    * Kartlarda gösterilir. İç `id`'den ayrıdır; kalıcı ve paylaşılabilir.
@@ -215,6 +239,24 @@ export const LIFE_EVENT_TYPES: Record<string, { label: string; icon: string }> =
   askerlik: { label: "Askerlik", icon: "🎖️" },
   hastalik: { label: "Hastalık", icon: "🏥" },
   odul: { label: "Ödül", icon: "🏆" },
+  diger: { label: "Diğer", icon: "✨" },
+};
+
+/**
+ * Çevre bağı türleri — Türkçe etiket + emoji simge. Anahtar, `Association.type`
+ * alanında saklanır; listede olmayan (serbest metin) türler de geçerlidir.
+ */
+export const ASSOCIATION_TYPES: Record<string, { label: string; icon: string }> = {
+  arkadas: { label: "Arkadaş", icon: "🤝" },
+  yakinarkadas: { label: "Yakın arkadaş", icon: "❤️" },
+  komsu: { label: "Komşu", icon: "🏘️" },
+  ailedostu: { label: "Aile dostu", icon: "🫂" },
+  kirve: { label: "Kirve", icon: "🎗️" },
+  vasi: { label: "Vasi", icon: "🛡️" },
+  ogretmen: { label: "Öğretmen", icon: "📚" },
+  ogrenci: { label: "Öğrenci", icon: "✏️" },
+  isortagi: { label: "İş ortağı", icon: "💼" },
+  meslektas: { label: "Meslektaş", icon: "🧑‍💼" },
   diger: { label: "Diğer", icon: "✨" },
 };
 

@@ -33,6 +33,7 @@ import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
+import { isMember } from "@/lib/associates";
 import { useT } from "@/lib/i18n";
 
 function TreeLoading() {
@@ -185,6 +186,11 @@ function WorkspaceInner({
     setPrintingView(true);
   }, []);
 
+  // Soy-ağacı süzgeci: "çevre" (aile-dışı yakınlar) kan/evlilik motoruna
+  // KATILMAZ. Ağaç, şecere, yelpaze, zaman, panel, harita ve kitap yalnız
+  // ÜYELERİ görür; profil, arama, liste, tablo ve düzenleyici TÜM kişileri
+  // görür (çevre kişilerinin profilleri açılabilsin, bağları çözülebilsin).
+  const members = useMemo(() => people.filter(isMember), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
   const selected = selectedId ? idx.get(selectedId) : undefined;
   /**
@@ -198,11 +204,11 @@ function WorkspaceInner({
   const varsayilanKok = useMemo(() => {
     // Başlangıç iskeletinde odak her zaman kullanıcının kendisi olsun —
     // böylece her iki taraftaki büyükanne/büyükbaba da ilk açılışta görünür.
-    const iskeletBen = people.find((p) => p.placeholder === "self");
+    const iskeletBen = members.find((p) => p.placeholder === "self");
     if (iskeletBen) return iskeletBen.id;
     // Çocuk sayısını tek geçişte hazırla (1. derece bağlantı hesabı için)
     const childCount = new Map<string, number>();
-    for (const p of people) {
+    for (const p of members) {
       for (const pid of p.parentIds) childCount.set(pid, (childCount.get(pid) ?? 0) + 1);
     }
 
@@ -211,9 +217,9 @@ function WorkspaceInner({
     let fallbackId: string | undefined;
     let fallbackDeg = -1;
 
-    for (const p of people) {
+    for (const p of members) {
       const anc = ancestorDepths(p.id, idx);
-      const desc = descendantDepths(p.id, people);
+      const desc = descendantDepths(p.id, members);
       let up = 0;
       for (const d of anc.values()) if (d > up) up = d;
       let down = 0;
@@ -240,8 +246,8 @@ function WorkspaceInner({
       }
     }
 
-    return bestId ?? fallbackId ?? people[0]?.id;
-  }, [people, idx]);
+    return bestId ?? fallbackId ?? members[0]?.id;
+  }, [members, idx]);
 
   const effectiveRoot = (rootId && idx.has(rootId) ? rootId : undefined) ?? varsayilanKok;
 
@@ -255,16 +261,17 @@ function WorkspaceInner({
   const treeFocusId = treeFocus && idx.has(treeFocus) ? treeFocus : effectiveRoot;
 
   const treePeople = useMemo(() => {
-    if (treeDepth >= HERKES || !treeFocusId) return people;
+    // "Tümü" modunda bile yalnız üyeler (çevre kişileri ağaçta düğüm olmaz).
+    if (treeDepth >= HERKES || !treeFocusId) return members;
 
     const keep = new Set<string>([treeFocusId]);
     for (const [id, d] of ancestorDepths(treeFocusId, idx)) if (d <= treeDepth) keep.add(id);
-    for (const [id, d] of descendantDepths(treeFocusId, people)) if (d <= treeDepth) keep.add(id);
+    for (const [id, d] of descendantDepths(treeFocusId, members)) if (d <= treeDepth) keep.add(id);
 
     // Odak kişinin kardeşleri
     const focus = idx.get(treeFocusId);
     if (focus?.parentIds.length) {
-      for (const p of people) {
+      for (const p of members) {
         if (p.parentIds.some((pid) => focus.parentIds.includes(pid))) keep.add(p.id);
       }
     }
@@ -276,8 +283,8 @@ function WorkspaceInner({
         if (idx.has(s)) keep.add(s);
       }
     }
-    return people.filter((p) => keep.has(p.id));
-  }, [people, idx, treeFocusId, treeDepth]);
+    return members.filter((p) => keep.has(p.id));
+  }, [members, idx, treeFocusId, treeDepth]);
 
   /* Klavye kısayolları */
   useEffect(() => {
@@ -515,7 +522,7 @@ function WorkspaceInner({
           </>
         ) : view === "soy" ? (
           <PedigreeView
-            people={people}
+            people={members}
             rootId={effectiveRoot}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -524,7 +531,7 @@ function WorkspaceInner({
           />
         ) : view === "yelpaze" ? (
           <FanChart
-            people={people}
+            people={members}
             rootId={effectiveRoot}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -532,7 +539,7 @@ function WorkspaceInner({
             onClose={() => setSelectedId(undefined)}
           />
         ) : view === "zaman" ? (
-          <TimelineView people={people} selectedId={selectedId} onSelect={setSelectedId} />
+          <TimelineView people={members} selectedId={selectedId} onSelect={setSelectedId} />
         ) : view === "liste" ? (
           <ListView
             people={people}
@@ -543,10 +550,10 @@ function WorkspaceInner({
         ) : view === "tablo" ? (
           <TableView people={people} onAdd={openAdd} onChanged={() => router.refresh()} />
         ) : view === "harita" ? (
-          <PlacesMap people={people} onSelect={setSelectedId} />
+          <PlacesMap people={members} onSelect={setSelectedId} />
         ) : (
           <PanelView
-            people={people}
+            people={members}
             onSelect={setSelectedId}
             onAdd={openAdd}
             onPrint={printCurrentView}
@@ -673,12 +680,12 @@ function WorkspaceInner({
       )}
 
       {printOpen && (
-        <PrintView people={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+        <PrintView people={members} familyName={familyName} onClose={() => setPrintOpen(false)} />
       )}
 
       {bookOpen && (
         <BookView
-          people={people}
+          people={members}
           familyName={familyName}
           onClose={() => setBookOpen(false)}
           onPrint={() => { setBookOpen(false); setPrintOpen(true); }}

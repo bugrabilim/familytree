@@ -68,6 +68,8 @@ export async function PUT(
     events: Array.isArray(body.events) ? body.events : data.people[index].events,
     sources: Array.isArray(body.sources) ? body.sources : data.people[index].sources,
     memories: Array.isArray(body.memories) ? body.memories : data.people[index].memories,
+    kind: body.kind === "cevre" ? "cevre" : body.kind === "uye" ? undefined : data.people[index].kind,
+    associations: Array.isArray(body.associations) ? body.associations : data.people[index].associations,
     confidential:
       typeof body.confidential === "boolean" ? body.confidential : data.people[index].confidential,
     privateFields: Array.isArray(body.privateFields)

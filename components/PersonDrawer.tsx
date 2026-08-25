@@ -31,6 +31,8 @@ import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions"
 import { moveInList, siblingGroup } from "@/lib/siblings";
 import { useRouter } from "next/navigation";
 import { fullName } from "@/lib/name";
+import { resolveAssociations } from "@/lib/associates";
+import { ASSOCIATION_TYPES } from "@/types/family";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
@@ -96,6 +98,9 @@ export default function PersonDrawer({
   // akrabalık hesapları maskeli kişiyle de doğru çalışır.
   const person = view(rawPerson);
   const masked = isMasked(rawPerson, hideLiving);
+
+  // Yakın çevre (aile-dışı yakınlar) — iki yönlü. Gizli kişide gösterilmez.
+  const closeCircle = useMemo(() => (masked ? [] : resolveAssociations(rawPerson, people)), [masked, rawPerson, people]);
 
   const idx = useMemo(() => indexPeople(people), [people]);
   // İlişkili kişiler ham veriden hesaplanır, gösterimden hemen önce maskelenir.
@@ -497,6 +502,35 @@ export default function PersonDrawer({
                           </p>
                         )}
                       </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {/* Yakın çevre — aile-dışı yakınlar (arkadaş, komşu, vasi…) */}
+          {closeCircle.length > 0 && (
+            <section>
+              <SectionTitle>{t("drawer.associations")}</SectionTitle>
+              <ul className="space-y-1">
+                {closeCircle.map(({ person: other, type, note }) => {
+                  const op = view(other);
+                  return (
+                    <li key={other.id}>
+                      <button
+                        onClick={() => onSelect(other.id)}
+                        className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                      >
+                        <Avatar person={op} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-text truncate leading-tight">{fullName(op)}</p>
+                          {note && <p className="text-[11px] text-text-subtle truncate leading-tight">{note}</p>}
+                        </div>
+                        <span className="text-[11px] font-medium text-accent shrink-0">
+                          {ASSOCIATION_TYPES[type]?.icon ?? "•"} {ASSOCIATION_TYPES[type]?.label ?? type}
+                        </span>
+                      </button>
                     </li>
                   );
                 })}
