@@ -18,6 +18,8 @@ export interface PersonNodeData extends Record<string, unknown> {
   focused?: boolean;
   dimmed: boolean;
   canAddParent: boolean;
+  /** Çevre (aile-dışı yakın) kartı — arkadaşlık rozeti, hızlı-ekle yok. */
+  associate?: boolean;
   /** 3 = en büyük kart, 0 = en sade (kalabalık) */
   detail?: 0 | 1 | 2 | 3;
   width?: number;
@@ -69,7 +71,7 @@ function AddNub({
 }
 
 function PersonNode({ data }: NodeProps) {
-  const { person: rawPerson, selected, focused, dimmed, canAddParent, detail = 3, width = 140, height = 124, onSelect, onOpen, onQuickAdd } =
+  const { person: rawPerson, selected, focused, dimmed, canAddParent, associate, detail = 3, width = 140, height = 124, onSelect, onOpen, onQuickAdd } =
     data as unknown as PersonNodeData;
 
   const { view } = usePrivacy();
@@ -145,8 +147,19 @@ function PersonNode({ data }: NodeProps) {
         </div>
       </button>
 
-      {/* Hızlı ekleme düğmeleri — görüntüleme modunda gizli */}
-      {!readOnly && (
+      {/* Çevre (arkadaş) rozeti */}
+      {associate && (
+        <span
+          className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
+          title="Çevre"
+          aria-hidden
+        >
+          🤝
+        </span>
+      )}
+
+      {/* Hızlı ekleme düğmeleri — görüntüleme modunda + çevre kartında gizli */}
+      {!readOnly && !associate && (
         <>
           {canAddParent && (
             <AddNub label="Ebeveyn ekle" position="top" onClick={stop(() => onQuickAdd("parent", person.id))} />

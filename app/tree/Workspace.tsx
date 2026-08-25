@@ -166,6 +166,21 @@ function WorkspaceInner({
   const [treeDepth, setTreeDepth] = useState(3);
   const [toast, setToast] = useState<string>();
 
+  // "Arkadaşları göster" — açıkken çevre (aile-dışı) kişiler ağaçta bağlı
+  // oldukları üyenin yanında (kesikli arkadaşlık çizgisiyle) görünür. Cihazda
+  // (localStorage) kalıcı; soy-ağacı hesaplarını ETKİLEMEZ, yalnız ağaç görünümü.
+  const [showAssociates, setShowAssociatesState] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowAssociatesState(localStorage.getItem("soyagaci_show_associates") === "1");
+    } catch { /* yoksay */ }
+  }, []);
+  const setShowAssociates = useCallback((v: boolean) => {
+    setShowAssociatesState(v);
+    try { localStorage.setItem("soyagaci_show_associates", v ? "1" : "0"); } catch { /* yoksay */ }
+  }, []);
+
   // Madde 8 — "Bu görünümü yazdır": açık görünümü (ağaç/harita/soy/panel/liste)
   // olduğu gibi bas. Detay paneli kapatılıp bir render sonra `print-view`
   // sınıfıyla yalnız görünüm basılır; afterprint'te temizlenir.
@@ -285,6 +300,22 @@ function WorkspaceInner({
     }
     return members.filter((p) => keep.has(p.id));
   }, [members, idx, treeFocusId, treeDepth]);
+
+  // "Arkadaşları göster" açıkken: görünür üyelerle bağı olan çevre kişilerini
+  // ağaca ekle (kesikli arkadaşlık çizgisiyle bağlanır). Kapalıysa değişmez.
+  const treeWithAssoc = useMemo(() => {
+    if (!showAssociates) return treePeople;
+    const memberIds = new Set(treePeople.map((p) => p.id));
+    const extra: Person[] = [];
+    for (const p of people) {
+      if (p.kind !== "cevre") continue;
+      const bonded =
+        (p.associations ?? []).some((a) => memberIds.has(a.personId)) ||
+        treePeople.some((m) => (m.associations ?? []).some((a) => a.personId === p.id));
+      if (bonded) extra.push(p);
+    }
+    return extra.length ? [...treePeople, ...extra] : treePeople;
+  }, [showAssociates, treePeople, people]);
 
   /* Klavye kısayolları */
   useEffect(() => {
@@ -489,7 +520,7 @@ function WorkspaceInner({
                 Madde 6 — yazdırırken bunu gizle, yerine statik şema bas. */}
             <div className="no-print h-full">
               <FamilyTree
-                people={treePeople}
+                people={treeWithAssoc}
                 selectedId={selectedId}
                 focusId={effectiveRoot}
                 depth={treeDepth}
@@ -508,8 +539,8 @@ function WorkspaceInner({
               <TreeDepthControl
                 depth={treeDepth}
                 onChange={setTreeDepth}
-                shown={treePeople.length}
-                total={people.length}
+                shown={treeWithAssoc.length}
+                total={members.length}
                 focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
                 onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
               />
@@ -652,6 +683,8 @@ function WorkspaceInner({
           onClose={() => setSettingsOpen(false)}
           editable={!readOnly}
           peopleCount={people.length}
+          showAssociates={showAssociates}
+          onToggleAssociates={setShowAssociates}
           onImportExport={() => { setSettingsOpen(false); setGedcomOpen(true); }}
           onOpenTable={() => { setSettingsOpen(false); setView("tablo"); }}
           onCleared={handleCleared}
