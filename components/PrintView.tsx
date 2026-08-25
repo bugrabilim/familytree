@@ -19,12 +19,16 @@ import { useT, useLang } from "@/lib/i18n";
 import { aggregatePlaces } from "@/lib/places";
 import { generatePreface } from "@/lib/preface";
 import { computeAlmanac } from "@/lib/book-stats";
+import { ASSOCIATION_TYPES } from "@/types/family";
+import { resolveAssociations } from "@/lib/associates";
 import BookMap from "./BookMap";
 import TreeSchema from "./TreeSchema";
 import RelationMatrix from "./RelationMatrix";
 
 interface Props {
   people: Person[];
+  /** TÜM kişiler (üye + çevre) — "Yakınları" bağlarını çözmek için. */
+  allPeople?: Person[];
   familyName?: string;
   onClose: () => void;
 }
@@ -37,7 +41,7 @@ interface Props {
  * yalnızca `.print-root` basılır. Gizlilik: maskeli kopya (`view`) kullanılır —
  * gizli yaşayan kişilerin tarih/foto/hikâyesi sızmaz (maskeli kopyada foto yok).
  */
-export default function PrintView({ people, familyName, onClose }: Props) {
+export default function PrintView({ people, allPeople, familyName, onClose }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
@@ -51,6 +55,7 @@ export default function PrintView({ people, familyName, onClose }: Props) {
 
   // Maskeli kopyalar üzerinden sırala ve indeksle.
   const masked = useMemo(() => people.map((p) => view(p)), [people, view]);
+  const maskedAll = useMemo(() => (allPeople ?? people).map((p) => view(p)), [allPeople, people, view]);
   const idx = useMemo(() => indexPeople(masked), [masked]);
 
   // Kişinin kuşağı: en uzun ata zincirinin uzunluğu (köksüz = 1).
@@ -399,6 +404,16 @@ export default function PrintView({ people, familyName, onClose }: Props) {
                       {spouses.length > 0 && <Row k={t("print.spouses")} v={names(spouses)} wide />}
                       {exes.length > 0 && <Row k={t("print.formerSpouses")} v={names(exes)} wide />}
                       {children.length > 0 && <Row k={t("print.children")} v={names(children)} wide />}
+                      {(() => {
+                        const circle = resolveAssociations(p, maskedAll);
+                        return circle.length > 0 ? (
+                          <Row
+                            k={t("drawer.associations")}
+                            v={circle.map((c) => `${fullName(c.person)} (${ASSOCIATION_TYPES[c.type]?.label ?? c.type})`).join(", ")}
+                            wide
+                          />
+                        ) : null;
+                      })()}
                     </dl>
 
                     {p.bio && (

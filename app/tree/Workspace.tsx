@@ -713,12 +713,13 @@ function WorkspaceInner({
       )}
 
       {printOpen && (
-        <PrintView people={members} familyName={familyName} onClose={() => setPrintOpen(false)} />
+        <PrintView people={members} allPeople={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
       )}
 
       {bookOpen && (
         <BookView
           people={members}
+          allPeople={people}
           familyName={familyName}
           onClose={() => setBookOpen(false)}
           onPrint={() => { setBookOpen(false); setPrintOpen(true); }}
