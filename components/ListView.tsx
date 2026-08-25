@@ -8,6 +8,7 @@ import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { isRainbow } from "@/lib/identity";
+import { isAssociate, isMember } from "@/lib/associates";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -24,6 +25,8 @@ import { useT } from "@/lib/i18n";
 type SortKey = "ad" | "soyad" | "dogum" | "yeni";
 type Filter =
   | "hepsi"
+  | "uyeler"
+  | "arkadaslar"
   | "yasayan"
   | "vefat"
   | "bagsiz"
@@ -89,6 +92,8 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
   const rows = useMemo(() => {
     let out = people.filter((p) => {
       // Kategori çipi (tekli)
+      if (filter === "uyeler" && !isMember(p)) return false;
+      if (filter === "arkadaslar" && !isAssociate(p)) return false;
       if (filter === "yasayan" && p.deathDate) return false;
       if (filter === "vefat" && !p.deathDate) return false;
       if (filter === "bagsiz") {
@@ -123,6 +128,8 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
 
   const FILTERS: Array<{ k: Filter; l: string }> = [
     { k: "hepsi", l: t("list.filter.all") },
+    { k: "uyeler", l: t("list.filter.members") },
+    { k: "arkadaslar", l: t("list.filter.friends") },
     { k: "yasayan", l: t("list.filter.living") },
     { k: "vefat", l: t("list.filter.deceased") },
     { k: "bagsiz", l: t("list.filter.unlinked") },

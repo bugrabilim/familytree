@@ -250,6 +250,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
                   y={pt.y}
                   badge={m.badge}
                   badgeColor={CATEGORY_STYLE[pt.category].color}
+                  associate={pt.category === "associate"}
                   subtitle={lifeSpan(m.person.birthDate, m.person.deathDate) || undefined}
                   onClick={() => setCenterId(pt.id)}
                 />
@@ -274,6 +275,7 @@ function EgoCard({
   center,
   badge,
   badgeColor,
+  associate,
   subtitle,
   onClick,
   openLabel,
@@ -284,6 +286,8 @@ function EgoCard({
   center?: boolean;
   badge?: string;
   badgeColor?: string;
+  /** Aile-dışı yakın — cinsiyetten BAĞIMSIZ mor (accent) görünüm. */
+  associate?: boolean;
   subtitle?: string;
   onClick: () => void;
   openLabel?: string;
@@ -293,25 +297,33 @@ function EgoCard({
       onClick={onClick}
       title={openLabel}
       style={{ left: x, top: y }}
-      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 w-[104px] group ${
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 w-[120px] group ${
         center ? "z-10" : ""
       }`}
     >
       <span className={center ? "scale-110" : "transition-transform group-hover:scale-105"}>
-        <Avatar person={person} size={center ? "lg" : "md"} ring />
+        {/* Arkadaş avatarı cinsiyet halkası yerine mor (accent) halka alır. */}
+        {associate ? (
+          <Avatar person={person} size={center ? "lg" : "md"} className="ring-2 ring-accent/60" />
+        ) : (
+          <Avatar person={person} size={center ? "lg" : "md"} ring />
+        )}
       </span>
       <span
         className={`px-2 py-1 rounded-lg border shadow-soft text-center max-w-full ${
           center
             ? "bg-primary text-primary-text border-primary"
+            : associate
+            ? "bg-accent-soft text-accent border-accent/40"
             : "bg-bg-elevated border-border group-hover:border-border-strong"
         }`}
       >
-        <span className={`block text-xs font-medium leading-tight truncate ${center ? "" : "text-text"}`}>
+        {/* İsim: kısaltma (…) yok — sığmayınca alt satıra sarar. */}
+        <span className={`block text-xs font-medium leading-tight break-words line-clamp-3 ${center || associate ? "" : "text-text"}`}>
           {fullName(person)}
         </span>
         {subtitle && (
-          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : "text-text-subtle"}`}>
+          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : associate ? "text-accent/80" : "text-text-subtle"}`}>
             {subtitle}
           </span>
         )}
