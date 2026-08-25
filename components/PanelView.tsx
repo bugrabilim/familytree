@@ -831,7 +831,8 @@ function GenderPie({
     other: t("panel.gender.other"),
     unknown: t("panel.gender.unknown"),
   };
-  const data = (Object.keys(LABELS) as Gender[])
+  // "Bilinmiyor" bir cinsiyet olarak gösterilmez (yalnız kadın/erkek/diğer).
+  const data = (["female", "male", "other"] as Gender[])
     .map((g) => ({ g, v: counts[g] ?? 0, label: LABELS[g] }))
     .filter((d) => d.v > 0);
   const total = data.reduce((s, d) => s + d.v, 0);

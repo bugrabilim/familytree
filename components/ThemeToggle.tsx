@@ -6,7 +6,8 @@ export const THEME_SCRIPT = `
 (function(){
   try {
     var t = localStorage.getItem('tema');
-    var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Varsayılan AYDINLIK: yalnız kullanıcı açıkça 'dark' seçtiyse koyu tema.
+    var dark = t === 'dark';
     if (dark) document.documentElement.classList.add('dark');
   } catch (e) {}
 })();

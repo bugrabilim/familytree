@@ -217,7 +217,8 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                       <option value="male">{t("form.gender.male")}</option>
                       <option value="female">{t("form.gender.female")}</option>
                       <option value="other">{t("form.gender.other")}</option>
-                      <option value="unknown">—</option>
+                      {/* "Bilinmiyor" artık seçilemez; yalnız eski kayıt bozulmasın diye tutulur */}
+                      {p.gender === "unknown" && <option value="unknown">—</option>}
                     </select>
                   )}
                 </td>

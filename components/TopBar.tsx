@@ -72,6 +72,8 @@ interface Props {
   /** ⋮ menüsünden Ayarlar / Paylaş hub'larını açar. */
   onOpenSettings: () => void;
   onOpenShare: () => void;
+  /** ⋮ → Kişiler hub'ı (içe/dışa aktar, tablo, tüm kişileri sil). Verilmezse gizli. */
+  onOpenPeople?: () => void;
   /** ⋮ menüsündeki "Yazdır" — açık görünümü yazdırır (Madde 8). */
   onPrintView: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
@@ -92,6 +94,7 @@ export default function TopBar({
   onSearch,
   onOpenSettings,
   onOpenShare,
+  onOpenPeople,
   onPrintView,
   onAiChat,
   peopleCount,
@@ -208,13 +211,20 @@ export default function TopBar({
                   <MenuBtn
                     label={t("menu.share")}
                     onClick={() => { setMenuOpen(false); onOpenShare(); }}
-                    icon={<path d="M15 8a3 3 0 10-2.8-4M15 8a3 3 0 01-2.8 4M6 12a3 3 0 100 6 3 3 0 000-6zm0 0l6-2m0 8l-6-2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
+                    icon={<path d="M12 3v11M12 3L8.5 6.5M12 3l3.5 3.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
                   />
                   <MenuBtn
                     label={t("menu.print")}
                     onClick={() => { setMenuOpen(false); onPrintView(); }}
                     icon={<path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
                   />
+                  {onOpenPeople && (
+                    <MenuBtn
+                      label={t("menu.people")}
+                      onClick={() => { setMenuOpen(false); onOpenPeople(); }}
+                      icon={<path d="M16 20v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 18.5V20M10 11.5a3.25 3.25 0 100-6.5 3.25 3.25 0 000 6.5zM20 20v-1.5a3.5 3.5 0 00-2.7-3.4M15.5 5.2a3.25 3.25 0 010 6.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+                    />
+                  )}
                   <MenuBtn
                     label={t("menu.settings")}
                     onClick={() => { setMenuOpen(false); onOpenSettings(); }}
