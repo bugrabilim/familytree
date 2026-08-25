@@ -8,6 +8,7 @@ import type { TreeRole } from "@/types/user";
 import type { TreeMeta } from "@/lib/trees";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import PersonDrawer from "@/components/PersonDrawer";
+import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
 import GedcomDialog from "@/components/GedcomDialog";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -135,6 +136,8 @@ function WorkspaceInner({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
+  /** Kişi merkezli "Çevre" grafiği — açıksa bu kişiyle merkezlenir. */
+  const [egoId, setEgoId] = useState<string | undefined>(undefined);
   const [printingView, setPrintingView] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -625,7 +628,19 @@ function WorkspaceInner({
           onQuickAdd={openQuickAdd}
           onLocate={locatePerson}
           onFocus={focusPerson}
+          onEgo={setEgoId}
           onDeleted={handleDeleted}
+        />
+      )}
+
+      {/* Çevre grafiği — kişi merkezli ağ görünümü */}
+      {egoId && (
+        <EgoNetwork
+          key={egoId}
+          personId={egoId}
+          people={people}
+          onClose={() => setEgoId(undefined)}
+          onOpenProfile={(id) => { setEgoId(undefined); setSelectedId(id); }}
         />
       )}
 

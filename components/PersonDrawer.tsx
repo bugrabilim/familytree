@@ -50,6 +50,8 @@ interface Props {
   onQuickAdd: (relation: RelationType, targetId: string) => void;
   onFocus: (id: string) => void;
   onLocate: (id: string) => void;
+  /** Kişi merkezli "Çevre" grafiğini aç. */
+  onEgo: (id: string) => void;
   onDeleted: () => void;
 }
 
@@ -63,6 +65,7 @@ export default function PersonDrawer({
   onQuickAdd,
   onFocus,
   onLocate,
+  onEgo,
   onDeleted,
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -251,6 +254,9 @@ export default function PersonDrawer({
             </Button>
             <Button size="sm" variant="secondary" onClick={() => onLocate(person.id)}>
               {t("drawer.locate")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => onEgo(person.id)}>
+              {t("drawer.ego")}
             </Button>
             {!readOnly && (
               <div className="ml-auto">
