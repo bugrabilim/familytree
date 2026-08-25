@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
 import { genderTone } from "./ui/Avatar";
 import { buildUnions, layout } from "@/lib/tree-layout";
+import { isAssociate, isMember } from "@/lib/associates";
 import { compareSiblings } from "@/lib/siblings";
 import type { Person } from "@/types/family";
 import type { RelationType } from "@/lib/actions";
@@ -104,7 +105,28 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     }
     return u;
   }, [people, ids, byIdAll]);
-  const positions = useMemo(() => layout(people, unions, dim), [people, unions, dim]);
+  // Çevre (arkadaşlık) bağları — her iki uç da görünürse, üye→çevre yönünde
+  // (dedupe). Yerleşimde associate'ı üyesinin altına iliştirmek + kesikli çizgi.
+  const assocEdges = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Array<{ from: string; to: string }> = [];
+    for (const p of people) {
+      for (const a of p.associations ?? []) {
+        if (!ids.has(p.id) || !ids.has(a.personId) || p.id === a.personId) continue;
+        const other = byIdAll.get(a.personId);
+        // Üye→çevre yönü: üye kaynak olsun (associate alt sırada dursun).
+        const from = isMember(p) || !other || isAssociate(other) ? p.id : a.personId;
+        const to = from === p.id ? a.personId : p.id;
+        const key = [from, to].sort().join("|");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ from, to });
+      }
+    }
+    return out;
+  }, [people, ids, byIdAll]);
+
+  const positions = useMemo(() => layout(people, unions, dim, assocEdges), [people, unions, dim, assocEdges]);
 
   const nodes = useMemo<Node[]>(() => {
     const personNodes: Node[] = people.map((p) => {
@@ -114,6 +136,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         focused: p.id === focusId,
         dimmed: !!highlightIds && !highlightIds.has(p.id),
         canAddParent: p.parentIds.length < 2,
+        associate: isAssociate(p),
         detail,
         width: dim.w,
         height: dim.h,
@@ -217,8 +240,24 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       for (const sid of p.formerSpouseIds ?? []) esKenari(p.id, sid, true);
     }
 
+    // Çevre (arkadaşlık) çizgileri — kesikli, ayırt edici mor ton.
+    for (const e of assocEdges) {
+      out.push({
+        id: `a:${e.from}|${e.to}`,
+        source: e.from,
+        target: e.to,
+        type: "straight",
+        style: {
+          stroke: "var(--accent, #a855f7)",
+          strokeWidth: 1.4,
+          strokeDasharray: "2 5",
+          opacity: soluk(e.from, e.to) ? 0.2 : 0.7,
+        },
+      });
+    }
+
     return out;
-  }, [people, unions, ids, byId, highlightIds]);
+  }, [people, unions, ids, byId, highlightIds, assocEdges]);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(nodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(edges);

@@ -12,6 +12,9 @@ interface Props {
   onClose: () => void;
   editable: boolean;
   peopleCount: number;
+  /** "Arkadaşları göster" — çevre (aile-dışı) kişileri ağaçta göster/gizle. */
+  showAssociates: boolean;
+  onToggleAssociates: (v: boolean) => void;
   onImportExport: () => void;
   onOpenTable: () => void;
   /** Tüm kişiler silindikten sonra (ağacı tazele). */
@@ -26,6 +29,8 @@ export default function SettingsDialog({
   onClose,
   editable,
   peopleCount,
+  showAssociates,
+  onToggleAssociates,
   onImportExport,
   onOpenTable,
   onCleared,
@@ -65,6 +70,15 @@ export default function SettingsDialog({
           >
             <span>{t("topbar.hideLiving")}</span>
             <Switch on={hideLiving} />
+          </button>
+
+          <button
+            onClick={() => onToggleAssociates(!showAssociates)}
+            aria-pressed={showAssociates}
+            className="w-full flex items-center justify-between gap-3 py-2 text-sm text-text"
+          >
+            <span>{t("settings.showAssociates")}</span>
+            <Switch on={showAssociates} />
           </button>
 
           <div className="w-full flex items-center justify-between gap-3 py-2 text-sm text-text">

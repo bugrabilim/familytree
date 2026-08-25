@@ -56,7 +56,9 @@ export function buildUnions(people: Person[], ids: Set<string>): Union[] {
 export function layout(
   people: Person[],
   unions: Union[],
-  dim: LayoutDim
+  dim: LayoutDim,
+  /** Çevre (arkadaşlık) bağları — associate'ı üyesinin bir alt sırasına yerleştir. */
+  assocEdges: Array<{ from: string; to: string }> = []
 ): Map<string, { x: number; y: number }> {
   // Madde 11 — Eş bitişikliği. Kuzen evliliği graf içinde döngü yaratıyor;
   // dagre "herkes" görünümünde çiftleri geniş biçimde ayırabiliyordu (kenar
@@ -95,6 +97,12 @@ export function layout(
   for (const u of unions) {
     for (const pid of u.parentIds) g.setEdge(pid, u.id, { weight: 12 });
     for (const cid of u.childIds) g.setEdge(u.id, cid, { weight: 2 });
+  }
+
+  // Çevre bağları: associate'ı üyesinin hemen altına, düşük ağırlıkla iliştir —
+  // asıl soy yerleşimini bozmadan yakın dursun (her iki uç da düğüm olmalı).
+  for (const e of assocEdges) {
+    if (g.hasNode(e.from) && g.hasNode(e.to)) g.setEdge(e.from, e.to, { weight: 1, minlen: 1 });
   }
 
   dagre.layout(g);
