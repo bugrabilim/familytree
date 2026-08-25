@@ -516,7 +516,7 @@ export default function PersonDrawer({
           )}
 
           {/* Yakın çevre — aile-dışı yakınlar (arkadaş, komşu, vasi…) */}
-          {closeCircle.length > 0 && (
+          {(closeCircle.length > 0 || (!readOnly && !masked)) && (
             <section>
               <SectionTitle>{t("drawer.associations")}</SectionTitle>
               <ul className="space-y-1">
@@ -541,6 +541,17 @@ export default function PersonDrawer({
                   );
                 })}
               </ul>
+              {!readOnly && !masked && (
+                <button
+                  onClick={() => onQuickAdd("associate", person.id)}
+                  className="mt-1.5 flex items-center gap-1.5 text-xs text-accent hover:underline font-medium"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  {t("drawer.addAssociate")}
+                </button>
+              )}
             </section>
           )}
 

@@ -174,9 +174,14 @@ export default function PersonForm({
   const [confidential, setConfidential] = useState(initial?.confidential ?? false);
   const [privateFields, setPrivateFields] = useState<string[]>(initial?.privateFields ?? []);
 
-  // Kişi türü + yakın çevre bağları (aile-dışı yakınlar).
-  const [kind, setKind] = useState<"uye" | "cevre">(initial?.kind === "cevre" ? "cevre" : "uye");
+  // Kişi türü + yakın çevre bağları (aile-dışı yakınlar). "Yakın çevre ekle"
+  // hızlı-eklemesinde yeni kişi doğrudan çevre olarak başlar.
+  const [kind, setKind] = useState<"uye" | "cevre">(
+    initial?.kind === "cevre" || relation?.type === "associate" ? "cevre" : "uye"
+  );
   const [associations, setAssociations] = useState<Association[]>(initial?.associations ?? []);
+  // "associate" bağında yeni kişinin hedefe bağ türü (arkadas, komsu…).
+  const [relAssocType, setRelAssocType] = useState<string>("arkadas");
 
   const [errors, setErrors] = useState<Errors>({});
   const [uploading, setUploading] = useState(false);
@@ -379,8 +384,25 @@ export default function PersonForm({
     if (events.some((ev) => !isValidDateInput(ev.date))) {
       e.events = t("form.eventDateError");
     }
+
+    // Kaydet düğmesinin yanında özet: hangi alan(lar) neden engelliyor. Böylece
+    // katlanmış bölümlerdeki (ör. cinsiyet aşağıda) hatalar da tek yerde görünür.
+    const labels: Record<string, string> = {
+      firstName: t("form.field.firstName"),
+      lastName: t("form.field.lastName"),
+      gender: t("form.field.gender"),
+      birthDate: t("form.field.birthDate"),
+      deathDate: t("form.field.deathDate"),
+      events: t("form.field.events"),
+    };
+    const missing = (Object.keys(e) as Array<keyof Errors>).filter((k) => k !== "form");
+    if (missing.length > 0) {
+      const names = missing.map((k) => labels[k] ?? k).join(", ");
+      e.form = t("form.fixFields", { fields: names });
+    }
+
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return missing.length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -466,7 +488,11 @@ export default function PersonForm({
     };
 
     if (relation) {
-      payload.relation = { type: relation.type, targetId: relation.target.id };
+      payload.relation = {
+        type: relation.type,
+        targetId: relation.target.id,
+        ...(relation.type === "associate" ? { assocType: relAssocType } : {}),
+      };
     } else {
       payload.parentIds = form.parentIds;
       // Yalnızca hâlâ seçili olan ebeveynlerin bağ bilgisini gönder
@@ -521,6 +547,21 @@ export default function PersonForm({
             </span>
             {t("form.relCtxSuffix")}
           </p>
+        </div>
+      )}
+
+      {/* Yakın çevre bağında: bağ türü seçimi (arkadaş, komşu, aile dostu…) */}
+      {relation?.type === "associate" && (
+        <div>
+          <label className={label} htmlFor="pf-rel-assoc">{t("assoc.relTypeLabel")}</label>
+          <input
+            id="pf-rel-assoc"
+            list="pf-assoc-types"
+            value={ASSOCIATION_TYPES[relAssocType]?.label ?? relAssocType}
+            onChange={(e) => setRelAssocType(assocKeyFromLabel(e.target.value))}
+            placeholder={t("assoc.typePlaceholder")}
+            className={field}
+          />
         </div>
       )}
 

@@ -5,7 +5,7 @@ import { canEdit } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
-export type RelationType = "parent" | "child" | "spouse" | "sibling";
+export type RelationType = "parent" | "child" | "spouse" | "sibling" | "associate";
 
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   };
 
   /* ---- İlişki bağlama: "X'in babası/çocuğu/eşi/kardeşi olarak ekle" ---- */
-  const relation = body.relation as { type: RelationType; targetId: string } | undefined;
+  const relation = body.relation as { type: RelationType; targetId: string; assocType?: string } | undefined;
   if (relation?.targetId) {
     const target = data.people.find((p) => p.id === relation.targetId);
     if (!target) {
@@ -75,6 +75,18 @@ export async function POST(req: NextRequest) {
     }
 
     switch (relation.type) {
+      case "associate": {
+        // Yeni kişi, hedefin aile-dışı yakını (çevre) olur — kan/evlilik bağı
+        // KURULMAZ; iki yönlü çözülebilen bir "yakın çevre" bağı eklenir.
+        person.kind = "cevre";
+        const type = (typeof relation.assocType === "string" && relation.assocType.trim()) || "arkadas";
+        const existing = Array.isArray(person.associations) ? person.associations : [];
+        if (!existing.some((a) => a.personId === target.id)) {
+          person.associations = [...existing, { id: crypto.randomUUID(), personId: target.id, type }];
+        }
+        break;
+      }
+
       case "parent": {
         // Yeni kişi, hedefin ebeveyni olur
         if (target.parentIds.length >= 2) {

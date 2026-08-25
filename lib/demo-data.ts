@@ -1,4 +1,4 @@
-import type { Gender, LifeEvent, Memory, ParentLink, Person } from "@/types/family";
+import type { Association, Gender, LifeEvent, Memory, ParentLink, Person } from "@/types/family";
 
 /** İnsan-okur kod: 6 haneli, "289" ile başlar (bkz. lib/code.ts). */
 const formatCode = (n: number): string => "289" + String(n).padStart(3, "0");
@@ -172,6 +172,8 @@ interface Seed {
   /** ölüm nedeni */ olum?: string;
   /** yaşam olayları — zaman çizelgesi */ olaylar?: LifeEvent[];
   /** anılar / hikâyeler */ anilar?: Memory[];
+  /** aile-dışı yakın (çevre) — kan/evlilik ağacına girmez */ cevre?: boolean;
+  /** yakın çevre bağları (arkadaş, komşu, aile dostu…) */ arkadaslar?: Association[];
 }
 
 /**
@@ -220,6 +222,8 @@ function build(seeds: Seed[]): Person[] {
     deathCause: s.olum,
     events: s.olaylar,
     memories: s.anilar,
+    kind: s.cevre ? "cevre" : undefined,
+    associations: s.arkadaslar,
     parentIds: s.eb ?? [],
     parentLinks: s.bag,
     spouseIds: s.es ?? [],
@@ -1362,11 +1366,87 @@ const EK4: Seed[] = [
   { id: "ek-z5", ad: "Bade", soyad: "Acar", c: "female", d: "2025-04-20", yer: "İstanbul", eb: ["ek-z4"], din: "İslam", dil: "Türkçe", etnik: "Türk", uyruk: "Türkiye", bio: "Ceylin'in kızı. Zübeyde'nin beşinci kuşağı; büyük büyük büyük anneannesi onu kucağına aldı." },
 ];
 
+/* ================================================================
+   YAKIN ÇEVRE — aile-dışı yakınlar (arkadaş, komşu, aile dostu…)
+   Kan/evlilik ağacına girmezler; ayrı "çevre" kartlarıdır ve bir ya da
+   birkaç aile üyesine "yakın çevre" bağıyla bağlanırlar. 20 kişi, 14 üyeye.
+   ================================================================ */
+// Deterministik bağ kimliği — her yüklemede aynı olsun (demo tekrarlanabilir).
+const A = (personId: string, type: string, note?: string): Association => ({
+  id: `assoc-${personId}-${type}`,
+  personId,
+  type,
+  note,
+});
+const CEVRE: Seed[] = [
+  { id: "cev-mahir", ad: "Mahir", soyad: "Boztepe", c: "male", d: "1977-03-14", yer: "Trabzon", cevre: true,
+    arkadaslar: [A("k9-deniz", "yakinarkadas", "Askerliği birlikte yaptılar")],
+    bio: "Deniz'in askerlik arkadaşı. Terhisten sonra da bayramlaşmayı hiç aksatmadılar; her yaz Trabzon'dan gelir, iki gün kalırdı." },
+  { id: "cev-selin", ad: "Selin", soyad: "Aksu", c: "female", d: "1979-11-02", yer: "Ankara", cevre: true,
+    arkadaslar: [A("k9-deniz", "komsu", "Aynı apartmanda on yıl")],
+    bio: "Deniz ailesinin alt kat komşusu. Çocuklar onun evinde ödev yapar, o da tarifleri yukarı yollardı." },
+  { id: "cev-burak", ad: "Burak", soyad: "Çetin", c: "male", d: "1975-06-20", yer: "İzmir", cevre: true,
+    arkadaslar: [A("k9-pinar", "meslektas", "Aynı hastanede yıllarca")],
+    bio: "Pınar'ın meslektaşı; aynı serviste uzun yıllar çalıştılar. Zor nöbetlerin ortağıydılar." },
+  { id: "cev-elify", ad: "Elif", soyad: "Yalçın", c: "female", d: "1974-01-30", yer: "Ankara", cevre: true,
+    arkadaslar: [A("k9-pinar", "yakinarkadas", "Lisede sıra arkadaşı")],
+    bio: "Pınar'ın lise sıra arkadaşı. Kırk yıldır her doğum gününde ilk telefon ondan gelir." },
+  { id: "cev-onur", ad: "Onur", soyad: "Demir", c: "male", d: "1982-08-05", yer: "İstanbul", cevre: true,
+    arkadaslar: [A("k9-cem", "isortagi", "Matbaayı birlikte kurdular")],
+    bio: "Cem'le küçük bir matbaayı ortak kurdular. İlk yılların bütün zorluğunu paylaştılar." },
+  { id: "cev-gokce", ad: "Gökçe", soyad: "Aydın", c: "female", d: "1983-04-18", yer: "İstanbul", cevre: true,
+    arkadaslar: [A("k9-cem", "arkadas")],
+    bio: "Cem'in üniversiteden yakın arkadaşı. Hafta sonları hep aynı kahvede buluşurlar." },
+  { id: "cev-husniye", ad: "Hüsniye", soyad: "Kaya", c: "female", d: "1950-05-09", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-gulten", "komsu", "Kırk yıllık komşu")],
+    bio: "Gülten'in kırk yıllık komşusu. İki kadın birbirinin çocuğunu büyür gibi gördü; bahçe duvarından çay tepsisi aşırırlardı." },
+  { id: "cev-nurten", ad: "Nurten", soyad: "Şahin", c: "female", d: "1952-09-27", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-gulten", "yakinarkadas")],
+    bio: "Gülten'in en yakın dostu. Hac yolculuğuna birlikte gittiler." },
+  { id: "cev-cevdet", ad: "Cevdet", soyad: "Aktaş", c: "male", d: "1954-02-11", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-tuncay", "arkadas", "Kahvehane arkadaşı")],
+    bio: "Tuncay'ın kahvehane arkadaşı. Yıllardır aynı masada tavla oynarlar, kimin kazandığını kimse bilmez." },
+  { id: "cev-ibrahim", ad: "İbrahim", soyad: "Polat", c: "male", d: "1955-12-03", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-tuncay", "isortagi", "Dükkânı birlikte işlettiler")],
+    bio: "Tuncay'la yıllarca bir nalburu ortak işlettiler. İş bitince dostlukları sürdü." },
+  { id: "cev-wolfgang", ad: "Wolfgang", soyad: "Bauer", c: "male", d: "1965-07-22", yer: "Köln", uyruk: "Almanya", cevre: true,
+    arkadaslar: [A("k8-erdal", "arkadas", "Almanya'da iş arkadaşı")],
+    bio: "Erdal'ın Almanya'daki iş arkadaşı. Erdal'a Almancayı o öğretti; her yıl ailesiyle Türkiye'ye gelir." },
+  { id: "cev-aysen", ad: "Ayşen", soyad: "Korkmaz", c: "female", d: "1968-10-14", yer: "İzmir", cevre: true,
+    arkadaslar: [A("k8-levent", "meslektas")],
+    bio: "Levent'in eski bir meslektaşı. Emeklilikten sonra da telefonla dertleşirler." },
+  { id: "cev-metin", ad: "Metin", soyad: "Arslan", c: "male", d: "1960-03-08", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-nurhan", "ailedostu", "İki ailenin ortak dostu")],
+    bio: "Nurhan ailesinin yıllardır dostu. Her düğünde, her cenazede en önde o olur." },
+  { id: "cev-sema", ad: "Sema", soyad: "Güneş", c: "female", d: "1962-06-01", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k8-hakan-t", "komsu")],
+    bio: "Hakan'ların yan komşusu. Kapı hep aralıktır; çocukluk arkadaşlığı komşulukla pekişti." },
+  { id: "cev-devrim", ad: "Devrim", soyad: "Özkan", c: "other", yonelim: "Nonbinary", d: "1957-04-25", yer: "İstanbul", cevre: true,
+    arkadaslar: [A("k8-deniz-s", "yakinarkadas", "Yıllardır dayanışma")],
+    bio: "Deniz'in yıllardır en yakın dostu. İkisi de kendi yollarını açarken birbirlerine sırt dayadılar." },
+  { id: "cev-kerem", ad: "Kerem", soyad: "Yıldız", c: "male", d: "2000-09-16", yer: "İstanbul", cevre: true,
+    arkadaslar: [A("k10-kaan", "arkadas", "Üniversiteden")],
+    bio: "Kaan'ın üniversite arkadaşı. Aynı evi paylaştılar, aynı sınavlara girdiler." },
+  { id: "cev-zeynepn", ad: "Zeynep", soyad: "Nadas", c: "female", d: "2001-02-08", yer: "İstanbul", cevre: true,
+    arkadaslar: [A("k10-kaan", "yakinarkadas")],
+    bio: "Kaan'ın yakın arkadaşı; okuldaki tiyatro kulübünü birlikte kurdular." },
+  { id: "cev-efe", ad: "Efe", soyad: "Şimşek", c: "male", d: "2004-05-19", yer: "Ankara", cevre: true,
+    arkadaslar: [A("k10-can", "arkadas", "Takım arkadaşı")],
+    bio: "Can'ın basketbol takımından arkadaşı. Her maç öncesi aynı türküyü dinlerler." },
+  { id: "cev-nisan", ad: "Nisan", soyad: "Ünal", c: "female", d: "2005-07-11", yer: "Ankara", cevre: true,
+    arkadaslar: [A("k10-asli", "yakinarkadas", "En yakını")],
+    bio: "Aslı'nın en yakın arkadaşı. Sınıfta yan yana otururlar, defterleri birbirine karışır." },
+  { id: "cev-doruk", ad: "Doruk", soyad: "Ateş", c: "male", d: "2006-11-28", yer: "Kayseri", cevre: true,
+    arkadaslar: [A("k10-arda", "arkadas", "Mahalleden")],
+    bio: "Arda'nın mahalle arkadaşı. Bisikletleri hep birlikte, akşam ezanına kadar sokaktalar." },
+];
+
 export const DEMO_PEOPLE: Person[] = build([
   // Soyadı Kanunu (1934) öncesi kuşaklar — soyadsız, patronim + lakapla anılır
   ...patronimik([...K0A, ...K0B, ...K0C, ...K0D, ...K1, ...K1B, ...K2, ...K3, ...K4]),
   ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
   ...GOC, ...LGBT, ...EK, ...EK2, ...EK3, ...EK4,
+  ...CEVRE,
 ]);
 
 export const DEMO_FAMILY_NAME = "Demirtaş";
