@@ -5,20 +5,32 @@ import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import { useT, type TFunction } from "@/lib/i18n";
 
-interface ShareState {
-  enabled: boolean;
-  url?: string;
-  token?: string;
-  hideLiving?: boolean;
-  qr?: string;
+interface Visit {
+  at: string;
+  country?: string;
+  city?: string;
+  device?: string;
+}
+interface Share {
+  id: string;
+  url: string;
+  token: string;
+  label: string;
+  hideLiving: boolean;
+  createdAt: string;
+  expiresAt: string | null;
+  expired: boolean;
+  views: number;
+  visits: Visit[];
+  qr: string;
 }
 
 /**
- * Herkese açık salt-okunur paylaşım — sahip arayüzü.
+ * Herkese açık salt-okunur paylaşım — sahip arayüzü (çoklu bağlantı).
  *
- * Ağaç sahibi bir bağlantı/kod/QR üretir; bunu bilen herkes (üye olmadan)
- * ağacı yalnızca görüntüler. Yaşayanların gizlenmesi seçilebilir. Jeton
- * yenilenebilir (eski bağlantı ölür) ya da paylaşım tümüyle kapatılabilir.
+ * Sahip birden çok kalıcı bağlantı üretir; her biri silinene dek yaşar.
+ * Her bağlantı: bağlantı + QR + sosyal paylaşım + ziyaret istatistikleri
+ * (anonim: ülke/şehir/cihaz/zaman) + isteğe bağlı süre. "Kod" yok.
  */
 export default function ShareDialog({
   treeName,
@@ -28,10 +40,13 @@ export default function ShareDialog({
   onClose: () => void;
 }) {
   const t = useT();
-  const [state, setState] = useState<ShareState | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [shares, setShares] = useState<Share[] | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState<"" | "url" | "code">("");
+  const [busy, setBusy] = useState(false);
+  // Yeni bağlantı formu
+  const [label, setLabel] = useState("");
+  const [hideLiving, setHideLiving] = useState(true);
+  const [expiryDays, setExpiryDays] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -41,29 +56,27 @@ export default function ShareDialog({
         const data = await res.json();
         if (!alive) return;
         if (!res.ok) throw new Error(data?.error ?? t("share.failed"));
-        setState(data);
+        setShares(data.shares ?? []);
       } catch (e) {
         if (alive) setError((e as Error).message);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const post = async (body: { hideLiving?: boolean; rotate?: boolean }) => {
+  const call = async (method: string, body?: Record<string, unknown>) => {
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/tree/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? t("share.failed"));
-      setState(data);
+      setShares(data.shares ?? []);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -71,132 +84,170 @@ export default function ShareDialog({
     }
   };
 
-  const disable = async () => {
-    if (!window.confirm(t("share.disableConfirm"))) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/tree/share", { method: "DELETE" });
-      if (!res.ok) throw new Error(t("share.failed"));
-      setState({ enabled: false });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+  const create = () => {
+    const days = expiryDays.trim() ? Number(expiryDays) : 0;
+    call("POST", { hideLiving, label: label.trim() || undefined, expiresDays: Number.isFinite(days) ? days : 0 });
+    setLabel("");
+    setExpiryDays("");
   };
 
-  const copy = async (text: string, which: "url" | "code") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(which);
-      window.setTimeout(() => setCopied(""), 1800);
-    } catch {
-      /* pano erişilemezse yoksay */
-    }
+  const remove = (id: string) => {
+    if (!window.confirm(t("share.deleteConfirm"))) return;
+    call("DELETE", { id });
   };
+
+  const days = expiryDays.trim() ? Number(expiryDays) : 0;
+  const longExpiry = Number.isFinite(days) && days > 7;
 
   return (
     <Modal title={t("share.title")} subtitle={treeName ? t("share.subtitle", { tree: treeName }) : undefined} onClose={onClose}>
-      {state === null ? (
-        <p className="text-sm text-text-muted">{t("share.loading")}</p>
-      ) : !state.enabled ? (
-        <div className="space-y-4">
-          <p className="text-sm text-text-muted leading-relaxed">{t("share.introOff")}</p>
-          <label className="flex items-start gap-2.5 text-sm text-text cursor-pointer">
-            <input type="checkbox" defaultChecked className="mt-0.5" id="share-hide" />
-            <span>
+      <div className="space-y-5">
+        <p className="text-sm text-text-muted leading-relaxed">{t("share.introMulti")}</p>
+
+        {/* Yeni bağlantı oluştur */}
+        <section className="rounded-2xl border border-border bg-surface p-3.5 space-y-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">{t("share.newTitle")}</h3>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder={t("share.labelPlaceholder")}
+            className="w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
+              <input type="checkbox" checked={hideLiving} onChange={(e) => setHideLiving(e.target.checked)} />
               {t("share.hideLivingLabel")}
-              <span className="block text-[11px] text-text-subtle">{t("share.hideLivingHint")}</span>
-            </span>
-          </label>
-          <Button
-            onClick={() => {
-              const hide = (document.getElementById("share-hide") as HTMLInputElement | null)?.checked ?? true;
-              post({ hideLiving: hide });
-            }}
-            disabled={busy}
-          >
-            {busy ? t("share.working") : t("share.enable")}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-5">
-          <p className="text-sm text-text-muted leading-relaxed">{t("share.introOn")}</p>
-
-          {/* QR */}
-          {state.qr && (
-            <div className="flex justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={state.qr} alt={t("share.qrAlt")} className="w-44 h-44 rounded-xl border border-border bg-white p-2" />
-            </div>
-          )}
-
-          {/* Bağlantı */}
-          <div>
-            <label className="block text-xs font-medium text-text-muted mb-1.5">{t("share.linkLabel")}</label>
-            <div className="flex gap-2">
+            </label>
+            <div className="flex items-center gap-1.5 text-sm text-text">
+              <span className="text-text-muted">{t("share.expiryLabel")}</span>
               <input
-                readOnly
-                value={state.url ?? ""}
-                onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 h-10 px-3 rounded-xl bg-surface border border-border text-text text-xs"
+                type="number"
+                min={0}
+                value={expiryDays}
+                onChange={(e) => setExpiryDays(e.target.value)}
+                placeholder="0"
+                className="w-16 h-9 px-2 rounded-lg bg-surface-2 border border-border text-text text-sm tabular-nums focus:outline-none focus:border-primary"
               />
-              <Button variant="secondary" size="sm" onClick={() => copy(state.url ?? "", "url")}>
-                {copied === "url" ? t("share.copied") : t("share.copy")}
-              </Button>
+              <span className="text-text-subtle text-xs">{t("share.expiryDays")}</span>
             </div>
           </div>
+          <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
+          {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
+          <Button size="sm" onClick={create} disabled={busy}>
+            {busy ? t("share.working") : t("share.createBtn")}
+          </Button>
+        </section>
 
-          {/* Sosyal paylaşım — bağlantıyı doğrudan uygulamalara gönder */}
-          <div>
-            <label className="block text-xs font-medium text-text-muted mb-1.5">{t("share.socialLabel")}</label>
-            <SocialButtons url={state.url ?? ""} text={t("share.socialText", { tree: treeName ?? "" })} t={t} />
+        {/* Mevcut bağlantılar */}
+        {shares === null ? (
+          <p className="text-sm text-text-muted">{t("share.loading")}</p>
+        ) : shares.length === 0 ? (
+          <p className="text-sm text-text-subtle">{t("share.none")}</p>
+        ) : (
+          <div className="space-y-3">
+            {shares.map((s) => (
+              <ShareCard key={s.id} s={s} treeName={treeName} busy={busy} onDelete={() => remove(s.id)} onToggleHide={(v) => call("PATCH", { id: s.id, hideLiving: v })} t={t} />
+            ))}
           </div>
+        )}
 
-          {/* Yaşayanları gizle */}
-          <label className="flex items-start gap-2.5 text-sm text-text cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!state.hideLiving}
-              disabled={busy}
-              onChange={(e) => post({ hideLiving: e.target.checked })}
-              className="mt-0.5"
-            />
-            <span>
-              {t("share.hideLivingLabel")}
-              <span className="block text-[11px] text-text-subtle">{t("share.hideLivingHint")}</span>
-            </span>
-          </label>
+        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+      </div>
+    </Modal>
+  );
+}
 
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button variant="secondary" size="sm" onClick={() => post({ rotate: true, hideLiving: state.hideLiving })} disabled={busy}>
-              {t("share.rotate")}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={disable} disabled={busy}>
-              {t("share.disable")}
-            </Button>
-          </div>
+function ShareCard({
+  s, treeName, busy, onDelete, onToggleHide, t,
+}: {
+  s: Share; treeName?: string; busy: boolean; onDelete: () => void; onToggleHide: (v: boolean) => void; t: TFunction;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(s.url); setCopied(true); window.setTimeout(() => setCopied(false), 1600); } catch { /* yoksay */ }
+  };
+  const fmt = (iso: string) => { try { return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }); } catch { return iso; } };
+  const fmtDT = (iso: string) => { try { return new Date(iso).toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return iso; } };
+
+  return (
+    <section className={`rounded-2xl border p-3.5 space-y-3 ${s.expired ? "border-danger/40 bg-danger-soft/30" : "border-border bg-surface"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text truncate">{s.label || t("share.untitled")}</p>
+          <p className="text-[11px] text-text-subtle">
+            {s.expired ? <span className="text-danger">{t("share.expired")}</span>
+              : s.expiresAt ? t("share.expiresOn", { date: fmt(s.expiresAt) })
+              : t("share.noExpiry")}
+          </p>
+        </div>
+        <button onClick={onDelete} disabled={busy} title={t("share.delete")} className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors">✕</button>
+      </div>
+
+      {/* Bağlantı */}
+      <div className="flex gap-2">
+        <input readOnly value={s.url} onFocus={(e) => e.currentTarget.select()} className="flex-1 h-9 px-3 rounded-xl bg-surface-2 border border-border text-text text-xs" />
+        <Button variant="secondary" size="sm" onClick={copy}>{copied ? t("share.copied") : t("share.copy")}</Button>
+      </div>
+
+      {/* Sosyal paylaşım */}
+      <SocialButtons url={s.url} text={t("share.socialText", { tree: treeName ?? "" })} t={t} />
+
+      {/* Yaşayanları gizle + QR/istatistik aç-kapa */}
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <label className="flex items-center gap-2 text-text cursor-pointer">
+          <input type="checkbox" checked={s.hideLiving} disabled={busy} onChange={(e) => onToggleHide(e.target.checked)} />
+          {t("share.hideLivingLabel")}
+        </label>
+        <button onClick={() => setShowStats((v) => !v)} className="text-primary hover:underline font-medium">
+          👁 {t("share.viewsCount", { count: s.views })}
+        </button>
+        {s.qr && (
+          <button onClick={() => setShowQr((v) => !v)} className="text-text-muted hover:text-text">
+            {showQr ? t("share.hideQr") : t("share.showQr")}
+          </button>
+        )}
+      </div>
+
+      {showQr && s.qr && (
+        <div className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={s.qr} alt={t("share.qrAlt")} className="w-40 h-40 rounded-xl border border-border bg-white p-2" />
         </div>
       )}
 
-      {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl mt-4">{error}</p>}
-    </Modal>
+      {showStats && (
+        <div className="rounded-xl bg-surface-2 border border-border p-2.5">
+          {s.visits.length === 0 ? (
+            <p className="text-[11px] text-text-subtle">{t("share.noVisits")}</p>
+          ) : (
+            <ul className="space-y-1">
+              {s.visits.map((v, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 text-[11px] text-text-muted">
+                  <span>{v.device ?? "—"}{(v.city || v.country) ? ` · ${[v.city, v.country].filter(Boolean).join(", ")}` : ""}</span>
+                  <span className="tabular-nums text-text-subtle">{fmtDT(v.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
 /**
  * Sosyal paylaşım butonları. Web amaç (intent) bağlantıları bir sekmede açılır;
- * masaüstünde web.whatsapp/web arayüzü, telefonda uygulama otomatik açılır.
- * Instagram bağlantı-paylaşım amacını web'de desteklemediğinden linki panoya
- * kopyalayıp Instagram'ı açar (kullanıcı yapıştırır). Cihaz destekliyorsa
- * yerel "Paylaş…" (OS paylaşım sayfası — Instagram vb. dahil) da sunulur.
+ * masaüstünde web arayüzü, telefonda uygulama açılır. Instagram bağlantı-paylaşım
+ * amacını web'de desteklemediğinden linki panoya kopyalayıp Instagram'ı açar.
+ * Cihaz destekliyorsa yerel "Paylaş…" (OS paylaşım sayfası) da sunulur.
  */
 function SocialButtons({ url, text, t }: { url: string; text: string; t: TFunction }) {
   const enc = encodeURIComponent;
   const msg = `${text} ${url}`.trim();
   const canNative = typeof navigator !== "undefined" && typeof navigator.share === "function";
-  const pill = "h-9 px-3 rounded-xl text-xs font-medium inline-flex items-center transition-transform hover:brightness-110 active:scale-95";
+  const pill = "h-8 px-2.5 rounded-lg text-[11px] font-medium inline-flex items-center transition-transform hover:brightness-110 active:scale-95";
 
   const intents: Array<{ key: string; label: string; cls: string; href: string }> = [
     { key: "whatsapp", label: "WhatsApp", cls: "text-white bg-[#25D366]", href: `https://wa.me/?text=${enc(msg)}` },
@@ -209,29 +260,19 @@ function SocialButtons({ url, text, t }: { url: string; text: string; t: TFuncti
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {canNative && (
-        <button
-          type="button"
-          onClick={() => { navigator.share({ title: text, text, url }).catch(() => {}); }}
-          className={`${pill} text-primary-text bg-primary`}
-        >
+        <button type="button" onClick={() => { navigator.share({ title: text, text, url }).catch(() => {}); }} className={`${pill} text-primary-text bg-primary`}>
           {t("share.native")}
         </button>
       )}
       {intents.map((it) => (
-        <a key={it.key} href={it.href} target="_blank" rel="noopener noreferrer" className={`${pill} ${it.cls}`}>
-          {it.label}
-        </a>
+        <a key={it.key} href={it.href} target="_blank" rel="noopener noreferrer" className={`${pill} ${it.cls}`}>{it.label}</a>
       ))}
-      {/* Instagram: web'de link paylaşım amacı yok → kopyala + Instagram'ı aç */}
       <button
         type="button"
         title={t("share.instagramHint")}
-        onClick={async () => {
-          try { await navigator.clipboard.writeText(url); } catch { /* yoksay */ }
-          window.open("https://www.instagram.com", "_blank", "noopener,noreferrer");
-        }}
+        onClick={async () => { try { await navigator.clipboard.writeText(url); } catch { /* yoksay */ } window.open("https://www.instagram.com", "_blank", "noopener,noreferrer"); }}
         className={`${pill} text-white bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]`}
       >
         Instagram

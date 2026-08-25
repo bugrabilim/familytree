@@ -163,66 +163,135 @@ export async function revokeInvite(treeId: string, tokenHash: string): Promise<v
 }
 
 /* ── Herkese açık salt-okunur paylaşım (üyeliksiz görüntüleme) ──────────────── */
+/*
+ * Çoklu, kalıcı paylaşım bağlantıları (#7): sahip birden çok bağlantı üretebilir;
+ * her biri kullanıcı silene kadar sabittir. Her bağlantı ziyaret sayısı ve son
+ * ziyaretleri (anonim: ülke/şehir/cihaz/zaman) tutar. İsteğe bağlı süre (#8):
+ * `expiresAt` geçmişteyse bağlantı ölür. Eski tekil `share` okurken `shares`'e
+ * taşınır (geri uyumluluk).
+ */
 
-/** Ağacın paylaşım bağlantısı (yoksa null). */
-export async function getShareLink(treeId: string): Promise<ShareLink | null> {
-  const data = await getTreeAccess(treeId);
-  return data.share ?? null;
+const MAX_VISITS = 50;
+
+/** Erişim kaydındaki paylaşımları döndürür; eski tekil `share`'i diziye taşır. */
+function normalizeShares(data: { share?: ShareLink | null; shares?: ShareLink[] }): ShareLink[] {
+  const list = Array.isArray(data.shares) ? [...data.shares] : [];
+  if (data.share && !list.some((s) => s.token === data.share!.token)) {
+    const legacy = data.share;
+    list.unshift({ ...legacy, id: legacy.id ?? `legacy-${legacy.token.slice(-8)}` });
+  }
+  return list;
 }
 
-/**
- * Paylaşımı aç / jetonu yenile (rotate). Yeni tahmin-edilemez bir jeton üretir;
- * eski bağlantı geçersizleşir. Ham jeton `<treeId>.<secret>`.
- */
-export async function enableShare(
+function daysToExpiry(days?: number | null): string | null {
+  if (!days || days <= 0 || !Number.isFinite(days)) return null; // süresiz
+  return new Date(Date.now() + days * 86400000).toISOString();
+}
+
+function isExpired(s: ShareLink): boolean {
+  return !!s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now();
+}
+
+/** Ağacın tüm paylaşım bağlantıları (en yeni önce). */
+export async function listShares(treeId: string): Promise<ShareLink[]> {
+  const data = await getTreeAccess(treeId);
+  const shares = normalizeShares(data);
+  // Eski tekil share'i kalıcı olarak diziye yaz (bir kereye mahsus geçiş).
+  if (data.share && !Array.isArray(data.shares)) {
+    data.shares = shares;
+    data.share = undefined;
+    await saveTreeAccess(treeId, data);
+  }
+  return shares;
+}
+
+/** Yeni bir paylaşım bağlantısı oluşturur. */
+export async function createShare(
   treeId: string,
   treeName: string,
-  hideLiving: boolean
+  opts: { hideLiving: boolean; label?: string; expiresDays?: number | null }
 ): Promise<ShareLink> {
   const secret = randomBytes(18).toString("base64url");
   const share: ShareLink = {
+    id: randomBytes(6).toString("base64url"),
     token: `${treeId}.${secret}`,
     treeName,
-    hideLiving,
+    hideLiving: opts.hideLiving,
     createdAt: new Date().toISOString(),
+    label: opts.label?.trim() || undefined,
+    expiresAt: daysToExpiry(opts.expiresDays),
+    views: 0,
+    visits: [],
   };
   const data = await getTreeAccess(treeId);
-  data.share = share;
+  const shares = normalizeShares(data);
+  shares.unshift(share);
+  data.shares = shares;
+  data.share = undefined;
   await saveTreeAccess(treeId, data);
   return share;
 }
 
-/** Paylaşım seçeneklerini (ad + yaşayan gizleme) güncelle. Jeton değişmez. */
-export async function updateShareOptions(
+/** Bir paylaşımın seçeneklerini günceller (jeton değişmez). */
+export async function updateShare(
   treeId: string,
-  treeName: string,
-  hideLiving: boolean
+  id: string,
+  opts: { hideLiving?: boolean; label?: string; expiresDays?: number | null }
 ): Promise<ShareLink | null> {
   const data = await getTreeAccess(treeId);
-  if (!data.share) return null;
-  data.share = { ...data.share, treeName, hideLiving };
+  const shares = normalizeShares(data);
+  const s = shares.find((x) => x.id === id);
+  if (!s) return null;
+  if (opts.hideLiving !== undefined) s.hideLiving = opts.hideLiving;
+  if (opts.label !== undefined) s.label = opts.label.trim() || undefined;
+  if (opts.expiresDays !== undefined) s.expiresAt = daysToExpiry(opts.expiresDays);
+  data.shares = shares;
+  data.share = undefined;
   await saveTreeAccess(treeId, data);
-  return data.share;
+  return s;
 }
 
-/** Paylaşımı kapat (bağlantı/kod/QR geçersizleşir). */
-export async function disableShare(treeId: string): Promise<void> {
+/** Bir paylaşım bağlantısını siler (kalıcı). */
+export async function deleteShare(treeId: string, id: string): Promise<void> {
   const data = await getTreeAccess(treeId);
+  const shares = normalizeShares(data).filter((s) => s.id !== id);
+  data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
 }
 
-/** Genel görüntüleme için: jeton geçerli ve etkin mi? Değilse null. */
+/** Genel görüntüleme için: jeton geçerli, etkin ve süresi dolmamış mı? */
 export async function findValidShare(
   token: string
 ): Promise<{ treeId: string; share: ShareLink } | null> {
   const parsed = parseInviteToken(token);
   if (!parsed) return null;
   const data = await getTreeAccess(parsed.treeId);
-  if (data.share && data.share.token === token) {
-    return { treeId: parsed.treeId, share: data.share };
+  const share = normalizeShares(data).find((s) => s.token === token);
+  if (!share || isExpired(share)) return null;
+  return { treeId: parsed.treeId, share };
+}
+
+/** Bir ziyareti kaydeder (best-effort; anonim). */
+export async function recordShareVisit(
+  treeId: string,
+  id: string,
+  visit: { country?: string; city?: string; device?: string }
+): Promise<void> {
+  try {
+    const data = await getTreeAccess(treeId);
+    const shares = normalizeShares(data);
+    const s = shares.find((x) => x.id === id);
+    if (!s) return;
+    s.views = (s.views ?? 0) + 1;
+    const entry = { at: new Date().toISOString(), ...visit };
+    s.visits = [entry, ...(s.visits ?? [])].slice(0, MAX_VISITS);
+    data.shares = shares;
+    data.share = undefined;
+    await saveTreeAccess(treeId, data);
+  } catch {
+    /* istatistik yazımı görüntülemeyi engellemez */
   }
-  return null;
 }
 
 /* ── Hesaplar arası eşleştirme (P1–P4) ─────────────────────────────────────── */
