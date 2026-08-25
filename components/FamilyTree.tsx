@@ -128,6 +128,15 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
 
   const positions = useMemo(() => layout(people, unions, dim, assocEdges), [people, unions, dim, assocEdges]);
 
+  // Serbest sürükleme (oturum içi): kullanıcı çektiği kartların kimliğini
+  // saklarız; render (seçim/zoom) ağacı yeniden kurduğunda bu kartların o anki
+  // konumu korunur — kart yerinde kalır. Kalıcı DEĞİL: yerleşim rejimi (ayrıntı
+  // düzeyi / kişi sayısı) değişince ya da sayfa yenilenince otomatik düzene döner.
+  const draggedIds = useRef<Set<string>>(new Set());
+  const onNodeDragStop = useCallback((_: unknown, node: Node) => {
+    if (node.type === "person") draggedIds.current.add(node.id);
+  }, []);
+
   const nodes = useMemo<Node[]>(() => {
     const personNodes: Node[] = people.map((p) => {
       const data: PersonNodeData = {
@@ -149,7 +158,8 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         type: "person",
         position: positions.get(p.id) ?? { x: 0, y: 0 },
         data: data as unknown as Record<string, unknown>,
-        draggable: false,
+        // Serbest sürükleme açık — bırakılan yerde kalır (oturum içi).
+        draggable: true,
       } as Node;
     });
 
@@ -262,7 +272,28 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(nodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(edges);
 
-  useEffect(() => setRfNodes(nodes), [nodes, setRfNodes]);
+  // Yerleşim rejimi (ayrıntı düzeyi / kişi sayısı) değişince serbest-sürükleme
+  // kilitlerini bırak — yeni otomatik düzen uygulansın. Bu effect, aşağıdaki
+  // düğüm-eşitleme effect'inden ÖNCE tanımlı; aynı commit'te önce çalışır.
+  useEffect(() => {
+    draggedIds.current.clear();
+  }, [detail, people.length]);
+
+  // Düğümleri eşitle; kullanıcının sürüklediği kartların KONUMUNU koru (seçim/
+  // zoom gibi render'larda yerlerinden oynamasınlar).
+  useEffect(() => {
+    setRfNodes((prev) => {
+      if (draggedIds.current.size === 0) return nodes;
+      const prevById = new Map(prev.map((n) => [n.id, n]));
+      return nodes.map((n) => {
+        if (n.type === "person" && draggedIds.current.has(n.id)) {
+          const old = prevById.get(n.id);
+          if (old) return { ...n, position: old.position };
+        }
+        return n;
+      });
+    });
+  }, [nodes, setRfNodes]);
   useEffect(() => setRfEdges(edges), [edges, setRfEdges]);
 
   const onInit = useCallback((rf: ReactFlowInstance) => {
@@ -312,6 +343,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       edges={rfEdges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDragStop={onNodeDragStop}
       nodeTypes={nodeTypes}
       onInit={onInit}
       minZoom={0.15}

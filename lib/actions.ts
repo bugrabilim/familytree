@@ -1,12 +1,13 @@
 import type { Association, Gender, LifeEvent, Memory, ParentLink, Person, Source } from "@/types/family";
 
-export type RelationType = "parent" | "child" | "spouse" | "sibling";
+export type RelationType = "parent" | "child" | "spouse" | "sibling" | "associate";
 
 export const RELATION_LABELS: Record<RelationType, { title: string; verb: string }> = {
   parent: { title: "Ebeveyn ekle", verb: "ebeveyni" },
   child: { title: "Çocuk ekle", verb: "çocuğu" },
   spouse: { title: "Eş ekle", verb: "eşi" },
   sibling: { title: "Kardeş ekle", verb: "kardeşi" },
+  associate: { title: "Yakın çevre ekle", verb: "yakını" },
 };
 
 export interface PersonPayload {
@@ -48,7 +49,9 @@ export interface PersonPayload {
   parentLinks?: Record<string, ParentLink>;
   spouseIds?: string[];
   formerSpouseIds?: string[];
-  relation?: { type: RelationType; targetId: string };
+  /** `associate` bağında yeni kişi çevre (aile-dışı yakın) olur; `assocType`
+   *  bağ türünü (arkadas, komsu…) belirler, verilmezse `arkadas`. */
+  relation?: { type: RelationType; targetId: string; assocType?: string };
 }
 
 /* Madde 9 — İyimser kilitleme (istemci tarafı).

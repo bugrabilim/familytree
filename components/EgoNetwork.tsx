@@ -25,9 +25,12 @@ interface Props {
   /** Başlangıçta merkezlenecek kişi. */
   personId: string;
   people: Person[];
-  onClose: () => void;
-  /** Bir kişinin profilini aç (drawer). Grafiği kapatır. */
+  /** Modal olarak kullanıldığında kapatma. Sekme (embedded) modunda gerekmez. */
+  onClose?: () => void;
+  /** Bir kişinin profilini aç (drawer). */
   onOpenProfile: (id: string) => void;
+  /** true: üst-bar sekmesi içinde gömülü (tam-ekran örtü yerine alanı doldurur). */
+  embedded?: boolean;
 }
 
 /** Kategori → kenar rengi (CSS değişkeni) ve etiket anahtarı. */
@@ -46,11 +49,11 @@ const CATEGORY_STYLE: Record<EgoCategory, { color: string; dashed?: boolean; lab
  * profili açar. Gizlilik: herkes `view()` ile maskelenir; maskeli kişinin
  * yakın çevresi (arkadaş/komşu…) sızmasın diye gösterilmez.
  */
-export default function EgoNetwork({ personId, people, onClose, onOpenProfile }: Props) {
+export default function EgoNetwork({ personId, people, onClose, onOpenProfile, embedded }: Props) {
   const t = useT();
   const { view, hideLiving } = usePrivacy();
   const [centerId, setCenterId] = useState(personId);
-  useEscapeKey(onClose);
+  useEscapeKey(onClose ?? (() => {}));
 
   const idx = useMemo(() => indexPeople(people), [people]);
   const rawCenter = idx.get(centerId);
@@ -127,9 +130,9 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile }:
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-bg animate-fade-in"
-      role="dialog"
-      aria-modal="true"
+      className={`${embedded ? "absolute inset-0" : "fixed inset-0 z-[60]"} flex flex-col bg-bg animate-fade-in`}
+      role={embedded ? undefined : "dialog"}
+      aria-modal={embedded ? undefined : true}
       aria-label={t("ego.title")}
     >
       {/* Başlık çubuğu */}
@@ -167,15 +170,17 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile }:
             ))}
         </div>
 
-        <button
-          onClick={onClose}
-          aria-label={t("drawer.close")}
-          className="ml-auto sm:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-        </button>
+        {!embedded && onClose && (
+          <button
+            onClick={onClose}
+            aria-label={t("drawer.close")}
+            className="ml-auto sm:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </header>
 
       {/* Sahne */}

@@ -35,17 +35,25 @@ function AddNub({
   label,
   position,
   onClick,
+  tone = "primary",
+  icon = "plus",
 }: {
   label: string;
-  position: "top" | "bottom" | "right" | "left";
+  position: "top" | "bottom" | "right" | "left" | "corner";
   onClick: (e: React.MouseEvent) => void;
+  /** Renk: aile bağları primary, yakın çevre accent (mor). */
+  tone?: "primary" | "accent";
+  /** İçerik: "+" ya da 🤝 (çevre) */
+  icon?: "plus" | "friend";
 }) {
   const pos = {
     top: "left-1/2 -translate-x-1/2 -top-3",
     bottom: "left-1/2 -translate-x-1/2 -bottom-3",
     right: "-right-3 top-1/2 -translate-y-1/2",
     left: "-left-3 top-1/2 -translate-y-1/2",
+    corner: "-right-3 -bottom-3",
   }[position];
+  const toneCls = tone === "accent" ? "bg-accent text-white" : "bg-primary text-primary-text";
 
   return (
     <button
@@ -55,7 +63,7 @@ function AddNub({
       className={`
         nodrag absolute ${pos} z-20
         w-6 h-6 rounded-full grid place-items-center
-        bg-primary text-primary-text shadow-float
+        ${toneCls} shadow-float
         opacity-0 scale-75 pointer-events-none
         group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto
         group-data-[sel=true]:opacity-100 group-data-[sel=true]:scale-100 group-data-[sel=true]:pointer-events-auto
@@ -63,9 +71,13 @@ function AddNub({
         transition-all duration-150
       `}
     >
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-        <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      {icon === "friend" ? (
+        <span className="text-[11px] leading-none" aria-hidden>🤝</span>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -80,6 +92,10 @@ function PersonNode({ data }: NodeProps) {
 
   const tone = genderTone(person.gender);
   const rainbow = isRainbow(person);
+  // Kart rengi (Madde 8): yakın çevre (arkadaş) mor tonda; LGBT+ gökkuşağı;
+  // aksi hâlde cinsiyet tonu (kadın/erkek/diğer). Böylece ağaçta dört grup
+  // (kadın/erkek/lgbt/arkadaş) renkten ayırt edilir.
+  const bgCls = associate ? "bg-accent-soft" : rainbow ? "card-rainbow" : tone.bg;
 
   // Dikey kart (Madde 14): üstte fotoğraf/avatar, altında ad-soyad, altında
   // doğum yılı. Ölçeğe göre yalnız avatar boyutu ve yazı boyu değişir; içerik
@@ -114,7 +130,8 @@ function PersonNode({ data }: NodeProps) {
         className={`
           relative overflow-hidden
           flex flex-col items-center justify-center text-center gap-1.5 px-2 py-2.5
-          ${rainbow ? "card-rainbow" : tone.bg} rounded-2xl
+          ${bgCls} rounded-2xl
+          ${associate ? "ring-1 ring-accent/40" : ""}
           transition-all duration-200
           ${selected
             ? "shadow-float -translate-y-1 scale-[1.06] ring-4 ring-primary/30 z-10"
@@ -167,6 +184,8 @@ function PersonNode({ data }: NodeProps) {
           <AddNub label="Çocuk ekle" position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
           <AddNub label="Eş ekle" position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
           <AddNub label="Kardeş ekle" position="left" onClick={stop(() => onQuickAdd("sibling", person.id))} />
+          {/* Yakın çevre (arkadaş) ekle — mor, köşede, 🤝 */}
+          <AddNub label="Yakın çevre ekle" position="corner" tone="accent" icon="friend" onClick={stop(() => onQuickAdd("associate", person.id))} />
         </>
       )}
     </div>

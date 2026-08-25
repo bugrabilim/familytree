@@ -1,6 +1,10 @@
 import dagre from "dagre";
 import type { Person } from "@/types/family";
 
+/** Çevre (aile-dışı yakın) kişi mi? `lib/associates.ts` ile aynı kural —
+ *  burada satır içi tutulur ki bu modül bağımsız/birim-testlenebilir kalsın. */
+const isAssociate = (p: Person): boolean => p.kind === "cevre";
+
 /**
  * Ağaç yerleşimi — saf mantık (React'ten bağımsız), böylece birim testi
  * yazılabilir. `FamilyTree.tsx` bu modülü kullanır.
@@ -72,7 +76,12 @@ export function layout(
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: "TB", ranksep: dim.gap / 2, nodesep: dim.nodesep, marginx: 60, marginy: 60 });
 
-  for (const p of people) g.setNode(p.id, { width: dim.w, height: dim.h });
+  // Çevre (aile-dışı yakın) kişileri kan/evlilik yerleşimine KATMAYIZ — dagre'ye
+  // düğüm olarak eklenmezler; yoksa bağ kenarı onları üyenin bir ALT sırasına
+  // (çocuk gibi) iterdi. Bunun yerine yerleşim bitince üyenin YANINA konurlar.
+  const associateIds = new Set(people.filter(isAssociate).map((p) => p.id));
+
+  for (const p of people) if (!associateIds.has(p.id)) g.setNode(p.id, { width: dim.w, height: dim.h });
   for (const u of unions) g.setNode(u.id, { width: 8, height: 8 });
 
   const marriageCount = new Map<string, number>();
@@ -99,22 +108,61 @@ export function layout(
     for (const cid of u.childIds) g.setEdge(u.id, cid, { weight: 2 });
   }
 
-  // Çevre bağları: associate'ı üyesinin hemen altına, düşük ağırlıkla iliştir —
-  // asıl soy yerleşimini bozmadan yakın dursun (her iki uç da düğüm olmalı).
-  for (const e of assocEdges) {
-    if (g.hasNode(e.from) && g.hasNode(e.to)) g.setEdge(e.from, e.to, { weight: 1, minlen: 1 });
-  }
-
   dagre.layout(g);
 
   const pos = new Map<string, { x: number; y: number }>();
   for (const p of people) {
+    if (associateIds.has(p.id)) continue;
     const n = g.node(p.id);
     if (n) pos.set(p.id, { x: n.x - dim.w / 2, y: n.y - dim.h / 2 });
   }
   for (const u of unions) {
     const n = g.node(u.id);
     if (n) pos.set(u.id, { x: n.x - 4, y: n.y - 4 });
+  }
+
+  // Çevre kişilerini üyelerinin YANINA (sağına) yerleştir; aynı üyeye birden
+  // çok yakın varsa dikey olarak istifle. Bağın hangi üyeye ait olduğu
+  // assocEdges'ten okunur (from=üye, to=çevre yönünde gelir).
+  const anchorOf = new Map<string, string>();
+  for (const e of assocEdges) {
+    const fromAssoc = associateIds.has(e.from);
+    const toAssoc = associateIds.has(e.to);
+    if (toAssoc && !fromAssoc && !anchorOf.has(e.to)) anchorOf.set(e.to, e.from);
+    else if (fromAssoc && !toAssoc && !anchorOf.has(e.from)) anchorOf.set(e.from, e.to);
+  }
+  // Çakışmayı önle: üye ve birlik kutularını "dolu" kabul et; her çevre kartını
+  // üyesinin sağından başlayıp boş bir hücre bulana dek kaydır (aşağı, sonra
+  // daha sağa). Böylece bir üyenin sağındaki eş/kardeş kartının ÜSTÜNE binmez.
+  const gapX = dim.w + dim.nodesep + 8;
+  const stepY = dim.h + 14;
+  const margin = 12;
+  const occupied: Array<{ x: number; y: number }> = [];
+  for (const p of people) if (!associateIds.has(p.id)) { const n = pos.get(p.id); if (n) occupied.push(n); }
+  const collides = (x: number, y: number) =>
+    occupied.some((o) => Math.abs(o.x - x) < dim.w + margin && Math.abs(o.y - y) < dim.h + margin);
+
+  for (const p of people) {
+    if (!associateIds.has(p.id)) continue;
+    const anchorId = anchorOf.get(p.id);
+    const base = anchorId ? pos.get(anchorId) : undefined;
+    const startX = base ? base.x + gapX : -gapX;
+    const startY = base ? base.y : 0;
+    let x = startX;
+    let y = startY;
+    // Boş hücre ara: önce aşağı (aynı sütun), tıkanırsa bir sütun daha sağa.
+    for (let col = 0; col < 6; col++) {
+      x = startX + col * gapX;
+      y = startY;
+      let ok = false;
+      for (let row = 0; row < 12; row++) {
+        y = startY + row * stepY;
+        if (!collides(x, y)) { ok = true; break; }
+      }
+      if (ok) break;
+    }
+    pos.set(p.id, { x, y });
+    occupied.push({ x, y });
   }
   return pos;
 }

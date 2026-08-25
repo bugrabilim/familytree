@@ -269,6 +269,13 @@ function WorkspaceInner({
 
   const effectiveRoot = (rootId && idx.has(rootId) ? rootId : undefined) ?? varsayilanKok;
 
+  // "Çevre" sekmesinin merkezi: profilden "Çevre grafiği"yle gelen kişi (egoId),
+  // yoksa o an seçili kişi, yoksa ağacın odağı.
+  const egoCenterId =
+    (egoId && idx.has(egoId) ? egoId : undefined) ??
+    (selectedId && idx.has(selectedId) ? selectedId : undefined) ??
+    effectiveRoot;
+
   /**
    * Ağaç görünümünde gösterilecek kişiler — odak kişinin çevresindeki
    * "kum saati" (hourglass): N kuşak ata + N kuşak soy + eşler + kardeşler.
@@ -556,7 +563,7 @@ function WorkspaceInner({
           </>
         ) : view === "soy" ? (
           <PedigreeView
-            people={members}
+            people={people}
             rootId={effectiveRoot}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -565,7 +572,7 @@ function WorkspaceInner({
           />
         ) : view === "yelpaze" ? (
           <FanChart
-            people={members}
+            people={people}
             rootId={effectiveRoot}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -573,7 +580,7 @@ function WorkspaceInner({
             onClose={() => setSelectedId(undefined)}
           />
         ) : view === "zaman" ? (
-          <TimelineView people={members} selectedId={selectedId} onSelect={setSelectedId} />
+          <TimelineView people={people} selectedId={selectedId} onSelect={setSelectedId} />
         ) : view === "liste" ? (
           <ListView
             people={people}
@@ -584,10 +591,18 @@ function WorkspaceInner({
         ) : view === "tablo" ? (
           <TableView people={people} onAdd={openAdd} onChanged={() => router.refresh()} />
         ) : view === "harita" ? (
-          <PlacesMap people={members} onSelect={setSelectedId} />
+          <PlacesMap people={people} onSelect={setSelectedId} />
+        ) : view === "cevre" ? (
+          <EgoNetwork
+            key={egoCenterId}
+            personId={egoCenterId}
+            people={people}
+            embedded
+            onOpenProfile={setSelectedId}
+          />
         ) : (
           <PanelView
-            people={members}
+            people={people}
             onSelect={setSelectedId}
             onAdd={openAdd}
             onPrint={printCurrentView}
@@ -628,19 +643,8 @@ function WorkspaceInner({
           onQuickAdd={openQuickAdd}
           onLocate={locatePerson}
           onFocus={focusPerson}
-          onEgo={setEgoId}
+          onEgo={(id) => { setEgoId(id); setView("cevre"); }}
           onDeleted={handleDeleted}
-        />
-      )}
-
-      {/* Çevre grafiği — kişi merkezli ağ görünümü */}
-      {egoId && (
-        <EgoNetwork
-          key={egoId}
-          personId={egoId}
-          people={people}
-          onClose={() => setEgoId(undefined)}
-          onOpenProfile={(id) => { setEgoId(undefined); setSelectedId(id); }}
         />
       )}
 
@@ -728,12 +732,12 @@ function WorkspaceInner({
       )}
 
       {printOpen && (
-        <PrintView people={members} allPeople={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
+        <PrintView people={people} allPeople={people} familyName={familyName} onClose={() => setPrintOpen(false)} />
       )}
 
       {bookOpen && (
         <BookView
-          people={members}
+          people={people}
           allPeople={people}
           familyName={familyName}
           onClose={() => setBookOpen(false)}
