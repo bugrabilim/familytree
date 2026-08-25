@@ -18,6 +18,7 @@ import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useT, useLang, type TFunction } from "@/lib/i18n";
 import { generatePreface } from "@/lib/preface";
+import { uploadPhoto } from "@/lib/actions";
 import { usePaginate, type RenderedPage, type Unit } from "./book/paginate";
 
 interface Props {
@@ -26,6 +27,10 @@ interface Props {
    *  Verilmezse `people` kullanılır (çevre adları görünmeyebilir). */
   allPeople?: Person[];
   familyName?: string;
+  /** Kapak header fotoğrafı (Cloudinary URL). */
+  coverPhoto?: string;
+  /** Kapak fotoğrafını ayarla/kaldır (null = kaldır). Verilmezse düzenlenemez. */
+  onSetCover?: (url: string | null) => void;
   onClose: () => void;
   /** "Yazdır / PDF" — bası görünümünü (PrintView) açar. */
   onPrint?: () => void;
@@ -87,7 +92,7 @@ function computeGeom(w: number, h: number): Geom {
  * biyografiler arka sayfalara akar, hiçbir şey kırpılmaz. Eski kuşaklar
  * parşömen, yeni kuşaklar temiz kâğıt. Gizlilik: maskeli kopya (`view`).
  */
-export default function BookView({ people, allPeople, familyName, onClose, onPrint }: Props) {
+export default function BookView({ people, allPeople, familyName, coverPhoto, onSetCover, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
@@ -97,7 +102,24 @@ export default function BookView({ people, allPeople, familyName, onClose, onPri
   const [currentPage, setCurrentPage] = useState(0);
   const [goTo, setGoTo] = useState(false);
   const [query, setQuery] = useState("");
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
   useEscapeKey(onClose);
+
+  const handleCoverFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onSetCover) return;
+    setCoverBusy(true);
+    try {
+      const url = await uploadPhoto(file);
+      onSetCover(url);
+    } catch {
+      /* yükleme hatası — sessiz geç, kullanıcı tekrar dener */
+    } finally {
+      setCoverBusy(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  }, [onSetCover]);
 
   // Sahne boyutunu ölç → sayfa geometrisi. Yeniden boyutta (debounce) güncelle.
   useLayoutEffect(() => {
@@ -206,7 +228,7 @@ export default function BookView({ people, allPeople, familyName, onClose, onPri
     const u: Unit[] = [];
     const sectionForeword = t("print.forewordTitle");
     // Kapak
-    u.push({ kind: "full", key: "cover", age: 1, node: <CoverPage title={bookTitle} yearRange={yearRange} count={people.length} generations={generations} t={t} /> });
+    u.push({ kind: "full", key: "cover", age: 1, node: <CoverPage title={bookTitle} yearRange={yearRange} count={people.length} generations={generations} coverPhoto={coverPhoto} t={t} /> });
     // Önsöz
     u.push({ kind: "block", key: "fw-title", age: 1, section: sectionForeword, breakBefore: true, keepWithNext: true, node: <SectionTitle>{sectionForeword}</SectionTitle> });
     preface.forEach((para, i) => {
@@ -351,7 +373,7 @@ export default function BookView({ people, allPeople, familyName, onClose, onPri
       }
     }
     return u;
-  }, [ordered, genOf, ageOf, idx, masked, maskedAll, almanac, famStats, stats, placeAgg, topPlaces, preface, yearRange, generations, people.length, bookTitle, t]);
+  }, [ordered, genOf, ageOf, idx, masked, maskedAll, almanac, famStats, stats, placeAgg, topPlaces, preface, yearRange, generations, people.length, bookTitle, coverPhoto, t]);
 
   const geomForPaginate = useMemo(
     () => ({ contentW: geom?.contentW ?? 400, contentH: geom?.contentH ?? 560, sig: geom?.sig ?? "init" }),
@@ -437,6 +459,33 @@ export default function BookView({ people, allPeople, familyName, onClose, onPri
               <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
             </svg>
           </button>
+          {onSetCover && (
+            <>
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverBusy}
+                title={t("book.coverSet")}
+                className="h-9 px-3 rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                  <circle cx="8.5" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M21 16l-5-5-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="hidden sm:inline">{coverBusy ? t("book.coverUploading") : coverPhoto ? t("book.coverChange") : t("book.coverSet")}</span>
+              </button>
+              {coverPhoto && (
+                <button
+                  onClick={() => onSetCover(null)}
+                  title={t("book.coverRemove")}
+                  className="h-9 px-2.5 rounded-xl border border-white/20 text-sm hover:bg-white/10 transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+              <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverFile} />
+            </>
+          )}
           {onPrint && (
             <button
               onClick={onPrint}
@@ -623,7 +672,24 @@ const BookPage = forwardRef<HTMLDivElement, { page: RenderedPage; num: number; g
   }
 );
 
-function CoverPage({ title, yearRange, count, generations, t }: { title: string; yearRange: { from: number; to: number } | null; count: number; generations: number; t: TFunction }) {
+function CoverPage({ title, yearRange, count, generations, coverPhoto, t }: { title: string; yearRange: { from: number; to: number } | null; count: number; generations: number; coverPhoto?: string; t: TFunction }) {
+  // Kapak fotoğrafı varsa üstte header bandı olarak; tüm yazılar altında.
+  if (coverPhoto) {
+    return (
+      <div className="h-full w-full flex flex-col items-stretch text-center">
+        <div className="w-full h-[58%] overflow-hidden shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverPhoto} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-6">
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">{title}</h1>
+          {yearRange && <p className="text-lg opacity-70 tracking-wide mb-4">{t("print.coverYears", { from: yearRange.from, to: yearRange.to })}</p>}
+          <div className="w-16 border-t border-current/25 my-4" />
+          <p className="text-sm opacity-70">{t("print.coverMeta", { count, generations })}</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
       <p className="text-6xl mb-6">🌳</p>

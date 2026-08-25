@@ -223,6 +223,8 @@ export interface Person {
 export interface FamilyData {
   people: Person[];
   updatedAt: string;
+  /** Aile Kitabı kapağına header olarak konan fotoğraf (Cloudinary URL). */
+  coverPhoto?: string;
 }
 
 /**

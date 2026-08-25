@@ -18,7 +18,7 @@ export default async function TreePage({
   const isFounder = !!session?.user?.isFounder;
   const homeName = session?.user?.treeName ?? session?.user?.name ?? "Ağaç";
 
-  const [{ people, updatedAt }, { kisi }, trees] = await Promise.all([
+  const [{ people, updatedAt, coverPhoto }, { kisi }, trees] = await Promise.all([
     getFamilyData(ctx.treeId),
     searchParams,
     isFounder ? listTrees(ctx.accountId, homeName) : Promise.resolve([]),
@@ -30,6 +30,7 @@ export default async function TreePage({
     <Workspace
       people={people}
       version={updatedAt}
+      coverPhoto={coverPhoto}
       familyName={activeName}
       displayName={session?.user?.name ?? undefined}
       role={ctx.role}
