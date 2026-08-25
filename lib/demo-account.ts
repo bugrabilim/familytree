@@ -1,6 +1,7 @@
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
 import { saveFamilyData } from "@/lib/blob";
+import { listTrees, deleteTree } from "@/lib/trees";
 import { DEMO_PEOPLE } from "@/lib/demo-data";
 import type { User } from "@/types/user";
 
@@ -13,7 +14,10 @@ export const DEMO_USER_ID = "demo-hesap";
  *
  * Hesap herkese açık ve ortak: ziyaretçiler kişi ekleyip silebilir.
  * Bu yüzden her demo girişinde ağaç sıfırlanır — bir sonraki ziyaretçi
- * her zaman tertemiz bir demo görür.
+ * her zaman tertemiz bir demo görür. Demo hesabı founder olduğundan
+ * ziyaretçiler ekstra ("test") ağaçlar da oluşturabilir; bunlar ana ağaç
+ * sıfırlamasına dahil değildi ve birikiyordu — girişte hepsi temizlenir,
+ * yalnız ana demo ağacı kalır.
  *
  * Hesabın şifre karması rastgeledir ve hiçbir yerde saklanmaz; normal
  * giriş formundan bu hesaba girilemez, yalnızca `demo` sağlayıcısıyla
@@ -35,6 +39,17 @@ export async function prepareDemoAccount(): Promise<User> {
     people: DEMO_PEOPLE,
     updatedAt: new Date().toISOString(),
   });
+
+  // Ziyaretçilerin oluşturduğu ekstra ("test") ağaçları temizle — yalnız ana
+  // demo ağacı kalsın. Best-effort: temizlik başarısız olsa da demo açılır.
+  try {
+    const trees = await listTrees(user.id, DEMO_FAMILY_NAME);
+    for (const t of trees) {
+      if (!t.home) await deleteTree(user.id, t.treeId);
+    }
+  } catch {
+    /* temizlik başarısız olsa da demo çalışmaya devam eder */
+  }
 
   return user;
 }
