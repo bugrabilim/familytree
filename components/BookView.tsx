@@ -277,8 +277,8 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
       u.push({ kind: "full", key: "map", age: 1, section: t("book.placesTitle"), node: <FullPageWrap title={t("book.placesTitle")} subtitle={t("book.placesSubtitle", { located: placeAgg.located.length, total: placeAgg.total })}><BookMap located={placeAgg.located} maxCount={placeAgg.maxCount} /></FullPageWrap> });
     }
     if (masked.length > 1) {
-      u.push({ kind: "full", key: "schema", age: 1, section: t("book.schemaTitle"), node: <FullPageWrap title={t("book.schemaTitle")}><div className="flex-1 min-h-0 flex rounded-lg overflow-hidden border border-black/10 bg-current/[0.03]"><TreeSchema people={masked} /></div></FullPageWrap> });
-      u.push({ kind: "full", key: "matrix", age: 1, section: t("book.matrixTitle"), node: <FullPageWrap title={t("book.matrixTitle")} subtitle={t("book.matrixIntro")}><div className="flex-1 min-h-0 overflow-hidden"><RelationMatrix people={masked} /></div></FullPageWrap> });
+      u.push({ kind: "full", key: "schema", age: 1, section: t("book.schemaTitle"), node: <FullPageWrap title={t("book.schemaTitle")} subtitle={t("book.schemaRotateHint")}><RotatedFill><TreeSchema people={masked} /></RotatedFill></FullPageWrap> });
+      u.push({ kind: "full", key: "matrix", age: 1, section: t("book.matrixTitle"), node: <FullPageWrap title={t("book.matrixTitle")} subtitle={t("book.matrixIntro")}><FitBox><RelationMatrix people={masked} scroll={false} /></FitBox></FullPageWrap> });
     }
     // Kişiler — kuşak bölümleri
     let lastGen = -1;
@@ -554,44 +554,45 @@ const BookPage = forwardRef<HTMLDivElement, { page: RenderedPage; num: number; g
   function BookPage({ page, num, geom, bookTitle, t }, ref) {
     const isCover = num === 1 && page.isFull; // ilk tam sayfa = kapak
     return (
-      <div
-        ref={ref}
-        data-density={isCover ? "hard" : "soft"}
-        className="book-leaf"
-        style={{ ...paperStyle(page.age), width: "100%", height: "100%", position: "relative", boxSizing: "border-box", overflow: "hidden" }}
-      >
-        {page.isFull ? (
-          <div className="absolute inset-0 flex flex-col" style={{ padding: Math.round(geom.padX * 0.7) }}>
-            {page.nodes.map((n, i) => (
-              <Fragment key={i}>{n}</Fragment>
-            ))}
-          </div>
-        ) : (
-          <>
-            {/* Koşan başlık */}
-            <div
-              className="absolute left-0 right-0 flex items-center justify-between text-[10px] uppercase tracking-wider opacity-45"
-              style={{ top: Math.round(geom.padTop * 0.42), paddingLeft: geom.padX, paddingRight: geom.padX }}
-            >
-              <span className="truncate">{page.section ?? bookTitle}</span>
-              <span className="truncate">{bookTitle}</span>
+      // Dış öğeyi react-pageflip konumlandırır (StPageFlip inline stilini ezer),
+      // bu yüzden PARŞÖMEN zemini + metin rengi, StPageFlip'in dokunmadığı bir İÇ
+      // sarmalayıcıya uygulanır — aksi halde sayfa saydam kalıp arkadaki koyu
+      // zemini gösteriyordu (karanlık hatası).
+      <div ref={ref} data-density={isCover ? "hard" : "soft"} className="book-leaf" style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
+        <div className="absolute inset-0" style={{ ...paperStyle(page.age), overflow: "hidden" }}>
+          {page.isFull ? (
+            <div className="absolute inset-0 flex flex-col" style={{ padding: Math.round(geom.padX * 0.7) }}>
+              {page.nodes.map((n, i) => (
+                <Fragment key={i}>{n}</Fragment>
+              ))}
             </div>
-            {/* İçerik */}
-            <div
-              className="absolute font-serif flex flex-col"
-              style={{ top: geom.padTop, left: geom.padX, width: geom.contentW, height: geom.contentH, overflow: "hidden" }}
-            >
-              {page.continues && <p className="text-[11px] italic opacity-45 mb-1">… {t("book.contd")}</p>}
-              {page.nodes}
+          ) : (
+            <>
+              {/* Koşan başlık */}
+              <div
+                className="absolute left-0 right-0 flex items-center justify-between text-[10px] uppercase tracking-wider opacity-45"
+                style={{ top: Math.round(geom.padTop * 0.42), paddingLeft: geom.padX, paddingRight: geom.padX }}
+              >
+                <span className="truncate">{page.section ?? bookTitle}</span>
+                <span className="truncate">{bookTitle}</span>
+              </div>
+              {/* İçerik */}
+              <div
+                className="absolute font-serif flex flex-col"
+                style={{ top: geom.padTop, left: geom.padX, width: geom.contentW, height: geom.contentH, overflow: "hidden" }}
+              >
+                {page.continues && <p className="text-[11px] italic opacity-45 mb-1">… {t("book.contd")}</p>}
+                {page.nodes}
+              </div>
+            </>
+          )}
+          {/* Sayfa numarası */}
+          {!isCover && (
+            <div className="absolute left-0 right-0 text-center text-[11px] tabular-nums opacity-50" style={{ bottom: Math.round(geom.padBot * 0.4) }}>
+              {num}
             </div>
-          </>
-        )}
-        {/* Sayfa numarası */}
-        {!isCover && (
-          <div className="absolute left-0 right-0 text-center text-[11px] tabular-nums opacity-50" style={{ bottom: Math.round(geom.padBot * 0.4) }}>
-            {num}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   }
@@ -605,6 +606,67 @@ function CoverPage({ title, yearRange, count, generations, t }: { title: string;
       {yearRange && <p className="text-lg opacity-70 tracking-wide mb-6">{t("print.coverYears", { from: yearRange.from, to: yearRange.to })}</p>}
       <div className="w-16 border-t border-current/25 my-6" />
       <p className="text-sm opacity-70">{t("print.coverMeta", { count, generations })}</p>
+    </div>
+  );
+}
+
+/** Çok geniş ama kısa içeriği (soy ağacı şeması) 90° döndürüp sayfanın uzun
+ *  kenarını kullanarak büyütür ("dik yerleştir"). İç kutu, dış kutunun en/boyu
+ *  değiştirilmiş hâliyle boyutlanır; TreeSchema (w-full h-full) onu doldurur. */
+function RotatedFill({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setBox((prev) => (Math.abs(prev.w - r.width) < 1 && Math.abs(prev.h - r.height) < 1 ? prev : { w: r.width, h: r.height }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="relative flex-1 min-h-0 w-full overflow-hidden rounded-lg border border-black/10 bg-current/[0.03]">
+      {box.w > 0 && (
+        <div style={{ position: "absolute", top: "50%", left: "50%", width: box.h, height: box.w, transform: "translate(-50%, -50%) rotate(90deg)" }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** İçeriği (ör. geniş matris tablosu) sayfa kutusuna ölçekleyerek sığdırır —
+ *  taşma/kırpma yerine transform:scale. scrollWidth/Height transform'dan
+ *  etkilenmediği için doğal boyutu güvenle okur. */
+function FitBox({ children }: { children: ReactNode }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const o = outerRef.current, inr = innerRef.current;
+    if (!o || !inr) return;
+    const measure = () => {
+      const iw = inr.scrollWidth, ih = inr.scrollHeight;
+      const aw = o.clientWidth, ah = o.clientHeight;
+      if (!iw || !ih || !aw || !ah) return;
+      const s = Math.min(aw / iw, ah / ih, 1);
+      setScale((prev) => (Math.abs(prev - s) < 0.004 ? prev : s));
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(o);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [children]);
+  return (
+    <div ref={outerRef} className="flex-1 min-h-0 w-full overflow-hidden flex items-start justify-center">
+      <div ref={innerRef} className="inline-block" style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        {children}
+      </div>
     </div>
   );
 }

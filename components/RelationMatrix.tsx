@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n";
  * koordinat indeksi. Gizlilik: çağıran taraf maskeli kopya (`view`) geçer.
  * Büyük ağaçlarda tablo taşmasın diye ilk `limit` kişi gösterilir.
  */
-export default function RelationMatrix({ people, limit = 24 }: { people: Person[]; limit?: number }) {
+export default function RelationMatrix({ people, limit = 24, scroll = true }: { people: Person[]; limit?: number; scroll?: boolean }) {
   const t = useT();
 
   const { layout, cells, idOrder } = useMemo(() => {
@@ -49,7 +49,7 @@ export default function RelationMatrix({ people, limit = 24 }: { people: Person[
         </p>
       )}
 
-      <div className="overflow-x-auto -mx-2 px-2">
+      <div className={scroll ? "overflow-x-auto -mx-2 px-2" : "inline-block"}>
         <table className="border-collapse text-[10px] leading-tight" style={{ borderColor: "currentColor" }}>
           <thead>
             <tr>
