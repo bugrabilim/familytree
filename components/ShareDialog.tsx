@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
-import { useT } from "@/lib/i18n";
+import { useT, type TFunction } from "@/lib/i18n";
 
 interface ShareState {
   enabled: boolean;
@@ -148,21 +148,10 @@ export default function ShareDialog({
             </div>
           </div>
 
-          {/* Kod (jeton) */}
+          {/* Sosyal paylaşım — bağlantıyı doğrudan uygulamalara gönder */}
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1.5">{t("share.codeLabel")}</label>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={state.token ?? ""}
-                onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 h-10 px-3 rounded-xl bg-surface border border-border text-text text-xs font-mono"
-              />
-              <Button variant="secondary" size="sm" onClick={() => copy(state.token ?? "", "code")}>
-                {copied === "code" ? t("share.copied") : t("share.copy")}
-              </Button>
-            </div>
-            <p className="text-[11px] text-text-subtle mt-1">{t("share.codeHint")}</p>
+            <label className="block text-xs font-medium text-text-muted mb-1.5">{t("share.socialLabel")}</label>
+            <SocialButtons url={state.url ?? ""} text={t("share.socialText", { tree: treeName ?? "" })} t={t} />
           </div>
 
           {/* Yaşayanları gizle */}
@@ -193,5 +182,60 @@ export default function ShareDialog({
 
       {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl mt-4">{error}</p>}
     </Modal>
+  );
+}
+
+/**
+ * Sosyal paylaşım butonları. Web amaç (intent) bağlantıları bir sekmede açılır;
+ * masaüstünde web.whatsapp/web arayüzü, telefonda uygulama otomatik açılır.
+ * Instagram bağlantı-paylaşım amacını web'de desteklemediğinden linki panoya
+ * kopyalayıp Instagram'ı açar (kullanıcı yapıştırır). Cihaz destekliyorsa
+ * yerel "Paylaş…" (OS paylaşım sayfası — Instagram vb. dahil) da sunulur.
+ */
+function SocialButtons({ url, text, t }: { url: string; text: string; t: TFunction }) {
+  const enc = encodeURIComponent;
+  const msg = `${text} ${url}`.trim();
+  const canNative = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const pill = "h-9 px-3 rounded-xl text-xs font-medium inline-flex items-center transition-transform hover:brightness-110 active:scale-95";
+
+  const intents: Array<{ key: string; label: string; cls: string; href: string }> = [
+    { key: "whatsapp", label: "WhatsApp", cls: "text-white bg-[#25D366]", href: `https://wa.me/?text=${enc(msg)}` },
+    { key: "x", label: "X", cls: "text-white bg-black", href: `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}` },
+    { key: "telegram", label: "Telegram", cls: "text-white bg-[#229ED9]", href: `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}` },
+    { key: "linkedin", label: "LinkedIn", cls: "text-white bg-[#0A66C2]", href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}` },
+    { key: "facebook", label: "Facebook", cls: "text-white bg-[#1877F2]", href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}` },
+    { key: "sms", label: "SMS", cls: "text-text bg-surface-2 border border-border", href: `sms:?&body=${enc(msg)}` },
+    { key: "email", label: t("share.email"), cls: "text-text bg-surface-2 border border-border", href: `mailto:?subject=${enc(text)}&body=${enc(msg)}` },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {canNative && (
+        <button
+          type="button"
+          onClick={() => { navigator.share({ title: text, text, url }).catch(() => {}); }}
+          className={`${pill} text-primary-text bg-primary`}
+        >
+          {t("share.native")}
+        </button>
+      )}
+      {intents.map((it) => (
+        <a key={it.key} href={it.href} target="_blank" rel="noopener noreferrer" className={`${pill} ${it.cls}`}>
+          {it.label}
+        </a>
+      ))}
+      {/* Instagram: web'de link paylaşım amacı yok → kopyala + Instagram'ı aç */}
+      <button
+        type="button"
+        title={t("share.instagramHint")}
+        onClick={async () => {
+          try { await navigator.clipboard.writeText(url); } catch { /* yoksay */ }
+          window.open("https://www.instagram.com", "_blank", "noopener,noreferrer");
+        }}
+        className={`${pill} text-white bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]`}
+      >
+        Instagram
+      </button>
+    </div>
   );
 }

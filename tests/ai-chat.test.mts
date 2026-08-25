@@ -1,4 +1,4 @@
-import { buildTreeContext, buildChatPrompt, buildChatSystem } from "../lib/ai-chat.ts";
+import { buildTreeContext, buildChatPrompt, buildChatSystem, buildTreeSummary } from "../lib/ai-chat.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0, fail = 0;
@@ -28,6 +28,19 @@ check("istem bağlamı içerir", prompt.includes("Ahmet Yıldız"));
 
 check("sistem: yalnız veriden (tr)", buildChatSystem("tr").includes("YALNIZ"));
 check("sistem EN", buildChatSystem("en").toLowerCase().includes("only"));
+
+// Yakın çevre (arkadaş) — özet + bağlam (Madde 4)
+const withFriend = [
+  ...people,
+  P({ id: "f1", firstName: "Kemal", lastName: "Demir", kind: "cevre", associations: [{ id: "x", personId: "a", type: "komsu" }] }),
+];
+const sum = buildTreeSummary(withFriend);
+check("özet toplam", sum.includes("toplam 4 kişi"));
+check("özet üye/arkadaş sayısı", sum.includes("3 aile üyesi") && sum.includes("1 yakın çevre"));
+const fctx = buildTreeContext(withFriend);
+check("bağlam çevre etiketi", fctx.includes("yakın çevre (aile-dışı)"));
+check("bağlam bağ türü etiketi", fctx.includes("Ahmet Yıldız (komşu)"));
+check("istem özeti içerir", buildChatPrompt(withFriend, "kaç arkadaş var?", "tr").includes("yakın çevre"));
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

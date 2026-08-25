@@ -69,6 +69,7 @@ export default function Workspace(props: {
   people: Person[];
   version: string;
   familyName?: string;
+  coverPhoto?: string;
   displayName?: string;
   role?: TreeRole;
   trees?: Array<TreeMeta & { home: boolean }>;
@@ -97,6 +98,7 @@ function WorkspaceInner({
   people,
   version,
   familyName,
+  coverPhoto: initialCoverPhoto,
   role = "admin",
   trees,
   activeTreeId,
@@ -107,6 +109,7 @@ function WorkspaceInner({
   people: Person[];
   version: string;
   familyName?: string;
+  coverPhoto?: string;
   displayName?: string;
   role?: TreeRole;
   trees?: Array<TreeMeta & { home: boolean }>;
@@ -137,6 +140,8 @@ function WorkspaceInner({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
+  /** Aile Kitabı kapak fotoğrafı (header). */
+  const [coverPhoto, setCoverPhotoState] = useState<string | undefined>(initialCoverPhoto);
   /** Kişi merkezli "Çevre" grafiği — açıksa bu kişiyle merkezlenir. */
   const [egoId, setEgoId] = useState<string | undefined>(undefined);
   const [printingView, setPrintingView] = useState(false);
@@ -381,6 +386,19 @@ function WorkspaceInner({
     setToast(msg);
     window.setTimeout(() => setToast(undefined), 3200);
   }, []);
+
+  // Aile Kitabı kapak fotoğrafını ayarla/kaldır (kalıcı; yalnız düzenleyici).
+  const setCover = useCallback(async (url: string | null) => {
+    try {
+      const res = url
+        ? await fetch("/api/family/cover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
+        : await fetch("/api/family/cover", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setCoverPhotoState(url ?? undefined);
+    } catch {
+      notify(t("book.coverFailed"));
+    }
+  }, [notify, t]);
 
   // Görüntüleme modunda düzenleyici hiç açılmamalı. Arayüzde tetikleyiciler
   // zaten gizli; buradaki kontroller bir tetikleyici atlansa bile güvenlik ağı.
@@ -752,6 +770,8 @@ function WorkspaceInner({
           people={people}
           allPeople={people}
           familyName={familyName}
+          coverPhoto={coverPhoto}
+          onSetCover={!readOnly ? setCover : undefined}
           onClose={() => setBookOpen(false)}
           onPrint={() => { setBookOpen(false); setPrintOpen(true); }}
         />
