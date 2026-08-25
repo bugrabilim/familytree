@@ -8,8 +8,9 @@ import { fullName } from "@/lib/name";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { getChildren, getParents, getSpouses, getFormerSpouses, indexPeople, computeStats } from "@/lib/relations";
 import { aggregatePlaces } from "@/lib/places";
-import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
+import { ASSOCIATION_TYPES, EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { computeAlmanac } from "@/lib/book-stats";
+import { resolveAssociations } from "@/lib/associates";
 import BookMap from "./BookMap";
 import TreeSchema from "./TreeSchema";
 import RelationMatrix from "./RelationMatrix";
@@ -21,6 +22,9 @@ import { usePaginate, type RenderedPage, type Unit } from "./book/paginate";
 
 interface Props {
   people: Person[];
+  /** TÜM kişiler (üye + çevre) — kişinin "Yakınları" bağlarını çözmek için.
+   *  Verilmezse `people` kullanılır (çevre adları görünmeyebilir). */
+  allPeople?: Person[];
   familyName?: string;
   onClose: () => void;
   /** "Yazdır / PDF" — bası görünümünü (PrintView) açar. */
@@ -83,7 +87,7 @@ function computeGeom(w: number, h: number): Geom {
  * biyografiler arka sayfalara akar, hiçbir şey kırpılmaz. Eski kuşaklar
  * parşömen, yeni kuşaklar temiz kâğıt. Gizlilik: maskeli kopya (`view`).
  */
-export default function BookView({ people, familyName, onClose, onPrint }: Props) {
+export default function BookView({ people, allPeople, familyName, onClose, onPrint }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
@@ -119,6 +123,8 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
   }, []);
 
   const masked = useMemo(() => people.map((p) => view(p)), [people, view]);
+  // Yakın çevre çözümü için TÜM kişiler (maskeli) — çevre adları buradan gelir.
+  const maskedAll = useMemo(() => (allPeople ?? people).map((p) => view(p)), [allPeople, people, view]);
   const idx = useMemo(() => indexPeople(masked), [masked]);
 
   const genOf = useMemo(() => {
@@ -291,6 +297,25 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
         u.push({ kind: "block", key: `chap-${gen}`, age, section: secLabel, breakBefore: true, keepWithNext: true, node: <ChapterTitle>{secLabel}</ChapterTitle> });
       }
       u.push({ kind: "block", key: `p-${person.id}-h`, age, personId: person.id, section: secLabel, keepWithNext: true, node: <PersonHeader person={person} idx={idx} masked={masked} t={t} /> });
+      // Yakın çevre (aile-dışı) — kişinin girdisinde bir satır (Faz 3).
+      const circle = resolveAssociations(person, maskedAll);
+      if (circle.length > 0) {
+        u.push({
+          kind: "block", key: `p-${person.id}-circle`, age, personId: person.id, section: secLabel,
+          node: (
+            <p className="text-sm mb-1.5">
+              <span className="opacity-40">{t("drawer.associations")}: </span>
+              {circle.map((c, i) => (
+                <span key={c.person.id}>
+                  {i > 0 && ", "}
+                  {fullName(c.person)}
+                  <span className="opacity-55"> ({ASSOCIATION_TYPES[c.type]?.label ?? c.type})</span>
+                </span>
+              ))}
+            </p>
+          ),
+        });
+      }
       if (person.bio) {
         u.push({ kind: "text", key: `p-${person.id}-bio`, age, personId: person.id, section: secLabel, text: person.bio, className: "text-[14.5px] leading-relaxed text-justify whitespace-pre-line mb-2" });
       }
@@ -326,7 +351,7 @@ export default function BookView({ people, familyName, onClose, onPrint }: Props
       }
     }
     return u;
-  }, [ordered, genOf, ageOf, idx, masked, almanac, famStats, stats, placeAgg, topPlaces, preface, yearRange, generations, people.length, bookTitle, t]);
+  }, [ordered, genOf, ageOf, idx, masked, maskedAll, almanac, famStats, stats, placeAgg, topPlaces, preface, yearRange, generations, people.length, bookTitle, t]);
 
   const geomForPaginate = useMemo(
     () => ({ contentW: geom?.contentW ?? 400, contentH: geom?.contentH ?? 560, sig: geom?.sig ?? "init" }),
