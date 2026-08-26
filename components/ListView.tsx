@@ -4,13 +4,11 @@ import { useMemo, useState } from "react";
 import type { Gender, Person } from "@/types/family";
 import { EDUCATION_LEVELS } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
-import Button from "./ui/Button";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { isRainbow } from "@/lib/identity";
 import { isAssociate, isMember } from "@/lib/associates";
 import { usePrivacy } from "./PrivacyContext";
-import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 import {
   activeFieldCount,
@@ -39,14 +37,13 @@ interface Props {
   people: Person[];
   selectedId?: string;
   onSelect: (id: string) => void;
-  onAdd: () => void;
 }
 
 const advLabel = "block text-[11px] font-medium text-text-muted mb-1";
 const advField =
   "w-full h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary";
 
-export default function ListView({ people: rawPeople, selectedId, onSelect, onAdd }: Props) {
+export default function ListView({ people: rawPeople, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("soyad");
   const [filter, setFilter] = useState<Filter>("hepsi");
@@ -55,7 +52,6 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
   const advCount = activeFieldCount(adv);
 
   const { view, hideLiving } = usePrivacy();
-  const { readOnly } = useReadOnly();
   const t = useT();
   // Süzme, arama ve gösterim maskeli görünüm üzerinden yapılır — böylece
   // arama gizlenmiş alanlarla eşleşmez ve gizli bilgi listelenmez.
@@ -194,15 +190,6 @@ export default function ListView({ people: rawPeople, selectedId, onSelect, onAd
               </span>
             )}
           </button>
-
-          {!readOnly && (
-            <Button size="sm" onClick={onAdd} className="shrink-0">
-              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
-                <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <span className="hidden sm:inline">{t("common.addPerson")}</span>
-            </Button>
-          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">

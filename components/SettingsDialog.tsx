@@ -35,11 +35,11 @@ export default function SettingsDialog({
           <button
             onClick={() => setHideLiving(!hideLiving)}
             disabled={privacyForced}
-            aria-pressed={hideLiving}
+            aria-pressed={!hideLiving}
             className="w-full flex items-center justify-between gap-3 py-2 text-sm text-text disabled:opacity-60"
           >
-            <span>{t("topbar.hideLiving")}</span>
-            <Switch on={hideLiving} />
+            <span>{t("settings.showLiving")}</span>
+            <Switch on={!hideLiving} />
           </button>
 
           <button
