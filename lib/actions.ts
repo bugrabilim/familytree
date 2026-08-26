@@ -18,6 +18,7 @@ export interface PersonPayload {
   patronymic?: string;
   orientation?: string;
   birthDate?: string;
+  officialBirthDate?: string;
   deathDate?: string;
   birthPlace?: string;
   religion?: string;

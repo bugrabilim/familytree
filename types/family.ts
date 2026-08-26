@@ -125,6 +125,13 @@ export interface Person {
    */
   orientation?: string;
   birthDate?: string;
+  /**
+   * Nüfusa göre (resmi) doğum tarihi — eski kuşaklarda gerçek doğum tarihinden
+   * (`birthDate`) sık sık farklıdır (geç tescil, askerlik/okul için düzeltme…).
+   * `birthDate` ile aynı depolama biçimi. Yaş/ağaç/zaman çizelgesi GERÇEK
+   * tarihi (`birthDate`) kullanır; bu yalnız kayıt olarak tutulur/gösterilir.
+   */
+  officialBirthDate?: string;
   deathDate?: string;
   birthPlace?: string;
   photo?: string;

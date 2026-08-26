@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     patronymic: body.patronymic || undefined,
     orientation: body.orientation || undefined,
     birthDate: body.birthDate || undefined,
+    officialBirthDate: body.officialBirthDate || undefined,
     deathDate: body.deathDate || undefined,
     birthPlace: body.birthPlace || undefined,
     religion: body.religion || undefined,
