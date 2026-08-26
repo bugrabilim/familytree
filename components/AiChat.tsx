@@ -133,10 +133,15 @@ export default function AiChat({
 
     setBusy(true);
     try {
+      // Takip sorularının bağlamı için önceki konuşmayı gönder (son 8 sıra).
+      // AiMsg rolü "ai" → sunucunun beklediği "assistant".
+      const history = messages
+        .slice(-8)
+        .map((m) => ({ role: m.role === "user" ? "user" : "assistant", text: m.text }));
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, lang: lang === "en" ? "en" : "tr" }),
+        body: JSON.stringify({ question, lang: lang === "en" ? "en" : "tr", history }),
       });
       const data = await res.json();
       if (res.status === 503) throw new Error(t("ai.story.notConfigured"));
