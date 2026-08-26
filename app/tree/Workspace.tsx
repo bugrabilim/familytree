@@ -609,7 +609,6 @@ function WorkspaceInner({
             people={people}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            onAdd={openAdd}
           />
         ) : view === "tablo" ? (
           <TableView people={people} onAdd={openAdd} onChanged={() => router.refresh()} />
