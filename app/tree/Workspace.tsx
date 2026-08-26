@@ -766,6 +766,11 @@ function WorkspaceInner({
           people={people}
           onGoToPerson={goToPersonFromAi}
           onImported={() => router.refresh()}
+          onSetView={setView}
+          onSetAssociates={setShowAssociates}
+          onOpenShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
+          onOpenBook={() => setBookOpen(true)}
+          onAddPerson={openAdd}
         />
       )}
 

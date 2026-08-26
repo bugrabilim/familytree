@@ -7,6 +7,9 @@ import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useLang, useT } from "@/lib/i18n";
 import { importAnyFile } from "@/lib/import-client";
+import { setTheme } from "./ThemeToggle";
+import { usePrivacy } from "./PrivacyContext";
+import { parseCommands, type TreeCommand, type ViewCmdKey } from "@/lib/ai-commands";
 
 export type AiMsg = { role: "user" | "ai"; text: string };
 
@@ -72,6 +75,11 @@ export default function AiChat({
   people,
   onGoToPerson,
   onImported,
+  onSetView,
+  onSetAssociates,
+  onOpenShare,
+  onOpenBook,
+  onAddPerson,
 }: {
   onClose: () => void;
   messages: AiMsg[];
@@ -80,9 +88,16 @@ export default function AiChat({
   onGoToPerson: (id: string) => void;
   /** Dosyadan içe aktarma başarılı olunca ağacı tazele. */
   onImported: (count: number) => void;
+  /** #14 — YZ komutlarının yürüteceği uygulama eylemleri (yetki yoksa verilmez). */
+  onSetView?: (v: ViewCmdKey) => void;
+  onSetAssociates?: (v: boolean) => void;
+  onOpenShare?: () => void;
+  onOpenBook?: () => void;
+  onAddPerson?: () => void;
 }) {
   const t = useT();
-  const { lang } = useLang();
+  const { lang, setLang } = useLang();
+  const { setHideLiving } = usePrivacy();
   useEscapeKey(onClose);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -117,6 +132,45 @@ export default function AiChat({
   const EXPORT_RE =
     /(dış[ae]?r?ı?\s*(aktar|çıkar)|dışarı aktar|export|yedek|(gedcom|csv|json)['’]?\s*(indir|al|kaydet)|indir.*(gedcom|csv|json|dosya|yedek))/i;
 
+  /**
+   * #14 — Bir komutu yürütür ve onay cümlesini döndürür (yetki yoksa null →
+   * "yetkin yok" mesajı verilir). Tema/dil/gizlilik doğrudan burada; görünüm/
+   * paylaşım/kitap/kişi-ekle üst bileşen geri çağrılarıyla.
+   */
+  const runCommand = (cmd: TreeCommand): { text: string; navigational?: boolean } | null => {
+    switch (cmd.kind) {
+      case "theme":
+        setTheme(cmd.value === "dark");
+        return { text: t(cmd.value === "dark" ? "ai.cmd.themeDark" : "ai.cmd.themeLight") };
+      case "hideLiving":
+        setHideLiving(cmd.value);
+        return { text: t(cmd.value ? "ai.cmd.livingHidden" : "ai.cmd.livingShown") };
+      case "showAssociates":
+        if (!onSetAssociates) return null;
+        onSetAssociates(cmd.value);
+        return { text: t(cmd.value ? "ai.cmd.friendsShown" : "ai.cmd.friendsHidden") };
+      case "lang":
+        setLang(cmd.value);
+        return { text: t(cmd.value === "en" ? "ai.cmd.langEn" : "ai.cmd.langTr") };
+      case "view":
+        if (!onSetView) return null;
+        onSetView(cmd.value);
+        return { text: t("ai.cmd.view", { view: t(`view.${cmd.value}.label`) }), navigational: true };
+      case "share":
+        if (!onOpenShare) return null;
+        onOpenShare();
+        return { text: t("ai.cmd.share"), navigational: true };
+      case "book":
+        if (!onOpenBook) return null;
+        onOpenBook();
+        return { text: t("ai.cmd.book"), navigational: true };
+      case "addPerson":
+        if (!onAddPerson) return null;
+        onAddPerson();
+        return { text: t("ai.cmd.addPerson"), navigational: true };
+    }
+  };
+
   const ask = async (q: string) => {
     const question = q.trim();
     if (!question || busy) return;
@@ -124,6 +178,28 @@ export default function AiChat({
     setInput("");
     setMessages((m) => [...m, { role: "user", text: question }]);
     scrollToEnd();
+
+    // #14 — Önce komut mu? (soru değil, bir eylem isteği). Bulunursa yürüt ve
+    // modele gönderme; birden çok komut tek mesajda olabilir.
+    const commands = parseCommands(question);
+    if (commands.length > 0) {
+      const lines: string[] = [];
+      let navigate = false;
+      for (const cmd of commands) {
+        const res = runCommand(cmd);
+        if (res) {
+          lines.push(`✓ ${res.text}`);
+          if (res.navigational) navigate = true;
+        } else {
+          lines.push(`✗ ${t("ai.cmd.noPermission")}`);
+        }
+      }
+      setMessages((m) => [...m, { role: "ai", text: lines.join("\n") }]);
+      scrollToEnd();
+      // Görünüm/pencere açan bir komut varsa paneli kapat ki sonuç görünsün.
+      if (navigate) onClose();
+      return;
+    }
 
     if (EXPORT_RE.test(question)) {
       setMessages((m) => [...m, { role: "ai", text: t("ai.chat.exportHelp") }]);
@@ -194,7 +270,7 @@ export default function AiChat({
     if (file) importFile(file);
   };
 
-  const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3")];
+  const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3"), t("ai.chat.ex4")];
 
   if (typeof document === "undefined") return null;
 
