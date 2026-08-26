@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-label="Demirtaş ailesi">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4ead6"/>
+      <stop offset="0.55" stop-color="#e7cfa6"/>
+      <stop offset="1" stop-color="#cfa877"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.42" r="0.5">
+      <stop offset="0" stop-color="#fff6e2" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fff6e2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b4a2b"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="760" fill="url(#sky)"/>
+  <circle cx="600" cy="300" r="360" fill="url(#sun)"/>
+
+  <!-- ground -->
+  <path d="M0 640 Q 300 600 600 632 T 1200 620 V760 H0 Z" fill="#b98f5c" opacity="0.55"/>
+
+  <!-- trunk -->
+  <path d="M576 660 C 584 560 566 470 596 380 C 626 470 612 560 624 660 Z" fill="url(#wood)"/>
+  <!-- main boughs -->
+  <g stroke="url(#wood)" fill="none" stroke-linecap="round">
+    <path d="M600 452 C 520 420 470 360 430 300" stroke-width="20"/>
+    <path d="M600 452 C 680 420 730 360 772 300" stroke-width="20"/>
+    <path d="M600 420 C 560 372 540 330 520 286" stroke-width="16"/>
+    <path d="M600 420 C 640 372 662 330 686 286" stroke-width="16"/>
+    <path d="M600 402 C 596 350 598 320 600 276" stroke-width="16"/>
+    <path d="M432 302 C 404 276 384 258 360 244" stroke-width="10"/>
+    <path d="M770 302 C 798 276 820 258 844 244" stroke-width="10"/>
+  </g>
+
+  <!-- foliage -->
+  <g fill="#5f7d3a">
+    <circle cx="600" cy="238" r="112" opacity="0.95"/>
+    <circle cx="470" cy="270" r="92" opacity="0.92"/>
+    <circle cx="732" cy="270" r="92" opacity="0.92"/>
+    <circle cx="372" cy="238" r="66" opacity="0.9"/>
+    <circle cx="830" cy="238" r="66" opacity="0.9"/>
+    <circle cx="540" cy="168" r="78" opacity="0.9"/>
+    <circle cx="668" cy="168" r="78" opacity="0.9"/>
+    <circle cx="604" cy="132" r="70" opacity="0.88"/>
+  </g>
+  <g fill="#6f9146" opacity="0.85">
+    <circle cx="600" cy="212" r="86"/>
+    <circle cx="500" cy="250" r="60"/>
+    <circle cx="700" cy="250" r="60"/>
+    <circle cx="576" cy="150" r="52"/>
+    <circle cx="640" cy="152" r="52"/>
+  </g>
+
+  <!-- little fruits, one per generation -->
+  <g fill="#c65b3c">
+    <circle cx="560" cy="196" r="7"/>
+    <circle cx="648" cy="204" r="7"/>
+    <circle cx="500" cy="256" r="7"/>
+    <circle cx="712" cy="250" r="7"/>
+    <circle cx="604" cy="150" r="7"/>
+  </g>
+</svg>

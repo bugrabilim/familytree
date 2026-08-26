@@ -38,6 +38,9 @@ export async function prepareDemoAccount(): Promise<User> {
 
   await saveFamilyData(user.id, {
     people: DEMO_PEOPLE,
+    // Aile Kitabı için varsayılan kapak (#9). Ziyaretçi kendi fotoğrafını
+    // yükleyip değiştirebilir; her demo girişinde bu varsayılana döner.
+    coverPhoto: "/demo-book-cover.svg",
     updatedAt: new Date().toISOString(),
   });
 

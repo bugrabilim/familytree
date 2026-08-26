@@ -36,8 +36,9 @@
   /* Ağaç bağlantı çizgileri — soybağı nötr, evlilik sıcak; iki temada net */
   --tree-edge: #9c9482;
   --tree-edge-spouse: #b07d33;
-  --neutral: #8b8478;
-  --neutral-soft: #eeece6;
+  /* Bilinmeyen cinsiyet tonu — kahverengi değil, tarafsız arduvaz grisi (#10) */
+  --neutral: #737b88;
+  --neutral-soft: #eef0f3;
 
   --danger: #b3382f;
   --danger-soft: #fbeceb;
@@ -77,8 +78,8 @@
   --other-soft: #2a1d3d;
   --tree-edge: #746e5e;
   --tree-edge-spouse: #d0a065;
-  --neutral: #9a9384;
-  --neutral-soft: #262a21;
+  --neutral: #98a0ab;
+  --neutral-soft: #24272d;
 
   --danger: #e07a70;
   --danger-soft: #33201e;
