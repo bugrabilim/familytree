@@ -50,7 +50,7 @@ interface Props {
   onSaved: (person: Person) => void;
 }
 
-type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "deathDate" | "gender" | "events" | "form", string>>;
+type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "officialBirthDate" | "deathDate" | "gender" | "events" | "form", string>>;
 
 /** Formda düzenlenen olay satırı — tarih görüntü biçiminde tutulur (GG.AA.YYYY). */
 interface EventRow {
@@ -116,6 +116,7 @@ export default function PersonForm({
     // Eski kayıtlarda "unknown" gelirse boş sayılır ve kaydetmeden önce seçtirilir.
     gender: (initial?.gender && initial.gender !== "unknown" ? initial.gender : "") as Person["gender"] | "",
     birthDate: storedToDisplay(initial?.birthDate),
+    officialBirthDate: storedToDisplay(initial?.officialBirthDate),
     deathDate: storedToDisplay(initial?.deathDate),
     birthPlace: initial?.birthPlace ?? "",
     bio: initial?.bio ?? "",
@@ -373,6 +374,7 @@ export default function PersonForm({
       e.gender = t("form.errGender");
     }
     if (!isValidDateInput(form.birthDate)) e.birthDate = t("form.errDate");
+    if (!isValidDateInput(form.officialBirthDate)) e.officialBirthDate = t("form.errDate");
     if (!isValidDateInput(form.deathDate)) e.deathDate = t("form.errDate");
 
     if (!e.birthDate && !e.deathDate && form.birthDate && form.deathDate) {
@@ -392,6 +394,7 @@ export default function PersonForm({
       lastName: t("form.field.lastName"),
       gender: t("form.field.gender"),
       birthDate: t("form.field.birthDate"),
+      officialBirthDate: t("form.field.officialBirthDate"),
       deathDate: t("form.field.deathDate"),
       events: t("form.field.events"),
     };
@@ -453,6 +456,7 @@ export default function PersonForm({
       orientation: form.orientation.trim() || undefined,
       gender: form.gender as Person["gender"],
       birthDate: form.birthDate ? displayToStored(form.birthDate) : undefined,
+      officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : undefined,
       deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
       birthPlace: form.birthPlace.trim() || undefined,
       religion: form.religion.trim() || undefined,
@@ -880,6 +884,24 @@ export default function PersonForm({
           />
           {errors.deathDate && <p className="text-[11px] text-danger mt-1">{errors.deathDate}</p>}
         </div>
+      </div>
+
+      {/* Nüfusa göre (resmi) doğum tarihi — eski kuşaklarda gerçekten farklı olur */}
+      <div>
+        <label className={label} htmlFor="pf-dogum-resmi">{t("form.officialBirthDate")}</label>
+        <input
+          id="pf-dogum-resmi"
+          inputMode="numeric"
+          className={`${field} tabular-nums ${errors.officialBirthDate ? "border-danger ring-2 ring-danger/15" : ""}`}
+          value={form.officialBirthDate}
+          onChange={(e) => set("officialBirthDate", e.target.value)}
+          placeholder="GG.AA.YYYY"
+        />
+        {errors.officialBirthDate ? (
+          <p className="text-[11px] text-danger mt-1">{errors.officialBirthDate}</p>
+        ) : (
+          <p className="text-[11px] text-text-subtle mt-1">{t("form.officialBirthDateHint")}</p>
+        )}
       </div>
 
       {/* Ölüm nedeni — yalnızca vefat tarihi varsa göster */}

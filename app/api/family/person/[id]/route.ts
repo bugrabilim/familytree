@@ -43,6 +43,7 @@ export async function PUT(
     patronymic: body.patronymic ?? data.people[index].patronymic,
     orientation: body.orientation ?? data.people[index].orientation,
     birthDate: body.birthDate || data.people[index].birthDate,
+    officialBirthDate: body.officialBirthDate || data.people[index].officialBirthDate,
     deathDate: body.deathDate || data.people[index].deathDate,
     birthPlace: body.birthPlace || data.people[index].birthPlace,
     religion: body.religion ?? data.people[index].religion,

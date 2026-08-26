@@ -313,10 +313,13 @@ export default function PersonDrawer({
 
         {/* Gövde */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 overscroll-contain">
-          {(person.birthDate || person.birthPlace || person.deathDate) && (
+          {(person.birthDate || person.officialBirthDate || person.birthPlace || person.deathDate) && (
             <section className="space-y-2">
               {person.birthDate && (
                 <Fact icon="🎂" label={t("drawer.birth")} value={formatLong(person.birthDate)} />
+              )}
+              {person.officialBirthDate && (
+                <Fact icon="🪪" label={t("drawer.officialBirth")} value={formatLong(person.officialBirthDate)} />
               )}
               {person.birthPlace && <Fact icon="📍" label={t("drawer.birthPlace")} value={person.birthPlace} gmapsQuery={person.birthPlace} />}
               {person.deathDate && <Fact icon="🕯️" label={t("drawer.death")} value={formatLong(person.deathDate)} />}
