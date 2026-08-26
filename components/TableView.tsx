@@ -4,9 +4,12 @@ import { useMemo, useState } from "react";
 import type { Person, Gender } from "@/types/family";
 import { storedToDisplay, displayToStored } from "@/lib/date";
 import { fullName } from "@/lib/name";
+import { isAssociate, isMember } from "@/lib/associates";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
 import Button from "./ui/Button";
+
+type Filter = "hepsi" | "uyeler" | "arkadaslar" | "yasayan" | "vefat";
 
 interface Props {
   people: Person[];
@@ -27,19 +30,38 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
   const t = useT();
   const { readOnly } = useReadOnly();
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("hepsi");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Cinsiyet <select> sunucu tazelemesini (router.refresh) beklerken donuk
+  // görünmesin diye anlık yerel değer; kayıt arka planda sürer (#18).
+  const [genderOverride, setGenderOverride] = useState<Record<string, Gender>>({});
 
   const rows = useMemo(() => {
-    const sorted = [...people].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
+    let out = [...people].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
+    out = out.filter((p) => {
+      if (filter === "uyeler" && !isMember(p)) return false;
+      if (filter === "arkadaslar" && !isAssociate(p)) return false;
+      if (filter === "yasayan" && p.deathDate) return false;
+      if (filter === "vefat" && !p.deathDate) return false;
+      return true;
+    });
     const q = norm(query.trim());
-    if (!q) return sorted;
-    return sorted.filter((p) =>
+    if (!q) return out;
+    return out.filter((p) =>
       norm([fullName(p), p.birthDate ?? "", p.deathDate ?? "", p.birthPlace ?? "", p.code ?? ""].join(" ")).includes(q)
     );
-  }, [people, query]);
+  }, [people, query, filter]);
+
+  const FILTERS: Array<{ k: Filter; l: string }> = [
+    { k: "hepsi", l: t("list.filter.all") },
+    { k: "uyeler", l: t("list.filter.members") },
+    { k: "arkadaslar", l: t("list.filter.friends") },
+    { k: "yasayan", l: t("list.filter.living") },
+    { k: "vefat", l: t("list.filter.deceased") },
+  ];
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -120,6 +142,23 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
           </span>
         </div>
 
+        {/* Süzgeç çipleri */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {FILTERS.map((f) => (
+            <button
+              key={f.k}
+              onClick={() => setFilter(f.k)}
+              className={`h-7 px-2.5 rounded-lg text-xs font-medium transition-colors ${
+                filter === f.k
+                  ? "bg-primary text-primary-text"
+                  : "bg-surface border border-border text-text-muted hover:text-text"
+              }`}
+            >
+              {f.l}
+            </button>
+          ))}
+        </div>
+
         {/* Seçim + toplu silme */}
         {!readOnly && selected.size > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -151,7 +190,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
 
       {/* Tablo */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm border-collapse min-w-[2000px]">
+        <table className="w-full text-sm border-collapse min-w-[3200px]">
           <thead className="sticky top-0 z-10 bg-bg-elevated border-b border-border">
             <tr className="text-left text-xs text-text-muted">
               {!readOnly && (
@@ -164,6 +203,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <th className="px-3 py-2 font-medium">{t("form.nickname")}</th>
               <th className="px-3 py-2 font-medium">{t("form.patronymic")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.birth")}</th>
+              <th className="px-3 py-2 font-medium">{t("form.field.officialBirthDate")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.death")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.gender")}</th>
               <th className="px-3 py-2 font-medium">{t("table.col.place")}</th>
@@ -171,6 +211,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <th className="px-3 py-2 font-medium">{t("drawer.occupation")}</th>
               <th className="px-3 py-2 font-medium">{t("drawer.education")}</th>
               <th className="px-3 py-2 font-medium">{t("drawer.religion")}</th>
+              <th className="px-3 py-2 font-medium">{t("drawer.denomination")}</th>
               <th className="px-3 py-2 font-medium">{t("drawer.language")}</th>
               <th className="px-3 py-2 font-medium">{t("drawer.ethnicity")}</th>
               <th className="px-3 py-2 font-medium">{t("drawer.nationality")}</th>
@@ -201,6 +242,12 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 />
                 <Cell
                   readOnly={readOnly}
+                  defaultValue={storedToDisplay(p.officialBirthDate)}
+                  placeholder="YYYY"
+                  onSave={(v) => saveField(p.id, { officialBirthDate: displayToStored(v) })}
+                />
+                <Cell
+                  readOnly={readOnly}
                   defaultValue={storedToDisplay(p.deathDate)}
                   placeholder="YYYY"
                   onSave={(v) => saveField(p.id, { deathDate: displayToStored(v) })}
@@ -210,8 +257,12 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                     <span className="text-text-muted">{p.gender !== "unknown" ? t(`form.gender.${p.gender}`) : "—"}</span>
                   ) : (
                     <select
-                      value={p.gender}
-                      onChange={(e) => saveField(p.id, { gender: e.target.value as Gender })}
+                      value={genderOverride[p.id] ?? p.gender}
+                      onChange={(e) => {
+                        const g = e.target.value as Gender;
+                        setGenderOverride((m) => ({ ...m, [p.id]: g }));
+                        saveField(p.id, { gender: g });
+                      }}
                       className="h-8 px-1.5 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none cursor-pointer"
                     >
                       <option value="male">{t("form.gender.male")}</option>
@@ -227,14 +278,15 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <Cell readOnly={readOnly} defaultValue={p.occupation ?? ""} onSave={(v) => saveField(p.id, { occupation: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.education ?? ""} onSave={(v) => saveField(p.id, { education: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.religion ?? ""} onSave={(v) => saveField(p.id, { religion: v })} />
+                <Cell readOnly={readOnly} defaultValue={p.denomination ?? ""} onSave={(v) => saveField(p.id, { denomination: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.language ?? ""} onSave={(v) => saveField(p.id, { language: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.ethnicity ?? ""} onSave={(v) => saveField(p.id, { ethnicity: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.nationality ?? ""} onSave={(v) => saveField(p.id, { nationality: v })} />
                 <Cell readOnly={readOnly} defaultValue={p.orientation ?? ""} onSave={(v) => saveField(p.id, { orientation: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.deathCause ?? ""} onSave={(v) => saveField(p.id, { deathCause: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.congenitalCondition ?? ""} onSave={(v) => saveField(p.id, { congenitalCondition: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.healthCondition ?? ""} onSave={(v) => saveField(p.id, { healthCondition: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.bio ?? ""} onSave={(v) => saveField(p.id, { bio: v })} />
+                <Cell wide readOnly={readOnly} defaultValue={p.deathCause ?? ""} onSave={(v) => saveField(p.id, { deathCause: v })} />
+                <Cell wide readOnly={readOnly} defaultValue={p.congenitalCondition ?? ""} onSave={(v) => saveField(p.id, { congenitalCondition: v })} />
+                <Cell wide readOnly={readOnly} defaultValue={p.healthCondition ?? ""} onSave={(v) => saveField(p.id, { healthCondition: v })} />
+                <Cell wide readOnly={readOnly} defaultValue={p.bio ?? ""} onSave={(v) => saveField(p.id, { bio: v })} />
               </tr>
             ))}
           </tbody>
@@ -253,11 +305,14 @@ function Cell({
   onSave,
   readOnly,
   placeholder,
+  wide,
 }: {
   defaultValue: string;
   onSave: (v: string) => void;
   readOnly: boolean;
   placeholder?: string;
+  /** Serbest metin alanları (biyografi vb.) için daha geniş sütun. */
+  wide?: boolean;
 }) {
   if (readOnly) {
     return <td className="px-3 py-1.5 text-text">{defaultValue || <span className="text-text-subtle">—</span>}</td>;
@@ -273,7 +328,9 @@ function Cell({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="w-full h-8 px-2 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none"
+        className={`w-full h-8 px-2 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none ${
+          wide ? "min-w-[240px]" : "min-w-[150px]"
+        }`}
       />
     </td>
   );
