@@ -148,6 +148,9 @@ export const tr: Dict = {
   "timeline.emptyTitle": "Tarih yok",
   "timeline.emptyBody": "Doğum tarihi girilmiş kişi olunca yaşam çizelgesi burada belirir.",
   "timeline.hiddenNote": "{count} kişi doğum tarihi olmadığından gösterilmiyor.",
+  "timeline.overview": "Yaşayan aile üyeleri",
+  "timeline.peak": "En çok {count} kişi ({year})",
+  "timeline.living": "yaşıyor",
 
   /* --- Kimlik ekranları (AuthShell + login/register/forgot) --- */
   "auth.brand": "Soy Ağacı",
@@ -1331,6 +1334,9 @@ export const en: Dict = {
   "timeline.emptyTitle": "No dates",
   "timeline.emptyBody": "Once people have birth dates, their lifespans appear here.",
   "timeline.hiddenNote": "{count} people are hidden (no birth date).",
+  "timeline.overview": "Living family members",
+  "timeline.peak": "Up to {count} people ({year})",
+  "timeline.living": "living",
 
   /* --- Auth screens --- */
   "auth.brand": "Family Tree",

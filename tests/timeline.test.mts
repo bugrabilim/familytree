@@ -1,4 +1,4 @@
-import { buildTimeline, axisStep, axisTicks } from "../lib/timeline.ts";
+import { buildTimeline, axisStep, axisTicks, livingByYear } from "../lib/timeline.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0, fail = 0;
@@ -43,6 +43,13 @@ check("axisStep makul", axisStep(176) >= 20 && axisStep(176) <= 50, String(axisS
 const ticks = axisTicks(1850, 2026, 50);
 check("ticks adıma hizalı", ticks[0] === 1850 && ticks.includes(1900) && ticks.includes(2000));
 check("ticks aralık dışına taşmaz", ticks.every((y) => y >= 1850 && y <= 2026));
+
+// livingByYear — o yıl hayatta olan kişi sayısı
+const lby = livingByYear(tl.rows, tl.minYear, tl.maxYear);
+check("livingByYear tüm yılları kapsar", lby.length === tl.maxYear - tl.minYear + 1);
+check("1860'ta yalnız e (1850–1850) yaşamıyordu → 0", lby.find((d) => d.year === 1860)?.count === 0);
+check("1950'de a(1900–1970) ve b(1945–2010) yaşıyordu → 2", lby.find((d) => d.year === 1950)?.count === 2);
+check("2026'da yalnız c yaşıyor → 1", lby.find((d) => d.year === 2026)?.count === 1);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

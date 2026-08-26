@@ -148,7 +148,13 @@ export default function PlacesMap({ people, onSelect }: Props) {
               <path d="M5 19c6-1 8-13 14-14M13 5h6v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {t("map.migration")}
-            {showMigration && migrations.length > 0 && <span className="tabular-nums">· {migrations.length}</span>}
+            {/* #6 — Sayaç sabit genişlikte: dönem kaydırılınca sayı değişse (ya da
+               0'a düşse) bile düğme genişlemez/daralmaz, sonraki denetimler kaymaz. */}
+            {showMigration && (
+              <span className="tabular-nums inline-block w-9 text-left">
+                {migrations.length > 0 ? `· ${migrations.length}` : ""}
+              </span>
+            )}
           </button>
 
           {yearBounds && a0 !== null && a1 !== null && (
