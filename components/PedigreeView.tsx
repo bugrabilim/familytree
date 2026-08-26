@@ -3,7 +3,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
-import { primaryName, secondaryName, fullName } from "@/lib/name";
+import GenerationStepper from "./GenerationStepper";
+import RootSelect from "./RootSelect";
+import { primaryName, secondaryName } from "@/lib/name";
 import { isRainbow } from "@/lib/identity";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
 import { compareSiblings } from "@/lib/siblings";
@@ -37,7 +39,6 @@ export default function PedigreeView({
   onSetRoot,
 }: Props) {
   const [generations, setGenerations] = useState(4);
-  const { view } = usePrivacy();
   const t = useT();
   const idx = useMemo(() => indexPeople(people), [people]);
 
@@ -57,13 +58,6 @@ export default function PedigreeView({
   }, [people, idx]);
 
   const root = (rootId ? idx.get(rootId) : undefined) ?? varsayilanKok;
-
-  const siraliKisiler = useMemo(() => {
-    const coll = new Intl.Collator("tr");
-    return [...people].sort(
-      (a, b) => coll.compare(a.firstName, b.firstName) || coll.compare(a.lastName, b.lastName)
-    );
-  }, [people]);
 
   /** Kök etrafında kaç kuşak yukarı / aşağı gerçekten var? — bilgi rozeti için */
   const kapsam = useMemo(() => {
@@ -123,44 +117,21 @@ export default function PedigreeView({
     <div className="h-full flex flex-col">
       {/* Kontrol çubuğu */}
       <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-bg-elevated/60">
-        <div className="flex items-center gap-2 min-w-0">
-          <Avatar person={root} size="sm" />
-          <div className="min-w-0">
-            <label className="text-xs text-text-subtle leading-tight block" htmlFor="kok-secici">
-              {t("pedigree.centerLabel", { up: kapsam.up, down: kapsam.down })}
-            </label>
-            <select
-              id="kok-secici"
-              value={root.id}
-              onChange={(e) => onSetRoot(e.target.value)}
-              className="max-w-[16rem] sm:max-w-xs h-7 -ml-1 px-1 rounded-lg bg-transparent hover:bg-surface-2 border border-transparent hover:border-border text-sm font-medium text-text cursor-pointer focus:outline-none focus:border-primary transition-colors"
-            >
-              {siraliKisiler.map((p) => {
-                const mp = view(p);
-                return (
-                  <option key={p.id} value={p.id}>
-                    {fullName(p)}
-                    {mp.birthDate ? ` · ${mp.birthDate.slice(0, 4)}` : ""}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
+        <RootSelect
+          people={people}
+          root={root}
+          onSetRoot={onSetRoot}
+          label={t("pedigree.centerLabel", { up: kapsam.up, down: kapsam.down })}
+        />
 
         <div className="ml-auto flex items-center gap-2">
-          <label className="hidden sm:flex items-center gap-2 text-xs text-text-muted">
-            {t("pedigree.generation")}
-            <input
-              type="range"
-              min={1}
-              max={6}
-              value={generations}
-              onChange={(e) => setGenerations(Number(e.target.value))}
-              className="w-24 accent-[var(--primary)]"
-            />
-            <span className="tabular-nums w-3 text-text font-medium">{generations}</span>
-          </label>
+          <GenerationStepper
+            value={generations}
+            min={1}
+            max={6}
+            onChange={setGenerations}
+            label={t("pedigree.generation")}
+          />
         </div>
       </div>
 

@@ -130,8 +130,9 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
       }
     }
 
-    // Geçmiş (−) en üstte, bugüne ve geleceğe doğru — zaman çizelgesi gibi.
-    return out.sort((a, b) => a.days - b.days).slice(0, 10);
+    // #8 — Yaklaşanlar (gelecek, +) üstte; "Bugün" ayıracı; geçmiş (−) altta.
+    // En yakın gelecek en üstte olacak biçimde azalan sırala.
+    return out.sort((a, b) => b.days - a.days).slice(0, 12);
   }, [people, view, hideLiving, t]);
 
   const eldest = useMemo(() => {
@@ -505,8 +506,15 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             hint={t("panel.card.upcomingHint")}
             empty={upcoming.length === 0 ? t("panel.card.upcomingEmpty") : undefined}
           >
-            <ul className="space-y-1">
-              {upcoming.map((ev) => {
+            {(() => {
+              // #8 — Gelecek (yeşil) üstte, "Bugün" ayıracı, geçmiş (kırmızı)
+              // altta. Bugün olayı varsa ayıraç onu üstten ve alttan sarar;
+              // yoksa gelecekle geçmiş arasında tek çizgi olur.
+              const future = upcoming.filter((ev) => ev.days > 0);
+              const todayEv = upcoming.filter((ev) => ev.days === 0);
+              const past = upcoming.filter((ev) => ev.days < 0);
+
+              const renderRow = (ev: (typeof upcoming)[number], band: "future" | "today" | "past") => {
                 const person = view(ev.rawPerson);
                 const masked = isMasked(ev.rawPerson, hideLiving);
                 let subtext: React.ReactNode = null;
@@ -528,33 +536,64 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                     </p>
                   );
                 }
+                const rowBg =
+                  band === "future"
+                    ? "bg-emerald-500/10 hover:bg-emerald-500/20"
+                    : band === "past"
+                    ? "bg-rose-500/10 hover:bg-rose-500/20"
+                    : "bg-accent-soft hover:bg-accent-soft/70";
+                const badgeCls =
+                  band === "future"
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    : band === "past"
+                    ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                    : "bg-accent-soft text-accent";
                 return (
                   <li key={ev.key}>
                     <button
                       onClick={() => onSelect(person.id)}
-                      className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                      className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-colors text-left ${rowBg}`}
                     >
                       <Avatar person={person} size="sm" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-text truncate leading-tight">
-                          {fullName(person)}
-                        </p>
+                        <p className="text-sm text-text truncate leading-tight">{fullName(person)}</p>
                         {subtext}
                       </div>
-                      <span
-                        className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${
-                          Math.abs(ev.days) <= 1
-                            ? "bg-accent-soft text-accent"
-                            : "bg-surface-2 text-text-muted"
-                        }`}
-                      >
+                      <span className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${badgeCls}`}>
                         {humanizeDays(ev.days)}
                       </span>
                     </button>
                   </li>
                 );
-              })}
-            </ul>
+              };
+
+              const renderDivider = (key: string) => (
+                <li aria-hidden className="flex items-center gap-2 py-1.5" key={key}>
+                  <span className="h-px flex-1 bg-accent/40" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-accent">
+                    {t("panel.today")}
+                  </span>
+                  <span className="h-px flex-1 bg-accent/40" />
+                </li>
+              );
+
+              return (
+                <ul className="space-y-1">
+                  {future.map((ev) => renderRow(ev, "future"))}
+                  {/* Bugün olayı varsa üstten ve alttan çizgiyle sar; yoksa tek çizgi */}
+                  {todayEv.length > 0 ? (
+                    <>
+                      {renderDivider("today-divider-top")}
+                      {todayEv.map((ev) => renderRow(ev, "today"))}
+                      {renderDivider("today-divider-bottom")}
+                    </>
+                  ) : (
+                    renderDivider("today-divider")
+                  )}
+                  {past.map((ev) => renderRow(ev, "past"))}
+                </ul>
+              );
+            })()}
           </Card>
           )}
 

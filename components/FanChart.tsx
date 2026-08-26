@@ -5,6 +5,8 @@ import type { Person } from "@/types/family";
 import { indexPeople } from "@/lib/relations";
 import { primaryName } from "@/lib/name";
 import { genderTone } from "./ui/Avatar";
+import GenerationStepper from "./GenerationStepper";
+import RootSelect from "./RootSelect";
 import { usePrivacy } from "./PrivacyContext";
 import { useT } from "@/lib/i18n";
 import {
@@ -101,27 +103,23 @@ export default function FanChart({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Kontrol çubuğu — merkez kişi + kuşak sayısı */}
+      {/* Kontrol çubuğu — merkez kişi + kuşak sayısı (Soy sayfasıyla aynı) */}
       <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-bg-elevated/60">
-        <div className="min-w-0">
-          <p className="text-xs text-text-subtle leading-tight">{t("fan.header")}</p>
-          <p className="text-sm font-medium text-text truncate max-w-[16rem] sm:max-w-xs">
-            {primaryName(rootView)}
-          </p>
-        </div>
+        <RootSelect
+          people={people}
+          root={root}
+          onSetRoot={onSetRoot}
+          label={t("fan.header")}
+          id="yelpaze-kok-secici"
+        />
         <div className="ml-auto flex items-center gap-2">
-          <label className="hidden sm:flex items-center gap-2 text-xs text-text-muted">
-            {t("fan.generation")}
-            <input
-              type="range"
-              min={4}
-              max={8}
-              value={generations}
-              onChange={(e) => setGenerations(Number(e.target.value))}
-              className="w-24 accent-[var(--primary)]"
-            />
-            <span className="tabular-nums w-3 text-text font-medium">{generations}</span>
-          </label>
+          <GenerationStepper
+            value={generations}
+            min={4}
+            max={8}
+            onChange={setGenerations}
+            label={t("fan.generation")}
+          />
         </div>
       </div>
 
