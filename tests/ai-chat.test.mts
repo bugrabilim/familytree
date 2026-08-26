@@ -42,5 +42,17 @@ check("bağlam çevre etiketi", fctx.includes("yakın çevre (aile-dışı)"));
 check("bağlam bağ türü etiketi", fctx.includes("Ahmet Yıldız (komşu)"));
 check("istem özeti içerir", buildChatPrompt(withFriend, "kaç arkadaş var?", "tr").includes("yakın çevre"));
 
+// Takip sorusu için konuşma geçmişi isteme eklenir (Madde: "isimlerini ver")
+const hist = [
+  { role: "user" as const, text: "kaç arkadaş girilmiş" },
+  { role: "assistant" as const, text: "12" },
+];
+const fp = buildChatPrompt(withFriend, "isimlerini ver", "tr", hist);
+check("istem geçmiş başlığı", fp.includes("ÖNCEKİ KONUŞMA:"));
+check("istem geçmiş soruyu içerir", fp.includes("kaç arkadaş girilmiş"));
+check("istem geçmiş yanıtı içerir", fp.includes("Y: 12"));
+check("geçmişsiz istemde başlık bloğu yok", !buildChatPrompt(withFriend, "x", "tr").includes("ÖNCEKİ KONUŞMA:"));
+check("EN geçmiş başlığı", buildChatPrompt(withFriend, "give names", "en", hist).includes("CONVERSATION SO FAR:"));
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

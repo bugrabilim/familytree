@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (!isGeminiConfigured())
     return NextResponse.json({ error: "AI yapılandırılmamış (GEMINI_API_KEY)." }, { status: 503 });
 
-  let body: { question?: string; lang?: string };
+  let body: { question?: string; lang?: string; history?: Array<{ role?: string; text?: string }> };
   try {
     body = await req.json();
   } catch {
@@ -43,8 +43,15 @@ export async function POST(req: NextRequest) {
   if (!question) return NextResponse.json({ error: "Soru gerekli." }, { status: 400 });
 
   const lang = body.lang === "en" ? "en" : "tr";
+  // Takip sorularının bağlamı için son konuşma sıraları (istemci gönderir).
+  const history = Array.isArray(body.history)
+    ? body.history
+        .filter((h) => h && typeof h.text === "string" && (h.role === "user" || h.role === "assistant"))
+        .slice(-8)
+        .map((h) => ({ role: h.role as "user" | "assistant", text: String(h.text).slice(0, 2000) }))
+    : [];
   const { people } = await getFamilyData(ctx.treeId);
-  const prompt = buildChatPrompt(people, question, lang);
+  const prompt = buildChatPrompt(people, question, lang, history);
 
   try {
     // Yönerge isteme gömülü (sistem yok) → eko yok. Düşük sıcaklık = tutarlı,

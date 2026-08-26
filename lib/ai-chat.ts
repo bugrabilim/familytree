@@ -70,21 +70,45 @@ export function buildTreeContext(people: Person[], cap = 400): string {
   return lines.join("\n") + more;
 }
 
+/** Sohbet geçmişindeki bir sıra (takip sorularının bağlamı için). */
+export interface ChatTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+/** Son N konuşma sırasını istemde gösterilecek bir bloğa dönüştürür. */
+function historyBlock(history: ChatTurn[], lang: "tr" | "en", max = 8): string[] {
+  const recent = history.filter((h) => (h.text ?? "").trim()).slice(-max);
+  if (recent.length === 0) return [];
+  const head = lang === "en" ? "CONVERSATION SO FAR:" : "ÖNCEKİ KONUŞMA:";
+  const uQ = lang === "en" ? "Q" : "S";
+  const aA = lang === "en" ? "A" : "Y";
+  return [head, ...recent.map((h) => `${h.role === "user" ? uQ : aA}: ${h.text.trim()}`), ""];
+}
+
 /**
- * Sohbet istemi — kurallar + bağlam + soru tek metinde. Yönerge sistem yerine
- * isteme gömülür: bazı modeller sistem yönergesini yanıt sanıp aynen geri
- * döndürebiliyordu; bu yapı o "eko"yu önler ve tutarlılığı artırır.
+ * Sohbet istemi — kurallar + bağlam + (varsa) önceki konuşma + soru tek metinde.
+ * Yönerge sistem yerine isteme gömülür: bazı modeller sistem yönergesini yanıt
+ * sanıp aynen geri döndürebiliyordu; bu yapı o "eko"yu önler. Geçmiş eklenir ki
+ * "isimlerini ver" gibi takip soruları önceki bağlamı (neyin ismi?) korusun.
  */
-export function buildChatPrompt(people: Person[], question: string, lang: "tr" | "en" = "tr"): string {
+export function buildChatPrompt(
+  people: Person[],
+  question: string,
+  lang: "tr" | "en" = "tr",
+  history: ChatTurn[] = []
+): string {
   if (lang === "en") {
     return [
       "Below is a family tree's data. Answer the QUESTION using ONLY this data, briefly and factually, in English.",
+      "Use CONVERSATION SO FAR to resolve follow-up references (e.g. \"give their names\" refers to the previous answer's subject).",
       "If the answer is not in the data, say \"That isn't in the tree.\" Do NOT repeat these rules or the data.",
       "",
       "FAMILY TREE:",
       buildTreeSummary(people),
       buildTreeContext(people),
       "",
+      ...historyBlock(history, lang),
       `QUESTION: ${question.trim()}`,
       "",
       "ANSWER:",
@@ -92,12 +116,14 @@ export function buildChatPrompt(people: Person[], question: string, lang: "tr" |
   }
   return [
     "Aşağıda bir soy ağacının verisi var. SORU'yu YALNIZ bu veriye dayanarak, kısa ve olgusal biçimde Türkçe yanıtla.",
+    "Takip sorularındaki göndermeleri (ör. \"isimlerini ver\" = önceki yanıtın konusu) ÖNCEKİ KONUŞMA'dan çöz.",
     "Yanıt veride yoksa \"Bu bilgi ağaçta yok.\" de. Kuralları ya da veriyi tekrar ETME; yalnız yanıtı yaz.",
     "",
     "SOY AĞACI:",
     buildTreeSummary(people),
     buildTreeContext(people),
     "",
+    ...historyBlock(history, lang),
     `SORU: ${question.trim()}`,
     "",
     "YANIT:",
