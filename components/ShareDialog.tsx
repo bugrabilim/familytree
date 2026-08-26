@@ -132,6 +132,7 @@ export default function ShareDialog({
             </div>
           </div>
           <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
+          {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
           <Button size="sm" onClick={create} disabled={busy}>
             {busy ? t("share.working") : t("share.createBtn")}
