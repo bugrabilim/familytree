@@ -56,6 +56,25 @@ export function buildTimeline(people: Person[], currentYear: number): Timeline {
 }
 
 /**
+ * Genel aile büyüklüğü eğrisi (#3) — her yıl için O YIL HAYATTA olan kişi
+ * sayısı. Zaman çizelgesinin üstünde "aile zaman içinde nasıl büyüdü/küçüldü"
+ * genel görünümünü çizmek için. Saf ve test edilebilir.
+ */
+export function livingByYear(
+  rows: TimelineRow[],
+  minYear: number,
+  maxYear: number
+): Array<{ year: number; count: number }> {
+  const out: Array<{ year: number; count: number }> = [];
+  for (let y = minYear; y <= maxYear; y++) {
+    let c = 0;
+    for (const r of rows) if (r.startYear <= y && y <= r.endYear) c++;
+    out.push({ year: y, count: c });
+  }
+  return out;
+}
+
+/**
  * Zaman ekseni için "güzel" ondalık aralık adımı seçer (10/20/25/50/100…),
  * verilen yıl açıklığında yaklaşık `target` kadar işaret olacak biçimde.
  */
