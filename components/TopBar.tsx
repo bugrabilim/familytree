@@ -8,24 +8,39 @@ import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
 
-export type ViewKey = "agac" | "soy" | "yelpaze" | "zaman" | "liste" | "tablo" | "harita" | "panel" | "cevre" | "kitap";
+export type ViewKey =
+  | "agac" | "cevre" | "soy" | "yelpaze" | "liste" | "zaman" | "harita"
+  | "istatistik" | "iliski" | "tablo" | "kitap";
 
-/** Simgeler ve anahtarlar sabit; etiket/ipucu metinleri i18n sözlüğünden okunur. */
-export const VIEWS: Array<{ key: ViewKey; icon: string }> = [
-  { key: "agac", icon: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3" },
-  { key: "soy", icon: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8" },
-  { key: "yelpaze", icon: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4" },
-  { key: "zaman", icon: "M4 7h11M4 12h16M4 17h7M18 15l3 2-3 2" },
-  { key: "liste", icon: "M4 6h16M4 12h16M4 18h16" },
-  { key: "harita", icon: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z" },
-  { key: "panel", icon: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z" },
-  { key: "cevre", icon: "M12 12m-2 0a2 2 0 104 0 2 2 0 10-4 0M12 4a2 2 0 100 .01M5 8a2 2 0 100 .01M19 8a2 2 0 100 .01M6 18a2 2 0 100 .01M18 18a2 2 0 100 .01M12 10V5.9M10.4 10.8L6.6 8.7M13.6 10.8l3.8-2.1M10.8 13.5l-3.4 3.1M13.2 13.5l3.4 3.1" },
-  { key: "kitap", icon: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" },
+const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
+  agac: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3",
+  cevre: "M12 12m-2 0a2 2 0 104 0 2 2 0 10-4 0M12 4a2 2 0 100 .01M5 8a2 2 0 100 .01M19 8a2 2 0 100 .01M6 18a2 2 0 100 .01M18 18a2 2 0 100 .01M12 10V5.9M10.4 10.8L6.6 8.7M13.6 10.8l3.8-2.1M10.8 13.5l-3.4 3.1M13.2 13.5l3.4 3.1",
+  soy: "M12 21V3M12 3L5 8M12 3l7 5M5 8v8M19 8v8",
+  yelpaze: "M12 21a9 9 0 019-9M12 21a9 9 0 00-9-9M12 21V10M12 21l5.5-4M12 21l-5.5-4",
+  liste: "M4 6h16M4 12h16M4 18h16",
+  zaman: "M4 7h11M4 12h16M4 17h7M18 15l3 2-3 2",
+  harita: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z",
+  istatistik: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z",
+  iliski: "M9 12h6M10 8H8a4 4 0 000 8h2M14 8h2a4 4 0 010 8h-2",
+  kitap: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z",
+};
+
+/** Üst menü sekmeleri, üç mantıksal grupta (aralarına ayraç konur):
+ *  1) görünümler, 2) çözümleme (istatistik/ilişki), 3) kitap. */
+export const VIEW_GROUPS: ViewKey[][] = [
+  ["agac", "cevre", "soy", "yelpaze", "liste", "zaman", "harita"],
+  ["istatistik", "iliski"],
+  ["kitap"],
 ];
 
+/** Düz liste (geriye dönük kullanım için). */
+export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().map((key) => ({
+  key,
+  icon: ICONS[key as Exclude<ViewKey, "tablo">],
+}));
+
 /** Görünüm sekmeleri — masaüstünde ortalanmış nav, mobilde tam-genişlik satır
- *  için ortak render. Mobilde eşit paylaşımla (flex-1) yeterli dokunma hedefi;
- *  taşarsa yatay kaydırılabilir. */
+ *  için ortak render. Gruplar arasına ince bir dikey ayraç konur. */
 function ViewTabs({
   view,
   onViewChange,
@@ -37,28 +52,33 @@ function ViewTabs({
 }) {
   return (
     <>
-      {VIEWS.map((v) => (
-        <button
-          key={v.key}
-          onClick={() => onViewChange(v.key)}
-          title={t(`view.${v.key}.hint`)}
-          aria-current={view === v.key}
-          className={`
-            flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5
-            h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium
-            transition-all duration-150 min-w-0
-            ${
-              view === v.key
-                ? "bg-bg-elevated text-text shadow-soft"
-                : "text-text-muted hover:text-text"
-            }
-          `}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-            <path d={v.icon} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="hidden sm:inline">{t(`view.${v.key}.label`)}</span>
-        </button>
+      {VIEW_GROUPS.map((group, gi) => (
+        <div key={gi} className="contents">
+          {gi > 0 && <span className="w-px h-5 self-center bg-border mx-0.5 sm:mx-1 shrink-0" aria-hidden />}
+          {group.map((key) => (
+            <button
+              key={key}
+              onClick={() => onViewChange(key)}
+              title={t(`view.${key}.hint`)}
+              aria-current={view === key}
+              className={`
+                flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5
+                h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium
+                transition-all duration-150 min-w-0
+                ${
+                  view === key
+                    ? "bg-bg-elevated text-text shadow-soft"
+                    : "text-text-muted hover:text-text"
+                }
+              `}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+                <path d={ICONS[key as Exclude<ViewKey, "tablo">]} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="hidden sm:inline">{t(`view.${key}.label`)}</span>
+            </button>
+          ))}
+        </div>
       ))}
     </>
   );

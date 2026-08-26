@@ -449,7 +449,7 @@ function WorkspaceInner({
       const hadPeople = people.length > 0;
       router.refresh();
       if (hadPeople && count > 0) {
-        setView("panel");
+        setView("istatistik");
         notify(t("ws.toast.importedMerge", { count }));
       } else {
         notify(t("ws.toast.imported", { count }));
@@ -623,9 +623,17 @@ function WorkspaceInner({
             embedded
             onOpenProfile={setSelectedId}
           />
+        ) : view === "iliski" ? (
+          <PanelView
+            people={people}
+            mode="relations"
+            onSelect={setSelectedId}
+            onAdd={openAdd}
+          />
         ) : (
           <PanelView
             people={people}
+            mode="stats"
             onSelect={setSelectedId}
             onAdd={openAdd}
             onPrint={printCurrentView}
