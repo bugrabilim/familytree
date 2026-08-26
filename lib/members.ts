@@ -173,6 +173,14 @@ export async function revokeInvite(treeId: string, tokenHash: string): Promise<v
 
 const MAX_VISITS = 50;
 
+/**
+ * Bir ağaçta tutulan en fazla paylaşım bağlantısı. Herkese açık demo gibi ortak
+ * hesaplarda ziyaretçiler sürekli bağlantı üretebilir; sınırsız birikim hem
+ * kaydı hem de her istekte üretilen QR'lar yüzünden yanıtı yavaşlatır (bağlantı
+ * oluştur düğmesi "yanıt vermiyor" görünür). En yeni bağlantılar korunur.
+ */
+const MAX_SHARES = 50;
+
 /** Erişim kaydındaki paylaşımları döndürür; eski tekil `share`'i diziye taşır. */
 function normalizeShares(data: { share?: ShareLink | null; shares?: ShareLink[] }): ShareLink[] {
   const list = Array.isArray(data.shares) ? [...data.shares] : [];
@@ -226,6 +234,7 @@ export async function createShare(
   const data = await getTreeAccess(treeId);
   const shares = normalizeShares(data);
   shares.unshift(share);
+  if (shares.length > MAX_SHARES) shares.length = MAX_SHARES;
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
@@ -256,6 +265,15 @@ export async function deleteShare(treeId: string, id: string): Promise<void> {
   const data = await getTreeAccess(treeId);
   const shares = normalizeShares(data).filter((s) => s.id !== id);
   data.shares = shares;
+  data.share = undefined;
+  await saveTreeAccess(treeId, data);
+}
+
+/** Bir ağacın tüm paylaşım bağlantılarını temizler (ör. demo sıfırlaması). */
+export async function resetShares(treeId: string): Promise<void> {
+  const data = await getTreeAccess(treeId);
+  if ((data.shares?.length ?? 0) === 0 && !data.share) return;
+  data.shares = [];
   data.share = undefined;
   await saveTreeAccess(treeId, data);
 }
