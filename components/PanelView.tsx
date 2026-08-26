@@ -34,9 +34,13 @@ interface Props {
   onAdd: () => void;
   /** Özeti / paneli yazdır (Madde 12). */
   onPrint?: () => void;
+  /** "stats" = İstatistikler (sayı/grafik), "relations" = İlişki hesapla (akrabalık araçları). */
+  mode?: "stats" | "relations";
 }
 
-export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint }: Props) {
+export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint, mode = "stats" }: Props) {
+  const isStats = mode !== "relations";
+  const isRelations = mode === "relations";
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
   const t = useT();
@@ -254,7 +258,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Özet başlığı + yazdır (Madde 12) */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="font-serif text-lg font-semibold text-text">{t("panel.overviewTitle")}</h1>
+          <h1 className="font-serif text-lg font-semibold text-text">{isRelations ? t("panel.relationsTitle") : t("panel.overviewTitle")}</h1>
           {/* Arkadaş süzgeci — yalnız ağaçta çevre kişisi varsa göster */}
           {hasAssociates && (
             <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs no-print" role="group" aria-label={t("panel.scope.aria")}>
@@ -278,7 +282,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
               ))}
             </div>
           )}
-          {onPrint && (
+          {isStats && onPrint && (
             <button
               onClick={onPrint}
               className="no-print flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted text-xs font-medium transition-colors shrink-0"
@@ -292,6 +296,8 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
         </div>
 
         {/* İstatistikler — rakamlar tıklanabilir (ilgili kişileri listeler) */}
+        {isStats && (
+        <>
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Stat value={stats.total} label={t("panel.stats.people")} tone="primary"
             onClick={() => openDrill(t("panel.stats.people"), shown)} />
@@ -362,10 +368,12 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
             )}
           </dl>
         </section>
+        </>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Tutarlılık uyarıları — olası veri hataları (yalnız varsa) */}
-          {issues.length > 0 && (
+          {isStats && issues.length > 0 && (
             <Card
               title={t("panel.card.issues", { count: issues.length })}
               hint={t("panel.card.issuesHint")}
@@ -406,7 +414,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
           )}
 
           {/* Olası kopyalar — aynı kişi iki kez girilmiş olabilir (yalnız varsa) */}
-          {duplicates.length > 0 && (
+          {isStats && duplicates.length > 0 && (
             <Card
               title={t("panel.card.duplicates", { count: duplicates.length })}
               hint={t("panel.card.duplicatesHint")}
@@ -460,27 +468,38 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
             </Card>
           )}
 
-          {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
-          <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
-            <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
-          </Card>
+          {/* İlişki hesapla araçları (yalnız "İlişki hesapla" görünümü) */}
+          {isRelations && (
+            <>
+              {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
+              <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
+                <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
+              </Card>
 
-          {/* Kuşak görüntüleyici */}
-          <Card title={t("panel.card.generation")} hint={t("panel.card.generationHint")}>
-            <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
-          </Card>
+              {/* Kuşak görüntüleyici */}
+              <Card title={t("panel.card.generation")} hint={t("panel.card.generationHint")}>
+                <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
+              </Card>
 
-          {/* Kuşaklara göre akrabalar — kuşak-uzaklığına göre ayrı sütunlar */}
-          <Card title={t("panel.card.genSpread")} hint={t("panel.card.genSpreadHint")} className="lg:col-span-2">
-            <GenerationSpread people={people} idx={idx} onSelect={onSelect} />
-          </Card>
+              {/* Kuşaklara göre akrabalar — kuşak-uzaklığına göre ayrı sütunlar */}
+              <Card title={t("panel.card.genSpread")} hint={t("panel.card.genSpreadHint")} className="lg:col-span-2">
+                <GenerationSpread people={people} idx={idx} onSelect={onSelect} />
+              </Card>
 
-          {/* Yakınlık derecesi */}
-          <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
-            <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
-          </Card>
+              {/* Yakınlık derecesi */}
+              <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
+                <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
+              </Card>
+
+              {/* Akrabalık hesaplayıcı */}
+              <Card title={t("panel.card.calculator")} hint={t("panel.card.calculatorHint")}>
+                <RelationCalculator people={people} idx={idx} onSelect={onSelect} />
+              </Card>
+            </>
+          )}
 
           {/* Yaklaşan olaylar — doğum günü 🎂 · evlilik yıldönümü 💍 · anma 🕯️ */}
+          {isStats && (
           <Card
             title={t("panel.card.upcoming")}
             hint={t("panel.card.upcomingHint")}
@@ -537,13 +556,11 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
               })}
             </ul>
           </Card>
-
-          {/* Akrabalık hesaplayıcı */}
-          <Card title={t("panel.card.calculator")} hint={t("panel.card.calculatorHint")}>
-            <RelationCalculator people={people} idx={idx} onSelect={onSelect} />
-          </Card>
+          )}
 
           {/* En eski kuşak */}
+          {isStats && (
+          <>
           <Card title={t("panel.card.oldest")} empty={eldest.length === 0 ? t("panel.card.noDated") : undefined}>
             <ul className="space-y-1">
               {eldest.map((rawP) => {
@@ -616,6 +633,8 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint 
             </div>
 
           </Card>
+          </>
+          )}
         </div>
       </div>
 
