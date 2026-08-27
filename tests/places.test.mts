@@ -1,4 +1,4 @@
-import { projectEquirectangular, unprojectEquirectangular, googleMapsUrl } from "../lib/places.ts";
+import { projectEquirectangular, unprojectEquirectangular, googleMapsUrl, resolvePlace } from "../lib/places.ts";
 
 let ok = 0, fail = 0;
 const check = (n: string, c: boolean) => { if (c) ok++; else { fail++; console.log(`✗ ${n}`); } };
@@ -22,6 +22,29 @@ for (const [lat, lng] of [[41.0, 29.0], [-33.4, 151.2], [38.7, 35.5], [0, 0]] as
 // googleMapsUrl
 check("gmaps koordinat kodlar", googleMapsUrl("41.0,29.0").includes("query=41.0%2C29.0"));
 check("gmaps yer adı kodlar", googleMapsUrl("İstanbul, Türkiye").startsWith("https://www.google.com/maps/search/?api=1&query="));
+
+// resolvePlace — 81 il + ilçe + e-Devlet biçimi
+check("il: Ordu çözülür", resolvePlace("Ordu") !== null);
+check("il: Bingöl çözülür", resolvePlace("Bingöl") !== null);
+check("İstanbul ilçesi: Şişli çözülür", resolvePlace("Şişli") !== null);
+check("bilinmeyen köy → null", resolvePlace("Evlek") === null);
+// e-Devlet biçimi "İl / İlçe / Köy" → köy bilinmese bile il'e düşer
+check("Ordu / Gürgentepe / Evlek → Ordu", (() => {
+  const r = resolvePlace("Ordu / Gürgentepe / Evlek");
+  return r !== null && near(r.lat, 40.98, 0.05) && near(r.lng, 37.88, 0.05);
+})());
+// hiyerarşide en özel (sondaki) parça yeğlenir: İstanbul / Şişli → Şişli
+check("İstanbul / Şişli → Şişli (özel)", (() => {
+  const r = resolvePlace("İstanbul / Şişli");
+  return r !== null && near(r.lat, 41.06, 0.05) && near(r.lng, 28.99, 0.05);
+})());
+// virgüllü "Şehir, Ülke" → şehir yeğlenir
+check("Köln, Almanya → Köln (şehir)", (() => {
+  const r = resolvePlace("Köln, Almanya");
+  return r !== null && near(r.lat, 50.94, 0.05) && near(r.lng, 6.96, 0.05);
+})());
+check("eski ad: Antep → Gaziantep", resolvePlace("Antep") !== null);
+check("büyük/küçük harf: ORDU", resolvePlace("ORDU") !== null);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

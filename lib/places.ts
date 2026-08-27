@@ -44,6 +44,109 @@ export const GAZETTEER: Record<string, LatLng> = {
   Yozgat: { lat: 39.82, lng: 34.8 },
   Diyarbakır: { lat: 37.91, lng: 40.24 },
 
+  // — Türkiye'nin 81 ili (yukarıda olmayanlar). İl merkezi koordinatları;
+  //   içe aktarılan gerçek kayıtlarda (ör. e-Devlet nüfus) doğum yeri çoğu
+  //   zaman il/ilçe adıdır, bu yüzden tümü haritaya oturur. —
+  Adıyaman: { lat: 37.76, lng: 38.28 },
+  Afyonkarahisar: { lat: 38.76, lng: 30.54 },
+  Ağrı: { lat: 39.72, lng: 43.05 },
+  Amasya: { lat: 40.65, lng: 35.83 },
+  Artvin: { lat: 41.18, lng: 41.82 },
+  Aydın: { lat: 37.85, lng: 27.84 },
+  Balıkesir: { lat: 39.65, lng: 27.89 },
+  Bilecik: { lat: 40.14, lng: 29.98 },
+  Bingöl: { lat: 38.88, lng: 40.5 },
+  Bitlis: { lat: 38.4, lng: 42.11 },
+  Bolu: { lat: 40.74, lng: 31.61 },
+  Burdur: { lat: 37.72, lng: 30.29 },
+  Çanakkale: { lat: 40.15, lng: 26.41 },
+  Çankırı: { lat: 40.6, lng: 33.62 },
+  Çorum: { lat: 40.55, lng: 34.95 },
+  Denizli: { lat: 37.78, lng: 29.09 },
+  Edirne: { lat: 41.68, lng: 26.56 },
+  Elazığ: { lat: 38.68, lng: 39.22 },
+  Erzincan: { lat: 39.75, lng: 39.5 },
+  Erzurum: { lat: 39.9, lng: 41.27 },
+  Gaziantep: { lat: 37.07, lng: 37.38 },
+  Antep: { lat: 37.07, lng: 37.38 }, // eski/kısa ad
+  Giresun: { lat: 40.91, lng: 38.39 },
+  Gümüşhane: { lat: 40.46, lng: 39.48 },
+  Hakkâri: { lat: 37.57, lng: 43.74 },
+  Hakkari: { lat: 37.57, lng: 43.74 },
+  Hatay: { lat: 36.2, lng: 36.16 },
+  Antakya: { lat: 36.2, lng: 36.16 }, // Hatay merkez
+  Isparta: { lat: 37.76, lng: 30.55 },
+  İçel: { lat: 36.81, lng: 34.64 }, // Mersin'in eski adı
+  Kars: { lat: 40.6, lng: 43.1 },
+  Kastamonu: { lat: 41.39, lng: 33.78 },
+  Kırklareli: { lat: 41.74, lng: 27.22 },
+  Kırşehir: { lat: 39.15, lng: 34.16 },
+  Kocaeli: { lat: 40.77, lng: 29.92 },
+  İzmit: { lat: 40.77, lng: 29.92 }, // Kocaeli merkez
+  Konya: { lat: 37.87, lng: 32.48 },
+  Kütahya: { lat: 39.42, lng: 29.98 },
+  Malatya: { lat: 38.36, lng: 38.31 },
+  Manisa: { lat: 38.62, lng: 27.43 },
+  Kahramanmaraş: { lat: 37.58, lng: 36.93 },
+  Maraş: { lat: 37.58, lng: 36.93 }, // eski/kısa ad
+  Mardin: { lat: 37.31, lng: 40.74 },
+  Muğla: { lat: 37.22, lng: 28.36 },
+  Muş: { lat: 38.73, lng: 41.49 },
+  Nevşehir: { lat: 38.62, lng: 34.71 },
+  Niğde: { lat: 37.97, lng: 34.68 },
+  Ordu: { lat: 40.98, lng: 37.88 },
+  Rize: { lat: 41.02, lng: 40.52 },
+  Sakarya: { lat: 40.77, lng: 30.4 },
+  Adapazarı: { lat: 40.77, lng: 30.4 }, // Sakarya merkez
+  Samsun: { lat: 41.29, lng: 36.33 },
+  Siirt: { lat: 37.93, lng: 41.94 },
+  Sinop: { lat: 42.03, lng: 35.15 },
+  Tekirdağ: { lat: 40.98, lng: 27.51 },
+  Tokat: { lat: 40.31, lng: 36.55 },
+  Tunceli: { lat: 39.11, lng: 39.55 },
+  Dersim: { lat: 39.11, lng: 39.55 }, // Tunceli'nin eski adı
+  Şanlıurfa: { lat: 37.17, lng: 38.79 },
+  Urfa: { lat: 37.17, lng: 38.79 }, // eski/kısa ad
+  Uşak: { lat: 38.68, lng: 29.41 },
+  Van: { lat: 38.49, lng: 43.41 },
+  Zonguldak: { lat: 41.45, lng: 31.79 },
+  Aksaray: { lat: 38.37, lng: 34.03 },
+  Bayburt: { lat: 40.26, lng: 40.23 },
+  Kırıkkale: { lat: 39.85, lng: 33.52 },
+  Batman: { lat: 37.88, lng: 41.13 },
+  Şırnak: { lat: 37.52, lng: 42.46 },
+  Bartın: { lat: 41.63, lng: 32.34 },
+  Ardahan: { lat: 41.11, lng: 42.7 },
+  Iğdır: { lat: 39.92, lng: 44.04 },
+  Yalova: { lat: 40.65, lng: 29.28 },
+  Karabük: { lat: 41.2, lng: 32.62 },
+  Kilis: { lat: 36.72, lng: 37.12 },
+  Osmaniye: { lat: 37.07, lng: 36.25 },
+  Düzce: { lat: 40.84, lng: 31.16 },
+
+  // — Sık geçen İstanbul ilçeleri (kayıtlarda doğum yeri ilçe olabilir) —
+  Şişli: { lat: 41.06, lng: 28.99 },
+  Kadıköy: { lat: 40.99, lng: 29.03 },
+  Üsküdar: { lat: 41.02, lng: 29.01 },
+  Beşiktaş: { lat: 41.04, lng: 29.0 },
+  Fatih: { lat: 41.02, lng: 28.95 },
+  Beyoğlu: { lat: 41.04, lng: 28.98 },
+  Bakırköy: { lat: 40.98, lng: 28.87 },
+  Beykoz: { lat: 41.13, lng: 29.1 },
+  Sarıyer: { lat: 41.17, lng: 29.05 },
+  Maltepe: { lat: 40.94, lng: 29.13 },
+  Pendik: { lat: 40.88, lng: 29.25 },
+  Kartal: { lat: 40.89, lng: 29.19 },
+  Ümraniye: { lat: 41.02, lng: 29.12 },
+  Bağcılar: { lat: 41.03, lng: 28.86 },
+  Küçükçekmece: { lat: 41.0, lng: 28.78 },
+  Büyükçekmece: { lat: 41.02, lng: 28.59 },
+  Ataşehir: { lat: 40.98, lng: 29.13 },
+  Gaziosmanpaşa: { lat: 41.06, lng: 28.91 },
+  Eyüpsultan: { lat: 41.05, lng: 28.93 },
+  Eyüp: { lat: 41.05, lng: 28.93 },
+  Zeytinburnu: { lat: 40.99, lng: 28.9 },
+
   // — Tarihî / Osmanlı coğrafyası (bugün başka ülkelerde) —
   Larende: { lat: 37.18, lng: 33.22 }, // bugünkü Karaman
   Karaman: { lat: 37.18, lng: 33.22 },
@@ -99,23 +202,35 @@ const NORMALIZED: Record<string, LatLng> = (() => {
 /**
  * Bir `birthPlace` metnini koordinata çevirir; sözlükte yoksa `null`.
  *
- * Sırayla dener: (1) tüm metin, (2) virgülden önceki şehir kısmı,
- * (3) virgülden sonraki ülke kısmı. Böylece "Köln, Almanya" önce "Köln"e,
- * "Maracaibo, Venezuela" ise şehir bilinmezse "Venezuela"ya düşer.
+ * Önce tüm metni, sonra ayırıcılarla (virgül, eğik çizgi, tire) bölünen HER
+ * parçayı dener. Böylece "Köln, Almanya" → "Köln"; "Maracaibo, Venezuela"
+ * şehir bilinmezse → "Venezuela"; ve e-Devlet nüfus biçimi "Ordu / Gürgentepe
+ * / Evlek" — köy sözlükte olmasa bile — il adı "Ordu"ya oturur.
+ *
+ * Özgüllük sırası biçime göre değişir: eğik çizgili "İl / İlçe / Köy"de en
+ * özel parça SONDADIR (soldan sağa daralır) → sondan başlayıp ilk çözüleni al;
+ * virgüllü "Şehir, Ülke"de en özel parça BAŞTADIR → baştan ilk çözüleni al.
+ * Böylece "İstanbul / Şişli" → Şişli, "Köln, Almanya" → Köln olur.
  */
 export function resolvePlace(birthPlace: string): LatLng | null {
   if (!birthPlace) return null;
   const raw = birthPlace.trim();
   if (!raw) return null;
 
-  const candidates: string[] = [raw];
-  if (raw.includes(",")) {
-    const parts = raw.split(",");
-    candidates.push(parts[0]); // şehir
-    candidates.push(parts[parts.length - 1]); // ülke
-  }
+  // Tam eşleşme önce (ör. "İskenderun" tek parça).
+  const whole = NORMALIZED[normalize(raw)];
+  if (whole) return whole;
 
-  for (const c of candidates) {
+  // Ayırıcılarla böl: virgül, eğik çizgi, boşlukla çevrili tire/en-tire.
+  const parts = raw
+    .split(/[,/]|\s[–-]\s/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length <= 1) return null;
+
+  // Eğik çizgi = hiyerarşik (özel sonda) → tersten; değilse baştan.
+  const order = raw.includes("/") ? [...parts].reverse() : parts;
+  for (const c of order) {
     const hit = NORMALIZED[normalize(c)];
     if (hit) return hit;
   }
