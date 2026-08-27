@@ -80,6 +80,7 @@ export default function AiChat({
   onOpenShare,
   onOpenBook,
   onAddPerson,
+  onPersonAdded,
 }: {
   onClose: () => void;
   messages: AiMsg[];
@@ -94,6 +95,8 @@ export default function AiChat({
   onOpenShare?: () => void;
   onOpenBook?: () => void;
   onAddPerson?: () => void;
+  /** #2 — YZ bir kişi ekledikten sonra ağacı tazele (verilmezse özellik kapalı). */
+  onPersonAdded?: () => void;
 }) {
   const t = useT();
   const { lang, setLang } = useLang();
@@ -131,6 +134,9 @@ export default function AiChat({
   // yerelde nereden yapılacağını tarif ederek yanıtla (2C).
   const EXPORT_RE =
     /(dış[ae]?r?ı?\s*(aktar|çıkar)|dışarı aktar|export|yedek|(gedcom|csv|json)['’]?\s*(indir|al|kaydet)|indir.*(gedcom|csv|json|dosya|yedek))/i;
+
+  // Kişi ekleme / profil oluşturma niyeti (yalnız buysa YZ eylem ucuna sorulur).
+  const CREATE_RE = /\b(ekle|oluştur|yarat|kaydet|gir)\b|create|add\b|new person/i;
 
   /**
    * #14 — Bir komutu yürütür ve onay cümlesini döndürür (yetki yoksa null →
@@ -207,6 +213,57 @@ export default function AiChat({
       return;
     }
 
+    // #2 — Kişi ekleme / profil oluşturma isteği mi? ("... ekle", "profil
+    // oluştur", "... olarak kaydet"…). Öyleyse YZ isteği yapısal bir eyleme
+    // çevirir; kişiyi /api/family/person ile ekleriz. Değilse soru-cevaba düşer.
+    if (CREATE_RE.test(question) && onPersonAdded) {
+      setBusy(true);
+      try {
+        const res = await fetch("/api/ai/act", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: question, lang: lang === "en" ? "en" : "tr" }),
+        });
+        const data = await res.json();
+        if (res.status === 503) throw new Error(t("ai.story.notConfigured"));
+        if (res.ok && data?.act?.action === "add") {
+          const p = data.act.person ?? {};
+          const payload: Record<string, unknown> = {
+            firstName: p.firstName,
+            lastName: p.lastName ?? "",
+            gender: p.gender ?? "unknown",
+            birthDate: p.birthDate || undefined,
+            deathDate: p.deathDate || undefined,
+            birthPlace: p.birthPlace || undefined,
+            entrySource: "ai",
+          };
+          if (data.act.relation) payload.relation = data.act.relation;
+          const add = await fetch("/api/family/person", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const addData = await add.json().catch(() => null);
+          if (!add.ok) throw new Error(addData?.error ?? t("ai.story.failed"));
+          const say = typeof data.act.say === "string" && data.act.say.trim()
+            ? data.act.say.trim()
+            : t("ai.act.added", { name: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() });
+          setMessages((m) => [...m, { role: "ai", text: `✓ ${say}` }]);
+          onPersonAdded();
+          setBusy(false);
+          scrollToEnd();
+          return;
+        }
+        // action=none → soru-cevaba düş (aşağıda)
+      } catch (e) {
+        setError((e as Error).message);
+        setBusy(false);
+        scrollToEnd();
+        return;
+      }
+      setBusy(false);
+    }
+
     setBusy(true);
     try {
       // Takip sorularının bağlamı için önceki konuşmayı gönder (son 8 sıra).
@@ -270,7 +327,7 @@ export default function AiChat({
     if (file) importFile(file);
   };
 
-  const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3"), t("ai.chat.ex4")];
+  const examples = [t("ai.chat.ex1"), t("ai.chat.ex2"), t("ai.chat.ex3"), t("ai.chat.ex4"), t("ai.chat.ex5")];
 
   if (typeof document === "undefined") return null;
 
