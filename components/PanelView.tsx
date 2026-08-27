@@ -24,6 +24,7 @@ import { isAssociate, isMember } from "@/lib/associates";
 import { findIssues } from "@/lib/consistency";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
+import CalendarAdd from "./CalendarAdd";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -607,11 +608,23 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                     : band === "past"
                     ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
                     : "bg-accent-soft text-accent";
+                // #5 — Takvime ekle: olayın bu yılki/gelecek tekrarının tarihi
+                // (bugün + gün farkı), her yıl tekrarlı.
+                const occ = new Date();
+                occ.setDate(occ.getDate() + ev.days);
+                const pad = (n: number) => String(n).padStart(2, "0");
+                const occDate = `${occ.getFullYear()}-${pad(occ.getMonth() + 1)}-${pad(occ.getDate())}`;
+                const calTitle =
+                  ev.kind === "birthday"
+                    ? t("cal.birthdayTitle", { name: fullName(person) })
+                    : ev.kind === "anniversary"
+                    ? t("cal.anniversaryTitle", { name: fullName(person) })
+                    : t("cal.memorialTitle", { name: fullName(person) });
                 return (
-                  <li key={ev.key}>
+                  <li key={ev.key} className={`flex items-center gap-1 rounded-xl transition-colors ${rowBg}`}>
                     <button
                       onClick={() => onSelect(person.id)}
-                      className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-colors text-left ${rowBg}`}
+                      className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
                     >
                       <Avatar person={person} size="sm" />
                       <div className="min-w-0 flex-1">
@@ -622,6 +635,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                         {humanizeDays(ev.days)}
                       </span>
                     </button>
+                    <CalendarAdd event={{ title: calTitle, date: occDate, yearly: true }} className="mr-1" />
                   </li>
                 );
               };
