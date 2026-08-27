@@ -675,18 +675,17 @@ const BookPage = forwardRef<HTMLDivElement, { page: RenderedPage; num: number; g
 function CoverPage({ title, yearRange, count, generations, coverPhoto, t }: { title: string; yearRange: { from: number; to: number } | null; count: number; generations: number; coverPhoto?: string; t: TFunction }) {
   // Kapak fotoğrafı varsa üstte header bandı olarak; tüm yazılar altında.
   if (coverPhoto) {
+    // Fotoğraf TÜM kapağı kaplar; object-contain ile yatay+dikey tam SIĞAR —
+    // hiçbir kenar kırpılmaz. Boşluklar koyu zeminle dolar; başlık altta,
+    // okunurluk için degrade bir bant üzerinde durur (#2).
     return (
-      <div className="h-full w-full flex flex-col items-stretch text-center">
-        <div className="w-full h-[58%] overflow-hidden shrink-0 flex items-center justify-center bg-black/5">
-          {/* object-contain: fotoğraf yatay+dikey tam sığar, taşmaz/kırpılmaz (#1). */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverPhoto} alt="" className="max-w-full max-h-full w-auto h-auto object-contain" />
-        </div>
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-6">
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">{title}</h1>
-          {yearRange && <p className="text-lg opacity-70 tracking-wide mb-4">{t("print.coverYears", { from: yearRange.from, to: yearRange.to })}</p>}
-          <div className="w-16 border-t border-current/25 my-4" />
-          <p className="text-sm opacity-70">{t("print.coverMeta", { count, generations })}</p>
+      <div className="relative h-full w-full overflow-hidden bg-neutral-900">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={coverPhoto} alt="" className="absolute inset-0 w-full h-full object-contain" />
+        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end text-center px-6 pt-20 pb-7 text-white bg-gradient-to-t from-black/80 via-black/45 to-transparent">
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-2 drop-shadow">{title}</h1>
+          {yearRange && <p className="text-base opacity-90 tracking-wide mb-2 drop-shadow">{t("print.coverYears", { from: yearRange.from, to: yearRange.to })}</p>}
+          <p className="text-sm opacity-85 drop-shadow">{t("print.coverMeta", { count, generations })}</p>
         </div>
       </div>
     );

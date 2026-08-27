@@ -12,8 +12,23 @@ interface Props {
   people: Person[];
 }
 
-/** Tam gün/ay/yıl bilinen tarih mi ("YYYY-MM-DD"). Yıl-yalnız/ay-yalnız hariç. */
-const isFullDate = (d?: string) => !!d && d.split("-").length >= 3;
+/**
+ * Yaşam olayı tarihini takvim tarihine çevirir. Takvim tam gün ister; kısmi
+ * tarihleri makul biçimde tamamlar (#4):
+ *  · YYYY-MM-DD → o gün, her yıl tekrarlı (doğum günü / yıl dönümü)
+ *  · YYYY-MM    → ayın 1'i, her yıl tekrarlı
+ *  · YYYY       → o yılın 1 Ocak'ı, TEK sefer (yıl dönümü günü bilinmiyor)
+ * Böylece yıl-yalnız kayıtlı özel günler (evlilik, kaza, göç…) da aktarılır.
+ */
+function toCalDate(d?: string): { date: string; yearly: boolean } | null {
+  if (!d) return null;
+  const parts = d.split("-");
+  const y = parts[0];
+  if (!/^\d{4}$/.test(y)) return null;
+  if (parts.length >= 3) return { date: `${y}-${parts[1]}-${parts[2].slice(0, 2)}`, yearly: true };
+  if (parts.length === 2) return { date: `${y}-${parts[1]}-01`, yearly: true };
+  return { date: `${y}-01-01`, yearly: false };
+}
 
 /** Bir olay türü etiketi — doğum/anma sabittir; yaşam olayları event.* ya da
  *  serbest metin (ör. "kaza") olabilir. */
@@ -52,18 +67,17 @@ export default function CalendarExport({ people }: Props) {
     const out: PersonEvent[] = [];
     for (const p of masked) {
       const name = fullName(p);
-      if (isFullDate(p.birthDate)) {
-        out.push({ personId: p.id, typeKey: "dogum", ev: { title: t("cal.birthdayTitle", { name }), date: p.birthDate!, yearly: true } });
-      }
-      if (isFullDate(p.deathDate)) {
-        out.push({ personId: p.id, typeKey: "olum", ev: { title: t("cal.memorialTitle", { name }), date: p.deathDate!, yearly: true } });
-      }
+      const bd = toCalDate(p.birthDate);
+      if (bd) out.push({ personId: p.id, typeKey: "dogum", ev: { title: t("cal.birthdayTitle", { name }), ...bd } });
+      const dd = toCalDate(p.deathDate);
+      if (dd) out.push({ personId: p.id, typeKey: "olum", ev: { title: t("cal.memorialTitle", { name }), ...dd } });
       for (const e of p.events ?? []) {
-        if (!isFullDate(e.date)) continue;
+        const cd = toCalDate(e.date);
+        if (!cd) continue;
         const key = `ev:${e.type}`;
         const label = e.title?.trim() || typeLabel(key, t);
         const title = e.type === "evlilik" ? t("cal.anniversaryTitle", { name }) : `${name} — ${label}`;
-        out.push({ personId: p.id, typeKey: key, ev: { title, date: e.date!, yearly: true } });
+        out.push({ personId: p.id, typeKey: key, ev: { title, ...cd } });
       }
     }
     return out;
