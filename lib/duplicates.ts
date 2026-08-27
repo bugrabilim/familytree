@@ -169,6 +169,39 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
     memories: [...(keep.memories ?? []), ...(drop.memories ?? [])],
     parentLinks: { ...(drop.parentLinks ?? {}), ...(keep.parentLinks ?? {}) },
   };
+  // İki kayıtta da DOLU olan ve FARKLI olan tek-değerli alanlar birleştirmede
+  // sessizce kaybolmasın: bırakılan kaydın farklı değerleri biyografiye not
+  // olarak eklenir. (Eş/çocuk/ebeveyn gibi bağlar zaten birleşim olarak korunur.)
+  const CONFLICT_FIELDS: Array<[keyof Person, string]> = [
+    ["gender", "cinsiyet"],
+    ["birthDate", "doğum tarihi"],
+    ["deathDate", "ölüm tarihi"],
+    ["birthPlace", "doğum yeri"],
+    ["orientation", "yönelim"],
+    ["religion", "din"],
+    ["denomination", "mezhep"],
+    ["language", "dil"],
+    ["ethnicity", "etnik köken"],
+    ["nationality", "uyruk"],
+    ["occupation", "meslek"],
+    ["education", "eğitim"],
+    ["burialPlace", "defin yeri"],
+    ["patronymic", "baba adıyla anılma"],
+    ["nickname", "lakap"],
+  ];
+  const conflicts: string[] = [];
+  for (const [f, label] of CONFLICT_FIELDS) {
+    const kv = keep[f];
+    const dv = drop[f];
+    if (kv && dv && String(kv).trim() && String(kv).trim() !== String(dv).trim()) {
+      conflicts.push(`${label}: ${String(dv).trim()}`);
+    }
+  }
+  if (conflicts.length) {
+    const note = `Birleştirilen kayıttan farklı bilgiler — ${conflicts.join("; ")}`;
+    mergedKeep.bio = mergedKeep.bio ? `${mergedKeep.bio}\n\n${note}` : note;
+  }
+
   // Boş dizileri temizle (isteğe bağlı alanlar undefined kalsın)
   if (mergedKeep.formerSpouseIds && mergedKeep.formerSpouseIds.length === 0) delete mergedKeep.formerSpouseIds;
   if (mergedKeep.photos && mergedKeep.photos.length === 0) delete mergedKeep.photos;
