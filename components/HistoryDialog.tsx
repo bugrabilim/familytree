@@ -27,7 +27,6 @@ export default function HistoryDialog({
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [confirmDay, setConfirmDay] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   // #5 — seçerek geri alma: işaretlenen güncellemelerden EN ESKİSİNİN durumuna
   // dönülür (o güncelleme ve sonrası geri alınır — doğrusal günlük anlamı).
@@ -119,11 +118,6 @@ export default function HistoryDialog({
     if (!g) { g = { key: k, label: dayLabel(e.at), items: [] }; groups.push(g); }
     g.items.push(e);
   }
-  // Bir günü geri al → o günün en eski (son eleman, çünkü en yeni önce) kaydı.
-  const restoreDay = (g: { items: Entry[] }) => {
-    const earliest = g.items[g.items.length - 1];
-    if (earliest) restore(earliest.id);
-  };
 
   return (
     <Modal title={t("history.title")} subtitle={t("history.subtitle")} onClose={onClose}>
@@ -132,60 +126,48 @@ export default function HistoryDialog({
       ) : entries && entries.length === 0 ? (
         <p className="text-sm text-text-muted">{t("history.empty")}</p>
       ) : (
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          {/* Seçim çubuğu — işaretli güncellemeleri geri al (#5) */}
-          {selected.size > 0 && (
-            <div className="sticky top-0 z-10 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-3 py-2">
-              {confirmSel ? (
-                <>
-                  <span className="text-[11px] text-text-muted flex-1">{t("history.undoSelectedConfirm", { count: selected.size })}</span>
-                  <Button size="sm" variant="danger" onClick={restoreSelected} disabled={busyId !== null}>
-                    {busyId !== null ? t("history.restoring") : t("history.confirmRestore")}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmSel(false)} disabled={busyId !== null}>
-                    {t("gedcom.cancel")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs font-medium text-primary flex-1">{t("history.selectedCount", { count: selected.size })}</span>
-                  <Button size="sm" variant="danger" onClick={() => setConfirmSel(true)} disabled={busyId !== null}>
-                    {t("history.undoSelected")}
-                  </Button>
-                  <button onClick={() => setSelected(new Set())} className="text-[11px] text-text-subtle hover:text-text">
-                    {t("history.clearSelection")}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+        <div>
+          {/* Sabit yükseklikli üst yuva — seçim çubuğu belirince alttaki
+             başlıklar KAYMASIN diye her zaman aynı yüksekliği kaplar (#2). */}
+          <div className="h-12 mb-1 flex items-center">
+            {selected.size > 0 ? (
+              <div className="w-full flex items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-3 py-2">
+                {confirmSel ? (
+                  <>
+                    <span className="text-[11px] text-text-muted flex-1">{t("history.undoSelectedConfirm", { count: selected.size })}</span>
+                    <Button size="sm" variant="danger" onClick={restoreSelected} disabled={busyId !== null}>
+                      {busyId !== null ? t("history.restoring") : t("history.confirmRestore")}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmSel(false)} disabled={busyId !== null}>
+                      {t("gedcom.cancel")}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-medium text-primary flex-1">{t("history.selectedCount", { count: selected.size })}</span>
+                    <Button size="sm" variant="danger" onClick={() => setConfirmSel(true)} disabled={busyId !== null}>
+                      {t("history.undoSelected")}
+                    </Button>
+                    <button onClick={() => setSelected(new Set())} className="text-[11px] text-text-subtle hover:text-text">
+                      {t("history.clearSelection")}
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-text-subtle px-1">{t("history.selectHint")}</p>
+            )}
+          </div>
+
+          <div className="space-y-3 max-h-[55vh] overflow-y-auto">
           {groups.map((g) => (
             <div key={g.key} className="space-y-1.5">
-              {/* Gün başlığı + o günü toplu geri al */}
+              {/* Gün başlığı (yalnız etiket) */}
               <div className="flex items-center gap-2 px-0.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
                   {g.key === todayKey ? t("history.today") : g.label}
                   {g.items.length > 1 && <span className="ml-1 tabular-nums font-normal">· {g.items.length}</span>}
                 </span>
-                {confirmDay === g.key ? (
-                  <div className="flex items-center gap-1.5 ml-auto">
-                    <span className="text-[11px] text-text-muted hidden sm:inline">{t("history.undoDayConfirm")}</span>
-                    <Button size="sm" variant="danger" onClick={() => restoreDay(g)} disabled={busyId !== null}>
-                      {busyId !== null ? t("history.restoring") : t("history.confirmRestore")}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setConfirmDay(null)} disabled={busyId !== null}>
-                      {t("gedcom.cancel")}
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setConfirmId(null); setConfirmDay(g.key); }}
-                    disabled={busyId !== null}
-                    className="ml-auto text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
-                  >
-                    {g.key === todayKey ? t("history.undoToday") : t("history.undoDay")}
-                  </button>
-                )}
               </div>
 
               <ul className="space-y-1.5">
@@ -213,7 +195,7 @@ export default function HistoryDialog({
                         </Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="secondary" onClick={() => { setConfirmDay(null); setConfirmId(e.id); }} disabled={busyId !== null}>
+                      <Button size="sm" variant="secondary" onClick={() => setConfirmId(e.id)} disabled={busyId !== null}>
                         {t("history.undoUpdate")}
                       </Button>
                     )}
@@ -222,6 +204,7 @@ export default function HistoryDialog({
               </ul>
             </div>
           ))}
+          </div>
         </div>
       )}
       {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl mt-3">{error}</p>}

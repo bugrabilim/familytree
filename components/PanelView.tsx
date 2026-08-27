@@ -69,7 +69,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
     // Olay penceresi (gün): 10 gün öncesinden 30 gün sonrasına kadar. Etiket
     // metniyle (i18n "panel.card.upcomingHint") uyumlu tutulmalı.
     const PAST_DAYS = 10;
-    const FUTURE_DAYS = 30;
+    const FUTURE_DAYS = 10;
     type Ev = {
       key: string;
       kind: "birthday" | "anniversary" | "memorial";
