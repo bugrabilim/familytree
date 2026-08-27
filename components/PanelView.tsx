@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Gender, Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
@@ -233,6 +234,32 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
     [allDuplicates, ignored]
   );
 
+  // Toplu birleştirme — gösterilen (yok sayılmayan) tüm çiftleri tek geçişte
+  // birleştir; her çiftte daha eksiksiz kayıt korunur.
+  const router = useRouter();
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const mergeAll = async () => {
+    setBulkBusy(true);
+    setBulkError("");
+    try {
+      const res = await fetch("/api/family/merge-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairs: duplicates.map((d) => ({ aId: d.aId, bId: d.bId })) }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? t("merge.failed"));
+      setBulkConfirm(false);
+      router.refresh();
+    } catch (e) {
+      setBulkError((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
   const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
   const openDrill = (title: string, list: Person[]) => {
@@ -421,6 +448,38 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
               hint={t("panel.card.duplicatesHint")}
               className="lg:col-span-2"
             >
+              {!readOnly && duplicates.length > 1 && (
+                <div className="mb-2 flex items-center flex-wrap gap-2">
+                  {bulkConfirm ? (
+                    <>
+                      <span className="text-[11px] text-text-muted">
+                        {t("panel.dup.mergeAllConfirm", { count: duplicates.length })}
+                      </span>
+                      <Button size="sm" onClick={mergeAll} disabled={bulkBusy}>
+                        {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
+                      </Button>
+                      <button
+                        onClick={() => setBulkConfirm(false)}
+                        disabled={bulkBusy}
+                        className="text-[11px] text-text-subtle hover:text-text"
+                      >
+                        {t("merge.cancel")}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setBulkConfirm(true)}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary text-[11px] font-medium hover:brightness-105 transition-all"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M8 7h8m-8 0L5 4m3 3L5 10m11-3 3-3m-3 3 3 3M6 17h12m0 0-3-3m3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {t("panel.dup.mergeAll", { count: duplicates.length })}
+                    </button>
+                  )}
+                </div>
+              )}
+              {bulkError && <p className="mb-2 text-[11px] text-danger">{bulkError}</p>}
               <ul className="space-y-1">
                 {duplicates.slice(0, 10).map((d, i) => {
                   const a = idx.get(d.aId);

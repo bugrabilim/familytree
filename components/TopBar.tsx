@@ -39,8 +39,9 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().m
   icon: ICONS[key as Exclude<ViewKey, "tablo">],
 }));
 
-/** Görünüm sekmeleri — masaüstünde ortalanmış nav, mobilde tam-genişlik satır
- *  için ortak render. Gruplar arasına ince bir dikey ayraç konur. */
+/** Görünüm sekmeleri — üç mantıksal grup, her biri KENDİ segmentli kabuğunda
+ *  (ayrı arka plan + kenarlık). Böylece gruplar gerçekten ayrı görünür; aradaki
+ *  boşluk onları birbirinden ayırır. Masaüstünde ortalanır, mobilde kaydırılır. */
 function ViewTabs({
   view,
   onViewChange,
@@ -53,8 +54,10 @@ function ViewTabs({
   return (
     <>
       {VIEW_GROUPS.map((group, gi) => (
-        <div key={gi} className="contents">
-          {gi > 0 && <span className="w-px h-5 self-center bg-border mx-0.5 sm:mx-1 shrink-0" aria-hidden />}
+        <div
+          key={gi}
+          className="flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border shrink-0"
+        >
           {group.map((key) => (
             <button
               key={key}
@@ -64,7 +67,7 @@ function ViewTabs({
               className={`
                 flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5
                 h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium
-                transition-all duration-150 min-w-0
+                transition-all duration-150 min-w-0 whitespace-nowrap
                 ${
                   view === key
                     ? "bg-bg-elevated text-text shadow-soft"
@@ -167,7 +170,7 @@ export default function TopBar({
         {/* Görünüm seçici — segmented control (masaüstü: ortalanmış).
             Mobilde bu satırda yer olmadığından aşağıdaki tam-genişlik satıra taşınır. */}
         <nav
-          className="hidden sm:flex mx-auto items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border"
+          className="hidden sm:flex mx-auto items-center gap-1.5 lg:gap-2 min-w-0 overflow-x-auto no-scrollbar"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} t={t} />
@@ -268,7 +271,7 @@ export default function TopBar({
           Masaüstünde gizli (nav yukarıda ortalanmış gösterilir). */}
       <div className="sm:hidden px-3 pb-2">
         <nav
-          className="flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border overflow-x-auto no-scrollbar"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} t={t} />

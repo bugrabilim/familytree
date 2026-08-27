@@ -121,8 +121,10 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
   // büyüt). scrollWidth/Height transform'dan etkilenmez.
   const scale = useMemo(() => {
     if (!model || box.w === 0 || box.h === 0) return 1;
-    const s = Math.min(box.w / model.layout.width, box.h / model.layout.height);
-    return Math.max(0.35, Math.min(s, 1.15));
+    // Kenar payı bırakıp içeriği tümüyle sığdır; büyük/asimetrik grafikler
+    // kırpılmasın diye alt sınır düşük (küçük pencerede küçülür ama taşmaz).
+    const s = Math.min((box.w - 24) / model.layout.width, (box.h - 24) / model.layout.height);
+    return Math.max(0.14, Math.min(s, 1.15));
   }, [model, box]);
 
   if (!rawCenter || !model) return null;
@@ -135,8 +137,9 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
       aria-modal={embedded ? undefined : true}
       aria-label={t("ego.title")}
     >
-      {/* Başlık çubuğu */}
-      <header className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border bg-bg-elevated/85 backdrop-blur-xl">
+      {/* Başlık çubuğu — sabit yükseklik yerine esner; açıklama satırı sarınca
+          sahnenin üstüne binmesin (küçük/orta pencerede taşma düzeltmesi). */}
+      <header className="shrink-0 flex items-center gap-3 px-4 min-h-[3.5rem] py-2 border-b border-border bg-bg-elevated/85 backdrop-blur-xl">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg" aria-hidden>🕸️</span>
           <div className="min-w-0">
@@ -149,8 +152,9 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
           </div>
         </div>
 
-        {/* Açıklama (legend) — mevcut kategoriler */}
-        <div className="hidden sm:flex items-center gap-3 ml-auto mr-2 flex-wrap">
+        {/* Açıklama (legend) — mevcut kategoriler. Yalnız geniş ekranda; orta
+            pencerede sarıp başlığı taşırmasın diye lg'de gösterilir. */}
+        <div className="hidden lg:flex items-center gap-3 ml-auto mr-2 flex-wrap">
           {(Object.keys(CATEGORY_STYLE) as EgoCategory[])
             .filter((c) => present.has(c))
             .map((c) => (
@@ -174,7 +178,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="ml-auto sm:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+            className="ml-auto lg:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

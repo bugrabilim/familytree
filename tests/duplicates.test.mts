@@ -1,4 +1,4 @@
-import { findDuplicatePairs, mergePeople } from "../lib/duplicates.ts";
+import { findDuplicatePairs, mergePeople, applyBulkMerge } from "../lib/duplicates.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0,
@@ -79,6 +79,34 @@ check("keep boş alanı drop'tan doldurdu", keep.birthPlace === "İzmir");
 check("foto birleşti", (keep.photos ?? []).length === 2);
 check("keep eş bağı aldı", (keep.spouseIds ?? []).includes("s"));
 check("kendine-referans yok", !keep.parentIds.includes("keep") && !(keep.spouseIds ?? []).includes("keep"));
+
+// Toplu birleştirme — birden çok çift, daha eksiksiz kayıt korunur, zincir
+const bulkPeople = [
+  P({ id: "a1", birthDate: "1950", birthPlace: "Ordu", photos: ["u"] }), // daha dolu
+  P({ id: "a2", birthDate: "1950" }),
+  P({ id: "b1", firstName: "Ayşe", gender: "female", birthDate: "1970", occupation: "öğretmen" }),
+  P({ id: "b2", firstName: "Ayşe", gender: "female", birthDate: "1970" }),
+];
+const bulk = applyBulkMerge(bulkPeople, [
+  { aId: "a1", bId: "a2" },
+  { aId: "b1", bId: "b2" },
+]);
+check("iki çift birleşti", bulk.merged === 2);
+check("dört kayıt ikiye indi", bulk.people.length === 2);
+check("daha dolu kayıt (a1) korundu", bulk.people.some((p) => p.id === "a1") && !bulk.people.some((p) => p.id === "a2"));
+check("daha dolu kayıt (b1) korundu", bulk.people.some((p) => p.id === "b1") && !bulk.people.some((p) => p.id === "b2"));
+
+// Zincir: a==b==c → tüketilmiş kimlik içeren çift atlanır (çökme yok)
+const chain = [
+  P({ id: "c1", birthDate: "1900" }),
+  P({ id: "c2", birthDate: "1900" }),
+  P({ id: "c3", birthDate: "1900" }),
+];
+const chained = applyBulkMerge(chain, [
+  { aId: "c1", bId: "c2" },
+  { aId: "c2", bId: "c3" }, // c2 tüketildi → atlanır
+]);
+check("zincirde tüketilen çift atlanır", chained.merged === 1 && chained.people.length === 2);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

@@ -200,3 +200,45 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
   }
   return result;
 }
+
+/** Bir kaydın "doluluk" puanı — toplu birleştirmede hangisinin ANA (korunacak)
+ *  olacağını seçmek için. Daha çok bağ ve dolu alan = daha eksiksiz kayıt. */
+function completeness(p: Person): number {
+  let n = (p.parentIds?.length ?? 0) + (p.spouseIds?.length ?? 0) + (p.formerSpouseIds?.length ?? 0);
+  n += (p.photos?.length ?? 0) + (p.events?.length ?? 0) + (p.sources?.length ?? 0) + (p.memories?.length ?? 0);
+  const scalars: Array<Person[keyof Person]> = [
+    p.birthDate, p.deathDate, p.birthPlace, p.photo, p.bio, p.nickname, p.patronymic,
+    p.occupation, p.education, p.religion, p.denomination, p.language, p.ethnicity,
+    p.nationality, p.orientation, p.congenitalCondition, p.healthCondition, p.deathCause,
+  ];
+  for (const s of scalars) if (s) n++;
+  if (p.lastName) n++;
+  if (p.gender && p.gender !== "unknown") n++;
+  return n;
+}
+
+/**
+ * Bir çift listesini (aynı kişi olabilecek kayıtlar) TEK geçişte birleştirir.
+ * Her çiftte daha eksiksiz kayıt korunur (eşitse ilki). Zincirlere dayanıklı:
+ * önceki bir birleştirmede tüketilmiş bir kimlik içeren çift atlanır. Saf ve
+ * test edilebilir; `{ people, merged }` döner (`merged` = uygulanan çift sayısı).
+ */
+export function applyBulkMerge(
+  people: Person[],
+  pairs: Array<{ aId: string; bId: string }>
+): { people: Person[]; merged: number } {
+  let working = people;
+  const alive = new Set(working.map((p) => p.id));
+  let merged = 0;
+  for (const { aId, bId } of pairs) {
+    if (aId === bId || !alive.has(aId) || !alive.has(bId)) continue;
+    const a = working.find((p) => p.id === aId)!;
+    const b = working.find((p) => p.id === bId)!;
+    const keepId = completeness(a) >= completeness(b) ? aId : bId;
+    const dropId = keepId === aId ? bId : aId;
+    working = mergePeople(working, keepId, dropId);
+    alive.delete(dropId);
+    merged++;
+  }
+  return { people: working, merged };
+}
