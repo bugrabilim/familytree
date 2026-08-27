@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import LanguageSwitch from "./LanguageSwitch";
+import AboutDialog from "./AboutDialog";
 import { useLang, useT } from "@/lib/i18n";
 import { demoGirisi } from "@/app/login/actions";
 
@@ -207,12 +208,25 @@ const TICKER = [
   "🔒 Gizlilik", "🤝 Paylaşım", "🧭 Tutarlılık", "🖨️ PDF", "🌍 TR / EN", "🌙 Koyu tema",
 ];
 
+/* Standart soyağacı sitelerinden farkımız (#4) — bizi ayıran yetenekler. */
+const DIFF = [
+  { key: "cevre", icon: "🤝" },
+  { key: "edevlet", icon: "🏛️" },
+  { key: "ai", icon: "✨" },
+  { key: "book", icon: "📖" },
+  { key: "identity", icon: "🌈" },
+  { key: "privacy", icon: "🔒" },
+  { key: "kinship", icon: "👪" },
+  { key: "map", icon: "🗺️" },
+] as const;
+
 const STEPS = ["1", "2", "3"] as const;
 const FAQS = ["1", "2", "3", "4"] as const;
 
 export default function Landing({ platform }: { platform?: { trees: number; people: number } }) {
   const t = useT();
   const [demoLoading, setDemoLoading] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const startDemo = () => {
     setDemoLoading(true);
@@ -232,9 +246,11 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           </div>
 
           <nav className="hidden md:flex items-center gap-1 mx-auto text-sm">
+            <a href="#fark" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.diff")}</a>
             <a href="#ozellikler" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.features")}</a>
             <a href="#nasil" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.how")}</a>
             <a href="#sss" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.faq")}</a>
+            <button onClick={() => setAboutOpen(true)} className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("about.nav")}</button>
           </nav>
 
           <div className="ml-auto md:ml-0 flex items-center gap-1.5 sm:gap-2">
@@ -416,6 +432,26 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
       </section>
 
       {/* ---- Özellikler (bento) ---- */}
+      {/* ---- Farkımız (Madde 4) — standart soyağacı sitelerinden farkımız ---- */}
+      <section id="fark" className="scroll-mt-20 bg-surface border-y border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+          <div className="text-center mb-12 sd-reveal">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary text-xs font-medium mb-4">⭐ {t("land.diff.badge")}</span>
+            <h2 className="font-serif text-3xl sm:text-5xl font-semibold leading-[1.08]">{t("land.diff.title")}</h2>
+            <p className="text-text-muted mt-4 max-w-2xl mx-auto leading-relaxed">{t("land.diff.subtitle")}</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sd-stagger">
+            {DIFF.map((d) => (
+              <div key={d.key} className="rounded-2xl border border-border bg-bg p-5 hover:border-primary/40 hover:shadow-card hover:-translate-y-1 transition-all duration-300">
+                <div className="text-2xl mb-3" aria-hidden>{d.icon}</div>
+                <h3 className="font-semibold text-[15px]">{t(`land.diff.${d.key}.t`)}</h3>
+                <p className="text-sm text-text-muted leading-relaxed mt-1.5">{t(`land.diff.${d.key}.b`)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section id="ozellikler" className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="text-center mb-12 sd-reveal">
           <h2 className="font-serif text-3xl sm:text-5xl font-semibold leading-[1.08]">{t("land.features.title")}</h2>
@@ -524,7 +560,9 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.resources")}</h3>
               <ul className="space-y-2 text-sm">
+                <li><a href="#fark" className="text-text-muted hover:text-text transition-colors">{t("land.nav.diff")}</a></li>
                 <li><a href="#sss" className="text-text-muted hover:text-text transition-colors">{t("land.nav.faq")}</a></li>
+                <li><button onClick={() => setAboutOpen(true)} className="text-text-muted hover:text-text transition-colors">{t("about.nav")}</button></li>
                 <li><div className="pt-1"><LanguageSwitch /></div></li>
               </ul>
             </div>
@@ -544,6 +582,8 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           </div>
         </div>
       </footer>
+
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
   );
 }

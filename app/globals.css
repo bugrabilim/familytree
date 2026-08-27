@@ -363,6 +363,13 @@ body {
     width: 24mm !important;
     height: 32mm !important;
   }
+  /* Kapak fotoğrafı kâğıda sığsın (yatay+dikey), renkleri korunsun (#1). */
+  body.print-book .print-cover-photo {
+    max-height: 120mm !important;
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .print-entry { break-inside: avoid; }
   .print-cover { break-after: page; }
 
