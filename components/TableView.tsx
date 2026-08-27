@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Person, Gender } from "@/types/family";
 import { storedToDisplay, displayToStored } from "@/lib/date";
 import { fullName } from "@/lib/name";
+import { entrySourceLabel } from "@/lib/entry-source";
 import { isAssociate, isMember } from "@/lib/associates";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT, useLang } from "@/lib/i18n";
@@ -346,6 +347,8 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <th className="px-3 py-2 font-medium">{t("form.congenital")}</th>
               <th className="px-3 py-2 font-medium">{t("form.health")}</th>
               <th className="px-3 py-2 font-medium">{t("form.bio")}</th>
+              {/* #1 — Kaynak (ekleniş): kartın nasıl eklendiği; salt-okunur. */}
+              <th className="px-3 py-2 font-medium">{t("drawer.entrySource")}</th>
             </tr>
           </thead>
           <tbody>
@@ -413,6 +416,10 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <Cell wide readOnly={readOnly} defaultValue={p.congenitalCondition ?? ""} onSave={(v) => saveField(p.id, { congenitalCondition: v })} />
                 <Cell wide readOnly={readOnly} defaultValue={p.healthCondition ?? ""} onSave={(v) => saveField(p.id, { healthCondition: v })} />
                 <Cell wide readOnly={readOnly} defaultValue={p.bio ?? ""} onSave={(v) => saveField(p.id, { bio: v })} />
+                {/* Kaynak — salt-okunur; kartın nasıl eklendiğini gösterir (#1). */}
+                <td className="px-3 py-1.5 whitespace-nowrap text-text-muted">
+                  {p.entrySource ? entrySourceLabel(p.entrySource, t) : <span className="text-text-subtle">—</span>}
+                </td>
               </tr>
             ))}
           </tbody>
