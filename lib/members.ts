@@ -19,15 +19,23 @@ function accessPathname(treeId: string) {
 
 const empty = (): TreeAccess => ({ members: [], invites: [] });
 
-export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
+export async function getTreeAccess(
+  treeId: string,
+  opts: { strict?: boolean } = {}
+): Promise<TreeAccess> {
   try {
     const { blobs } = await list({ prefix: accessPathname(treeId) });
-    if (blobs.length === 0) return empty();
+    if (blobs.length === 0) return empty(); // henüz hiç kayıt yok — gerçekten boş
     const latest = blobs.sort(
       (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     )[0];
     const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return empty();
+    if (!result || result.statusCode !== 200) {
+      // Kayıt VAR ama okunamadı. Yazma yolunda bunu "boş" saymak, mevcut
+      // üyeleri/bağlantıları silmek demektir — o yüzden katı modda hata ver.
+      if (opts.strict) throw new Error(`erişim kaydı okunamadı (${result?.statusCode ?? "yanıt yok"})`);
+      return empty();
+    }
     const data = (await new Response(result.stream).json()) as TreeAccess;
     return {
       members: data.members ?? [],
@@ -36,7 +44,8 @@ export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
       pairings: data.pairings ?? [],
       pairInvites: data.pairInvites ?? [],
     };
-  } catch {
+  } catch (e) {
+    if (opts.strict) throw e;
     return empty();
   }
 }
@@ -227,7 +236,7 @@ export async function createShare(
   treeId: string,
   treeName: string,
   opts: { hideLiving: boolean; label?: string; expiresDays?: number | null }
-): Promise<ShareLink> {
+): Promise<{ share: ShareLink; shares: ShareLink[] }> {
   const secret = randomBytes(18).toString("base64url");
   const share: ShareLink = {
     id: randomBytes(6).toString("base64url"),
@@ -240,14 +249,17 @@ export async function createShare(
     views: 0,
     visits: [],
   };
-  const data = await getTreeAccess(treeId);
+  const data = await getTreeAccess(treeId, { strict: true });
   const shares = normalizeShares(data);
   shares.unshift(share);
   if (shares.length > MAX_SHARES) shares.length = MAX_SHARES;
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
-  return share;
+  // Güncel listeyi DE döndür: çağıran, yazdıktan hemen sonra tekrar OKUMASIN.
+  // Blob `list()` eventually-consistent'tır; yeni yazılan kayıt hemen
+  // görünmeyebilir ve yanıt boş dönerdi ("bağlantı oluşmuyor" hatası, #3).
+  return { share, shares };
 }
 
 /** Bir paylaşımın seçeneklerini günceller (jeton değişmez). */
@@ -255,8 +267,8 @@ export async function updateShare(
   treeId: string,
   id: string,
   opts: { hideLiving?: boolean; label?: string; expiresDays?: number | null }
-): Promise<ShareLink | null> {
-  const data = await getTreeAccess(treeId);
+): Promise<ShareLink[] | null> {
+  const data = await getTreeAccess(treeId, { strict: true });
   const shares = normalizeShares(data);
   const s = shares.find((x) => x.id === id);
   if (!s) return null;
@@ -266,16 +278,17 @@ export async function updateShare(
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
-  return s;
+  return shares;
 }
 
-/** Bir paylaşım bağlantısını siler (kalıcı). */
-export async function deleteShare(treeId: string, id: string): Promise<void> {
-  const data = await getTreeAccess(treeId);
+/** Bir paylaşım bağlantısını siler (kalıcı). Güncel listeyi döndürür. */
+export async function deleteShare(treeId: string, id: string): Promise<ShareLink[]> {
+  const data = await getTreeAccess(treeId, { strict: true });
   const shares = normalizeShares(data).filter((s) => s.id !== id);
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
+  return shares;
 }
 
 /** Bir ağacın tüm paylaşım bağlantılarını temizler (ör. demo sıfırlaması). */

@@ -273,18 +273,17 @@ export default function TopBar({
                     onClick={() => { setMenuOpen(false); onOpenSettings(); }}
                     icon={<path d="M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 13a1.7 1.7 0 00.4 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1A1.7 1.7 0 004 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 002.6 13H2.5a2 2 0 110-4h.1A1.7 1.7 0 004.6 6.1L4.5 6a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 2.6V2.5a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9h.1a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
                   />
+                  {/* "Hakkında": Ayarlar'ın altında, Çıkış'ın üstünde. */}
+                  <MenuBtn
+                    label={t("about.nav")}
+                    onClick={() => { setMenuOpen(false); setAboutOpen(true); }}
+                    icon={<><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" /><path d="M12 11v5M12 8h.01" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></>}
+                  />
                   <div className="h-px bg-border my-1" />
                   <MenuBtn
                     label={t("topbar.signOut")}
                     onClick={async () => { setMenuOpen(false); await signOut({ redirect: false }); router.push("/"); }}
                     icon={<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
-                  />
-                  {/* #2 — "Hakkında" en altta */}
-                  <div className="h-px bg-border my-1" />
-                  <MenuBtn
-                    label={t("about.nav")}
-                    onClick={() => { setMenuOpen(false); setAboutOpen(true); }}
-                    icon={<><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" /><path d="M12 11v5M12 8h.01" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></>}
                   />
                 </div>
               </>

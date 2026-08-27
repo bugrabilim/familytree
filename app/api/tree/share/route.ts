@@ -68,6 +68,16 @@ async function decorate(origin: string, share: ShareLink) {
 
 async function listPayload(origin: string, treeId: string) {
   const shares = await listShares(treeId);
+  return payloadFrom(origin, shares);
+}
+
+/**
+ * Yanıtı ELDEKİ listeden üretir — yazma sonrası tekrar OKUMADAN.
+ * Blob `list()` eventually-consistent olduğundan, yeni yazılan kayıt hemen
+ * görünmeyebiliyor ve yanıt boş dönüyordu: kullanıcı "bağlantı oluşturuldu"
+ * yerine "henüz paylaşım bağlantın yok" görüyordu (#3).
+ */
+async function payloadFrom(origin: string, shares: ShareLink[]) {
   return { shares: await Promise.all(shares.map((s) => decorate(origin, s))) };
 }
 
@@ -82,12 +92,22 @@ export async function POST(req: NextRequest) {
   if ("error" in g) return g.error;
   let body: { hideLiving?: boolean; label?: string; expiresDays?: number } = {};
   try { body = await req.json(); } catch { /* varsayılanlar */ }
-  await createShare(g.treeId, g.treeName, {
-    hideLiving: body.hideLiving ?? true,
-    label: body.label,
-    expiresDays: body.expiresDays,
-  });
-  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
+  try {
+    const { shares } = await createShare(g.treeId, g.treeName, {
+      hideLiving: body.hideLiving ?? true,
+      label: body.label,
+      expiresDays: body.expiresDays,
+    });
+    return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));
+  } catch (e) {
+    // Sessizce 500'e düşmek yerine nedeni JSON olarak bildir; istemci
+    // "işleniyor" durumunda asılı kalmasın (#3).
+    console.error("[paylasim] olusturulamadi:", (e as Error).message);
+    return NextResponse.json(
+      { error: `Bağlantı oluşturulamadı: ${(e as Error).message}` },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(req: NextRequest) {
@@ -96,12 +116,18 @@ export async function PATCH(req: NextRequest) {
   let body: { id?: string; hideLiving?: boolean; label?: string; expiresDays?: number } = {};
   try { body = await req.json(); } catch { /* boş */ }
   if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
-  await updateShare(g.treeId, body.id, {
-    hideLiving: body.hideLiving,
-    label: body.label,
-    expiresDays: body.expiresDays,
-  });
-  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
+  try {
+    const shares = await updateShare(g.treeId, body.id, {
+      hideLiving: body.hideLiving,
+      label: body.label,
+      expiresDays: body.expiresDays,
+    });
+    if (!shares) return NextResponse.json({ error: "Bağlantı bulunamadı" }, { status: 404 });
+    return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));
+  } catch (e) {
+    console.error("[paylasim] guncellenemedi:", (e as Error).message);
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -110,6 +136,11 @@ export async function DELETE(req: NextRequest) {
   let body: { id?: string } = {};
   try { body = await req.json(); } catch { /* boş */ }
   if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
-  await deleteShare(g.treeId, body.id);
-  return NextResponse.json(await listPayload(req.nextUrl.origin, g.treeId));
+  try {
+    const shares = await deleteShare(g.treeId, body.id);
+    return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));
+  } catch (e) {
+    console.error("[paylasim] silinemedi:", (e as Error).message);
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  }
 }
