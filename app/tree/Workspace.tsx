@@ -771,6 +771,7 @@ function WorkspaceInner({
           onOpenShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
           onOpenBook={() => setBookOpen(true)}
           onAddPerson={openAdd}
+          onPersonAdded={() => router.refresh()}
         />
       )}
 
