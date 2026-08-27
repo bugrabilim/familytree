@@ -5,6 +5,13 @@
 - **Her geliştirme/bug/değişikliğin İngilizcesi de yapılır** (i18n TR+EN),
   onay beklemeden. (Kullanıcı talebi, 2026-08-13.)
 
+## Bekleyen — E-posta altyapısı (sağlayıcı/anahtar kararı bekliyor)
+
+- Doğum/ölüm/evlilik yıl dönümü **e-posta hatırlatmaları** ve üyelik/bildirim/
+  paylaşım **işlemsel e-postaları**. Sağlayıcı (Resend/SendGrid/SES), gönderen
+  alan adı ve ortam anahtarları kullanıcıdan gelince uygulanacak. Ayrıntı ve
+  yapılacaklar: **`docs/EPOSTA-PLANI.md`**.
+
 ## Yapıldı — herkese açık salt-okunur paylaşım (üyeliksiz)
 
 - Ağaç sahibi (admin) bir **bağlantı + kod + QR** üretir; bunu bilen herkes
