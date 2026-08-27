@@ -213,7 +213,6 @@ const FAQS = ["1", "2", "3", "4"] as const;
 export default function Landing({ platform }: { platform?: { trees: number; people: number } }) {
   const t = useT();
   const [demoLoading, setDemoLoading] = useState(false);
-  const year = new Date().getFullYear();
 
   const startDemo = () => {
     setDemoLoading(true);
@@ -540,7 +539,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           </div>
 
           <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-subtle">
-            <p>© 2024–{year} {t("auth.brand")}</p>
+            <p>© 2013 {t("auth.brand")}</p>
             <p>{t("land.footer.madeby")}</p>
           </div>
         </div>

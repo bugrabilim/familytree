@@ -25,6 +25,7 @@ import { findIssues } from "@/lib/consistency";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
 import CalendarAdd from "./CalendarAdd";
+import CalendarExport from "./CalendarExport";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -800,6 +801,18 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
 
           </Card>
           </>
+          )}
+
+          {/* #1 — Çoktan seçmeli takvim dışa aktarma: olay türleri + kişiler
+             ("Hepsi") → tek .ics. (Liste sayfasındaki tekil buton buraya taşındı.) */}
+          {isStats && (
+            <Card
+              title={t("cal.export.title")}
+              hint={t("cal.export.hint")}
+              className="lg:col-span-2 no-print"
+            >
+              <CalendarExport people={people} />
+            </Card>
           )}
         </div>
       </div>

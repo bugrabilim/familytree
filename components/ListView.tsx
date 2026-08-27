@@ -6,7 +6,6 @@ import { EDUCATION_LEVELS } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
 import { calcAge, lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
-import { buildICSMulti } from "@/lib/calendar";
 import { isRainbow } from "@/lib/identity";
 import { isAssociate, isMember } from "@/lib/associates";
 import { usePrivacy } from "./PrivacyContext";
@@ -139,31 +138,6 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
     { k: "olum-neden", l: t("list.filter.deathCause") },
   ];
 
-  // #8 — Görünen (süzülmüş) kişilerin gün/ay bilinen doğum günleri → takvim olayı.
-  const birthdayEvents = useMemo(
-    () =>
-      rows
-        .filter((p) => p.birthDate && p.birthDate.split("-").length >= 3)
-        .map((p) => ({ title: t("cal.birthdayTitle", { name: fullName(p) }), date: p.birthDate!, yearly: true })),
-    [rows, t]
-  );
-  const exportBirthdays = () => {
-    if (birthdayEvents.length === 0) return;
-    try {
-      const blob = new Blob([buildICSMulti(birthdayEvents)], { type: "text/calendar;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "dogum-gunleri.ics";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      /* yoksay */
-    }
-  };
-
   return (
     <div className="h-full flex flex-col">
       {/* Araç çubuğu */}
@@ -217,21 +191,6 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
             )}
           </button>
 
-          {/* #8 — Görünenlerin doğum günlerini takvime aktar (.ics; herkes ya da
-             süzülmüş alt küme). Gün/ay bilinmeyenler ve gizli yaşayanlar hariç. */}
-          {birthdayEvents.length > 0 && (
-            <button
-              onClick={exportBirthdays}
-              title={t("cal.exportBirthdays", { count: birthdayEvents.length })}
-              className="h-9 px-2.5 rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:border-border-strong text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M3.5 9h17M8 3v3M16 3v3M12 12v4M10 14h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-              <span className="hidden sm:inline">{t("cal.birthdays")}</span>
-            </button>
-          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">

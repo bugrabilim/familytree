@@ -250,7 +250,7 @@ export default function TopBar({
                   <div className="h-px bg-border my-1" />
                   <MenuBtn
                     label={t("topbar.signOut")}
-                    onClick={async () => { setMenuOpen(false); await signOut({ redirect: false }); router.push("/login"); }}
+                    onClick={async () => { setMenuOpen(false); await signOut({ redirect: false }); router.push("/"); }}
                     icon={<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
                   />
                 </div>
