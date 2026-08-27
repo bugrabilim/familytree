@@ -80,6 +80,18 @@ check("foto birleşti", (keep.photos ?? []).length === 2);
 check("keep eş bağı aldı", (keep.spouseIds ?? []).includes("s"));
 check("kendine-referans yok", !keep.parentIds.includes("keep") && !(keep.spouseIds ?? []).includes("keep"));
 
+// Çakışan tek-değerli alanlar biyografiye not olarak korunur (kaybolmaz)
+const conflPeople = [
+  P({ id: "k", religion: "İslam", language: "Türkçe", bio: "Notlar" }),
+  P({ id: "d", religion: "Hristiyan", language: "Kürtçe", ethnicity: "Zaza" }),
+];
+const conflMerged = mergePeople(conflPeople, "k", "d");
+const kk = conflMerged.find((p) => p.id === "k")!;
+check("çakışan din bio'ya not düştü", (kk.bio ?? "").includes("din: Hristiyan"));
+check("çakışan dil bio'ya not düştü", (kk.bio ?? "").includes("dil: Kürtçe"));
+check("keep'te boş alan drop'tan doldu (etnik)", kk.ethnicity === "Zaza");
+check("mevcut bio korundu", (kk.bio ?? "").startsWith("Notlar"));
+
 // Toplu birleştirme — birden çok çift, daha eksiksiz kayıt korunur, zincir
 const bulkPeople = [
   P({ id: "a1", birthDate: "1950", birthPlace: "Ordu", photos: ["u"] }), // daha dolu

@@ -241,18 +241,31 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [bulkError, setBulkError] = useState("");
-  const mergeAll = async () => {
+  // #1 — seçerek birleştirme: işaretlenen çiftler.
+  const [selPairs, setSelPairs] = useState<Set<string>>(new Set());
+  const [selConfirm, setSelConfirm] = useState(false);
+  const togglePair = (aId: string, bId: string) =>
+    setSelPairs((prev) => {
+      const k = pairKey(aId, bId);
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k); else n.add(k);
+      return n;
+    });
+  const doMerge = async (pairs: Array<{ aId: string; bId: string }>) => {
+    if (pairs.length === 0) return;
     setBulkBusy(true);
     setBulkError("");
     try {
       const res = await fetch("/api/family/merge-all", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pairs: duplicates.map((d) => ({ aId: d.aId, bId: d.bId })) }),
+        body: JSON.stringify({ pairs }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? t("merge.failed"));
       setBulkConfirm(false);
+      setSelConfirm(false);
+      setSelPairs(new Set());
       router.refresh();
     } catch (e) {
       setBulkError((e as Error).message);
@@ -260,6 +273,11 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
       setBulkBusy(false);
     }
   };
+  const mergeAll = () => doMerge(duplicates.map((d) => ({ aId: d.aId, bId: d.bId })));
+  const mergeSelected = () =>
+    doMerge(
+      duplicates.filter((d) => selPairs.has(pairKey(d.aId, d.bId))).map((d) => ({ aId: d.aId, bId: d.bId }))
+    );
 
   // #1 — bir rakama basınca ilgili kişileri listeleyen alt pencere.
   const [drill, setDrill] = useState<{ title: string; list: Person[] } | null>(null);
@@ -451,32 +469,59 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             >
               {!readOnly && duplicates.length > 1 && (
                 <div className="mb-2 flex items-center flex-wrap gap-2">
-                  {bulkConfirm ? (
-                    <>
-                      <span className="text-[11px] text-text-muted">
-                        {t("panel.dup.mergeAllConfirm", { count: duplicates.length })}
-                      </span>
-                      <Button size="sm" onClick={mergeAll} disabled={bulkBusy}>
-                        {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
-                      </Button>
+                  {/* Seçilenleri birleştir (işaretli çift varsa) */}
+                  {selPairs.size > 0 && (
+                    selConfirm ? (
+                      <>
+                        <span className="text-[11px] text-text-muted">
+                          {t("panel.dup.mergeSelConfirm", { count: selPairs.size })}
+                        </span>
+                        <Button size="sm" onClick={mergeSelected} disabled={bulkBusy}>
+                          {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
+                        </Button>
+                        <button onClick={() => setSelConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-subtle hover:text-text">
+                          {t("merge.cancel")}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setBulkConfirm(false); setSelConfirm(true); }}
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-text text-[11px] font-medium hover:brightness-110 transition-all"
+                        >
+                          {t("panel.dup.mergeSelected", { count: selPairs.size })}
+                        </button>
+                        <button onClick={() => setSelPairs(new Set())} className="text-[11px] text-text-subtle hover:text-text">
+                          {t("history.clearSelection")}
+                        </button>
+                      </>
+                    )
+                  )}
+                  {/* Tümünü birleştir */}
+                  {selPairs.size === 0 && (
+                    bulkConfirm ? (
+                      <>
+                        <span className="text-[11px] text-text-muted">
+                          {t("panel.dup.mergeAllConfirm", { count: duplicates.length })}
+                        </span>
+                        <Button size="sm" onClick={mergeAll} disabled={bulkBusy}>
+                          {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
+                        </Button>
+                        <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-subtle hover:text-text">
+                          {t("merge.cancel")}
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={() => setBulkConfirm(false)}
-                        disabled={bulkBusy}
-                        className="text-[11px] text-text-subtle hover:text-text"
+                        onClick={() => setBulkConfirm(true)}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary text-[11px] font-medium hover:brightness-105 transition-all"
                       >
-                        {t("merge.cancel")}
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M8 7h8m-8 0L5 4m3 3L5 10m11-3 3-3m-3 3 3 3M6 17h12m0 0-3-3m3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {t("panel.dup.mergeAll", { count: duplicates.length })}
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setBulkConfirm(true)}
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary text-[11px] font-medium hover:brightness-105 transition-all"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M8 7h8m-8 0L5 4m3 3L5 10m11-3 3-3m-3 3 3 3M6 17h12m0 0-3-3m3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      {t("panel.dup.mergeAll", { count: duplicates.length })}
-                    </button>
+                    )
                   )}
                 </div>
               )}
@@ -489,8 +534,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                   return (
                     <li
                       key={`${d.aId}-${d.bId}-${i}`}
-                      className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-xl hover:bg-surface-2 transition-colors"
+                      className={`flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-xl transition-colors ${selPairs.has(pairKey(d.aId, d.bId)) ? "bg-primary-soft/50" : "hover:bg-surface-2"}`}
                     >
+                      {!readOnly && (
+                        <input
+                          type="checkbox"
+                          checked={selPairs.has(pairKey(d.aId, d.bId))}
+                          onChange={() => togglePair(d.aId, d.bId)}
+                          aria-label={t("history.select")}
+                          className="shrink-0 accent-[var(--primary)]"
+                        />
+                      )}
                       <span className="text-sm truncate flex-1 min-w-0">
                         <button onClick={() => onSelect(a.id)} className="text-text hover:text-primary hover:underline">
                           {fullName(view(a))}
