@@ -16,9 +16,16 @@ check("bileşik: tema + arkadaş gizle (2 komut)", b.length === 2, kinds(b));
 check("karanlık tema", has(b, (c) => c.kind === "theme" && c.value === "dark"));
 check("arkadaşları gizle → showAssociates false", has(b, (c) => c.kind === "showAssociates" && c.value === false));
 
-// Tema
-check("aydınlık tema", has(parseCommands("açık tema yap"), (c) => c.kind === "theme" && c.value === "light"));
+// Tema — "tema" sözcüğü olmadan da (yalnız anlamlı renk sözcüğü)
+check("aydınlık tema (tam)", has(parseCommands("açık tema yap"), (c) => c.kind === "theme" && c.value === "light"));
+check("aydınlık yap (tema'sız)", has(parseCommands("aydınlık yap"), (c) => c.kind === "theme" && c.value === "light"));
+check("aydınlığa geç", has(parseCommands("aydınlığa geç"), (c) => c.kind === "theme" && c.value === "light"));
+check("karanlık yap (tema'sız)", has(parseCommands("karanlık yap"), (c) => c.kind === "theme" && c.value === "dark"));
+check("karanlığa geç", has(parseCommands("karanlığa geç"), (c) => c.kind === "theme" && c.value === "dark"));
 check("dark theme (en)", has(parseCommands("switch to dark theme"), (c) => c.kind === "theme" && c.value === "dark"));
+// "açık" iki anlamlı: "herkese açık paylaşım" tema DEĞİL, paylaşım olmalı
+check("açık paylaşım tema değil", has(parseCommands("herkese açık paylaşım yap"), (c) => c.kind === "share") && !has(parseCommands("herkese açık paylaşım yap"), (c) => c.kind === "theme"));
+check("yalın 'açık yap' belirsiz → yok", !has(parseCommands("açık yap"), (c) => c.kind === "theme"));
 
 // Yaşayanlar
 check("yaşayanları gizle", has(parseCommands("yaşayanları gizle"), (c) => c.kind === "hideLiving" && c.value === true));

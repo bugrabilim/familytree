@@ -62,10 +62,15 @@ export function parseCommands(input: string): TreeCommand[] {
   const text = norm(input);
   const out: TreeCommand[] = [];
 
-  // Tema
-  if (/(koyu|karanlık)\s*(tema|mod|görünüm)|dark\s*(theme|mode)/.test(text))
+  // Tema. "karanlık/koyu" ve "aydınlık/beyaz" tek anlamlı → gevşek eşleşme
+  // ("aydınlık yap", "karanlığa geç" de olur). "açık" iki anlamlı (aydınlık VE
+  // herkese açık) olduğundan yalnız "açık tema/mod/görünüm" biçimini kabul et.
+  const themeVerb = "(tema|temaya|mod|moda|görünüm|görünüme|yap|geç|çevir|ol|dön)";
+  if (new RegExp(`(koyu|karanl[ıi][kğ])\\w*\\s*${themeVerb}|dark\\s*(theme|mode)`).test(text))
     out.push({ kind: "theme", value: "dark" });
-  else if (/(açık|aydınlık|beyaz)\s*(tema|mod|görünüm)|light\s*(theme|mode)/.test(text))
+  else if (
+    new RegExp(`(aydınl[ıi][kğ]|beyaz)\\w*\\s*${themeVerb}|açık\\s*(tema|mod|görünüm)|light\\s*(theme|mode)`).test(text)
+  )
     out.push({ kind: "theme", value: "light" });
 
   // Yaşayanları göster / gizle
