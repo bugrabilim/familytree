@@ -1,4 +1,4 @@
-import { compactDate, nextDayCompact, buildICS, googleCalendarUrl, yahooCalendarUrl, outlookCalendarUrl } from "../lib/calendar.ts";
+import { compactDate, nextDayCompact, buildICS, buildICSMulti, googleCalendarUrl, yahooCalendarUrl, outlookCalendarUrl } from "../lib/calendar.ts";
 
 let ok = 0, fail = 0;
 const check = (n: string, c: boolean, d = "") => { if (c) ok++; else { fail++; console.log(`✗ ${n} ${d}`); } };
@@ -23,6 +23,16 @@ check("yıllık değilse RRULE yok", !noRec.includes("RRULE"));
 check("google url", (() => { const u = googleCalendarUrl(ev); return u.includes("dates=19900517/19900518") && u.includes("recur=") && u.includes("action=TEMPLATE"); })());
 check("yahoo url", (() => { const u = yahooCalendarUrl(ev); return u.startsWith("https://calendar.yahoo.com/?") && u.includes("st=19900517") && u.includes("dur=allday"); })());
 check("outlook url", (() => { const u = outlookCalendarUrl(ev); return u.includes("outlook.live.com") && u.includes("allday=true") && u.includes("startdt=1990-05-17"); })());
+
+// Çoklu .ics — herkesin doğum günleri
+const multi = buildICSMulti([
+  { title: "A", date: "1990-05-17", yearly: true },
+  { title: "B", date: "1985-03-02", yearly: true },
+  { title: "Gecersiz", date: "1985" }, // atlanır (geçersiz tarih)
+]);
+check("multi: tek VCALENDAR", multi.startsWith("BEGIN:VCALENDAR") && (multi.match(/BEGIN:VCALENDAR/g) || []).length === 1);
+check("multi: iki VEVENT (geçersiz atlanır)", (multi.match(/BEGIN:VEVENT/g) || []).length === 2);
+check("multi: her ikisi de yıllık", (multi.match(/RRULE:FREQ=YEARLY/g) || []).length === 2);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

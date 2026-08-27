@@ -31,6 +31,7 @@ import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions"
 import { moveInList, siblingGroup } from "@/lib/siblings";
 import { useRouter } from "next/navigation";
 import { fullName } from "@/lib/name";
+import CalendarAdd from "./CalendarAdd";
 import { resolveAssociations } from "@/lib/associates";
 import { ASSOCIATION_TYPES } from "@/types/family";
 import useEscapeKey from "@/lib/useEscapeKey";
@@ -316,7 +317,16 @@ export default function PersonDrawer({
           {(person.birthDate || person.officialBirthDate || person.birthPlace || person.deathDate) && (
             <section className="space-y-2">
               {person.birthDate && (
-                <Fact icon="🎂" label={t("drawer.birth")} value={formatLong(person.birthDate)} />
+                <div className="flex items-center gap-1">
+                  <div className="flex-1 min-w-0">
+                    <Fact icon="🎂" label={t("drawer.birth")} value={formatLong(person.birthDate)} />
+                  </div>
+                  {person.birthDate.split("-").length >= 3 && (
+                    <CalendarAdd
+                      event={{ title: t("cal.birthdayTitle", { name: fullName(person) }), date: person.birthDate, yearly: true }}
+                    />
+                  )}
+                </div>
               )}
               {person.officialBirthDate && (
                 <Fact icon="🪪" label={t("drawer.officialBirth")} value={formatLong(person.officialBirthDate)} />
