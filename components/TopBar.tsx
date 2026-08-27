@@ -264,9 +264,9 @@ export default function TopBar({
       {/* Görünüm seçici — kendi tam-genişlik satırı (tüm ekranlarda). Üç grup
           kendi kabuğunda, aralarında boşluk; masaüstünde ortalanır, dar
           ekranda yatay kaydırılır. */}
-      <div className="px-3 sm:px-4 pb-2 border-t border-border/60">
+      <div className="px-3 sm:px-4 pb-2 -mt-1">
         <nav
-          className="flex items-center gap-2 sm:gap-3 sm:justify-center pt-2 overflow-x-auto no-scrollbar"
+          className="flex items-center gap-2 sm:gap-3 sm:justify-center overflow-x-auto no-scrollbar"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} t={t} />

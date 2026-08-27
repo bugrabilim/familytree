@@ -10,6 +10,9 @@ import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 
 export const dynamic = "force-dynamic";
+// İki geçiş (ilk + boşsa ısrarlı ikinci) bu süreye SIĞMALI; aşarsa platform
+// isteği keser ve istemciye anlamsız genel hata düşer. Aşağıdaki timeout'lar
+// toplamı (≈38s + ≈16s) bunun altında tutuldu.
 export const maxDuration = 60;
 
 const forbidden = () =>
@@ -103,16 +106,17 @@ export async function POST(req: NextRequest) {
     const out = await geminiGenerateParts(
       [{ text: buildExtractPrompt(lang) }, part],
       buildExtractSystem(lang),
-      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 50000, retries: 1 }
+      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 38000, retries: 0 }
     );
     imported = parseExtractedJson(out);
     // İlk deneme boş döndüyse (zor/soluk belge), daha ısrarlı ikinci bir geçiş
-    // dene — model bazen ilk turda "kişi yok" deyip geçebiliyor.
+    // dene — model bazen ilk turda "kişi yok" deyip geçebiliyor. İkinci geçiş
+    // kısa tutuldu ki toplam süre maxDuration'ı aşıp platformca kesilmesin.
     if (imported.length === 0) {
       const retry = await geminiGenerateParts(
         [{ text: buildRetryPrompt(lang) }, part],
         buildExtractSystem(lang),
-        { temperature: 0.35, maxOutputTokens: 8192, timeoutMs: 45000, retries: 0 }
+        { temperature: 0.35, maxOutputTokens: 8192, timeoutMs: 16000, retries: 0 }
       );
       imported = parseExtractedJson(retry);
     }
