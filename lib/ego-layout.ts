@@ -134,22 +134,29 @@ export function layoutEgo(alters: EgoAlter[], opts: EgoLayoutOptions = {}): EgoL
     });
   }
 
-  // Saran kutu: en uçtaki düğüm merkezleri + yarım düğüm + kenar payı.
+  // Saran kutu: GERÇEK içerik sınırları (simetrik değil). Böylece çok çocuklu
+  // gibi asimetrik dağılımlarda üstte/altta boş alan kalmaz; görünür küme
+  // sahneye ortalanır (merkez düğüm 0,0'dadır ve daima kutuya katılır).
   const pad = nodeSize / 2 + 24;
+  let minX = 0;
   let maxX = 0;
+  let minY = 0;
   let maxY = 0;
   for (const p of points) {
-    if (Math.abs(p.x) + pad > maxX) maxX = Math.abs(p.x) + pad;
-    if (Math.abs(p.y) + pad > maxY) maxY = Math.abs(p.y) + pad;
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
   }
-  // Merkez düğüm de sığsın (alter yoksa bile).
-  maxX = Math.max(maxX, pad);
-  maxY = Math.max(maxY, pad);
+  minX -= pad;
+  maxX += pad;
+  minY -= pad;
+  maxY += pad;
 
-  const width = maxX * 2;
-  const height = maxY * 2;
-  const cx = maxX;
-  const cy = maxY;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const cx = -minX; // merkez (0,0) kutudaki yeni konumu
+  const cy = -minY;
 
   return {
     points: points.map((p) => ({ ...p, x: p.x + cx, y: p.y + cy })),
