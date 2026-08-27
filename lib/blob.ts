@@ -1,3 +1,4 @@
+import { withTimeout, MIRROR_TIMEOUT_MS } from "@/lib/with-timeout";
 import { put, list, get } from "@vercel/blob";
 import type { FamilyData, Person } from "@/types/family";
 import {
@@ -180,15 +181,22 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
   // Faz 2c/2e — çift-yazma (best-effort): Postgres'i de yaz. Blob kaynaktır;
   // Postgres yazması başarısız olursa kullanıcının kaydı ETKİLENMEZ. Taze eski
   // görüntü varsa YALNIZ değişen/silinen kişileri yaz (hızlı); yoksa tam yenile.
+  // Ayna YANIT VERMEZSE kullanıcının kaydı asılı kalmasın diye süre sınırlı (#3).
   try {
-    if (freshOldJson) {
-      const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
-      const { changed, removed } = diffPeople(oldPeople, data.people);
-      if (changed.length) await dbUpsertPeople(userId, changed);
-      if (removed.length) await dbDeletePeople(userId, removed);
-    } else {
-      await dbReplacePeople(userId, data.people);
-    }
+    await withTimeout(
+      (async () => {
+        if (freshOldJson) {
+          const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
+          const { changed, removed } = diffPeople(oldPeople, data.people);
+          if (changed.length) await dbUpsertPeople(userId, changed);
+          if (removed.length) await dbDeletePeople(userId, removed);
+        } else {
+          await dbReplacePeople(userId, data.people);
+        }
+      })(),
+      MIRROR_TIMEOUT_MS,
+      "people→postgres"
+    );
   } catch (e) {
     console.warn(`[cift-yazma] people→postgres (${userId}):`, (e as Error).message);
   }

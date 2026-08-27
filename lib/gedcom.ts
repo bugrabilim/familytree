@@ -414,6 +414,11 @@ export function importGedcom(content: string): Person[] {
     const hp = hi ? people.find((p) => p.id === hi.ourId) : undefined;
     const wp = wi ? people.find((p) => p.id === wi.ourId) : undefined;
 
+    // GEDCOM'da SEX etiketi eksik olabilir; aile rolü (HUSB/WIFE) cinsiyeti
+    // kesin verir. Belirsiz kalmasın diye buradan tamamlanır (ada bakılmaz).
+    if (hp && hp.gender === "unknown") hp.gender = "male";
+    if (wp && wp.gender === "unknown") wp.gender = "female";
+
     if (hp && wp) {
       if (fam.divorced) {
         if (!hp.formerSpouseIds!.includes(wp.id)) hp.formerSpouseIds!.push(wp.id);

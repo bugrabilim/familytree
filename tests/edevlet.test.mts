@@ -120,5 +120,52 @@ check("var: doğum yeri (Ankara)", vby("Ahmet").birthPlace === "Ankara");
 check("var: doğum yeri (Sivas)", vby("Mehmet").birthPlace === "Sivas");
 check("var: yalın yıl ölüm tarihi", vby("Mehmet").deathDate === "1910-01-01");
 
+// — Çok kelimeli medeni hâl ("Eşi Ölmüş") ölüm tarihini yutmamalı —
+// e-Devlet "Medeni Hali" sütunu iki kelimeli olabilir; sabit ofsetle okuyan
+// eski sürüm "Ölüm" işaretini kaydırıp ölüm tarihini kaybediyordu.
+const dulText = [
+  "ALT ÜST SOY BELGESİ",
+  "21 E Babasının Babası OSMAN KAYA ALİ FATMA RİZE",
+  "10/05/1930",
+  "Rize/",
+  "Merkez/",
+  "KÖY",
+  "7-2-1 Eşi Ölmüş Ölüm",
+  "03/11/2001",
+  "22 K Babasının Annesi HATİCE KAYA VELİ EMİNE RİZE",
+  "1935",
+  "Rize/",
+  "Merkez/",
+  "KÖY",
+  "7-2-2 Boşandı Ölüm",
+  "1999",
+  "23 E Babası MURAT KAYA OSMAN HATİCE RİZE",
+  "12/12/1960",
+  "Rize/",
+  "Merkez/",
+  "KÖY",
+  "7-2-3 Eşi Ölmüş Sağ",
+  "-",
+  "24 E Kendisi CAN KAYA MURAT SEHER RİZE",
+  "01/01/1990",
+  "Rize/",
+  "Merkez/",
+  "KÖY",
+  "7-2-4 Bekâr Sağ",
+  "-",
+  "AÇIKLAMALAR",
+].join("\n");
+
+const dp = parseEdevletText(dulText);
+const dby = (n: string) => dp.find((p) => p.firstName === n)!;
+check("dul: 4 kişi", dp.length === 4);
+check("'Eşi Ölmüş' + Ölüm → ölüm tarihi okunur", dby("Osman").deathDate === "2001-11-03");
+check("'Boşandı' + Ölüm → yalın yıl ölüm", dby("Hatice").deathDate === "1999");
+check("'Eşi Ölmüş' + Sağ → ölüm tarihi YOK", dby("Murat").deathDate === undefined);
+check("Bekâr + Sağ → ölüm tarihi YOK", dby("Can").deathDate === undefined);
+check("dul: doğum tarihi bozulmadı", dby("Osman").birthDate === "1930-05-10");
+check("dul: sonraki kaydın doğumu bozulmadı", dby("Murat").birthDate === "1960-12-12");
+check("dul: doğum yeri bozulmadı", dby("Osman").birthPlace === "Rize");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

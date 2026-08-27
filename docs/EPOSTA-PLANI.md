@@ -42,6 +42,43 @@ Aşağıdakiler **kodlandı ve no-op-güvenli** (anahtar yoksa hiçbir şey gitm
 Bunlar eklenince hatırlatmalar kendiliğinden çalışmaya başlar; kod değişikliği
 gerekmez.
 
+## Kullanıcının istediği e-posta yetenekleri (2026-08 notu)
+
+> "Eposta işleri yapılacaklar notlarında tut, sonra sorunca söylersin."
+> **Aşağıdakiler henüz YAPILMADI** — anahtarlar geldiğinde sırayla ele alınacak.
+
+1. **Bildirimler.** Ağaçta olan biten için e-posta: yeni kişi eklendi, biri
+   profilini güncelledi, davet kabul edildi, paylaşım bağlantın görüntülendi.
+   Sıklık ayarı: anında / günlük özet / haftalık özet.
+2. **E-posta kutusu (uygulama içi).** Gönderilen bildirimlerin uygulama
+   içinde de okunabildiği bir "gelen kutusu" — e-postayı kaçıranlar için.
+3. **Üyelik için otomatik cevap.** Kayıt olunca hoş geldin e-postası: ağaç
+   adı, ilk adımlar (e-Devlet yükle / kişi ekle), destek bağlantısı.
+4. **Şifremi unuttum.** Tek kullanımlık, süreli sıfırlama bağlantısı.
+   *Not:* giriş "soyadı + şifre" olduğundan, önce hesaba doğrulanmış bir
+   e-posta bağlanmalı (Ayarlar'daki `notifyEmail` alanı bunun temeli).
+5. **QR / bağlantı paylaşımı.** Paylaşım bağlantısını ve QR görselini
+   doğrudan e-postayla gönder ("aileye yolla" düğmesi).
+
+### Ek fikirler (hayal gücü)
+
+- **Davet e-postası + tek tıkla katılım.** Üyeye özel bağlantı; tıklayınca
+  ağaca doğrudan katılır.
+- **Yıllık "aile albümü" e-postası.** Yıl sonunda: eklenen kişiler, doğanlar,
+  kaybedilenler, en çok fotoğraf yükleyen — küçük bir yıllık özet.
+- **Anma günü mektubu.** Vefat yıl dönümünde, o kişinin fotoğrafı ve
+  anılarından bir alıntıyla sade bir anma e-postası.
+- **"Bu kişiyi tanıyor musunuz?"** Eksik bilgili kişiler için aileye toplu
+  soru; yanıtlar doğrudan kayda işlenir.
+- **Yedek e-postası.** Aylık olarak ağacın GEDCOM/JSON yedeğini hesap
+  sahibine ekli gönder (veri kaybına karşı güven).
+- **Değişiklik özeti (digest).** "Bu hafta 12 güncelleme yapıldı" + geri alma
+  bağlantısı — güncelleme günlüğüyle birleşir.
+- **E-postayla içerik ekleme.** Aileye özel bir adrese fotoğraf/metin
+  gönderilince ilgili kişiye anı olarak eklensin.
+- **Paylaşım uyarısı.** Herkese açık bağlantı ilk kez görüntülendiğinde
+  ya da süresi dolmak üzereyken sahibine bilgi ver.
+
 ## Kalan (isteğe bağlı, sonraki adım)
 
 - [ ] İşlemsel akışlar: davet/doğrulama/şifre sıfırlama ve paylaşım bağlantısı/

@@ -17,7 +17,8 @@ export type IssueKind =
   | "tooYoungParent"
   | "bornAfterParentDeath"
   | "selfSpouse"
-  | "selfParent";
+  | "selfParent"
+  | "missingGender";
 
 export interface Issue {
   personId: string;
@@ -58,6 +59,11 @@ export function findIssues(people: Person[]): Issue[] {
   const nowYear = new Date().getFullYear();
 
   for (const p of people) {
+    // Cinsiyeti belirsiz kayıt. "other" (diğer/non-binary) BİLİNÇLİ bir seçimdir
+    // ve uyarı üretmez; yalnız hiç seçilmemiş ("unknown") kayıtlar işaretlenir.
+    if (!p.gender || p.gender === "unknown")
+      issues.push({ personId: p.id, kind: "missingGender", severity: "warning" });
+
     // Kendine eş / kendine ebeveyn
     if (p.spouseIds?.includes(p.id) || p.formerSpouseIds?.includes(p.id))
       issues.push({ personId: p.id, kind: "selfSpouse", severity: "error" });

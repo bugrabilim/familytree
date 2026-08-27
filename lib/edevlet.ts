@@ -117,14 +117,31 @@ function parseRecords(text: string): Rec[] {
     const ad = nb.slice(0, Math.max(0, nb.length - 4)).join(" ");
 
     // Adresi atla → Cilt-Hane-Birey
-    while (i < N && !isCilt(tk[i])) i++;
+    while (i < N && !isCilt(tk[i]) && !isSira(i)) i++;
     if (i < N && isCilt(tk[i])) i++; // cilt-hane
-    i++; // medeni hali
-    const durum = tk[i++]; // Ölüm | Sağ
+
+    // Durum sütunu. "Medeni Hali" TEK ya da ÇOK kelimeli olabilir ("Evli",
+    // "Bekâr", "Dul", "Boşandı", "Eşi Ölmüş"…). Sabit sayıda token atlamak,
+    // iki kelimeli hâllerde "Ölüm" işaretini kaydırıyor ve ölüm tarihini
+    // KAYBETTİRİYORDU. Bunun yerine kaydın sonuna kadar tarayıp "Ölüm"/"Sağ"
+    // işaretini arıyor, tarihi işaretten SONRAKİ ilk tarihten okuyoruz.
+    // ("Ölmüş" medeni hâlin parçasıdır; ölüm işareti değildir.)
     let death: string | null = null;
-    if (i < N && isDate(tk[i])) death = tk[i++];
-    else if (tk[i] === "-") i++;
-    void durum;
+    while (i < N && !isSira(i)) {
+      const t = trLower(tk[i]);
+      if (t === "ölüm" || t === "ölü" || t === "öldü") {
+        i++;
+        // Tarih hemen sonra gelir; araya yalnız "-" gibi bir dolgu girebilir.
+        for (let k = 0; k < 2 && i < N && !isSira(i); k++) {
+          if (isDate(tk[i])) { death = tk[i++]; break; }
+          if (tk[i] === "-") { i++; continue; }
+          break;
+        }
+        break;
+      }
+      if (t === "sağ") { i++; break; }
+      i++;
+    }
 
     recs.push({
       sira,
