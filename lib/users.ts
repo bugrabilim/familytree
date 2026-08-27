@@ -66,6 +66,23 @@ export async function createUser(
   return user;
 }
 
+/** Bildirim e-posta tercihini günceller (opt-in). id ile bulunur. */
+export async function updateUserNotify(
+  id: string,
+  patch: { notifyEmail?: string | null; notifyReminders?: boolean }
+): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user) return false;
+  if (patch.notifyEmail !== undefined) {
+    const e = (patch.notifyEmail ?? "").trim();
+    user.notifyEmail = e || undefined;
+  }
+  if (patch.notifyReminders !== undefined) user.notifyReminders = patch.notifyReminders;
+  await saveUsersData(data);
+  return true;
+}
+
 export async function updateUserPassword(
   familyName: string,
   newPasswordHash: string
