@@ -46,7 +46,8 @@ export default function ShareDialog({
   // Yeni bağlantı formu
   const [label, setLabel] = useState("");
   const [hideLiving, setHideLiving] = useState(true);
-  const [expiryDays, setExpiryDays] = useState("");
+  // Varsayılan 7 gün — seçimsiz olmasın (#5). Süresiz için kullanıcı 0 yazar.
+  const [expiryDays, setExpiryDays] = useState("7");
 
   useEffect(() => {
     let alive = true;
@@ -85,10 +86,11 @@ export default function ShareDialog({
   };
 
   const create = () => {
+    if (!label.trim()) return; // Etiket zorunlu (#6)
     const days = expiryDays.trim() ? Number(expiryDays) : 0;
-    call("POST", { hideLiving, label: label.trim() || undefined, expiresDays: Number.isFinite(days) ? days : 0 });
+    call("POST", { hideLiving, label: label.trim(), expiresDays: Number.isFinite(days) ? days : 0 });
     setLabel("");
-    setExpiryDays("");
+    setExpiryDays("7");
   };
 
   const remove = (id: string) => {
@@ -98,6 +100,8 @@ export default function ShareDialog({
 
   const days = expiryDays.trim() ? Number(expiryDays) : 0;
   const longExpiry = Number.isFinite(days) && days > 7;
+  const unlimitedExpiry = !Number.isFinite(days) || days <= 0; // 0/boş = süresiz (#5)
+  const labelMissing = !label.trim(); // Etiket zorunlu (#6)
 
   return (
     <Modal title={t("share.title")} subtitle={treeName ? t("share.subtitle", { tree: treeName }) : undefined} onClose={onClose}>
@@ -107,12 +111,16 @@ export default function ShareDialog({
         {/* Yeni bağlantı oluştur */}
         <section className="rounded-2xl border border-border bg-surface p-3.5 space-y-3">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">{t("share.newTitle")}</h3>
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={t("share.labelPlaceholder")}
-            className="w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary"
-          />
+          <div>
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={t("share.labelPlaceholder")}
+              aria-required
+              className={`w-full h-10 px-3 rounded-xl bg-surface-2 border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary ${labelMissing ? "border-amber-400 dark:border-amber-600" : "border-border"}`}
+            />
+            {labelMissing && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{t("share.labelRequired")}</p>}
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
               <input type="checkbox" checked={hideLiving} onChange={(e) => setHideLiving(e.target.checked)} />
@@ -134,7 +142,8 @@ export default function ShareDialog({
           <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
           {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
-          <Button size="sm" onClick={create} disabled={busy}>
+          {unlimitedExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.unlimitedWarn")}</p>}
+          <Button size="sm" onClick={create} disabled={busy || labelMissing}>
             {busy ? t("share.working") : t("share.createBtn")}
           </Button>
         </section>

@@ -125,15 +125,20 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
           <div className="sticky top-0 z-10 flex bg-bg/95 backdrop-blur border-b border-border">
             <div className="w-28 sm:w-40 shrink-0 border-r border-border" />
             <div className="relative flex-1 h-7">
-              {ticks.map((y) => (
-                <span
-                  key={y}
-                  className="absolute top-1 -translate-x-1/2 text-[10px] text-text-subtle tabular-nums"
-                  style={{ left: `${pct(y)}%` }}
-                >
-                  {y}
-                </span>
-              ))}
+              {ticks.map((y, i) => {
+                // Uç etiketleri içeride tut: ilki sağa açılır, sonuncusu sola —
+                // böylece hiçbir yıl kırpılmaz, yatay kaydırma oluşmaz (#4).
+                const anchor = i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2";
+                return (
+                  <span
+                    key={y}
+                    className={`absolute top-1 ${anchor} text-[10px] text-text-subtle tabular-nums`}
+                    style={{ left: `${pct(y)}%` }}
+                  >
+                    {y}
+                  </span>
+                );
+              })}
             </div>
           </div>
 
