@@ -4,6 +4,11 @@ export interface User {
   passwordHash: string;
   recoveryCodeHash: string;
   createdAt: string;
+  /** Bildirim e-posta adresi (opt-in). Giriş surname+şifre olduğundan e-posta
+   *  yalnız hatırlatma/bildirim için, kullanıcının açık onayıyla saklanır. */
+  notifyEmail?: string;
+  /** Doğum/ölüm/evlilik yıl dönümü e-posta hatırlatmalarını istiyor mu? */
+  notifyReminders?: boolean;
 }
 
 export interface UsersData {

@@ -18,19 +18,39 @@ sağlanmalıdır. Karar bekleyenler:
   SPF/DKIM ile doğrulanmalı.
 - **Ortam değişkenleri (Vercel):** ör. `RESEND_API_KEY`, `EMAIL_FROM`.
 
-## Yapılacaklar (anahtar gelince uygulanacak)
+## Durum — altyapı kuruldu, anahtar bekliyor (2026-08)
 
-- [ ] `lib/email.ts` — sağlayıcıdan bağımsız ince soyutlama (`sendEmail({to,
-      subject, html})`). Anahtar yoksa no-op + günlükleme (geliştirmede güvenli).
-- [ ] Hesap ayarı: **bildirim e-posta adresi + onay (opt-in)** ve hangi
-      hatırlatmaların isteneceği. Depolama: kullanıcı kaydı (Blob/Supabase).
-- [ ] **Günlük zamanlanmış iş** (Vercel Cron `vercel.json`) — o gün olan
-      doğum/ölüm/evlilik yıl dönümlerini bulup opt-in kullanıcılara özet e-posta.
-      Gizlilik: yaşayan kişilerin verisi maskeleme/izinlere uygun ele alınmalı.
+Aşağıdakiler **kodlandı ve no-op-güvenli** (anahtar yoksa hiçbir şey gitmez):
+
+- [x] `lib/email.ts` — sağlayıcıdan bağımsız `sendEmail({to,subject,html,text})`
+      (Resend REST). `RESEND_API_KEY`+`EMAIL_FROM` yoksa no-op döner.
+- [x] `lib/reminders.ts` — o güne denk gelen doğum günü/anma/evlilik yıl dönümü
+      olaylarını üreten saf çekirdek (+ testler).
+- [x] Hesap ayarı: **bildirim e-posta adresi + hatırlatma onayı (opt-in)**;
+      `User.notifyEmail`/`notifyReminders`, `/api/account/notify`, Ayarlar arayüzü
+      (yalnız hesap sahibi). Giriş surname+şifre olduğundan e-posta yalnız burada
+      açık onayla saklanır.
+- [x] **Günlük Cron** `/api/cron/reminders` (`vercel.json`, her gün 06:00 UTC).
+      `CRON_SECRET` ile korunur; opt-in hesaplara o günün özetini gönderir.
+
+**Çalışması için (kullanıcı) — Vercel ortam değişkenleri:**
+
+- `RESEND_API_KEY` — Resend panelinden.
+- `EMAIL_FROM` — ör. `Soylus <bilgi@soylus.com>` (alan adı Resend'de doğrulanmış).
+- `CRON_SECRET` — rastgele bir dize (Vercel cron isteklerini doğrulamak için).
+
+Bunlar eklenince hatırlatmalar kendiliğinden çalışmaya başlar; kod değişikliği
+gerekmez.
+
+## Kalan (isteğe bağlı, sonraki adım)
+
 - [ ] İşlemsel akışlar: davet/doğrulama/şifre sıfırlama ve paylaşım bağlantısı/
       QR e-postayla gönderme uçları aynı `lib/email.ts` üzerinden.
-- [ ] i18n (TR+EN) e-posta şablonları; abonelikten çıkma (unsubscribe) bağlantısı.
-- [ ] KVKK/GDPR: açık rıza, kolay çıkış, gönderen kimliği.
+- [ ] i18n (TR+EN) zengin HTML e-posta şablonları; abonelikten çıkma (unsubscribe)
+      bağlantısı.
+- [ ] Çoklu ağaç: kurucunun sahip olduğu tüm ağaçlar için hatırlatma (şu an yalnız
+      ana/ev ağacı).
+- [ ] KVKK/GDPR: açık rıza metni, kolay çıkış, gönderen kimliği.
 
 ## Notlar
 
