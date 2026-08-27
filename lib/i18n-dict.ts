@@ -1211,7 +1211,7 @@ export const tr: Dict = {
   "map.noLocation": " · konum yok",
   "map.unlocatedTitle": "Konumu bilinmeyen yerler",
   "map.unlocatedBody":
-    "Haritada gösterilemiyor — sözlükte karşılığı yok. Yine de burada listeli.",
+    "Haritada gösterilemiyor — konum bulunamadı. Yine de burada listeli.",
 };
 
 /* İngilizce — eklenti dil. Anahtarlar `tr` ile birebir aynı olmalı. */
@@ -2410,7 +2410,7 @@ export const en: Dict = {
   "map.noLocation": " · no location",
   "map.unlocatedTitle": "Places without coordinates",
   "map.unlocatedBody":
-    "Can’t be shown on the map — not in the gazetteer. Still listed here.",
+    "Can’t be shown on the map — location not found. Still listed here.",
 };
 
 export const DICTS: Record<Lang, Dict> = { tr, en };

@@ -7,8 +7,28 @@ import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
-import { aggregatePlaces, googleMapsUrl } from "@/lib/places";
+import { aggregatePlaces, gazetteerExact, resolvePlace, googleMapsUrl } from "@/lib/places";
+import { geocodeNominatim } from "@/lib/geocode";
 import { useT } from "@/lib/i18n";
+
+/** Coğrafi kodlama sonuçlarının tarayıcı önbelleği (yer adı → koordinat/null). */
+const GEO_LS_KEY = "soyagaci:geo:v1";
+function loadGeoCache(): Record<string, LatLng | null> {
+  try {
+    const raw = window.localStorage.getItem(GEO_LS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, LatLng | null>) : {};
+  } catch {
+    return {};
+  }
+}
+function saveGeoCache(cache: Record<string, LatLng | null>) {
+  try {
+    window.localStorage.setItem(GEO_LS_KEY, JSON.stringify(cache));
+  } catch {
+    /* kota/gizli mod → yoksay */
+  }
+}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface Props {
   people: Person[];
@@ -60,13 +80,70 @@ export default function PlacesMap({ people, onSelect }: Props) {
 
   // GİZLİLİK: kişileri görüntü katmanından geçir; maskeli (gizli yaşayan)
   // kişide `birthPlace` bulunmadığından doğum yeri sızmaz.
-  const aggregates = useMemo(
+  const baseAgg = useMemo(
     () => aggregatePlaces(eraFiltered.map((p) => priv(p))),
     [eraFiltered, priv]
   );
 
+  // Canlı coğrafi kodlama önbelleği (yer adı → koordinat/null). Sözlükte tam
+  // karşılığı olmayan yerler (köy/mahalle/ilçe, yurt dışı) buradan gelir.
+  // Bileşen yalnız istemcide (ssr:false) yüklendiğinden başlangıçta LS okunabilir.
+  const [geo, setGeo] = useState<Record<string, LatLng | null>>(() => loadGeoCache());
+
+  /**
+   * Bir yerin koordinatı: (1) sözlükte TAM karşılığı varsa onu (anlık); yoksa
+   * (2) coğrafi kodlama sonucunu (kayıt neresiyse ORASI); kodlama denendi ama
+   * bulunamadıysa (3) son çare hiyerarşik sözlük (ör. köy bulunamazsa ili);
+   * henüz denenmediyse `null` (kodlanınca dolar). "Köy görünce şehri işaretle"
+   * yapmayız — önce gerçek yeri kodlarız.
+   */
+  const coordsFor = useMemo(() => {
+    return (place: string): LatLng | null => {
+      const exact = gazetteerExact(place);
+      if (exact) return exact;
+      if (place in geo) return geo[place] ?? resolvePlace(place);
+      return null; // kodlama bekleniyor
+    };
+  }, [geo]);
+
+  const aggregates = useMemo(
+    () => baseAgg.map((a) => ({ ...a, coords: coordsFor(a.place) })),
+    [baseAgg, coordsFor]
+  );
+
   const located = useMemo(() => aggregates.filter((a) => a.coords), [aggregates]);
   const unlocated = useMemo(() => aggregates.filter((a) => !a.coords), [aggregates]);
+
+  // Sözlükte tam karşılığı olmayan ve henüz kodlanmamış yerleri Nominatim ile
+  // (dünya geneli) sırayla kodla; Nominatim ilkesi gereği ~1 istek/sn aralıkla.
+  // Sonuçlar tarayıcı önbelleğine yazılır → sonraki açılışlar anlık.
+  useEffect(() => {
+    const pending = baseAgg
+      .map((a) => a.place)
+      .filter((place) => !gazetteerExact(place));
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    const ctrl = new AbortController();
+    (async () => {
+      // Atlama kararının kaynağı LS önbelleği (durum zamanlamasından bağımsız).
+      const cache = loadGeoCache();
+      for (const place of pending) {
+        if (cancelled) return;
+        if (place in cache) continue; // daha önce denendi (bulundu ya da null)
+        const coord = await geocodeNominatim(place, ctrl.signal);
+        if (cancelled) return;
+        cache[place] = coord;
+        saveGeoCache(cache);
+        setGeo((g) => ({ ...g, [place]: coord }));
+        await sleep(1100); // Nominatim: saniyede en fazla bir istek
+      }
+    })();
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
+  }, [baseAgg]);
 
   // Kişi → doğum yeri koordinatı (maskeli aggregate'lerden → gizlilik korunur).
   const personCoord = useMemo(() => {
