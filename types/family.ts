@@ -225,6 +225,18 @@ export interface Person {
 
   /** Anılar / hikâyeler — rehberli soru yanıtları ve sesli kayıtlar. */
   memories?: Memory[];
+
+  /**
+   * Bu kartın nasıl/hangi yöntemle eklendiği (köken/iz). Kullanıcı "bu bilgi
+   * nereden geldi?" diye sorabilsin diye tutulur; drawer'da gösterilir.
+   * - "manuel": elle eklendi
+   * - "ai": yapay zekâ ile dosyadan çıkarıldı (e-Devlet/nüfus/foto…)
+   * - "gedcom": GEDCOM/CSV/JSON içe aktarma
+   * - "iskelet": başlangıç iskeleti (boş kart)
+   * - "pair"|"davet": eşleştirme/davet akışıyla
+   * Serbest metin de olabilir (ör. dosya adı eklenmiş "ai: nufus.pdf").
+   */
+  entrySource?: string;
 }
 
 export interface FamilyData {
