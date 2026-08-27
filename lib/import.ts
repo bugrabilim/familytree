@@ -195,7 +195,30 @@ export function parseCsv(text: string): Person[] {
     people.push(p);
   }
   symmetrizeSpouses(people);
+  inferGenderFromRoles(people, staged.map(({ cols }) => ({
+    father: resolve(at(cols, "fatherId")),
+    mother: resolve(at(cols, "motherId")),
+  })));
   return people;
+}
+
+/**
+ * Cinsiyeti belirsiz kalan kayıtları YAPISAL rolden çıkarır: bir kişi başkasının
+ * "baba" sütununda geçiyorsa erkek, "anne" sütununda geçiyorsa kadındır. Kaynak
+ * veriden kesin olan tek çıkarım budur; ada bakarak tahmin YAPILMAZ. Zaten
+ * cinsiyeti seçili (male/female/other) kayıtlara dokunulmaz.
+ */
+function inferGenderFromRoles(
+  people: Person[],
+  links: Array<{ father?: string; mother?: string }>
+): void {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  for (const { father, mother } of links) {
+    const fa = father ? byId.get(father) : undefined;
+    if (fa && fa.gender === "unknown") fa.gender = "male";
+    const mo = mother ? byId.get(mother) : undefined;
+    if (mo && mo.gender === "unknown") mo.gender = "female";
+  }
 }
 
 /* ── JSON ──────────────────────────────────────────────────────────────────── */

@@ -14,7 +14,7 @@ const check = (name: string, cond: boolean) => {
 const P = (o: Partial<Person> & { id: string }): Person => ({
   firstName: "X",
   lastName: "Y",
-  gender: "unknown",
+  gender: "male",
   parentIds: [],
   spouseIds: [],
   ...o,
@@ -45,6 +45,11 @@ check("selfParent", has([P({ id: "a", parentIds: ["a"] })], "a", "selfParent"));
 check("implausibleAge", has([P({ id: "a", birthDate: "1800", deathDate: "1950" })], "a", "implausibleAge"));
 // Kısmi tarihte yanlış-pozitif yok (yalnız yıl, aynı yıl)
 check("aynı yıl belirsizlik", findIssues([P({ id: "a", birthDate: "1990", deathDate: "1990" })]).length === 0);
+
+// Cinsiyet seçilmemiş kayıt uyarı verir; "other" (bilinçli seçim) VERMEZ.
+check("missingGender: unknown → uyarı", has([P({ id: "a", gender: "unknown" })], "a", "missingGender"));
+check("missingGender: other → uyarı yok", !has([P({ id: "a", gender: "other" })], "a", "missingGender"));
+check("missingGender: male → uyarı yok", !has([P({ id: "a" })], "a", "missingGender"));
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

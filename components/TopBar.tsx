@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import TreeSwitcher from "./TreeSwitcher";
@@ -133,11 +133,34 @@ export default function TopBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Üst bar iki satırdır (marka satırı + görünüm sekmeleri) ve dar ekranda
+  // satır sayısı değişebilir. Gerçek yüksekliğini bir CSS değişkeni olarak
+  // yayınla ki sağdaki detay paneli sabit bir sayıya (56px) güvenmek yerine
+  // tam başlığın ALTINDAN başlasın — avatar başlığın altında kalmasın (#8).
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        "--app-header-h",
+        `${Math.round(el.getBoundingClientRect().height)}px`
+      );
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener("resize", apply);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, []);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
 
   return (
     <>
-    <header className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
+    <header ref={headerRef} className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
       <div className="h-14 px-3 sm:px-4 flex items-center gap-2 sm:gap-3">
         {/* Marka */}
         <div className="flex items-center gap-2.5 min-w-0 shrink-0">

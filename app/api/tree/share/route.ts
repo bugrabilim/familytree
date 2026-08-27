@@ -13,6 +13,8 @@ import {
 import type { ShareLink } from "@/types/user";
 
 export const dynamic = "force-dynamic";
+// QR üretimi + Blob yazımı için rahat üst sınır; ayna zaten süre sınırlı (#3).
+export const maxDuration = 30;
 
 /**
  * Herkese açık salt-okunur paylaşım — yalnız ağaç yöneticisi (admin).

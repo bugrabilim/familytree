@@ -918,7 +918,7 @@ const K10: Seed[] = [
   { id: "k10-lara", ad: "Lara", soyad: "Yıldırım", c: "female", d: "2010-03-04", yer: "İstanbul", eb: ["k9-ela", "k9-ela-es"] },
 
   // Umut
-  { id: "k10-rüzgar", ad: "Rüzgâr", soyad: "Demirtaş", c: "unknown", d: "2024-06-02", yer: "Bodrum", eb: ["k9-umut"], bio: "Henüz çok küçük; aile cinsiyet ataması yapmadan büyütmeyi tercih ediyor." },
+  { id: "k10-rüzgar", ad: "Rüzgâr", soyad: "Demirtaş", c: "other", d: "2024-06-02", yer: "Bodrum", eb: ["k9-umut"], bio: "Henüz çok küçük; aile cinsiyet ataması yapmadan büyütmeyi tercih ediyor." },
 
   {
     id: "k10-nil", ad: "Nil", soyad: "Sarıkaya", c: "female", d: "2006-11-12", yer: "Kayseri",

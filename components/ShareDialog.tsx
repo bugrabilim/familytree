@@ -69,18 +69,26 @@ export default function ShareDialog({
   const call = async (method: string, body?: Record<string, unknown>) => {
     setBusy(true);
     setError("");
+    // İstek hiç yanıt vermezse kullanıcı sonsuza dek beklemesin: süre dolunca
+    // iptal edip anlaşılır bir hata göster (eskiden sessizce sonuçsuz kalıyordu).
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 30000);
     try {
       const res = await fetch("/api/tree/share", {
         method,
         headers: body ? { "Content-Type": "application/json" } : undefined,
         body: body ? JSON.stringify(body) : undefined,
+        signal: ctrl.signal,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? t("share.failed"));
-      setShares(data.shares ?? []);
+      if (!data || !Array.isArray(data.shares)) throw new Error(t("share.failed"));
+      setShares(data.shares);
     } catch (e) {
-      setError((e as Error).message);
+      const err = e as Error;
+      setError(err.name === "AbortError" ? t("share.timeout") : err.message || t("share.failed"));
     } finally {
+      window.clearTimeout(timer);
       setBusy(false);
     }
   };

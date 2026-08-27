@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Person, Gender } from "@/types/family";
 import { storedToDisplay, displayToStored } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { entrySourceLabel } from "@/lib/entry-source";
-import { isAssociate, isMember } from "@/lib/associates";
+import { isAssociate } from "@/lib/associates";
 import { useReadOnly } from "./ReadOnlyContext";
-import { useT, useLang } from "@/lib/i18n";
+import { useT, useLang, type TFunction } from "@/lib/i18n";
 import Button from "./ui/Button";
 
 /** Şablon sütunları — başlıklar içe-aktarma eş-adlarıyla uyumlu (lib/import.ts).
@@ -42,8 +43,6 @@ const TPL_EXAMPLES: Record<"tr" | "en", string[][]> = {
   ],
 };
 
-type Filter = "hepsi" | "uyeler" | "arkadaslar" | "yasayan" | "vefat";
-
 interface Props {
   people: Person[];
   onAdd: () => void;
@@ -54,52 +53,107 @@ interface Props {
 const norm = (s: string) =>
   s.toLocaleLowerCase("tr").replace(/ı/g, "i").replace(/[çğöşü]/g, (c) => ({ ç: "c", ğ: "g", ö: "o", ş: "s", ü: "u" }[c] ?? c));
 
+/** Bir sütunun tanımı: başlık, değeri okuma ve (varsa) satır-içi düzenleme. */
+interface Col {
+  key: string;
+  label: string;
+  /** Hem gösterim hem FİLTRE değeri (boş dize = "(boş)"). */
+  get: (p: Person) => string;
+  /** Verilmişse hücre düzenlenebilir; kaydedilecek yamayı üretir. */
+  save?: (v: string) => Record<string, unknown>;
+  kind?: "text" | "gender" | "readonly";
+  wide?: boolean;
+  placeholder?: string;
+}
+
 /**
- * Tablo görünümü — kişileri elektronik tablo gibi listeler, satır-içi düzenleme
- * ve çoktan-seçmeli toplu silme sağlar. Yalnız düzenleyiciler için etkileşimli;
- * izleyicide salt-okunur.
+ * Tablo görünümü — kişileri elektronik tablo gibi listeler, satır-içi düzenleme,
+ * çoktan-seçmeli toplu silme ve **Excel benzeri sütun başlığı filtreleri** sunar.
+ * Her başlıktaki huni simgesine basınca o sütundaki farklı değerler listelenir;
+ * istenen değer(ler) işaretlenerek satırlar süzülür. Yalnız düzenleyiciler için
+ * etkileşimli; izleyicide salt-okunur.
  */
 export default function TableView({ people, onAdd, onChanged }: Props) {
   const t = useT();
   const { lang } = useLang();
   const { readOnly } = useReadOnly();
   const [query, setQuery] = useState("");
-  // #5 — Excel şablon indir + toplu yükle.
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [impBusy, setImpBusy] = useState(false);
-  const [impMsg, setImpMsg] = useState("");
-  const [filter, setFilter] = useState<Filter>("hepsi");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // Cinsiyet <select> sunucu tazelemesini (router.refresh) beklerken donuk
-  // görünmesin diye anlık yerel değer; kayıt arka planda sürer (#18).
+  // Sütun filtreleri: sütun anahtarı → seçili değerler. Anahtar yoksa süzgeç yok.
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [openFilter, setOpenFilter] = useState<string | null>(null);
+  // Cinsiyet <select> sunucu tazelemesini beklerken donuk görünmesin diye
+  // anlık yerel değer; kayıt arka planda sürer.
   const [genderOverride, setGenderOverride] = useState<Record<string, Gender>>({});
+  // Excel şablon indir + toplu yükle.
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [impBusy, setImpBusy] = useState(false);
+  const [impMsg, setImpMsg] = useState("");
 
-  const rows = useMemo(() => {
-    let out = [...people].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
-    out = out.filter((p) => {
-      if (filter === "uyeler" && !isMember(p)) return false;
-      if (filter === "arkadaslar" && !isAssociate(p)) return false;
-      if (filter === "yasayan" && p.deathDate) return false;
-      if (filter === "vefat" && !p.deathDate) return false;
-      return true;
-    });
+  const COLS: Col[] = useMemo(() => {
+    const genderLabel = (g: Gender) => (g === "unknown" ? "—" : t(`form.gender.${g}`));
+    return [
+      { key: "firstName", label: t("table.col.name"), get: (p) => p.firstName ?? "", save: (v) => ({ firstName: v }) },
+      { key: "lastName", label: t("table.col.surname"), get: (p) => p.lastName ?? "", save: (v) => ({ lastName: v }) },
+      { key: "nickname", label: t("form.nickname"), get: (p) => p.nickname ?? "", save: (v) => ({ nickname: v }) },
+      { key: "patronymic", label: t("form.patronymic"), get: (p) => p.patronymic ?? "", save: (v) => ({ patronymic: v }) },
+      { key: "birthDate", label: t("table.col.birth"), get: (p) => storedToDisplay(p.birthDate), placeholder: "YYYY", save: (v) => ({ birthDate: displayToStored(v) }) },
+      { key: "officialBirthDate", label: t("form.field.officialBirthDate"), get: (p) => storedToDisplay(p.officialBirthDate), placeholder: "YYYY", save: (v) => ({ officialBirthDate: displayToStored(v) }) },
+      { key: "deathDate", label: t("table.col.death"), get: (p) => storedToDisplay(p.deathDate), placeholder: "YYYY", save: (v) => ({ deathDate: displayToStored(v) }) },
+      // Kaldırılan çip satırının yerine geçen, süzülebilir türetilmiş sütunlar (#4).
+      { key: "status", label: t("table.col.status"), kind: "readonly", get: (p) => (p.deathDate ? t("list.filter.deceased") : t("list.filter.living")) },
+      { key: "kind", label: t("table.col.kind"), kind: "readonly", get: (p) => (isAssociate(p) ? t("list.filter.friends") : t("list.filter.members")) },
+      { key: "gender", label: t("table.col.gender"), kind: "gender", get: (p) => genderLabel(p.gender) },
+      { key: "birthPlace", label: t("table.col.place"), get: (p) => p.birthPlace ?? "", save: (v) => ({ birthPlace: v }) },
+      { key: "burialPlace", label: t("burial.label"), get: (p) => p.burialPlace ?? "", save: (v) => ({ burialPlace: v }) },
+      { key: "occupation", label: t("drawer.occupation"), get: (p) => p.occupation ?? "", save: (v) => ({ occupation: v }) },
+      { key: "education", label: t("drawer.education"), get: (p) => p.education ?? "", save: (v) => ({ education: v }) },
+      { key: "religion", label: t("drawer.religion"), get: (p) => p.religion ?? "", save: (v) => ({ religion: v }) },
+      { key: "denomination", label: t("drawer.denomination"), get: (p) => p.denomination ?? "", save: (v) => ({ denomination: v }) },
+      { key: "language", label: t("drawer.language"), get: (p) => p.language ?? "", save: (v) => ({ language: v }) },
+      { key: "ethnicity", label: t("drawer.ethnicity"), get: (p) => p.ethnicity ?? "", save: (v) => ({ ethnicity: v }) },
+      { key: "nationality", label: t("drawer.nationality"), get: (p) => p.nationality ?? "", save: (v) => ({ nationality: v }) },
+      { key: "orientation", label: t("form.orientation"), get: (p) => p.orientation ?? "", save: (v) => ({ orientation: v }) },
+      { key: "deathCause", label: t("form.deathCause"), wide: true, get: (p) => p.deathCause ?? "", save: (v) => ({ deathCause: v }) },
+      { key: "congenitalCondition", label: t("form.congenital"), wide: true, get: (p) => p.congenitalCondition ?? "", save: (v) => ({ congenitalCondition: v }) },
+      { key: "healthCondition", label: t("form.health"), wide: true, get: (p) => p.healthCondition ?? "", save: (v) => ({ healthCondition: v }) },
+      { key: "bio", label: t("form.bio"), wide: true, get: (p) => p.bio ?? "", save: (v) => ({ bio: v }) },
+      { key: "entrySource", label: t("drawer.entrySource"), kind: "readonly", get: (p) => (p.entrySource ? entrySourceLabel(p.entrySource, t) : "") },
+    ];
+  }, [t]);
+
+  const colByKey = useMemo(() => new Map(COLS.map((c) => [c.key, c])), [COLS]);
+
+  /** Arama sorgusuna göre süz (sütun süzgeçleri hariç). */
+  const searched = useMemo(() => {
+    const base = [...people].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
     const q = norm(query.trim());
-    if (!q) return out;
-    return out.filter((p) =>
+    if (!q) return base;
+    return base.filter((p) =>
       norm([fullName(p), p.birthDate ?? "", p.deathDate ?? "", p.birthPlace ?? "", p.code ?? ""].join(" ")).includes(q)
     );
-  }, [people, query, filter]);
+  }, [people, query]);
 
-  const FILTERS: Array<{ k: Filter; l: string }> = [
-    { k: "hepsi", l: t("list.filter.all") },
-    { k: "uyeler", l: t("list.filter.members") },
-    { k: "arkadaslar", l: t("list.filter.friends") },
-    { k: "yasayan", l: t("list.filter.living") },
-    { k: "vefat", l: t("list.filter.deceased") },
-  ];
+  /** Bir sütun HARİÇ tüm süzgeçleri uygula (Excel'de olduğu gibi: bir sütunun
+   *  seçenek listesi kendi süzgecinden etkilenmez). */
+  const applyFilters = useMemo(
+    () => (list: Person[], exceptKey?: string) =>
+      list.filter((p) =>
+        Object.entries(filters).every(([k, vals]) => {
+          if (k === exceptKey || !vals.length) return true;
+          const col = colByKey.get(k);
+          return col ? vals.includes(col.get(p)) : true;
+        })
+      ),
+    [filters, colByKey]
+  );
+
+  const rows = useMemo(() => applyFilters(searched), [applyFilters, searched]);
+
+  const activeFilterCount = Object.values(filters).filter((v) => v.length).length;
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -171,7 +225,6 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       ws["!cols"] = header.map(() => ({ wch: 14 }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, t("table.tpl.sheetName"));
-      // Açıklama sayfası
       const info = XLSX.utils.aoa_to_sheet(
         t("table.tpl.infoBody").split("\n").map((line) => [line])
       );
@@ -217,7 +270,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
   return (
     <div className="h-full flex flex-col">
       {/* Araç çubuğu */}
-      <div className="shrink-0 border-b border-border bg-bg-elevated/60 px-4 sm:px-6 py-3 space-y-3">
+      <div className="shrink-0 border-b border-border bg-bg-elevated/60 px-4 sm:px-6 py-3 space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
           <input
             value={query}
@@ -230,7 +283,6 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               + {t("common.addPerson")}
             </Button>
           )}
-          {/* #5 — Excel şablon indir + toplu yükle */}
           {!readOnly && (
             <>
               <button
@@ -269,22 +321,28 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
         </div>
         {impMsg && <p className="text-xs text-text-muted">{impMsg}</p>}
 
-        {/* Süzgeç çipleri */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTERS.map((f) => (
-            <button
-              key={f.k}
-              onClick={() => setFilter(f.k)}
-              className={`h-7 px-2.5 rounded-lg text-xs font-medium transition-colors ${
-                filter === f.k
-                  ? "bg-primary text-primary-text"
-                  : "bg-surface border border-border text-text-muted hover:text-text"
-              }`}
-            >
-              {f.l}
+        {/* Etkin sütun süzgeçleri — özet + temizle */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-text-muted">
+              {t("table.filter.active", { count: activeFilterCount })}
+            </span>
+            {Object.entries(filters).filter(([, v]) => v.length).map(([k, v]) => (
+              <button
+                key={k}
+                onClick={() => setFilters((f) => { const n = { ...f }; delete n[k]; return n; })}
+                className="h-7 px-2.5 rounded-lg bg-primary-soft border border-primary/30 text-primary text-[11px] font-medium inline-flex items-center gap-1.5 hover:brightness-105"
+              >
+                {colByKey.get(k)?.label ?? k}
+                <span className="tabular-nums opacity-70">{v.length}</span>
+                <span aria-hidden>✕</span>
+              </button>
+            ))}
+            <button onClick={() => setFilters({})} className="text-[11px] text-text-subtle hover:text-text">
+              {t("table.filter.clearAll")}
             </button>
-          ))}
-        </div>
+          </div>
+        )}
 
         {/* Seçim + toplu silme */}
         {!readOnly && selected.size > 0 && (
@@ -325,30 +383,27 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                   <input type="checkbox" checked={allShownSelected} onChange={toggleAll} aria-label={t("table.selectAll")} />
                 </th>
               )}
-              <th className="px-3 py-2 font-medium">{t("table.col.name")}</th>
-              <th className="px-3 py-2 font-medium">{t("table.col.surname")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.nickname")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.patronymic")}</th>
-              <th className="px-3 py-2 font-medium">{t("table.col.birth")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.field.officialBirthDate")}</th>
-              <th className="px-3 py-2 font-medium">{t("table.col.death")}</th>
-              <th className="px-3 py-2 font-medium">{t("table.col.gender")}</th>
-              <th className="px-3 py-2 font-medium">{t("table.col.place")}</th>
-              <th className="px-3 py-2 font-medium">{t("burial.label")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.occupation")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.education")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.religion")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.denomination")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.language")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.ethnicity")}</th>
-              <th className="px-3 py-2 font-medium">{t("drawer.nationality")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.orientation")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.deathCause")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.congenital")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.health")}</th>
-              <th className="px-3 py-2 font-medium">{t("form.bio")}</th>
-              {/* #1 — Kaynak (ekleniş): kartın nasıl eklendiği; salt-okunur. */}
-              <th className="px-3 py-2 font-medium">{t("drawer.entrySource")}</th>
+              {COLS.map((c) => (
+                <th key={c.key} className="px-3 py-2 font-medium whitespace-nowrap">
+                  <HeaderFilter
+                    col={c}
+                    values={applyFilters(searched, c.key).map((p) => c.get(p))}
+                    selectedValues={filters[c.key] ?? []}
+                    open={openFilter === c.key}
+                    onToggleOpen={() => setOpenFilter((k) => (k === c.key ? null : c.key))}
+                    onClose={() => setOpenFilter(null)}
+                    onApply={(vals) =>
+                      setFilters((f) => {
+                        const n = { ...f };
+                        if (vals.length) n[c.key] = vals;
+                        else delete n[c.key];
+                        return n;
+                      })
+                    }
+                    t={t}
+                  />
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -359,78 +414,238 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                     <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={fullName(p)} />
                   </td>
                 )}
-                <Cell readOnly={readOnly} defaultValue={p.firstName} onSave={(v) => saveField(p.id, { firstName: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.lastName} onSave={(v) => saveField(p.id, { lastName: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.nickname ?? ""} onSave={(v) => saveField(p.id, { nickname: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.patronymic ?? ""} onSave={(v) => saveField(p.id, { patronymic: v })} />
-                <Cell
-                  readOnly={readOnly}
-                  defaultValue={storedToDisplay(p.birthDate)}
-                  placeholder="YYYY"
-                  onSave={(v) => saveField(p.id, { birthDate: displayToStored(v) })}
-                />
-                <Cell
-                  readOnly={readOnly}
-                  defaultValue={storedToDisplay(p.officialBirthDate)}
-                  placeholder="YYYY"
-                  onSave={(v) => saveField(p.id, { officialBirthDate: displayToStored(v) })}
-                />
-                <Cell
-                  readOnly={readOnly}
-                  defaultValue={storedToDisplay(p.deathDate)}
-                  placeholder="YYYY"
-                  onSave={(v) => saveField(p.id, { deathDate: displayToStored(v) })}
-                />
-                <td className="px-2 py-1.5">
-                  {readOnly ? (
-                    <span className="text-text-muted">{p.gender !== "unknown" ? t(`form.gender.${p.gender}`) : "—"}</span>
-                  ) : (
-                    <select
-                      value={genderOverride[p.id] ?? p.gender}
-                      onChange={(e) => {
-                        const g = e.target.value as Gender;
-                        setGenderOverride((m) => ({ ...m, [p.id]: g }));
-                        saveField(p.id, { gender: g });
-                      }}
-                      className="h-8 px-1.5 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none cursor-pointer"
-                    >
-                      <option value="male">{t("form.gender.male")}</option>
-                      <option value="female">{t("form.gender.female")}</option>
-                      <option value="other">{t("form.gender.other")}</option>
-                      {/* "Bilinmiyor" artık seçilemez; yalnız eski kayıt bozulmasın diye tutulur */}
-                      {p.gender === "unknown" && <option value="unknown">—</option>}
-                    </select>
-                  )}
-                </td>
-                <Cell readOnly={readOnly} defaultValue={p.birthPlace ?? ""} onSave={(v) => saveField(p.id, { birthPlace: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.burialPlace ?? ""} onSave={(v) => saveField(p.id, { burialPlace: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.occupation ?? ""} onSave={(v) => saveField(p.id, { occupation: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.education ?? ""} onSave={(v) => saveField(p.id, { education: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.religion ?? ""} onSave={(v) => saveField(p.id, { religion: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.denomination ?? ""} onSave={(v) => saveField(p.id, { denomination: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.language ?? ""} onSave={(v) => saveField(p.id, { language: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.ethnicity ?? ""} onSave={(v) => saveField(p.id, { ethnicity: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.nationality ?? ""} onSave={(v) => saveField(p.id, { nationality: v })} />
-                <Cell readOnly={readOnly} defaultValue={p.orientation ?? ""} onSave={(v) => saveField(p.id, { orientation: v })} />
-                <Cell wide readOnly={readOnly} defaultValue={p.deathCause ?? ""} onSave={(v) => saveField(p.id, { deathCause: v })} />
-                <Cell wide readOnly={readOnly} defaultValue={p.congenitalCondition ?? ""} onSave={(v) => saveField(p.id, { congenitalCondition: v })} />
-                <Cell wide readOnly={readOnly} defaultValue={p.healthCondition ?? ""} onSave={(v) => saveField(p.id, { healthCondition: v })} />
-                <Cell wide readOnly={readOnly} defaultValue={p.bio ?? ""} onSave={(v) => saveField(p.id, { bio: v })} />
-                {/* Kaynak — salt-okunur; kartın nasıl eklendiğini gösterir (#1). */}
-                <td className="px-3 py-1.5 whitespace-nowrap text-text-muted">
-                  {p.entrySource ? entrySourceLabel(p.entrySource, t) : <span className="text-text-subtle">—</span>}
-                </td>
+                {COLS.map((c) => {
+                  if (c.kind === "gender") {
+                    return (
+                      <td key={c.key} className="px-2 py-1.5">
+                        {readOnly ? (
+                          <span className="text-text-muted">{c.get(p)}</span>
+                        ) : (
+                          <select
+                            value={genderOverride[p.id] ?? p.gender}
+                            onChange={(e) => {
+                              const g = e.target.value as Gender;
+                              setGenderOverride((m) => ({ ...m, [p.id]: g }));
+                              saveField(p.id, { gender: g });
+                            }}
+                            className="h-8 px-1.5 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none cursor-pointer"
+                          >
+                            <option value="male">{t("form.gender.male")}</option>
+                            <option value="female">{t("form.gender.female")}</option>
+                            <option value="other">{t("form.gender.other")}</option>
+                            {/* "Bilinmiyor" artık seçilemez; yalnız eski kayıt bozulmasın diye tutulur */}
+                            {p.gender === "unknown" && <option value="unknown">—</option>}
+                          </select>
+                        )}
+                      </td>
+                    );
+                  }
+                  const save = c.save;
+                  if (c.kind === "readonly" || !save) {
+                    const v = c.get(p);
+                    return (
+                      <td key={c.key} className="px-3 py-1.5 whitespace-nowrap text-text-muted">
+                        {v || <span className="text-text-subtle">—</span>}
+                      </td>
+                    );
+                  }
+                  return (
+                    <Cell
+                      key={c.key}
+                      readOnly={readOnly}
+                      defaultValue={c.get(p)}
+                      placeholder={c.placeholder}
+                      wide={c.wide}
+                      onSave={(v) => saveField(p.id, save(v))}
+                    />
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
         {rows.length === 0 && (
-          <p className="text-center text-sm text-text-muted py-12">{query ? t("table.noMatch") : t("table.empty")}</p>
+          <p className="text-center text-sm text-text-muted py-12">
+            {query || activeFilterCount ? t("table.noMatch") : t("table.empty")}
+          </p>
         )}
       </div>
     </div>
   );
 }
+
+/**
+ * Sütun başlığı + Excel benzeri süzgeç açılır penceresi. Pencere `body`'ye
+ * portallanır ve düğmenin ekran konumuna göre yerleştirilir; böylece tablonun
+ * kaydırma kutusu tarafından kırpılmaz.
+ */
+function HeaderFilter({
+  col, values, selectedValues, open, onToggleOpen, onClose, onApply, t,
+}: {
+  col: Col;
+  values: string[];
+  selectedValues: string[];
+  open: boolean;
+  onToggleOpen: () => void;
+  onClose: () => void;
+  onApply: (vals: string[]) => void;
+  t: TFunction;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // Panelin konumu, düğmeye BASILDIĞI anda ölçülür (olay işleyicisinde) ve
+  // düz veri olarak aktarılır; böylece render sırasında ref okunmaz.
+  const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null);
+  const active = selectedValues.length > 0;
+
+  const handleClick = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    setAnchor(r ? { left: r.left, bottom: r.bottom } : null);
+    onToggleOpen();
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      {col.label}
+      <button
+        ref={btnRef}
+        onClick={handleClick}
+        aria-label={t("table.filter.aria", { col: col.label })}
+        aria-expanded={open}
+        className={`shrink-0 w-5 h-5 grid place-items-center rounded transition-colors ${
+          active ? "text-primary bg-primary-soft" : "text-text-subtle hover:text-text hover:bg-surface-2"
+        }`}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Panel YALNIZ açıkken monte edilir; böylece taslak seçim ve konum
+          ilk durumdan (lazy useState) okunur — efekt içinde setState gerekmez. */}
+      {open && anchor && (
+        <FilterPopover
+          anchor={anchor}
+          values={values}
+          selectedValues={selectedValues}
+          onClose={onClose}
+          onApply={onApply}
+          t={t}
+        />
+      )}
+    </span>
+  );
+}
+
+/** Süzgeç paneli — `body`'ye portallanır, düğmenin ekran konumuna yerleşir;
+ *  böylece tablonun kaydırma kutusu tarafından kırpılmaz. */
+function FilterPopover({
+  anchor, values, selectedValues, onClose, onApply, t,
+}: {
+  anchor: { left: number; bottom: number };
+  values: string[];
+  selectedValues: string[];
+  onClose: () => void;
+  onApply: (vals: string[]) => void;
+  t: TFunction;
+}) {
+  const WIDTH = 248;
+  const [pos] = useState(() => ({
+    left: Math.min(Math.max(8, anchor.left), Math.max(8, window.innerWidth - WIDTH - 8)),
+    top: anchor.bottom + 4,
+  }));
+  const [q, setQ] = useState("");
+  const [draft, setDraft] = useState<Set<string>>(() => new Set(selectedValues));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const BLANK = t("table.filter.blank");
+  // Değerler her render'da YENİ dizi olur; bağımlılık olarak kimliği değil
+  // içeriği kullan (ayraç olarak veride bulunmayan bir kontrol karakteri).
+  const valuesKey = values.join("\u0001");
+  const distinct = useMemo(() => {
+    const set = new Set(values.map((v) => v.trim() || BLANK));
+    const coll = new Intl.Collator("tr", { numeric: true });
+    return [...set].sort((a, b) => (a === BLANK ? 1 : b === BLANK ? -1 : coll.compare(a, b)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valuesKey, BLANK]);
+
+  const shown = useMemo(() => {
+    const s = norm(q.trim());
+    return s ? distinct.filter((v) => norm(v).includes(s)) : distinct;
+  }, [distinct, q]);
+
+  /** "(boş)" etiketi gerçek veride boş dizeye karşılık gelir. */
+  const toStored = (v: string) => (v === BLANK ? "" : v);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[60]" onClick={onClose} aria-hidden />
+      <div
+        className="fixed z-[61] rounded-xl border border-border bg-bg-elevated shadow-float p-2 animate-scale-in origin-top-left"
+        style={{ left: pos.left, top: pos.top, width: WIDTH }}
+      >
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("table.filter.search")}
+          className="w-full h-8 px-2.5 mb-1.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+        />
+        <div className="flex items-center justify-between px-1 pb-1.5 text-[11px]">
+          <button onClick={() => setDraft(new Set(shown.map(toStored)))} className="text-primary hover:underline">
+            {t("table.filter.selectAll")}
+          </button>
+          <button onClick={() => setDraft(new Set())} className="text-text-subtle hover:text-text">
+            {t("table.filter.clear")}
+          </button>
+        </div>
+        <ul className="max-h-56 overflow-y-auto space-y-0.5">
+          {shown.map((v) => {
+            const sv = toStored(v);
+            return (
+              <li key={v}>
+                <label className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-surface-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={draft.has(sv)}
+                    onChange={() =>
+                      setDraft((prev) => {
+                        const n = new Set(prev);
+                        if (n.has(sv)) n.delete(sv); else n.add(sv);
+                        return n;
+                      })
+                    }
+                    className="shrink-0 accent-[var(--primary)]"
+                  />
+                  <span className={`text-xs truncate ${v === BLANK ? "text-text-subtle italic" : "text-text"}`}>{v}</span>
+                </label>
+              </li>
+            );
+          })}
+          {shown.length === 0 && (
+            <li className="text-[11px] text-text-subtle px-1.5 py-2 text-center">{t("table.noMatch")}</li>
+          )}
+        </ul>
+        <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-border">
+          <Button size="sm" onClick={() => { onApply([...draft]); onClose(); }} className="flex-1">
+            {t("table.filter.apply")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            {t("table.cancel")}
+          </Button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
 
 /** Satır-içi düzenlenebilir metin hücresi — değişiklikte (blur/Enter) kaydeder. */
 function Cell({

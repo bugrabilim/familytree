@@ -195,7 +195,7 @@ export default function PrintView({ people, allPeople, familyName, coverPhoto, o
             <img
               src={coverPhoto}
               alt=""
-              className="print-cover-photo w-full max-w-lg max-h-[45vh] object-contain rounded-lg mb-8"
+              className="print-cover-photo w-auto max-w-full max-h-[45vh] object-contain rounded-lg mb-8"
             />
           ) : (
             <p className="text-6xl mb-6">🌳</p>

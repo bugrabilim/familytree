@@ -1027,10 +1027,12 @@ function GenderPie({
     female: t("panel.gender.female"),
     male: t("panel.gender.male"),
     other: t("panel.gender.other"),
-    unknown: t("panel.gender.unknown"),
+    // Cinsiyeti hiç seçilmemiş kayıtlar. Bunlar "Diğer"den AYRI bir kovadır;
+    // eskiden hiç gösterilmiyordu, bu yüzden "Diğer"i seçen kullanıcı onları
+    // bulamıyordu. Artık listelenir ve tıklanınca düzeltilebilirler (#1).
+    unknown: t("panel.gender.unset"),
   };
-  // "Bilinmiyor" bir cinsiyet olarak gösterilmez (yalnız kadın/erkek/diğer).
-  const data = (["female", "male", "other"] as Gender[])
+  const data = (["female", "male", "other", "unknown"] as Gender[])
     .map((g) => ({ g, v: counts[g] ?? 0, label: LABELS[g] }))
     .filter((d) => d.v > 0);
   const total = data.reduce((s, d) => s + d.v, 0);

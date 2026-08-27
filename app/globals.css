@@ -7,6 +7,9 @@
    Light: parchment / cream.  Dark: deep forest night.
    --------------------------------------------------------------- */
 :root {
+  /* Üst barın gerçek yüksekliği — TopBar bunu ResizeObserver ile günceller.
+     Sağdaki detay paneli buna göre konumlanır (bkz. PersonDrawer). */
+  --app-header-h: 56px;
   --bg: #f7f6f2;
   --bg-elevated: #ffffff;
   --surface: #ffffff;

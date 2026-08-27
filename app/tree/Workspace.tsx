@@ -842,7 +842,7 @@ function TreeDepthControl({
   ];
 
   return (
-    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-wrap lg:flex-nowrap items-center gap-1.5 gap-y-1 min-h-9 py-1 lg:py-0 lg:h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-wrap lg:flex-nowrap items-center gap-1.5 gap-y-1 min-h-9 py-1 lg:py-0 lg:h-9 pl-1.5 pr-12 lg:pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
       {focusPerson && (
         <button
           onClick={onGoToFocus}
