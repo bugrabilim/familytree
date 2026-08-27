@@ -25,7 +25,7 @@ export async function POST() {
 
   const people: Person[] = buildStarterTree();
   for (let i = 0; i < people.length; i++) {
-    people[i] = { ...people[i], code: nextCode(people.slice(0, i)) };
+    people[i] = { ...people[i], code: nextCode(people.slice(0, i)), entrySource: "iskelet" };
   }
 
   await saveFamilyData(ctx.treeId, { people, updatedAt: new Date().toISOString() });

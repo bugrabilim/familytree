@@ -37,7 +37,7 @@ import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
-import { useT } from "@/lib/i18n";
+import { useT, type TFunction } from "@/lib/i18n";
 
 interface Props {
   person: Person;
@@ -690,6 +690,13 @@ export default function PersonDrawer({
                 : undefined
             }
           />
+
+          {/* #6 — Köken/iz: bu kart nasıl/hangi yöntemle eklendi? */}
+          {person.entrySource && (
+            <p className="pt-1 text-[11px] text-text-subtle">
+              {t("drawer.entrySource")}: {entrySourceLabel(person.entrySource, t)}
+            </p>
+          )}
         </div>
       </aside>
 
@@ -753,6 +760,28 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
       />
     </div>
   );
+}
+
+/** Köken/iz etiketini okunur biçime çevirir ("ai: nufus.pdf" → "Yapay zekâ ile ·
+ *  nufus.pdf"). Bilinmeyen değer olduğu gibi gösterilir. */
+function entrySourceLabel(src: string, t: TFunction): string {
+  const s = src.trim();
+  const rest = (sep: string) => {
+    const i = s.indexOf(sep);
+    return i >= 0 ? s.slice(i + sep.length).trim() : "";
+  };
+  if (/^ai\b/i.test(s)) {
+    const file = rest(":");
+    return file ? `${t("entrySource.ai")} · ${file}` : t("entrySource.ai");
+  }
+  if (s === "manuel") return t("entrySource.manuel");
+  if (s === "iskelet") return t("entrySource.iskelet");
+  if (s.startsWith("içe aktarma")) {
+    const fmt = rest(":");
+    return fmt ? `${t("entrySource.import")} · ${fmt}` : t("entrySource.import");
+  }
+  if (s === "pair" || s === "davet") return t("entrySource.pair");
+  return s;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {

@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (e as Error).message || "Dosya okunamadı" }, { status: 400 });
   }
 
+  // #6 — Köken/iz: içe aktarılan kartlara hangi biçimden geldiğini işle.
+  imported = imported.map((p) => ({ ...p, entrySource: p.entrySource ?? `içe aktarma: ${format}` }));
+
   if (mode === "replace") {
     await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
   } else {

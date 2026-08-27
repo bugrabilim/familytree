@@ -4,7 +4,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
 import { rateLimit } from "@/lib/rate-limit";
-import { buildExtractPrompt, buildExtractSystem, parseExtractedJson } from "@/lib/ai-extract";
+import { buildExtractPrompt, buildExtractSystem, buildRetryPrompt, parseExtractedJson } from "@/lib/ai-extract";
 import { xlsxToText, docxToText } from "@/lib/office-extract";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
@@ -103,9 +103,19 @@ export async function POST(req: NextRequest) {
     const out = await geminiGenerateParts(
       [{ text: buildExtractPrompt(lang) }, part],
       buildExtractSystem(lang),
-      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 55000, retries: 0 }
+      { temperature: 0.2, maxOutputTokens: 8192, timeoutMs: 50000, retries: 1 }
     );
     imported = parseExtractedJson(out);
+    // İlk deneme boş döndüyse (zor/soluk belge), daha ısrarlı ikinci bir geçiş
+    // dene — model bazen ilk turda "kişi yok" deyip geçebiliyor.
+    if (imported.length === 0) {
+      const retry = await geminiGenerateParts(
+        [{ text: buildRetryPrompt(lang) }, part],
+        buildExtractSystem(lang),
+        { temperature: 0.35, maxOutputTokens: 8192, timeoutMs: 45000, retries: 0 }
+      );
+      imported = parseExtractedJson(retry);
+    }
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message || "AI hatası" }, { status: 502 });
   }
@@ -117,12 +127,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // #6 — Köken/iz: bu kartlar YZ ile bu dosyadan çıkarıldı. Dosya adını kısaca
+  // ekle ("ai: nufus.pdf") ki kullanıcı sonradan nereden geldiğini görebilsin.
+  const srcName = (file.name || "").slice(0, 60);
+  const stamped = imported.map((p) => ({ ...p, entrySource: srcName ? `ai: ${srcName}` : "ai" }));
+
   if (mode === "replace") {
-    await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
+    await saveFamilyData(ctx.treeId, { people: ensureCodes(stamped), updatedAt: new Date().toISOString() });
   } else {
     const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
     await saveFamilyData(ctx.treeId, {
-      people: ensureCodes([...existing, ...imported]),
+      people: ensureCodes([...existing, ...stamped]),
       updatedAt: new Date().toISOString(),
     });
   }

@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
     parentLinks: body.parentLinks && typeof body.parentLinks === "object" ? body.parentLinks : undefined,
     spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
     formerSpouseIds: Array.isArray(body.formerSpouseIds) ? [...body.formerSpouseIds] : [],
+    // #6 — Köken/iz: elle eklenen kart (istemci başka bir kaynak bildirmediyse).
+    entrySource: typeof body.entrySource === "string" && body.entrySource.trim() ? body.entrySource.trim() : "manuel",
   };
 
   /* ---- İlişki bağlama: "X'in babası/çocuğu/eşi/kardeşi olarak ekle" ---- */
