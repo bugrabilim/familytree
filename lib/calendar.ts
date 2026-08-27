@@ -39,17 +39,14 @@ function icsEscape(s: string): string {
   return (s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 }
 
-/** Tüm-gün (isteğe bağlı yıllık) bir olay için .ics dosya içeriği. */
-export function buildICS(ev: CalEvent): string {
+/** Tek bir VEVENT bloğu (VCALENDAR sarmalayıcısı olmadan). */
+function veventLines(ev: CalEvent): string[] {
   const start = compactDate(ev.date);
   const end = nextDayCompact(ev.date);
+  if (!start || !end) return [];
   const uid = `${start}-${Math.random().toString(36).slice(2, 10)}@soyagaci`;
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//SoyAgaci//TR//",
-    "CALSCALE:GREGORIAN",
+  return [
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${stamp}`,
@@ -59,9 +56,26 @@ export function buildICS(ev: CalEvent): string {
     `SUMMARY:${icsEscape(ev.title)}`,
     ...(ev.description ? [`DESCRIPTION:${icsEscape(ev.description)}`] : []),
     "END:VEVENT",
-    "END:VCALENDAR",
   ];
-  return lines.join("\r\n");
+}
+
+/** Tüm-gün (isteğe bağlı yıllık) bir olay için .ics dosya içeriği. */
+export function buildICS(ev: CalEvent): string {
+  return buildICSMulti([ev]);
+}
+
+/** Birden çok olay için tek .ics — herkesin/seçilenlerin doğum günlerini dışa
+ *  aktarmak için (iOS/Apple/Outlook tek dosyayla içe alır). */
+export function buildICSMulti(events: CalEvent[]): string {
+  const body = events.flatMap((ev) => veventLines(ev));
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//SoyAgaci//TR//",
+    "CALSCALE:GREGORIAN",
+    ...body,
+    "END:VCALENDAR",
+  ].join("\r\n");
 }
 
 const enc = encodeURIComponent;
