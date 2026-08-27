@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import TreeSwitcher from "./TreeSwitcher";
+import AboutDialog from "./AboutDialog";
 import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
 import type { TreeMeta } from "@/lib/trees";
@@ -130,10 +131,12 @@ export default function TopBar({
   const router = useRouter();
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
 
   return (
+    <>
     <header className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
       <div className="h-14 px-3 sm:px-4 flex items-center gap-2 sm:gap-3">
         {/* Marka */}
@@ -253,6 +256,13 @@ export default function TopBar({
                     onClick={async () => { setMenuOpen(false); await signOut({ redirect: false }); router.push("/"); }}
                     icon={<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />}
                   />
+                  {/* #2 — "Hakkında" en altta */}
+                  <div className="h-px bg-border my-1" />
+                  <MenuBtn
+                    label={t("about.nav")}
+                    onClick={() => { setMenuOpen(false); setAboutOpen(true); }}
+                    icon={<><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" /><path d="M12 11v5M12 8h.01" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" /></>}
+                  />
                 </div>
               </>
             )}
@@ -273,6 +283,8 @@ export default function TopBar({
         </nav>
       </div>
     </header>
+    {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+    </>
   );
 }
 

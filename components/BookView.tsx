@@ -677,9 +677,10 @@ function CoverPage({ title, yearRange, count, generations, coverPhoto, t }: { ti
   if (coverPhoto) {
     return (
       <div className="h-full w-full flex flex-col items-stretch text-center">
-        <div className="w-full h-[58%] overflow-hidden shrink-0">
+        <div className="w-full h-[58%] overflow-hidden shrink-0 flex items-center justify-center bg-black/5">
+          {/* object-contain: fotoğraf yatay+dikey tam sığar, taşmaz/kırpılmaz (#1). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverPhoto} alt="" className="w-full h-full object-cover" />
+          <img src={coverPhoto} alt="" className="max-w-full max-h-full w-auto h-auto object-contain" />
         </div>
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-6">
           <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-3">{title}</h1>

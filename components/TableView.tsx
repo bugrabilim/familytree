@@ -1,13 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Person, Gender } from "@/types/family";
 import { storedToDisplay, displayToStored } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
 import { useReadOnly } from "./ReadOnlyContext";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
 import Button from "./ui/Button";
+
+/** Şablon sütunları — başlıklar içe-aktarma eş-adlarıyla uyumlu (lib/import.ts).
+ *  Örnek satırlar "Kimlik" ile baba/anne/eş bağını nasıl kuracağını gösterir. */
+const TPL_COLUMNS = [
+  { tr: "Kimlik", en: "ID" },
+  { tr: "Ad", en: "First name" },
+  { tr: "Soyad", en: "Last name" },
+  { tr: "Cinsiyet", en: "Gender" },
+  { tr: "Doğum", en: "Birth" },
+  { tr: "Ölüm", en: "Death" },
+  { tr: "Doğum Yeri", en: "Birth place" },
+  { tr: "Meslek", en: "Occupation" },
+  { tr: "Lakap", en: "Nickname" },
+  { tr: "Baba Adı", en: "Patronymic" },
+  { tr: "Baba", en: "Father" },
+  { tr: "Anne", en: "Mother" },
+  { tr: "Eş", en: "Spouse" },
+  { tr: "Not", en: "Note" },
+] as const;
+
+const TPL_EXAMPLES: Record<"tr" | "en", string[][]> = {
+  tr: [
+    ["1", "Ahmet", "Yılmaz", "erkek", "1950", "2010", "Ankara", "Öğretmen", "", "", "", "", "2", ""],
+    ["2", "Ayşe", "Yılmaz", "kadın", "1955", "", "İzmir", "", "", "", "", "", "1", ""],
+    ["3", "Mehmet", "Yılmaz", "erkek", "1980", "", "Ankara", "Mühendis", "", "", "1", "2", "", ""],
+  ],
+  en: [
+    ["1", "Ahmet", "Yilmaz", "male", "1950", "2010", "Ankara", "Teacher", "", "", "", "", "2", ""],
+    ["2", "Ayse", "Yilmaz", "female", "1955", "", "Izmir", "", "", "", "", "", "1", ""],
+    ["3", "Mehmet", "Yilmaz", "male", "1980", "", "Ankara", "Engineer", "", "", "1", "2", "", ""],
+  ],
+};
 
 type Filter = "hepsi" | "uyeler" | "arkadaslar" | "yasayan" | "vefat";
 
@@ -28,8 +60,13 @@ const norm = (s: string) =>
  */
 export default function TableView({ people, onAdd, onChanged }: Props) {
   const t = useT();
+  const { lang } = useLang();
   const { readOnly } = useReadOnly();
   const [query, setQuery] = useState("");
+  // #5 — Excel şablon indir + toplu yükle.
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [impBusy, setImpBusy] = useState(false);
+  const [impMsg, setImpMsg] = useState("");
   const [filter, setFilter] = useState<Filter>("hepsi");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = useState(false);
@@ -121,6 +158,61 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
     }
   };
 
+  // Şablonu (.xlsx) SheetJS ile üret ve indir. xlsx yalnız gerekince yüklenir.
+  const downloadTemplate = async () => {
+    setImpMsg("");
+    try {
+      const XLSX = await import("xlsx");
+      const L = lang === "en" ? "en" : "tr";
+      const header = TPL_COLUMNS.map((c) => c[L]);
+      const aoa = [header, ...TPL_EXAMPLES[L]];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = header.map(() => ({ wch: 14 }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, t("table.tpl.sheetName"));
+      // Açıklama sayfası
+      const info = XLSX.utils.aoa_to_sheet(
+        t("table.tpl.infoBody").split("\n").map((line) => [line])
+      );
+      info["!cols"] = [{ wch: 90 }];
+      XLSX.utils.book_append_sheet(wb, info, t("table.tpl.infoSheet"));
+      XLSX.writeFile(wb, "soyagaci-sablon.xlsx");
+    } catch {
+      setImpMsg(t("table.tpl.importFailed"));
+    }
+  };
+
+  // Excel/CSV yükle: Excel'i istemcide CSV'ye çevirip mevcut içe-aktarma ucuna
+  // gönder (sunucu CSV'yi zaten anlıyor). Yeni kişiler mevcutlara eklenir.
+  const handleFile = async (file: File) => {
+    setImpBusy(true);
+    setImpMsg("");
+    try {
+      let csv: string;
+      if (/\.csv$/i.test(file.name) || file.type === "text/csv") {
+        csv = await file.text();
+      } else {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        csv = XLSX.utils.sheet_to_csv(ws);
+      }
+      const fd = new FormData();
+      fd.append("file", new Blob([csv], { type: "text/csv" }), "toplu-yukleme.csv");
+      fd.append("mode", "merge");
+      const res = await fetch("/api/family/import", { method: "POST", body: fd });
+      const d = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(d?.error ?? t("table.tpl.importFailed"));
+      setImpMsg(t("table.tpl.imported", { count: d?.count ?? 0 }));
+      onChanged();
+    } catch (e) {
+      setImpMsg((e as Error).message || t("table.tpl.importFailed"));
+    } finally {
+      setImpBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Araç çubuğu */}
@@ -137,10 +229,44 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               + {t("common.addPerson")}
             </Button>
           )}
+          {/* #5 — Excel şablon indir + toplu yükle */}
+          {!readOnly && (
+            <>
+              <button
+                onClick={downloadTemplate}
+                title={t("table.tpl.downloadHint")}
+                className="shrink-0 h-9 px-2.5 rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:border-border-strong text-xs font-medium flex items-center gap-1.5 transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M12 3v11m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="hidden sm:inline">{t("table.tpl.download")}</span>
+              </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={impBusy}
+                title={t("table.tpl.uploadHint")}
+                className="shrink-0 h-9 px-2.5 rounded-xl border border-primary/30 bg-primary-soft text-primary hover:brightness-105 text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M12 16V5m0 0L8 9m4-4l4 4M5 21h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="hidden sm:inline">{impBusy ? t("table.tpl.importing") : t("table.tpl.upload")}</span>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              />
+            </>
+          )}
           <span className="ml-auto text-xs text-text-subtle tabular-nums">
             {t("common.peopleCount", { count: rows.length })}
           </span>
         </div>
+        {impMsg && <p className="text-xs text-text-muted">{impMsg}</p>}
 
         {/* Süzgeç çipleri */}
         <div className="flex items-center gap-1.5 flex-wrap">

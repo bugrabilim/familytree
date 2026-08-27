@@ -30,6 +30,8 @@ interface Props {
   /** TÜM kişiler (üye + çevre) — "Yakınları" bağlarını çözmek için. */
   allPeople?: Person[];
   familyName?: string;
+  /** Aile kitabı kapak fotoğrafı — yazdırma kapağında da görünsün (#1). */
+  coverPhoto?: string;
   onClose: () => void;
 }
 
@@ -41,7 +43,7 @@ interface Props {
  * yalnızca `.print-root` basılır. Gizlilik: maskeli kopya (`view`) kullanılır —
  * gizli yaşayan kişilerin tarih/foto/hikâyesi sızmaz (maskeli kopyada foto yok).
  */
-export default function PrintView({ people, allPeople, familyName, onClose }: Props) {
+export default function PrintView({ people, allPeople, familyName, coverPhoto, onClose }: Props) {
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
@@ -188,7 +190,16 @@ export default function PrintView({ people, allPeople, familyName, onClose }: Pr
       <div className="print-page mx-auto my-6 print:my-0 max-w-3xl bg-white text-black shadow-lg print:shadow-none px-8 sm:px-14 py-14 print:py-0 print:px-0 font-serif">
         {/* — Kapak sayfası — */}
         <header className="print-cover flex min-h-[70vh] print:min-h-screen flex-col items-center justify-center text-center">
-          <p className="text-6xl mb-6">🌳</p>
+          {coverPhoto ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={coverPhoto}
+              alt=""
+              className="print-cover-photo w-full max-w-lg max-h-[45vh] object-contain rounded-lg mb-8"
+            />
+          ) : (
+            <p className="text-6xl mb-6">🌳</p>
+          )}
           <h1 className="text-4xl font-bold leading-tight mb-3">
             {familyName ? t("print.bookTitleNamed", { name: familyName }) : t("print.bookTitle")}
           </h1>
