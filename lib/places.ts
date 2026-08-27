@@ -200,6 +200,17 @@ const NORMALIZED: Record<string, LatLng> = (() => {
 })();
 
 /**
+ * Yalnız TAM eşleşme (hiyerarşik geri düşme YOK). Tek başına yazılmış bilinen
+ * bir il/ilçe/şehir (ör. "Ordu", "Şişli", "İstanbul") için anlık koordinat
+ * verir; "Ordu / … / Evlek" gibi çok parçalı metinlerde `null` döner ki
+ * çağıran gerçek yeri (köyü) canlı coğrafi kodlamayla işaretleyebilsin.
+ */
+export function gazetteerExact(place: string): LatLng | null {
+  if (!place) return null;
+  return NORMALIZED[normalize(place)] ?? null;
+}
+
+/**
  * Bir `birthPlace` metnini koordinata çevirir; sözlükte yoksa `null`.
  *
  * Önce tüm metni, sonra ayırıcılarla (virgül, eğik çizgi, tire) bölünen HER
