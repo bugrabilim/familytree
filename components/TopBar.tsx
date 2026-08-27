@@ -167,17 +167,11 @@ export default function TopBar({
           )}
         </div>
 
-        {/* Görünüm seçici — segmented control (masaüstü: ortalanmış).
-            Mobilde bu satırda yer olmadığından aşağıdaki tam-genişlik satıra taşınır. */}
-        <nav
-          className="hidden sm:flex mx-auto items-center gap-1.5 lg:gap-2 min-w-0 overflow-x-auto no-scrollbar"
-          aria-label={t("topbar.viewAria")}
-        >
-          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
-        </nav>
+        {/* Görünüm seçici, üst satırdan kendi tam-genişlik satırına taşındı
+            (aşağıda) — 10 sekme + 3 grup burada sıkışmasın ve gruplar net dursun. */}
 
         {/* Sağ aksiyonlar */}
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto sm:ml-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto">
           <button
             onClick={onSearch}
             className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
@@ -267,11 +261,12 @@ export default function TopBar({
         </div>
       </div>
 
-      {/* Görünüm seçici — mobil satır: tam genişlik, taşarsa yatay kaydırılabilir.
-          Masaüstünde gizli (nav yukarıda ortalanmış gösterilir). */}
-      <div className="sm:hidden px-3 pb-2">
+      {/* Görünüm seçici — kendi tam-genişlik satırı (tüm ekranlarda). Üç grup
+          kendi kabuğunda, aralarında boşluk; masaüstünde ortalanır, dar
+          ekranda yatay kaydırılır. */}
+      <div className="px-3 sm:px-4 pb-2 border-t border-border/60">
         <nav
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar"
+          className="flex items-center gap-2 sm:gap-3 sm:justify-center pt-2 overflow-x-auto no-scrollbar"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} t={t} />
