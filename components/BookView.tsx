@@ -18,7 +18,7 @@ import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { useT, useLang, type TFunction } from "@/lib/i18n";
 import { generatePreface } from "@/lib/preface";
-import { uploadPhoto } from "@/lib/actions";
+import { uploadCover } from "@/lib/actions";
 import { usePaginate, type RenderedPage, type Unit } from "./book/paginate";
 
 interface Props {
@@ -111,7 +111,7 @@ export default function BookView({ people, allPeople, familyName, coverPhoto, on
     if (!file || !onSetCover) return;
     setCoverBusy(true);
     try {
-      const url = await uploadPhoto(file);
+      const url = await uploadCover(file);
       onSetCover(url);
     } catch {
       /* yükleme hatası — sessiz geç, kullanıcı tekrar dener */

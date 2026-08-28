@@ -19,7 +19,7 @@ export async function pingCloudinary(): Promise<{ ok: boolean; error?: string }>
   }
 }
 
-export type UploadKind = "photo" | "audio" | "video" | "document";
+export type UploadKind = "photo" | "cover" | "audio" | "video" | "document";
 
 export async function uploadToCloudinary(
   fileBuffer: Buffer,
@@ -36,11 +36,19 @@ export async function uploadToCloudinary(
         ? { ...base, folder: "familytree/video", resource_type: "video" as const }
         : kind === "document"
           ? { ...base, folder: "familytree/docs", resource_type: "auto" as const }
-          : {
-              ...base,
-              folder: "familytree",
-              transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
-            };
+          : kind === "cover"
+            ? {
+                // Aile Kitabı kapağı: KIRPMA YOK. Oranı koru, yalnız çok büyükse
+                // küçült (crop:limit). Böylece fotoğrafın tamamı görünür (#3).
+                ...base,
+                folder: "familytree/covers",
+                transformation: [{ width: 1600, height: 1600, crop: "limit" }],
+              }
+            : {
+                ...base,
+                folder: "familytree",
+                transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
+              };
 
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
