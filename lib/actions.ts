@@ -127,6 +127,17 @@ export async function uploadPhoto(file: File): Promise<string> {
   return url;
 }
 
+export async function uploadCover(file: File): Promise<string> {
+  // Aile Kitabı kapağı — kırpmasız (oranı korunur). Bkz. lib/cloudinary.ts.
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("kind", "cover");
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  if (!res.ok) throw new Error(await parseError(res, "Kapak yüklenemedi."));
+  const { url } = await res.json();
+  return url;
+}
+
 export async function uploadAudio(file: File): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);

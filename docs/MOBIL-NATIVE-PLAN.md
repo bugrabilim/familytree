@@ -1,5 +1,12 @@
 # Native Mobil Uygulama Planı (iOS + Android)
 
+> **Kullanıcı notu (2026-08):** "Mobil app yapacağız, bunu da notlara kaydet,
+> sonra bakacağız." — Bu turda üzerinde çalışılmadı; sıraya alındı. Aşağıdaki
+> plan ve `apps/mobile/` iskeleti hazır; devam kararı kullanıcıda. Ayrıca
+> depoda açık taslak PR **#55 "Add Expo mobile shell"** (Codex) mevcut —
+> mobil çalışmasına başlanırken önce o gözden geçirilmeli.
+
+
 > **Durum (güncel):** Capacitor (WebView) kaldırıldı. Backend jeton (JWT) kimliği eklendi (PR: mobil altyapı). Expo uygulaması `apps/mobile/` altında kuruldu — **Aşama 0 (temel) + Aşama 1 (giriş/kayıt/kurtarma kodu)** hazır. Çalıştırma: `apps/mobile/README.md`.
 
 > Karar: **gerçek native uygulama** (WebView değil). Yaklaşım: **Expo / React

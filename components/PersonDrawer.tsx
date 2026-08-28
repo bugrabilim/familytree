@@ -182,7 +182,7 @@ export default function PersonDrawer({
     <>
       {/* Mobil arka plan */}
       <div
-        className="fixed inset-0 z-30 bg-black/35 lg:hidden animate-fade-in"
+        className="fixed inset-0 z-30 bg-black/35 md:hidden animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
@@ -191,21 +191,21 @@ export default function PersonDrawer({
         className="
           fixed z-40 bg-bg-elevated border-border shadow-modal flex flex-col
           inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t animate-slide-up
-          lg:top-[var(--app-header-h,56px)] lg:bottom-0 lg:right-0 lg:left-auto lg:w-[380px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l lg:animate-slide-left
+          md:top-[var(--app-header-h,56px)] md:bottom-0 md:right-0 md:left-auto md:w-[360px] md:max-h-none md:rounded-none md:border-t-0 md:border-l md:animate-slide-left
         "
         aria-label={t("drawer.aria")}
       >
         {/* Mobil tutamaç */}
-        <div className="lg:hidden pt-2.5 pb-1 grid place-items-center shrink-0">
+        <div className="md:hidden pt-2.5 pb-1 grid place-items-center shrink-0">
           <div className="w-9 h-1 rounded-full bg-border-strong" />
         </div>
 
         {/* Başlık */}
-        <div className="relative shrink-0 px-5 pt-4 lg:pt-5 pb-4 border-b border-border">
+        <div className="relative shrink-0 px-5 pt-4 md:pt-5 pb-4 border-b border-border">
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="absolute right-3 top-3 lg:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+            className="absolute right-3 top-3 md:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

@@ -388,12 +388,12 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         onClick={() => fitView({ padding: 0.18, duration: 400 })}
         title={t("tree.fitAll")}
         aria-label={t("tree.fitAll")}
-        className="no-print absolute top-4 right-4 z-10 h-9 w-9 lg:w-auto px-0 lg:px-3 grid lg:flex place-items-center items-center gap-1.5 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
+        className="no-print absolute top-4 right-4 z-10 h-9 w-9 md:w-auto px-0 md:px-3 grid md:flex place-items-center items-center gap-1.5 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span className="hidden lg:inline">{t("tree.fitAll")}</span>
+        <span className="hidden md:inline">{t("tree.fitAll")}</span>
       </button>
     </ReactFlow>
   );

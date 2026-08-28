@@ -537,7 +537,7 @@ function WorkspaceInner({
 
       <main
         className={`flex-1 min-h-0 relative transition-[padding] duration-300 ${
-          selected ? "lg:pr-[380px]" : ""
+          selected ? "md:pr-[360px]" : ""
         }`}
       >
         {isEmpty ? (
@@ -639,25 +639,8 @@ function WorkspaceInner({
           />
         )}
 
-        {/* Kayan ekle düğmesi — ağaç ve soy görünümünde (görüntüleme modunda gizli) */}
-        {!readOnly && !isEmpty && (view === "agac" || view === "soy") && (
-          <button
-            onClick={openAdd}
-            className="
-              no-print
-              absolute bottom-6 right-4 lg:right-[400px] z-20
-              h-12 pl-4 pr-5 rounded-full
-              bg-primary text-primary-text font-medium text-sm
-              shadow-float hover:brightness-110 active:translate-y-px
-              flex items-center gap-2 transition-all
-            "
-          >
-            <svg width="15" height="15" viewBox="0 0 12 12" fill="none" aria-hidden>
-              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-            {t("common.addPerson")}
-          </button>
-        )}
+        {/* Kayan "Kişi ekle" düğmesi KALDIRILDI (#1): ağaç ve soy görünümünde
+           kişi, küçük kartın üzerindeki + düğmeleriyle eklenir. */}
       </main>
 
       {/* Detay paneli */}
@@ -842,7 +825,7 @@ function TreeDepthControl({
   ];
 
   return (
-    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-wrap lg:flex-nowrap items-center gap-1.5 gap-y-1 min-h-9 py-1 lg:py-0 lg:h-9 pl-1.5 pr-12 lg:pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-wrap lg:flex-nowrap items-center gap-1.5 gap-y-1 min-h-9 py-1 lg:py-0 lg:h-9 pl-1.5 pr-12 md:pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
       {focusPerson && (
         <button
           onClick={onGoToFocus}

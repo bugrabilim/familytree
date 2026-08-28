@@ -306,7 +306,24 @@ export async function findValidShare(
 ): Promise<{ treeId: string; share: ShareLink } | null> {
   const parsed = parseInviteToken(token);
   if (!parsed) return null;
-  const data = await getTreeAccess(parsed.treeId);
+
+  // Erişim kaydını OKU. Blob geçici bir okuma hatası verirse (statusCode≠200),
+  // bunu "kayıt yok" saymak bağlantıyı yanlışlıkla geçersiz gösterir — kullanıcı
+  // "erişiminiz yok / bağlantı geçersiz" görürdü (#6). Bu yüzden katı okur ve
+  // kısa aralıklarla birkaç kez dener; ancak gerçekten hiç kayıt yoksa
+  // (blobs boş) getTreeAccess zaten hatasız empty() döndürür ve döngü biter.
+  let data: TreeAccess | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      data = await getTreeAccess(parsed.treeId, { strict: true });
+      break;
+    } catch {
+      if (attempt === 2) break;
+      await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+    }
+  }
+  if (!data) return null;
+
   const share = normalizeShares(data).find((s) => s.token === token);
   if (!share || isExpired(share)) return null;
   return { treeId: parsed.treeId, share };

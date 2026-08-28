@@ -64,6 +64,10 @@ interface Col {
   kind?: "text" | "gender" | "readonly";
   wide?: boolean;
   placeholder?: string;
+  /** Tarih sütunu: filtre Excel gibi yıl > ay > gün ağacı olarak açılır (#4). */
+  dateHierarchy?: boolean;
+  /** Ham (stored) değer — hiyerarşik tarih filtresi bunu kullanır ("YYYY[-MM[-DD]]"). */
+  raw?: (p: Person) => string;
 }
 
 /**
@@ -100,9 +104,9 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       { key: "lastName", label: t("table.col.surname"), get: (p) => p.lastName ?? "", save: (v) => ({ lastName: v }) },
       { key: "nickname", label: t("form.nickname"), get: (p) => p.nickname ?? "", save: (v) => ({ nickname: v }) },
       { key: "patronymic", label: t("form.patronymic"), get: (p) => p.patronymic ?? "", save: (v) => ({ patronymic: v }) },
-      { key: "birthDate", label: t("table.col.birth"), get: (p) => storedToDisplay(p.birthDate), placeholder: "YYYY", save: (v) => ({ birthDate: displayToStored(v) }) },
-      { key: "officialBirthDate", label: t("form.field.officialBirthDate"), get: (p) => storedToDisplay(p.officialBirthDate), placeholder: "YYYY", save: (v) => ({ officialBirthDate: displayToStored(v) }) },
-      { key: "deathDate", label: t("table.col.death"), get: (p) => storedToDisplay(p.deathDate), placeholder: "YYYY", save: (v) => ({ deathDate: displayToStored(v) }) },
+      { key: "birthDate", label: t("table.col.birth"), get: (p) => storedToDisplay(p.birthDate), placeholder: "YYYY", save: (v) => ({ birthDate: displayToStored(v) }), dateHierarchy: true, raw: (p) => p.birthDate ?? "" },
+      { key: "officialBirthDate", label: t("form.field.officialBirthDate"), get: (p) => storedToDisplay(p.officialBirthDate), placeholder: "YYYY", save: (v) => ({ officialBirthDate: displayToStored(v) }), dateHierarchy: true, raw: (p) => p.officialBirthDate ?? "" },
+      { key: "deathDate", label: t("table.col.death"), get: (p) => storedToDisplay(p.deathDate), placeholder: "YYYY", save: (v) => ({ deathDate: displayToStored(v) }), dateHierarchy: true, raw: (p) => p.deathDate ?? "" },
       // Kaldırılan çip satırının yerine geçen, süzülebilir türetilmiş sütunlar (#4).
       { key: "status", label: t("table.col.status"), kind: "readonly", get: (p) => (p.deathDate ? t("list.filter.deceased") : t("list.filter.living")) },
       { key: "kind", label: t("table.col.kind"), kind: "readonly", get: (p) => (isAssociate(p) ? t("list.filter.friends") : t("list.filter.members")) },
@@ -145,7 +149,15 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
         Object.entries(filters).every(([k, vals]) => {
           if (k === exceptKey || !vals.length) return true;
           const col = colByKey.get(k);
-          return col ? vals.includes(col.get(p)) : true;
+          if (!col) return true;
+          if (col.dateHierarchy && col.raw) {
+            // Seçili değerler tarih ÖN-EKLERİ: "1950" (tüm yıl), "1950-03" (ay),
+            // "1950-03-15" (gün) ya da "" (tarihsiz). Kişinin ham tarihi bir
+            // ön-ekle başlıyorsa eşleşir.
+            const r = col.raw(p);
+            return vals.some((v) => (v === "" ? r === "" : r === v || r.startsWith(v + "-")));
+          }
+          return vals.includes(col.get(p));
         })
       ),
     [filters, colByKey]
@@ -387,7 +399,8 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <th key={c.key} className="px-3 py-2 font-medium whitespace-nowrap">
                   <HeaderFilter
                     col={c}
-                    values={applyFilters(searched, c.key).map((p) => c.get(p))}
+                    values={applyFilters(searched, c.key).map((p) => (c.dateHierarchy && c.raw ? c.raw(p) : c.get(p)))}
+                    lang={lang}
                     selectedValues={filters[c.key] ?? []}
                     open={openFilter === c.key}
                     onToggleOpen={() => setOpenFilter((k) => (k === c.key ? null : c.key))}
@@ -480,10 +493,11 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
  * kaydırma kutusu tarafından kırpılmaz.
  */
 function HeaderFilter({
-  col, values, selectedValues, open, onToggleOpen, onClose, onApply, t,
+  col, values, lang, selectedValues, open, onToggleOpen, onClose, onApply, t,
 }: {
   col: Col;
   values: string[];
+  lang: string;
   selectedValues: string[];
   open: boolean;
   onToggleOpen: () => void;
@@ -523,14 +537,26 @@ function HeaderFilter({
       {/* Panel YALNIZ açıkken monte edilir; böylece taslak seçim ve konum
           ilk durumdan (lazy useState) okunur — efekt içinde setState gerekmez. */}
       {open && anchor && (
-        <FilterPopover
-          anchor={anchor}
-          values={values}
-          selectedValues={selectedValues}
-          onClose={onClose}
-          onApply={onApply}
-          t={t}
-        />
+        col.dateHierarchy ? (
+          <DateFilterPopover
+            anchor={anchor}
+            values={values}
+            lang={lang}
+            selectedValues={selectedValues}
+            onClose={onClose}
+            onApply={onApply}
+            t={t}
+          />
+        ) : (
+          <FilterPopover
+            anchor={anchor}
+            values={values}
+            selectedValues={selectedValues}
+            onClose={onClose}
+            onApply={onApply}
+            t={t}
+          />
+        )
       )}
     </span>
   );
@@ -632,6 +658,215 @@ function FilterPopover({
             <li className="text-[11px] text-text-subtle px-1.5 py-2 text-center">{t("table.noMatch")}</li>
           )}
         </ul>
+        <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-border">
+          <Button size="sm" onClick={() => { onApply([...draft]); onClose(); }} className="flex-1">
+            {t("table.filter.apply")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            {t("table.cancel")}
+          </Button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
+
+/**
+ * Tarih sütunu için Excel benzeri hiyerarşik filtre: yıl > ay > gün ağacı (#4).
+ * Değerler ham stored tarihlerdir ("YYYY", "YYYY-MM", "YYYY-MM-DD" ya da "").
+ * Seçim, en üst kapsayan ÖN-EKİ tutar: bir yıl tümüyle seçiliyse yalnız "YYYY".
+ * Üst düzey seçiliyse alt düğümler "kapsandı" (işaretli + edilgen) görünür.
+ */
+function DateFilterPopover({
+  anchor, values, lang, selectedValues, onClose, onApply, t,
+}: {
+  anchor: { left: number; bottom: number };
+  values: string[];
+  lang: string;
+  selectedValues: string[];
+  onClose: () => void;
+  onApply: (vals: string[]) => void;
+  t: TFunction;
+}) {
+  const WIDTH = 272;
+  const [pos] = useState(() => ({
+    left: Math.min(Math.max(8, anchor.left), Math.max(8, window.innerWidth - WIDTH - 8)),
+    top: anchor.bottom + 4,
+  }));
+  const [draft, setDraft] = useState<Set<string>>(() => new Set(selectedValues));
+  const [openYears, setOpenYears] = useState<Set<string>>(new Set());
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const BLANK = t("table.filter.blank");
+  const monthName = (m: number) => {
+    try { return new Date(2000, m - 1, 1).toLocaleDateString(lang === "en" ? "en" : "tr", { month: "long" }); }
+    catch { return String(m).padStart(2, "0"); }
+  };
+
+  // Ham tarihlerden yıl>ay>gün ağacı (yalnız veride var olanlar). Boş ayrı.
+  const valuesKey = values.join("");
+  const { tree, hasBlank } = useMemo(() => {
+    const tree = new Map<string, Map<string, Set<string>>>();
+    let hasBlank = false;
+    for (const raw of values) {
+      const r = (raw ?? "").trim();
+      if (!r) { hasBlank = true; continue; }
+      const [y, m, d] = r.split("-");
+      if (!/^\d{4}$/.test(y)) continue;
+      if (!tree.has(y)) tree.set(y, new Map());
+      const months = tree.get(y)!;
+      if (m) {
+        if (!months.has(m)) months.set(m, new Set());
+        if (d) months.get(m)!.add(d);
+      }
+    }
+    return { tree, hasBlank };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valuesKey]);
+
+  const years = useMemo(
+    () => [...tree.keys()].sort((a, b) => Number(b) - Number(a)),
+    [tree]
+  );
+
+  // Bir ön-ek, kendisi ya da bir ATASI seçiliyse "kapsanmış"tır.
+  const coveredBy = (prefix: string): string | null => {
+    const parts = prefix.split("-");
+    for (let i = 1; i <= parts.length; i++) {
+      const anc = parts.slice(0, i).join("-");
+      if (draft.has(anc)) return anc;
+    }
+    return null;
+  };
+
+  /** Bir düğümü aç/kapat: kendi ön-ekini ekler ve altındaki daha spesifik
+   *  seçimleri temizler; zaten kapsanmışsa kapsayan atayı kaldırır. */
+  const toggle = (prefix: string) => {
+    setDraft((prev) => {
+      const n = new Set(prev);
+      const anc = (() => {
+        const parts = prefix.split("-");
+        for (let i = 1; i <= parts.length; i++) {
+          const a = parts.slice(0, i).join("-");
+          if (n.has(a)) return a;
+        }
+        return null;
+      })();
+      if (anc) {
+        // Kapsanmış → seçimi kaldır (kapsayan atayı sil).
+        n.delete(anc);
+      } else {
+        // Alt (daha spesifik) seçimleri temizle, bu ön-eki ekle.
+        for (const v of [...n]) if (v.startsWith(prefix + "-")) n.delete(v);
+        n.add(prefix);
+      }
+      return n;
+    });
+  };
+
+  const isChecked = (prefix: string) => coveredBy(prefix) !== null;
+  const isCoveredByAncestor = (prefix: string) => {
+    const anc = coveredBy(prefix);
+    return anc !== null && anc !== prefix;
+  };
+
+  const toggleBlank = () =>
+    setDraft((prev) => { const n = new Set(prev); if (n.has("")) n.delete(""); else n.add(""); return n; });
+
+  const toggleOpenYear = (y: string) =>
+    setOpenYears((p) => { const n = new Set(p); if (n.has(y)) n.delete(y); else n.add(y); return n; });
+  const toggleOpenMonth = (ym: string) =>
+    setOpenMonths((p) => { const n = new Set(p); if (n.has(ym)) n.delete(ym); else n.add(ym); return n; });
+
+  const Row = ({ prefix, label, depth, expandable, isOpen, onExpand }: {
+    prefix: string; label: string; depth: number; expandable: boolean; isOpen?: boolean; onExpand?: () => void;
+  }) => {
+    const covered = isCoveredByAncestor(prefix);
+    return (
+      <div className="flex items-center gap-1" style={{ paddingInlineStart: depth * 16 }}>
+        <button
+          type="button"
+          onClick={onExpand}
+          className={`w-4 h-4 shrink-0 grid place-items-center text-text-subtle ${expandable ? "hover:text-text" : "invisible"}`}
+          aria-label={isOpen ? "-" : "+"}
+        >
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden className={`transition-transform ${isOpen ? "rotate-90" : ""}`}>
+            <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <label className={`flex items-center gap-2 py-1 flex-1 min-w-0 rounded-lg px-1 hover:bg-surface-2 cursor-pointer ${covered ? "opacity-60" : ""}`}>
+          <input
+            type="checkbox"
+            checked={isChecked(prefix)}
+            disabled={covered}
+            onChange={() => toggle(prefix)}
+            className="shrink-0 accent-[var(--primary)]"
+          />
+          <span className="text-xs text-text truncate tabular-nums">{label}</span>
+        </label>
+      </div>
+    );
+  };
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[60]" onClick={onClose} aria-hidden />
+      <div
+        className="fixed z-[61] rounded-xl border border-border bg-bg-elevated shadow-float p-2 animate-scale-in origin-top-left"
+        style={{ left: pos.left, top: pos.top, width: WIDTH }}
+      >
+        <div className="flex items-center justify-between px-1 pb-1.5 text-[11px]">
+          <button onClick={() => setDraft(new Set(years))} className="text-primary hover:underline">
+            {t("table.filter.selectAll")}
+          </button>
+          <button onClick={() => setDraft(new Set())} className="text-text-subtle hover:text-text">
+            {t("table.filter.clear")}
+          </button>
+        </div>
+        <div className="max-h-72 overflow-y-auto pr-0.5">
+          {years.length === 0 && !hasBlank && (
+            <p className="text-[11px] text-text-subtle px-1.5 py-2 text-center">{t("table.noMatch")}</p>
+          )}
+          {years.map((y) => {
+            const months = tree.get(y)!;
+            const monthKeys = [...months.keys()].sort();
+            const yOpen = openYears.has(y);
+            return (
+              <div key={y}>
+                <Row prefix={y} label={y} depth={0} expandable={monthKeys.length > 0} isOpen={yOpen} onExpand={() => toggleOpenYear(y)} />
+                {yOpen && monthKeys.map((m) => {
+                  const ym = `${y}-${m}`;
+                  const days = [...months.get(m)!].sort();
+                  const mOpen = openMonths.has(ym);
+                  return (
+                    <div key={ym}>
+                      <Row prefix={ym} label={monthName(Number(m))} depth={1} expandable={days.length > 0} isOpen={mOpen} onExpand={() => toggleOpenMonth(ym)} />
+                      {mOpen && days.map((d) => (
+                        <Row key={`${ym}-${d}`} prefix={`${ym}-${d}`} label={String(Number(d))} depth={2} expandable={false} />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {hasBlank && (
+            <label className="flex items-center gap-2 py-1 px-1 rounded-lg hover:bg-surface-2 cursor-pointer" style={{ paddingInlineStart: 20 }}>
+              <input type="checkbox" checked={draft.has("")} onChange={toggleBlank} className="shrink-0 accent-[var(--primary)]" />
+              <span className="text-xs text-text-subtle italic">{BLANK}</span>
+            </label>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-border">
           <Button size="sm" onClick={() => { onApply([...draft]); onClose(); }} className="flex-1">
             {t("table.filter.apply")}
