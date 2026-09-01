@@ -6,13 +6,11 @@ import type { Gender, Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
 import Modal from "./ui/Modal";
-import { calcAge, humanizeDays, lifeSpan, signedDaysToAnniversary } from "@/lib/date";
+import { calcAge, lifeSpan } from "@/lib/date";
 import {
-  ancestorDepths,
   bloodDegrees,
   computeStats,
   describeRelation,
-  descendantDepths,
   findRelationPath,
   genitive,
   indexPeople,
@@ -23,7 +21,6 @@ import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
-import CalendarAdd from "./CalendarAdd";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -61,80 +58,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
   const stats = useMemo(() => computeStats(people), [people]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
-  // 🎂 Doğum günleri · 💍 evlilik yıldönümleri · 🕯️ anma günleri — tek liste.
-  // Yıldönümleri, gizlilik için maskeli kopyadan türetilir: gizli yaşayan bir
-  // kişinin evlilik tarihi (maskeli kopyada `events` yok) sızmaz.
-  const upcoming = useMemo(() => {
-    // Olay penceresi (gün): 10 gün öncesinden 30 gün sonrasına kadar. Etiket
-    // metniyle (i18n "panel.card.upcomingHint") uyumlu tutulmalı.
-    const PAST_DAYS = 10;
-    const FUTURE_DAYS = 10;
-    type Ev = {
-      key: string;
-      kind: "birthday" | "anniversary" | "memorial";
-      rawPerson: Person;
-      days: number;
-      icon: string;
-      label: string;
-    };
-    const out: Ev[] = [];
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const occYearOf = (days: number) => {
-      const occ = new Date(startOfToday);
-      occ.setDate(occ.getDate() + days);
-      return occ.getFullYear();
-    };
-
-    for (const p of people) {
-      // 🎂 Doğum günü — yalnızca yaşayanlar; gün/ay bilgisi gerekir.
-      if (!p.deathDate && p.birthDate && p.birthDate.split("-").length >= 3) {
-        const days = signedDaysToAnniversary(p.birthDate, PAST_DAYS, FUTURE_DAYS);
-        if (days !== null) {
-          out.push({ key: `b-${p.id}`, kind: "birthday", rawPerson: p, days, icon: "🎂", label: "" });
-        }
-      }
-
-      // 🕯️ Anma günü — vefat edenler. Gizli (confidential) kayıtlar hariç.
-      if (p.deathDate && !isMasked(p, hideLiving)) {
-        const days = signedDaysToAnniversary(p.deathDate, PAST_DAYS, FUTURE_DAYS);
-        if (days !== null) {
-          const years = occYearOf(days) - Number(p.deathDate.slice(0, 4));
-          out.push({
-            key: `m-${p.id}`,
-            kind: "memorial",
-            rawPerson: p,
-            days,
-            icon: "🕯️",
-            label: years >= 1 ? t("panel.memorial.year", { years }) : t("panel.memorial.generic"),
-          });
-        }
-      }
-
-      // 💍 Evlilik yıldönümü — maskeli kopyadan okunur (gizli tarih sızmaz).
-      const events = view(p).events;
-      if (events) {
-        for (const ev of events) {
-          if (ev.type !== "evlilik" || !ev.date) continue;
-          const days = signedDaysToAnniversary(ev.date, PAST_DAYS, FUTURE_DAYS);
-          if (days === null) continue;
-          const years = occYearOf(days) - Number(ev.date.slice(0, 4));
-          out.push({
-            key: `a-${p.id}-${ev.id}`,
-            kind: "anniversary",
-            rawPerson: p,
-            days,
-            icon: "💍",
-            label: years >= 1 ? t("panel.anniversary.year", { years }) : t("panel.anniversary.generic"),
-          });
-        }
-      }
-    }
-
-    // #8 — Yaklaşanlar (gelecek, +) üstte; "Bugün" ayıracı; geçmiş (−) altta.
-    // En yakın gelecek en üstte olacak biçimde azalan sırala.
-    return out.sort((a, b) => b.days - a.days).slice(0, 12);
-  }, [people, view, hideLiving, t]);
+  // Yaklaşan olaylar TAKVİM sayfasına taşındı (bkz. CalendarView).
 
   const eldest = useMemo(() => {
     return [...people]
@@ -194,8 +118,12 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
   );
 
   const genderCounts = useMemo(() => {
+    // Cinsiyeti belirsiz (seçilmemiş) kayıtlar "Diğer" kovasına katılır (#1).
     const c: Record<Gender, number> = { female: 0, male: 0, other: 0, unknown: 0 };
-    for (const p of shown) c[p.gender] = (c[p.gender] ?? 0) + 1;
+    for (const p of shown) {
+      const g = p.gender === "unknown" ? "other" : p.gender;
+      c[g] = (c[g] ?? 0) + 1;
+    }
     return c;
   }, [shown]);
 
@@ -211,13 +139,12 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
       (p) => (p.spouseIds?.length ?? 0) === 0 && (p.formerSpouseIds?.length ?? 0) === 0
     );
 
-    // Ölüm türü — kayıtlı nedeni olan vefat edenleri doğal / kazaen ayır.
+    // Ölüm türü — kaza anahtar sözcüğü olanlar "kazaen", geri kalanların
+    // hepsi (nedeni kayıtsız olanlar dahil) "doğal" sayılır (#1).
     const ACCIDENTAL = /(kaza|trafik|düş|boğ|yang[ıi]n|yan[ıi]k|cinayet|öldür|vurul|intihar|zehir|elektrik|deprem|sel|savaş|silah|b[ıi]çak|accident|drown|fire|murder|suicide|kill)/i;
     const deceased = shown.filter((p) => p.deathDate);
-    const withCause = deceased.filter((p) => p.deathCause?.trim());
-    const accidental = withCause.filter((p) => ACCIDENTAL.test(p.deathCause!));
-    const natural = withCause.filter((p) => !ACCIDENTAL.test(p.deathCause!));
-    const causeUnknown = deceased.filter((p) => !p.deathCause?.trim());
+    const accidental = deceased.filter((p) => p.deathCause?.trim() && ACCIDENTAL.test(p.deathCause));
+    const natural = deceased.filter((p) => !(p.deathCause?.trim() && ACCIDENTAL.test(p.deathCause)));
 
     // Doğum yeri dağılımı — ilk virgül/parantez öncesi ada göre topla, ilk 8.
     const placeMap = new Map<string, Person[]>();
@@ -257,7 +184,6 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
       single,
       natural,
       accidental,
-      causeUnknown,
       places,
       ageBuckets,
     };
@@ -405,82 +331,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
         {/* İstatistikler — rakamlar tıklanabilir (ilgili kişileri listeler) */}
         {isStats && (
         <>
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat value={stats.total} label={t("panel.stats.people")} tone="primary"
-            onClick={() => openDrill(t("panel.stats.people"), shown)} />
-          <Stat value={stats.generations} label={t("panel.stats.generations")} tone="accent" />
-          <Stat value={stats.living} label={t("panel.stats.living")} tone="male"
-            onClick={() => openDrill(t("panel.stats.living"), groups.living)} />
-          <Stat value={stats.deceased} label={t("panel.stats.deceased")} tone="neutral"
-            onClick={() => openDrill(t("panel.stats.deceased"), groups.deceased)} />
-        </section>
-
-        {/* #2 Cinsiyet dağılımı — pasta (donut) grafik + tıklanabilir açıklama */}
-        <GenderPie
-          counts={genderCounts}
-          onPick={(g, label) => openDrill(label, shown.filter((p) => p.gender === g))}
-        />
-
-        {/* Grafikler — yaşayan/vefat, medeni durum, engellilik, ölüm türü,
-            doğum yeri ve yaşayanların yaş dağılımı (#1). */}
-        <section>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <MiniDonut
-              title={t("panel.chart.livingDeceased")}
-              segments={[
-                { key: "living", label: t("panel.chart.living"), value: charts.living.length, color: "var(--primary)", people: charts.living },
-                { key: "deceased", label: t("panel.chart.deceased"), value: charts.deceased.length, color: "var(--neutral)", people: charts.deceased },
-              ]}
-              onPick={openDrill}
-            />
-            <MiniDonut
-              title={t("panel.chart.marital")}
-              segments={[
-                { key: "married", label: t("panel.chart.married"), value: charts.married.length, color: "var(--primary)", people: charts.married },
-                { key: "divorced", label: t("panel.chart.divorced"), value: charts.divorced.length, color: "var(--danger)", people: charts.divorced },
-                { key: "single", label: t("panel.chart.single"), value: charts.single.length, color: "var(--neutral)", people: charts.single },
-              ]}
-              onPick={openDrill}
-            />
-            <MiniDonut
-              title={t("panel.chart.deathCause")}
-              segments={[
-                { key: "natural", label: t("panel.chart.natural"), value: charts.natural.length, color: "var(--primary)", people: charts.natural },
-                { key: "accidental", label: t("panel.chart.accidental"), value: charts.accidental.length, color: "var(--danger)", people: charts.accidental },
-                { key: "unknown", label: t("panel.chart.causeUnknown"), value: charts.causeUnknown.length, color: "var(--neutral)", people: charts.causeUnknown },
-              ]}
-              onPick={openDrill}
-            />
-            <BarChart
-              title={t("panel.chart.disability")}
-              bars={[
-                { key: "congenital", label: t("panel.chart.congenital"), value: groups.congenital.length, people: groups.congenital },
-                { key: "acquired", label: t("panel.chart.acquired"), value: groups.acquired.length, people: groups.acquired },
-              ]}
-              onPick={openDrill}
-            />
-            <BarChart
-              title={t("panel.chart.location")}
-              hint={t("panel.chart.locationHint")}
-              bars={charts.places.map((p, i) => ({ key: `${i}`, label: p.label, value: p.people.length, people: p.people }))}
-              onPick={openDrill}
-            />
-            <BarChart
-              title={t("panel.chart.ageDist")}
-              hint={t("panel.chart.ageDistHint")}
-              bars={charts.ageBuckets.map((b) => ({ key: b.label, label: b.label, value: b.people.length, people: b.people }))}
-              onPick={openDrill}
-            />
-          </div>
-        </section>
-
-        {/* Rakamlarla aile — genişletilmiş istatistikler */}
+        {/* Rakamlarla aile — özet istatistikler. Eski üstteki kişi/kuşak/
+            yaşayan/vefat satırı kaldırıldı; toplam kişi ve kuşak buraya alındı (#1). */}
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="font-serif text-base font-semibold text-text">{t("panel.numbers")}</h2>
             <span className="text-[11px] text-text-subtle shrink-0">{t("panel.summary")}</span>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+            <MiniStat label={t("panel.stats.people")} value={stats.total}
+              onClick={() => openDrill(t("panel.stats.people"), shown)} />
+            <MiniStat label={t("panel.stats.generations")} value={stats.generations} />
             <MiniStat label={t("panel.mini.female")} value={stats.female}
               onClick={() => openDrill(t("panel.mini.female"), groups.female)} />
             <MiniStat label={t("panel.mini.male")} value={stats.male}
@@ -526,6 +387,65 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                 onClick={() => openDrill(t("panel.drill.multiMarriage"), groups.multiMarriage)} />
             )}
           </dl>
+        </section>
+
+        {/* #2 Cinsiyet dağılımı — pasta (donut) grafik + tıklanabilir açıklama */}
+        <GenderPie
+          counts={genderCounts}
+          onPick={(g, label) => openDrill(label, shown.filter((p) => p.gender === g || (g === "other" && p.gender === "unknown")))}
+        />
+
+        {/* Grafikler — yaşayan/vefat, medeni durum, engellilik, ölüm türü,
+            doğum yeri ve yaşayanların yaş dağılımı (#1). */}
+        <section>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MiniDonut
+              title={t("panel.chart.livingDeceased")}
+              segments={[
+                { key: "living", label: t("panel.chart.living"), value: charts.living.length, color: "var(--primary)", people: charts.living },
+                { key: "deceased", label: t("panel.chart.deceased"), value: charts.deceased.length, color: "var(--neutral)", people: charts.deceased },
+              ]}
+              onPick={openDrill}
+            />
+            <MiniDonut
+              title={t("panel.chart.marital")}
+              segments={[
+                { key: "married", label: t("panel.chart.married"), value: charts.married.length, color: "var(--primary)", people: charts.married },
+                { key: "divorced", label: t("panel.chart.divorced"), value: charts.divorced.length, color: "var(--danger)", people: charts.divorced },
+                { key: "single", label: t("panel.chart.single"), value: charts.single.length, color: "var(--neutral)", people: charts.single },
+              ]}
+              onPick={openDrill}
+            />
+            <MiniDonut
+              title={t("panel.chart.deathCause")}
+              segments={[
+                { key: "natural", label: t("panel.chart.natural"), value: charts.natural.length, color: "var(--primary)", people: charts.natural },
+                { key: "accidental", label: t("panel.chart.accidental"), value: charts.accidental.length, color: "var(--danger)", people: charts.accidental },
+              ]}
+              onPick={openDrill}
+            />
+            <BarChart
+              title={t("panel.chart.disability")}
+              bars={[
+                { key: "congenital", label: t("panel.chart.congenital"), value: groups.congenital.length, people: groups.congenital },
+                { key: "acquired", label: t("panel.chart.acquired"), value: groups.acquired.length, people: groups.acquired },
+              ]}
+              onPick={openDrill}
+            />
+            <BarChart
+              title={t("panel.chart.location")}
+              hint={t("panel.chart.locationHint")}
+              bars={charts.places.map((p, i) => ({ key: `${i}`, label: p.label, value: p.people.length, people: p.people }))}
+              onPick={openDrill}
+            />
+            {/* Yaşayanların yaş dağılımı — DİKEY çubuk grafik (#1). */}
+            <VBarChart
+              title={t("panel.chart.ageDist")}
+              hint={t("panel.chart.ageDistHint")}
+              bars={charts.ageBuckets.map((b) => ({ key: b.label, label: b.label, value: b.people.length, people: b.people }))}
+              onPick={openDrill}
+            />
+          </div>
         </section>
         </>
         )}
@@ -664,10 +584,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                 <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
               </Card>
 
-              {/* Kuşak görüntüleyici */}
-              <Card title={t("panel.card.generation")} hint={t("panel.card.generationHint")}>
-                <GenerationViewer people={people} idx={idx} onSelect={onSelect} />
-              </Card>
+              {/* Kuşak görüntüleyici KALDIRILDI (#2). */}
 
               {/* Kuşaklara göre akrabalar — kuşak-uzaklığına göre ayrı sütunlar */}
               <Card title={t("panel.card.genSpread")} hint={t("panel.card.genSpreadHint")} className="lg:col-span-2">
@@ -686,116 +603,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             </>
           )}
 
-          {/* Yaklaşan olaylar — doğum günü 🎂 · evlilik yıldönümü 💍 · anma 🕯️ */}
-          {isStats && (
-          <Card
-            title={t("panel.card.upcoming")}
-            hint={t("panel.card.upcomingHint")}
-            empty={upcoming.length === 0 ? t("panel.card.upcomingEmpty") : undefined}
-          >
-            {(() => {
-              // #8 — Gelecek (yeşil) üstte, "Bugün" ayıracı, geçmiş (kırmızı)
-              // altta. Bugün olayı varsa ayıraç onu üstten ve alttan sarar;
-              // yoksa gelecekle geçmiş arasında tek çizgi olur.
-              const future = upcoming.filter((ev) => ev.days > 0);
-              const todayEv = upcoming.filter((ev) => ev.days === 0);
-              const past = upcoming.filter((ev) => ev.days < 0);
-
-              const renderRow = (ev: (typeof upcoming)[number], band: "future" | "today" | "past") => {
-                const person = view(ev.rawPerson);
-                const masked = isMasked(ev.rawPerson, hideLiving);
-                let subtext: React.ReactNode = null;
-                if (ev.kind === "birthday") {
-                  const age = calcAge(ev.rawPerson.birthDate);
-                  subtext = masked ? (
-                    <p className="text-[11px] text-text-subtle leading-tight">{t("common.living")}</p>
-                  ) : age !== null ? (
-                    <p className="text-[11px] text-text-subtle leading-tight">
-                      {t("panel.birthday.turning", { age: age + (ev.days > 0 ? 1 : 0) })}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-text-subtle leading-tight">{t("panel.birthday.generic")}</p>
-                  );
-                } else {
-                  subtext = (
-                    <p className="text-[11px] text-text-subtle leading-tight">
-                      {ev.icon} {ev.label}
-                    </p>
-                  );
-                }
-                const rowBg =
-                  band === "future"
-                    ? "bg-emerald-500/10 hover:bg-emerald-500/20"
-                    : band === "past"
-                    ? "bg-rose-500/10 hover:bg-rose-500/20"
-                    : "bg-accent-soft hover:bg-accent-soft/70";
-                const badgeCls =
-                  band === "future"
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : band === "past"
-                    ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                    : "bg-accent-soft text-accent";
-                // #5 — Takvime ekle: olayın bu yılki/gelecek tekrarının tarihi
-                // (bugün + gün farkı), her yıl tekrarlı.
-                const occ = new Date();
-                occ.setDate(occ.getDate() + ev.days);
-                const pad = (n: number) => String(n).padStart(2, "0");
-                const occDate = `${occ.getFullYear()}-${pad(occ.getMonth() + 1)}-${pad(occ.getDate())}`;
-                const calTitle =
-                  ev.kind === "birthday"
-                    ? t("cal.birthdayTitle", { name: fullName(person) })
-                    : ev.kind === "anniversary"
-                    ? t("cal.anniversaryTitle", { name: fullName(person) })
-                    : t("cal.memorialTitle", { name: fullName(person) });
-                return (
-                  <li key={ev.key} className={`flex items-center gap-1 rounded-xl transition-colors ${rowBg}`}>
-                    <button
-                      onClick={() => onSelect(person.id)}
-                      className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
-                    >
-                      <Avatar person={person} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-text truncate leading-tight">{fullName(person)}</p>
-                        {subtext}
-                      </div>
-                      <span className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${badgeCls}`}>
-                        {humanizeDays(ev.days)}
-                      </span>
-                    </button>
-                    <CalendarAdd event={{ title: calTitle, date: occDate, yearly: true }} className="mr-1" />
-                  </li>
-                );
-              };
-
-              const renderDivider = (key: string) => (
-                <li aria-hidden className="flex items-center gap-2 py-1.5" key={key}>
-                  <span className="h-px flex-1 bg-accent/40" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                    {t("panel.today")}
-                  </span>
-                  <span className="h-px flex-1 bg-accent/40" />
-                </li>
-              );
-
-              return (
-                <ul className="space-y-1">
-                  {future.map((ev) => renderRow(ev, "future"))}
-                  {/* Bugün olayı varsa üstten ve alttan çizgiyle sar; yoksa tek çizgi */}
-                  {todayEv.length > 0 ? (
-                    <>
-                      {renderDivider("today-divider-top")}
-                      {todayEv.map((ev) => renderRow(ev, "today"))}
-                      {renderDivider("today-divider-bottom")}
-                    </>
-                  ) : (
-                    renderDivider("today-divider")
-                  )}
-                  {past.map((ev) => renderRow(ev, "past"))}
-                </ul>
-              );
-            })()}
-          </Card>
-          )}
+          {/* Yaklaşan olaylar TAKVİM sayfasına taşındı (bkz. CalendarView). */}
 
           {/* En eski kuşak */}
           {isStats && (
@@ -837,11 +645,6 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             <AgeList rows={livingOldest} onSelect={onSelect} />
           </Card>
 
-          {/* #3 Yeni doğanlar (0–1 yaş, yaşayan) */}
-          <Card title={t("panel.card.newborns")} hint={t("panel.card.newbornsHint")} empty={newborns.length === 0 ? t("panel.card.noDated") : undefined}>
-            <AgeList rows={newborns} onSelect={onSelect} />
-          </Card>
-
           {/* #3 Çocuklar (2–12 yaş, yaşayan) */}
           <Card title={t("panel.card.children")} collapsible defaultOpen={false} hint={t("panel.card.childrenHint")} empty={children.length === 0 ? t("panel.card.noDated") : undefined}>
             <AgeList rows={children} onSelect={onSelect} />
@@ -852,10 +655,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             <AgeRangeFinder rows={byAge} onSelect={onSelect} />
           </Card>
 
-          {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
-          <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
-            <AgeList rows={longestLived} onSelect={onSelect} />
-          </Card>
+          {/* Yeni doğanlar + En uzun yaşamışlar — yan yana (#1). */}
+          <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
+            {/* #3 Yeni doğanlar (0–1 yaş, yaşayan) */}
+            <Card title={t("panel.card.newborns")} hint={t("panel.card.newbornsHint")} empty={newborns.length === 0 ? t("panel.card.noDated") : undefined}>
+              <AgeList rows={newborns} onSelect={onSelect} />
+            </Card>
+            {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
+            <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
+              <AgeList rows={longestLived} onSelect={onSelect} />
+            </Card>
+          </div>
 
           {/* Soyadları + uyarılar */}
           <Card title={t("panel.card.families")} collapsible defaultOpen={false} hint={t("panel.card.familiesHint")}>
@@ -911,44 +721,6 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
 }
 
 /* ---------------------------------------------------------------- */
-
-const TONES = {
-  primary: "text-primary bg-primary-soft",
-  accent: "text-accent bg-accent-soft",
-  male: "text-male bg-male-soft",
-  neutral: "text-neutral bg-neutral-soft",
-} as const;
-
-function Stat({
-  value,
-  label,
-  tone,
-  onClick,
-}: {
-  value: number;
-  label: string;
-  tone: keyof typeof TONES;
-  onClick?: () => void;
-}) {
-  const inner = (
-    <>
-      <p className="text-2xl font-semibold tabular-nums leading-none">{value}</p>
-      <p className="text-xs mt-1.5 opacity-80">{label}</p>
-    </>
-  );
-  const base = `rounded-2xl p-4 ${TONES[tone]}`;
-  return onClick ? (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`${base} text-left w-full transition-transform hover:scale-[1.02] cursor-pointer`}
-    >
-      {inner}
-    </button>
-  ) : (
-    <div className={base}>{inner}</div>
-  );
-}
 
 function MiniStat({
   label,
@@ -1302,6 +1074,71 @@ function BarChart({
   );
 }
 
+/** #1 — Dikey çubuk grafik; yaş dağılımı gibi sıralı kovalar için, tıklanabilir. */
+function VBarChart({
+  title,
+  hint,
+  bars,
+  onPick,
+}: {
+  title: string;
+  hint?: string;
+  bars: Array<{ key: string; label: string; value: number; people?: Person[] }>;
+  onPick?: (title: string, people: Person[]) => void;
+}) {
+  const t = useT();
+  const max = bars.reduce((m, b) => Math.max(m, b.value), 0);
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3 mb-3">
+        <h3 className="font-serif text-base font-semibold text-text">{title}</h3>
+        {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}
+      </div>
+      {bars.length === 0 || max === 0 ? (
+        <p className="text-sm text-text-subtle py-2">{t("panel.chart.empty")}</p>
+      ) : (
+        <div className="flex items-end gap-1.5 h-40 overflow-x-auto pt-4">
+          {bars.map((b) => {
+            const pct = b.value === 0 ? 0 : Math.max(Math.round((b.value / max) * 100), 6);
+            const clickable = !!onPick && !!b.people && b.people.length > 0;
+            const col = (
+              <>
+                {/* Değer, çubuğun üstünde */}
+                <span className="text-[10px] text-text-muted tabular-nums leading-none mb-1 h-3">
+                  {b.value > 0 ? b.value : ""}
+                </span>
+                {/* Çubuk — dikey; yüksekliği orana göre */}
+                <span className="w-full flex-1 flex items-end">
+                  <span className="block w-full rounded-t-md bg-primary" style={{ height: `${pct}%` }} />
+                </span>
+                {/* Kova etiketi (yaş aralığı) */}
+                <span className="text-[10px] text-text-subtle leading-none mt-1.5 h-6 flex items-start justify-center text-center">
+                  {b.label}
+                </span>
+              </>
+            );
+            return clickable ? (
+              <button
+                key={b.key}
+                type="button"
+                onClick={() => onPick!(b.label, b.people!)}
+                title={`${b.label}: ${b.value}`}
+                className="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end rounded-lg hover:bg-surface-2 transition-colors"
+              >
+                {col}
+              </button>
+            ) : (
+              <div key={b.key} className="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end">
+                {col}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /**
  * Bir kişiyi seç, herkesin ona göre akrabalığını Türkçe adıyla gör.
  * "Hatice'nin halası kim?" gibi soruları, üstteki kutuya "hala" yazıp
@@ -1469,89 +1306,7 @@ function ResultRow({
   );
 }
 
-/**
- * Bir kişiyi ve bir kuşak numarasını seç, o kişiden tam N kuşak uzaktaki
- * herkesi (yukarı atalar ve aşağı torunlar) tek listede gör.
- */
-function GenerationViewer({
-  people,
-  idx,
-  onSelect,
-}: {
-  people: Person[];
-  idx: ReturnType<typeof indexPeople>;
-  onSelect: (id: string) => void;
-}) {
-  const [personId, setPersonId] = useState("");
-  const [gen, setGen] = useState(1);
-  const t = useT();
-
-  const { up, down, gens, genCounts } = useMemo(() => {
-    if (!personId) return { up: new Map<string, number>(), down: new Map<string, number>(), gens: [] as number[], genCounts: new Map<number, number>() };
-    const up = ancestorDepths(personId, idx);
-    const down = descendantDepths(personId, people);
-    const set = new Set<number>([0]);
-    // Her kuşaktaki kişi sayısı (0. kuşak = kişinin kendisi)
-    const genCounts = new Map<number, number>([[0, 1]]);
-    for (const d of up.values()) { set.add(d); genCounts.set(d, (genCounts.get(d) ?? 0) + 1); }
-    for (const d of down.values()) { set.add(d); genCounts.set(d, (genCounts.get(d) ?? 0) + 1); }
-    return { up, down, gens: [...set].sort((a, b) => a - b), genCounts };
-  }, [personId, people, idx]);
-
-  const results = useMemo(() => {
-    if (!personId) return [];
-    const out: Array<{ person: Person; badge: string }> = [];
-    if (gen === 0) {
-      const self = idx.get(personId);
-      if (self) out.push({ person: self, badge: t("panel.gv.self") });
-      return out;
-    }
-    for (const [id, d] of up) if (d === gen) {
-      const p = idx.get(id);
-      if (p) out.push({ person: p, badge: `↑ ${describeRelation(personId, id, people, idx) ?? t("panel.gv.ancestor")}` });
-    }
-    for (const [id, d] of down) if (d === gen) {
-      const p = idx.get(id);
-      if (p) out.push({ person: p, badge: `↓ ${describeRelation(personId, id, people, idx) ?? t("panel.gv.descendant")}` });
-    }
-    const coll = new Intl.Collator("tr");
-    return out.sort((a, b) => coll.compare(a.person.firstName, b.person.firstName));
-  }, [personId, gen, up, down, people, idx, t]);
-
-  return (
-    <div className="space-y-3">
-      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setGen(1); }} />
-      {personId && (
-        <>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted shrink-0" htmlFor="gen-sec">{t("panel.gv.genLabel")}</label>
-            <select
-              id="gen-sec"
-              value={gen}
-              onChange={(e) => setGen(Number(e.target.value))}
-              className={pickerSelectCls}
-            >
-              {gens.map((g) => (
-                <option key={g} value={g}>
-                  {t("panel.gv.genOption", { g })}{g === 0 ? ` ${t("panel.gv.selfParen")}` : ""} ({genCounts.get(g) ?? 0})
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="text-[11px] text-text-subtle">{t("common.peopleCount", { count: results.length })}</p>
-          <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
-            {results.map((r) => (
-              <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
-            ))}
-            {results.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.gv.noneInGen")}</li>
-            )}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
+/* Kuşak görüntüleyici (GenerationViewer) KALDIRILDI (#2). */
 
 /**
  * Bir kişiyi ve bir kuşak sayısı N seç; akrabaları kuşak-uzaklığına göre
@@ -1587,16 +1342,26 @@ function GenerationSpread({
 
   const effGen = Math.min(gen, Math.max(maxGen, 1));
 
-  // 0. alandan effGen. alana kadar; her alan o kuşaktaki (tr'ye göre sıralı) kişiler
+  // 0. alandan effGen. alana kadar; her alan o kuşaktaki (tr'ye göre sıralı)
+  // kişiler + her kişinin seçilene göre Türkçe akrabalık adı (#2). Ad, kutu
+  // içinde farklı renkte gösterilir ("kendisi", "anne", "baba", "kardeş"…).
   const fields = useMemo(() => {
     const coll = new Intl.Collator("tr");
-    const out: Array<{ depth: number; people: Person[] }> = [];
+    const out: Array<{ depth: number; people: Array<{ person: Person; relation: string }> }> = [];
     for (let k = 0; k <= effGen; k++) {
-      const list = [...(groups.get(k) ?? [])].sort((a, b) => coll.compare(a.firstName, b.firstName));
+      const list = [...(groups.get(k) ?? [])]
+        .sort((a, b) => coll.compare(a.firstName, b.firstName))
+        .map((person) => ({
+          person,
+          relation:
+            person.id === personId
+              ? t("panel.gv.self")
+              : describeRelation(personId, person.id, people, idx) ?? "",
+        }));
       out.push({ depth: k, people: list });
     }
     return out;
-  }, [groups, effGen]);
+  }, [groups, effGen, personId, people, idx, t]);
 
   return (
     <div className="space-y-3">
@@ -1627,7 +1392,7 @@ function GenerationSpread({
                   <span className="text-text-subtle tabular-nums">({f.people.length})</span>
                 </h3>
                 <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
-                  {f.people.map((rawP) => {
+                  {f.people.map(({ person: rawP, relation }) => {
                     const p = view(rawP);
                     const masked = isMasked(rawP, hideLiving);
                     return (
@@ -1639,6 +1404,12 @@ function GenerationSpread({
                           <Avatar person={p} size="xs" />
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm text-text truncate leading-tight">{fullName(p)}</span>
+                            {/* Akrabalık adı — farklı renkte (#2). */}
+                            {relation && (
+                              <span className="block text-[11px] font-medium text-primary truncate leading-tight capitalize">
+                                {relation}
+                              </span>
+                            )}
                             <span className="block text-[11px] text-text-subtle truncate leading-tight">
                               {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate) || (p.birthPlace ?? "")}
                             </span>
