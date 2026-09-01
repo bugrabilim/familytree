@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     officialBirthDate: body.officialBirthDate || undefined,
     deathDate: body.deathDate || undefined,
     birthPlace: body.birthPlace || undefined,
+    birthCoords: body.birthCoords || undefined,
     religion: body.religion || undefined,
     denomination: body.denomination || undefined,
     language: body.language || undefined,

@@ -81,10 +81,6 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
         .filter((x): x is { p: Person; age: number; living: boolean } => x.age !== null),
     [shown]
   );
-  const livingOldest = useMemo(
-    () => byAge.filter((x) => x.living).sort((a, b) => b.age - a.age).slice(0, 5),
-    [byAge]
-  );
   // Yeni doğanlar (0–1 yaş, yaşayan). "Çocuklar" alanı kaldırıldı; "En uzun
   // yaşamışlar" artık kendi bileşeninde (LongestLived) hesaplanıyor.
   const newborns = useMemo(
@@ -123,9 +119,14 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
 
   // #1 — Grafik verileri (hepsi maskeli kopyadan; segmentler tıklanınca listeler).
   const charts = useMemo(() => {
-    // Medeni durum — her kişi TEK kovaya: evli (mevcut eş) → evli; değilse
-    // eski eş varsa → boşanmış; ikisi de yoksa → bekâr/kayıtsız.
-    const married = shown.filter((p) => (p.spouseIds?.length ?? 0) > 0);
+    // Medeni durum — her kişi TEK kovaya. Mevcut eşi olan biri, eşlerinden en az
+    // biri hayattaysa "evli"; tüm mevcut eşleri vefat etmişse "dul" (#B). Mevcut
+    // eşi yok ama eski eşi varsa "boşanmış"; hiçbiri yoksa "bekâr".
+    const byId = new Map(shown.map((p) => [p.id, p]));
+    const livingSpouse = (p: Person) => (p.spouseIds ?? []).some((id) => !byId.get(id)?.deathDate);
+    const deadSpouse = (p: Person) => (p.spouseIds ?? []).some((id) => byId.get(id)?.deathDate);
+    const married = shown.filter((p) => (p.spouseIds?.length ?? 0) > 0 && livingSpouse(p));
+    const widowed = shown.filter((p) => (p.spouseIds?.length ?? 0) > 0 && !livingSpouse(p) && deadSpouse(p));
     const divorced = shown.filter(
       (p) => (p.spouseIds?.length ?? 0) === 0 && (p.formerSpouseIds?.length ?? 0) > 0
     );
@@ -174,6 +175,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
       living: groups.living,
       deceased,
       married,
+      widowed,
       divorced,
       single,
       natural,
@@ -405,6 +407,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
               title={t("panel.chart.marital")}
               segments={[
                 { key: "married", label: t("panel.chart.married"), value: charts.married.length, color: "var(--primary)", people: charts.married },
+                { key: "widowed", label: t("panel.chart.widowed"), value: charts.widowed.length, color: "var(--accent)", people: charts.widowed },
                 { key: "divorced", label: t("panel.chart.divorced"), value: charts.divorced.length, color: "var(--danger)", people: charts.divorced },
                 { key: "single", label: t("panel.chart.single"), value: charts.single.length, color: "var(--neutral)", people: charts.single },
               ]}
@@ -453,6 +456,38 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             {/* Yaş aralığı — yeni doğanların altında (sol sütun). */}
             <Card title={t("panel.card.ageRange")} hint={t("panel.card.ageRangeHint")}>
               <AgeRangeFinder rows={byAge} onSelect={onSelect} />
+            </Card>
+            {/* En eski kayıtlar — yaş aralığının yanında (#E). */}
+            <Card title={t("panel.card.oldest")} empty={eldest.length === 0 ? t("panel.card.noDated") : undefined}>
+              <ul className="space-y-1">
+                {eldest.map((rawP) => {
+                  const p = view(rawP);
+                  const masked = isMasked(rawP, hideLiving);
+                  return (
+                    <li key={p.id}>
+                      <button
+                        onClick={() => onSelect(p.id)}
+                        className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                      >
+                        <Avatar person={p} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-text truncate leading-tight">
+                            {fullName(p)}
+                          </p>
+                          {!masked && p.birthPlace && (
+                            <p className="text-[11px] text-text-subtle truncate leading-tight">
+                              {p.birthPlace}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs text-text-muted tabular-nums shrink-0">
+                          {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
           </div>
         </section>
@@ -588,9 +623,15 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
           {/* İlişki hesapla araçları (yalnız "İlişki hesapla" görünümü) */}
           {isRelations && (
             <>
+              {/* Üstte yan yana: kişinin akrabaları + yakınlık derecesi (#G). */}
               {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
               <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
                 <RelativesFinder people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
+              </Card>
+
+              {/* Yakınlık derecesi — görsel (halka) (#G/#H) */}
+              <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
+                <DegreeViewer people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
               {/* Kuşak görüntüleyici KALDIRILDI (#2). */}
@@ -600,76 +641,33 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
                 <GenerationSpread people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
-              {/* Yakınlık derecesi */}
-              <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
-                <DegreeViewer people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
-              </Card>
-
               {/* Akrabalık hesaplayıcı KALDIRILDI (#7). */}
             </>
           )}
 
           {/* Yaklaşan olaylar TAKVİM sayfasına taşındı (bkz. CalendarView). */}
 
-          {/* En eski kuşak */}
+          {/* "Yaşayan en yaşlılar" ve "Çocuklar" kaldırıldı; En eski kayıtlar,
+              Yeni doğanlar, En uzun yaşamışlar ve Yaş aralığı grafiklerin altına
+              taşındı. "Aileler" en altta, tam genişlikte kalır (#D/#E/#F). */}
+
+          {/* Soyadları — tam genişlik; soyada tıklanınca o soyadlı kişiler
+              listelenir. Çerçeve sağdan sola açılır (RTL). Varsayılan açık (#F). */}
           {isStats && (
-          <>
-          <Card title={t("panel.card.oldest")} collapsible defaultOpen={false} empty={eldest.length === 0 ? t("panel.card.noDated") : undefined}>
-            <ul className="space-y-1">
-              {eldest.map((rawP) => {
-                const p = view(rawP);
-                const masked = isMasked(rawP, hideLiving);
-                return (
-                  <li key={p.id}>
-                    <button
-                      onClick={() => onSelect(p.id)}
-                      className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
-                    >
-                      <Avatar person={p} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-text truncate leading-tight">
-                          {fullName(p)}
-                        </p>
-                        {!masked && p.birthPlace && (
-                          <p className="text-[11px] text-text-subtle truncate leading-tight">
-                            {p.birthPlace}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-xs text-text-muted tabular-nums shrink-0">
-                        {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-
-          {/* #6 Yaşayan en yaşlılar */}
-          <Card title={t("panel.card.livingOldest")} collapsible defaultOpen={false} empty={livingOldest.length === 0 ? t("panel.card.noDated") : undefined}>
-            <AgeList rows={livingOldest} onSelect={onSelect} />
-          </Card>
-
-          {/* "Çocuklar" alanı kaldırıldı; Yeni doğanlar / En uzun yaşamışlar /
-              Yaş aralığı yukarıya, grafiklerin altına taşındı. */}
-
-          {/* Soyadları + uyarılar */}
-          <Card title={t("panel.card.families")} collapsible defaultOpen={false} hint={t("panel.card.familiesHint")}>
-            <div className="flex flex-wrap gap-1.5 mb-4">
+          <Card title={t("panel.card.families")} hint={t("panel.card.familiesHint")} className="lg:col-span-2">
+            <div dir="rtl" className="flex flex-wrap gap-1.5">
               {stats.surnames.map((s) => (
-                <span
+                <button
                   key={s.name}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 text-xs text-text"
+                  onClick={() => openDrill(s.name, shown.filter((p) => p.lastName === s.name))}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface-3 text-xs text-text transition-colors"
                 >
                   {s.name}
                   <span className="text-text-subtle tabular-nums">{s.count}</span>
-                </span>
+                </button>
               ))}
             </div>
-
           </Card>
-          </>
           )}
         </div>
       </div>
@@ -767,7 +765,7 @@ function LongestLived({
           onChange={(e) => setLivingOnly(e.target.checked)}
           className="accent-[var(--primary)]"
         />
-        {t("panel.ageRange.livingOnly")}
+        {t("panel.longest.livingOnly")}
       </label>
       {shown.length === 0 ? (
         <p className="text-sm text-text-subtle py-2">{t("panel.card.noDated")}</p>
@@ -1311,30 +1309,7 @@ function PersonPicker({
   );
 }
 
-function ResultRow({
-  person,
-  badge,
-  onSelect,
-}: {
-  person: Person;
-  badge: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <li>
-      <button
-        onClick={() => onSelect(person.id)}
-        className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
-      >
-        <Avatar person={person} size="xs" />
-        <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(person)}</span>
-        <span className="text-[11px] font-medium text-primary shrink-0">{badge}</span>
-      </button>
-    </li>
-  );
-}
-
-/* Kuşak görüntüleyici (GenerationViewer) KALDIRILDI (#2). */
+/* ResultRow ve Kuşak görüntüleyici (GenerationViewer) KALDIRILDI (#2/#H). */
 
 /**
  * Bir kişiyi ve bir kuşak sayısı N seç; akrabaları kuşak-uzaklığına göre
@@ -1478,55 +1453,128 @@ function DegreeViewer({
   defaultPersonId?: string;
 }) {
   const [personId, setPersonId] = useState(defaultPersonId ?? "");
-  const [degree, setDegree] = useState(1);
+  // Görsel: seçili derece halkasını vurgula (tıklanınca değişir); null = hepsi eşit.
+  const [activeDeg, setActiveDeg] = useState<number | null>(null);
+  const { view } = usePrivacy();
   const t = useT();
 
-  const { degrees, dist } = useMemo(() => {
-    if (!personId) return { degrees: [] as number[], dist: new Map<string, number>() };
+  // Kan hısımlarını dereceye (halkaya) göre grupla — merkezde seçilen kişi.
+  const rings = useMemo(() => {
+    if (!personId) return [] as Array<{ deg: number; people: Person[] }>;
     const dist = bloodDegrees(personId, people, idx);
-    const set = new Set<number>();
-    for (const d of dist.values()) if (d > 0) set.add(d);
-    return { degrees: [...set].sort((a, b) => a - b), dist };
-  }, [personId, people, idx]);
-
-  const results = useMemo(() => {
-    if (!personId) return [];
-    const out: Array<{ person: Person; badge: string }> = [];
-    for (const [id, d] of dist) if (d === degree) {
+    const byDeg = new Map<number, Person[]>();
+    for (const [id, d] of dist) {
+      if (d <= 0) continue;
       const p = idx.get(id);
-      if (p) out.push({ person: p, badge: describeRelation(personId, id, people, idx) ?? `${d}°` });
+      if (!p) continue;
+      const arr = byDeg.get(d);
+      if (arr) arr.push(p);
+      else byDeg.set(d, [p]);
     }
     const coll = new Intl.Collator("tr");
-    return out.sort((a, b) => coll.compare(a.person.firstName, b.person.firstName));
-  }, [personId, degree, dist, people, idx]);
+    return [...byDeg.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([deg, ppl]) => ({ deg, people: ppl.sort((a, b) => coll.compare(a.firstName, b.firstName)) }));
+  }, [personId, people, idx]);
+
+  const self = personId ? idx.get(personId) : null;
+  const maxDeg = rings.length ? rings[rings.length - 1].deg : 1;
+  const CX = 160;
+  const CY = 160;
+  const R0 = 34;
+  const RMAX = 150;
+  const stepR = (RMAX - R0) / maxDeg;
+  const CAP = 28; // halka başına en çok nokta
 
   return (
     <div className="space-y-3">
-      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setDegree(1); }} />
-      {personId && (
+      <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setActiveDeg(null); }} />
+
+      {personId && rings.length === 0 && (
+        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.dv.noneAtDegree")}</p>
+      )}
+
+      {personId && rings.length > 0 && (
         <>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted shrink-0" htmlFor="deg-sec">{t("panel.dv.degLabel")}</label>
-            <select
-              id="deg-sec"
-              value={degree}
-              onChange={(e) => setDegree(Number(e.target.value))}
-              className={pickerSelectCls}
-            >
-              {degrees.map((d) => (
-                <option key={d} value={d}>{t("panel.dv.degOption", { d })}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-[11px] text-text-subtle">{t("panel.dv.count", { count: results.length })}</p>
-          <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
-            {results.map((r) => (
-              <ResultRow key={r.person.id} person={r.person} badge={r.badge} onSelect={onSelect} />
-            ))}
-            {results.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.dv.noneAtDegree")}</li>
+          <svg viewBox="0 0 320 320" className="w-full max-w-[340px] mx-auto block" role="img" aria-label={t("panel.card.degree")}>
+            {/* Halkalar (dereceler) */}
+            {rings.map((r) => {
+              const R = R0 + r.deg * stepR;
+              const on = activeDeg === null || activeDeg === r.deg;
+              return (
+                <g key={`ring-${r.deg}`}>
+                  <circle
+                    cx={CX} cy={CY} r={R} fill="none"
+                    stroke="var(--border)" strokeWidth={1} strokeDasharray="2 3"
+                    opacity={on ? 1 : 0.35}
+                  />
+                  <text x={CX} y={CY - R - 2} textAnchor="middle" fontSize="9" fill="var(--text-subtle)">
+                    {r.deg}°
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Kişiler — her halkada eşit açıyla dağıtılır; tıklanınca profili açar */}
+            {rings.map((r) => {
+              const R = R0 + r.deg * stepR;
+              const cap = Math.min(r.people.length, CAP);
+              const dim = activeDeg !== null && activeDeg !== r.deg;
+              return r.people.slice(0, cap).map((rawP, i) => {
+                const p = view(rawP);
+                const ang = (i / cap) * 2 * Math.PI - Math.PI / 2 + r.deg * 0.4;
+                const x = CX + R * Math.cos(ang);
+                const y = CY + R * Math.sin(ang);
+                const tone = genderTone(p.gender).css;
+                const initial = (p.firstName || "?").trim().charAt(0).toLocaleUpperCase("tr");
+                return (
+                  <g
+                    key={p.id}
+                    onClick={() => onSelect(p.id)}
+                    className="cursor-pointer"
+                    opacity={dim ? 0.3 : 1}
+                  >
+                    <circle cx={x} cy={y} r={8.5} fill={tone} stroke="var(--surface)" strokeWidth={1.5} />
+                    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="8" fontWeight={700} fill="#fff" style={{ pointerEvents: "none" }}>
+                      {initial}
+                    </text>
+                    <title>{`${fullName(p)} · ${r.deg}°`}</title>
+                  </g>
+                );
+              });
+            })}
+
+            {/* Merkez — seçilen kişi */}
+            {self && (
+              <g>
+                <circle cx={CX} cy={CY} r={13} fill="var(--primary)" stroke="var(--surface)" strokeWidth={2} />
+                <text x={CX} y={CY} textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight={700} fill="var(--primary-text)">
+                  {(view(self).firstName || "?").trim().charAt(0).toLocaleUpperCase("tr")}
+                </text>
+                <title>{fullName(view(self))}</title>
+              </g>
             )}
-          </ul>
+          </svg>
+
+          {/* Derece rozetleri — tıklayınca o halkayı vurgular; sayıları gösterir */}
+          <div className="flex flex-wrap gap-1.5 justify-center">
+            {rings.map((r) => {
+              const on = activeDeg === r.deg;
+              return (
+                <button
+                  key={`leg-${r.deg}`}
+                  type="button"
+                  onClick={() => setActiveDeg(on ? null : r.deg)}
+                  className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium border transition-colors ${
+                    on ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-text-muted hover:text-text"
+                  }`}
+                >
+                  {t("panel.dv.degOption", { d: r.deg })}
+                  <span className="tabular-nums opacity-70">{r.people.length}</span>
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
     </div>

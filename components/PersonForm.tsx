@@ -119,6 +119,7 @@ export default function PersonForm({
     officialBirthDate: storedToDisplay(initial?.officialBirthDate),
     deathDate: storedToDisplay(initial?.deathDate),
     birthPlace: initial?.birthPlace ?? "",
+    birthCoords: (initial?.birthCoords ?? null) as { lat: number; lng: number } | null,
     bio: initial?.bio ?? "",
     photo: initial?.photo ?? "",
     photos: (initial?.photos ?? []) as string[],
@@ -459,6 +460,9 @@ export default function PersonForm({
       officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : undefined,
       deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
       birthPlace: form.birthPlace.trim() || undefined,
+      // Doğum yeri koordinatı yalnız bir doğum yeri metni varsa anlamlı; yer
+      // metni boşsa koordinatı da temizle. `null` = temizle (PUT'ta korunmaz).
+      birthCoords: form.birthPlace.trim() ? form.birthCoords : null,
       religion: form.religion.trim() || undefined,
       denomination: form.denomination.trim() || undefined,
       language: form.language.trim() || undefined,
@@ -949,6 +953,26 @@ export default function PersonForm({
           onChange={(e) => set("birthPlace", e.target.value)}
           placeholder="Trabzon, Türkiye"
         />
+        {/* Haritada konum — aynı adlı köy/mahalle karışıklığında doğru noktayı
+            işaretlemek için (isteğe bağlı). Yer adı METNİ değişmez. */}
+        {form.birthPlace.trim() && (
+          <details className="mt-2 rounded-xl border border-border overflow-hidden group">
+            <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+              <span className="text-xs font-medium text-text">{t("birthloc.title")}</span>
+              <span className="text-[11px] text-text-subtle">
+                {form.birthCoords ? `${form.birthCoords.lat.toFixed(3)}, ${form.birthCoords.lng.toFixed(3)}` : t("birthloc.optional")}
+              </span>
+            </summary>
+            <div className="p-3 bg-surface">
+              <p className="text-[11px] text-text-subtle mb-2">{t("birthloc.hint")}</p>
+              <LocationPicker
+                coords={form.birthCoords}
+                onChange={(c) => set("birthCoords", c)}
+                addressForGeocode={form.birthPlace}
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       {/* Kimlik ve aidiyet — katlanır, isteğe bağlı */}

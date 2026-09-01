@@ -85,6 +85,20 @@ export default function PlacesMap({ people, onSelect }: Props) {
     [eraFiltered, priv]
   );
 
+  // Elle düzeltilmiş doğum-yeri koordinatları (birthCoords) — yer adına göre.
+  // Aynı adlı köy/mahalle karışıklığında kayıttaki koordinat, coğrafi kodlamaya
+  // tercih edilir; böylece yanlış yere düşen bir yer düzeltilebilir. Yer METNİ
+  // değişmez. Bir yerde birden çok kişi varsa ilk bulunan koordinat kullanılır.
+  const placeOverride = useMemo(() => {
+    const m = new Map<string, LatLng>();
+    for (const p of eraFiltered) {
+      const place = p.birthPlace?.trim();
+      const c = p.birthCoords;
+      if (place && c && !m.has(place)) m.set(place, c);
+    }
+    return m;
+  }, [eraFiltered]);
+
   // Canlı coğrafi kodlama önbelleği (yer adı → koordinat/null). Sözlükte tam
   // karşılığı olmayan yerler (köy/mahalle/ilçe, yurt dışı) buradan gelir.
   // Bileşen yalnız istemcide (ssr:false) yüklendiğinden başlangıçta LS okunabilir.
@@ -99,12 +113,15 @@ export default function PlacesMap({ people, onSelect }: Props) {
    */
   const coordsFor = useMemo(() => {
     return (place: string): LatLng | null => {
+      // (0) Elle düzeltilmiş koordinat her şeyin önünde gelir.
+      const ov = placeOverride.get(place);
+      if (ov) return ov;
       const exact = gazetteerExact(place);
       if (exact) return exact;
       if (place in geo) return geo[place] ?? resolvePlace(place);
       return null; // kodlama bekleniyor
     };
-  }, [geo]);
+  }, [geo, placeOverride]);
 
   const aggregates = useMemo(
     () => baseAgg.map((a) => ({ ...a, coords: coordsFor(a.place) })),
@@ -120,7 +137,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
   useEffect(() => {
     const pending = baseAgg
       .map((a) => a.place)
-      .filter((place) => !gazetteerExact(place));
+      .filter((place) => !gazetteerExact(place) && !placeOverride.has(place));
     if (pending.length === 0) return;
 
     let cancelled = false;
@@ -143,7 +160,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
       cancelled = true;
       ctrl.abort();
     };
-  }, [baseAgg]);
+  }, [baseAgg, placeOverride]);
 
   // Kişi → doğum yeri koordinatı (maskeli aggregate'lerden → gizlilik korunur).
   const personCoord = useMemo(() => {

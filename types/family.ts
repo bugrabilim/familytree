@@ -134,6 +134,13 @@ export interface Person {
   officialBirthDate?: string;
   deathDate?: string;
   birthPlace?: string;
+  /**
+   * Doğum yeri koordinatı — haritada ELLE seçilmiş/düzeltilmiş konum. Aynı adlı
+   * köy/mahalle/ilçe karışıklığında (coğrafi kodlama yanlış yeri seçince) doğru
+   * noktayı işaretlemek için. Yalnızca konumu değiştirir; `birthPlace` METNİ
+   * değişmez. Varsa harita bu koordinatı, coğrafi kodlamaya tercih eder.
+   */
+  birthCoords?: { lat: number; lng: number };
   photo?: string;
   /**
    * Galeri — kişiye ait birden çok fotoğrafın URL listesi. `photo` alanı
