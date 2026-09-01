@@ -28,8 +28,6 @@ interface Props {
   people: Person[];
   onSelect: (id: string) => void;
   onAdd: () => void;
-  /** Özeti / paneli yazdır (Madde 12). */
-  onPrint?: () => void;
   /** "stats" = İstatistikler (sayı/grafik), "relations" = İlişki hesapla (akrabalık araçları). */
   mode?: "stats" | "relations";
   /** Ağaçta merkezde olan (kök/odak) kişi — İlişki hesapla araçlarında
@@ -37,7 +35,7 @@ interface Props {
   focusId?: string;
 }
 
-export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint, mode = "stats", focusId }: Props) {
+export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "stats", focusId }: Props) {
   const isStats = mode !== "relations";
   const isRelations = mode === "relations";
   const { view, hideLiving } = usePrivacy();
@@ -311,17 +309,8 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
               ))}
             </div>
           )}
-          {isStats && onPrint && (
-            <button
-              onClick={onPrint}
-              className="no-print flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted text-xs font-medium transition-colors shrink-0"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M6 9V3h12v6M6 18H4v-6a2 2 0 012-2h12a2 2 0 012 2v6h-2M8 14h8v7H8z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {t("panel.print")}
-            </button>
-          )}
+          {/* "Yazdır" düğmesi sayfadan kaldırıldı; yazdırma yalnız üst bardaki
+              ⋮ menüsünden yapılır (kullanıcı isteği). */}
         </div>
 
         {/* İstatistikler — rakamlar tıklanabilir (ilgili kişileri listeler) */}
@@ -1121,7 +1110,10 @@ function VBarChart({
       {bars.length === 0 || max === 0 ? (
         <p className="text-sm text-text-subtle py-2">{t("panel.chart.empty")}</p>
       ) : (
-        <div className="flex items-end gap-1.5 h-40 overflow-x-auto pt-4">
+        // Çubuk alanına SABİT yükseklik (flex-1 yerine) — yüzde yükseklikler
+        // ekranda ve yazdırmada aynı, güvenilir hesaplanır (yazdırmada çubuklar
+        // kaybolmasın). Kaydırma kutusu yok; kovalar kartı taşmadan sığar.
+        <div className="flex items-end gap-1.5">
           {bars.map((b) => {
             const pct = b.value === 0 ? 0 : Math.max(Math.round((b.value / max) * 100), 6);
             const clickable = !!onPick && !!b.people && b.people.length > 0;
@@ -1131,8 +1123,8 @@ function VBarChart({
                 <span className="text-[10px] text-text-muted tabular-nums leading-none mb-1 h-3">
                   {b.value > 0 ? b.value : ""}
                 </span>
-                {/* Çubuk — dikey; yüksekliği orana göre */}
-                <span className="w-full flex-1 flex items-end">
+                {/* Çubuk alanı — sabit 120px; çubuk yüzdesi bunun üzerinden */}
+                <span className="w-full flex items-end" style={{ height: 120 }}>
                   <span className="block w-full rounded-t-md bg-primary" style={{ height: `${pct}%` }} />
                 </span>
                 {/* Kova etiketi (yaş aralığı) */}
@@ -1147,12 +1139,12 @@ function VBarChart({
                 type="button"
                 onClick={() => onPick!(b.label, b.people!)}
                 title={`${b.label}: ${b.value}`}
-                className="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end rounded-lg hover:bg-surface-2 transition-colors"
+                className="flex-1 min-w-0 flex flex-col items-center rounded-lg hover:bg-surface-2 transition-colors"
               >
                 {col}
               </button>
             ) : (
-              <div key={b.key} className="flex-1 min-w-[26px] h-full flex flex-col items-center justify-end">
+              <div key={b.key} className="flex-1 min-w-0 flex flex-col items-center">
                 {col}
               </div>
             );

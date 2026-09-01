@@ -639,7 +639,6 @@ function WorkspaceInner({
             mode="stats"
             onSelect={setSelectedId}
             onAdd={openAdd}
-            onPrint={printCurrentView}
           />
         )}
 
