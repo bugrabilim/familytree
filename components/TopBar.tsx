@@ -46,10 +46,13 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().m
 function ViewTabs({
   view,
   onViewChange,
+  onCalendarExport,
   t,
 }: {
   view: ViewKey;
   onViewChange: (v: ViewKey) => void;
+  /** "Takvime aktar" — çözümleme grubunda (İlişki hesapla'nın sağında). */
+  onCalendarExport?: () => void;
   t: TFunction;
 }) {
   return (
@@ -82,6 +85,21 @@ function ViewTabs({
               <span className="hidden sm:inline">{t(`view.${key}.label`)}</span>
             </button>
           ))}
+          {/* "Takvime aktar" — çözümleme grubunun sonunda (İlişki hesapla'nın
+              sağında). Bir görünüm DEĞİL; tıklanınca pencere açar (#4). */}
+          {gi === 1 && onCalendarExport && (
+            <button
+              onClick={onCalendarExport}
+              title={t("cal.export.hint")}
+              className="flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5 h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium transition-all duration-150 min-w-0 whitespace-nowrap text-text-muted hover:text-text"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+                <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                <path d="M3.5 9h17M8 3v3M16 3v3M12 12v4M10 14h4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+              </svg>
+              <span className="hidden sm:inline">{t("cal.export.title")}</span>
+            </button>
+          )}
         </div>
       ))}
     </>
@@ -98,6 +116,8 @@ interface Props {
   onOpenShare: () => void;
   /** ⋮ → Kişiler hub'ı (içe/dışa aktar, tablo, tüm kişileri sil). Verilmezse gizli. */
   onOpenPeople?: () => void;
+  /** "Takvime aktar" penceresini açar (üst barda, İlişki hesapla'nın sağında). */
+  onCalendarExport?: () => void;
   /** ⋮ menüsündeki "Yazdır" — açık görünümü yazdırır (Madde 8). */
   onPrintView: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
@@ -119,6 +139,7 @@ export default function TopBar({
   onOpenSettings,
   onOpenShare,
   onOpenPeople,
+  onCalendarExport,
   onPrintView,
   onAiChat,
   peopleCount,
@@ -202,7 +223,7 @@ export default function TopBar({
           className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
           aria-label={t("topbar.viewAria")}
         >
-          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
+          <ViewTabs view={view} onViewChange={onViewChange} onCalendarExport={onCalendarExport} t={t} />
         </nav>
 
         {/* Sağ aksiyonlar */}
