@@ -392,6 +392,29 @@ body {
   body.print-view .react-flow__minimap,
   body.print-view .react-flow__background,
   body.print-view .react-flow__attribution { display: none !important; }
+
+  /* Panel/istatistik yazdırma düzeltmeleri (kullanıcı isteği):
+   *  1) Kartlar sayfa geçişinde İKİYE BÖLÜNMESİN (kaymalar). Kart benzeri
+   *     bloklar (rounded-2xl) bir bütün olarak taşınır.
+   *  2) Kaydırılan alanlar (max-h + overflow) kâğıtta kırpılıp kaydırma çubuğu
+   *     göstermesin; içerik tamamı görünür olsun.
+   *  3) Arka plan renkleri (grafik çubukları vb.) mutlaka bassın. */
+  body.print-view .rounded-2xl { break-inside: avoid; }
+  body.print-view .overflow-y-auto,
+  body.print-view .overflow-x-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  body.print-view * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* Sayfa zemini beyaz kalsın (renkleri zorlarken uygulama gri zemini basmasın). */
+  body.print-view,
+  body.print-view .app-shell,
+  body.print-view main {
+    background: #fff !important;
+  }
 }
 
 /* ----------------------------------------------------------------------
