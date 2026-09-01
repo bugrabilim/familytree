@@ -4,6 +4,9 @@ import { compare } from "bcryptjs";
 import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
 import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 import { withTimeout, MIRROR_TIMEOUT_MS } from "@/lib/with-timeout";
+// Saf normalleştirme `lib/tree-access.ts`te (birim testli): `shares` alanı
+// burada DÜŞÜRÜLMEMELİ — düşerse tüm paylaşım bağlantıları kaybolur.
+import { normalizeAccess, normalizeShares } from "@/lib/tree-access";
 
 /**
  * Ağaç erişim (üye + davet) deposu — Madde 13.
@@ -18,16 +21,6 @@ function accessPathname(treeId: string) {
 }
 
 const empty = (): TreeAccess => ({ members: [], invites: [] });
-
-function normalizeAccess(data: TreeAccess): TreeAccess {
-  return {
-    members: data.members ?? [],
-    invites: data.invites ?? [],
-    share: data.share ?? null,
-    pairings: data.pairings ?? [],
-    pairInvites: data.pairInvites ?? [],
-  };
-}
 
 export async function getTreeAccess(
   treeId: string,
@@ -218,14 +211,6 @@ const MAX_VISITS = 50;
 const MAX_SHARES = 50;
 
 /** Erişim kaydındaki paylaşımları döndürür; eski tekil `share`'i diziye taşır. */
-function normalizeShares(data: { share?: ShareLink | null; shares?: ShareLink[] }): ShareLink[] {
-  const list = Array.isArray(data.shares) ? [...data.shares] : [];
-  if (data.share && !list.some((s) => s.token === data.share!.token)) {
-    const legacy = data.share;
-    list.unshift({ ...legacy, id: legacy.id ?? `legacy-${legacy.token.slice(-8)}` });
-  }
-  return list;
-}
 
 function daysToExpiry(days?: number | null): string | null {
   if (!days || days <= 0 || !Number.isFinite(days)) return null; // süresiz
