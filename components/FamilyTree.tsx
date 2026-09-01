@@ -7,6 +7,7 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  ControlButton,
   MiniMap,
   Handle,
   Position,
@@ -367,7 +368,29 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         showInteractive={false}
         position="bottom-right"
         className="!bottom-24 lg:!bottom-6 !right-4"
-      />
+      >
+        {/* Ortala — seçili kişiyi ekranın ortasına getir; seçim yoksa tüm ağacı
+           sığdır. (#4) Profil kartındaki "Ortala" da aynı işi yapar. */}
+        <ControlButton
+          onClick={() => {
+            const id = selectedId ?? focusId;
+            const pos = id ? positions.get(id) : null;
+            if (pos) {
+              setCenter(pos.x + dim.w / 2, pos.y + dim.h / 2, { zoom: Math.max(getZoom(), 0.7), duration: 400 });
+            } else {
+              fitView({ padding: 0.18, duration: 400 });
+            }
+          }}
+          title={t("tree.center")}
+          aria-label={t("tree.center")}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
+            <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </ControlButton>
+      </Controls>
       <MiniMap
         pannable
         zoomable
@@ -382,19 +405,6 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
           return p ? genderTone(p.gender).css : "var(--neutral)";
         }}
       />
-      {/* "Tümünü sığdır" — dar ekranda yalnız SİMGE. Kuşak çubuğu <lg'de tam
-          genişlik olduğundan, geniş bir düğme onun üstüne biniyordu (#5). */}
-      <button
-        onClick={() => fitView({ padding: 0.18, duration: 400 })}
-        title={t("tree.fitAll")}
-        aria-label={t("tree.fitAll")}
-        className="no-print absolute top-4 right-4 z-10 h-9 w-9 sm:w-auto px-0 sm:px-3 grid sm:flex place-items-center items-center gap-1.5 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card text-xs font-medium text-text-muted hover:text-text transition-colors"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="hidden sm:inline">{t("tree.fitAll")}</span>
-      </button>
     </ReactFlow>
   );
 }

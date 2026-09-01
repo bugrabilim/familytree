@@ -1,4 +1,4 @@
-import { put, list, get } from "@vercel/blob";
+import { put, get } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
 import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
@@ -19,31 +19,33 @@ function accessPathname(treeId: string) {
 
 const empty = (): TreeAccess => ({ members: [], invites: [] });
 
+function normalizeAccess(data: TreeAccess): TreeAccess {
+  return {
+    members: data.members ?? [],
+    invites: data.invites ?? [],
+    share: data.share ?? null,
+    pairings: data.pairings ?? [],
+    pairInvites: data.pairInvites ?? [],
+  };
+}
+
 export async function getTreeAccess(
   treeId: string,
   opts: { strict?: boolean } = {}
 ): Promise<TreeAccess> {
+  const pathname = accessPathname(treeId);
+  // ÖNEMLİ: Blob'u DOĞRUDAN sabit pathname ile oku — `list()` KULLANMA.
+  // `list()` eventual-consistent'tır: bir ağacın erişim kaydı İLK KEZ
+  // oluşturulduğunda (ilk davet/üye/paylaşım) list onu hemen görmeyebilir ve
+  // getTreeAccess boş döner. Bu, YENİ oluşturulan paylaşım bağlantısını
+  // "Bağlantı geçersiz" yapıyordu (#2 — ilk paylaşımda görülür). `get` doğrudan
+  // pathname ile okuduğundan yazılan objeyi hemen görür (güçlü tutarlılık).
   try {
-    const { blobs } = await list({ prefix: accessPathname(treeId) });
-    if (blobs.length === 0) return empty(); // henüz hiç kayıt yok — gerçekten boş
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) {
-      // Kayıt VAR ama okunamadı. Yazma yolunda bunu "boş" saymak, mevcut
-      // üyeleri/bağlantıları silmek demektir — o yüzden katı modda hata ver.
-      if (opts.strict) throw new Error(`erişim kaydı okunamadı (${result?.statusCode ?? "yanıt yok"})`);
-      return empty();
-    }
-    const data = (await new Response(result.stream).json()) as TreeAccess;
-    return {
-      members: data.members ?? [],
-      invites: data.invites ?? [],
-      share: data.share ?? null,
-      pairings: data.pairings ?? [],
-      pairInvites: data.pairInvites ?? [],
-    };
+    const result = await get(pathname, { access: "private", useCache: false });
+    // `get` blob yoksa null döner (gerçekten hiç kayıt yok). Aksi hâlde stream
+    // vardır; okuma/çözme hatası aşağıdaki catch'e düşer (katı modda yükselir).
+    if (!result) return empty();
+    return normalizeAccess((await new Response(result.stream).json()) as TreeAccess);
   } catch (e) {
     if (opts.strict) throw e;
     return empty();

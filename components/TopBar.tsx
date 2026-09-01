@@ -161,9 +161,12 @@ export default function TopBar({
   return (
     <>
     <header ref={headerRef} className="relative z-[45] shrink-0 bg-bg-elevated/85 backdrop-blur-xl border-b border-border">
-      <div className="h-14 px-3 sm:px-4 flex items-center gap-2 sm:gap-3">
+      {/* Tek satır / alt kat (#1): geniş ekranda (xl) marka + görünüm sekmeleri +
+          aksiyonlar TEK SATIRA sığar; sığmayınca (xl altı) sekmeler alt kata
+          (w-full) iner. flex-wrap + order ile. */}
+      <div className="px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Marka */}
-        <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+        <div className="order-1 flex items-center gap-2.5 min-w-0 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-primary grid place-items-center shrink-0 shadow-soft">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -193,11 +196,17 @@ export default function TopBar({
           )}
         </div>
 
-        {/* Görünüm seçici, üst satırdan kendi tam-genişlik satırına taşındı
-            (aşağıda) — 10 sekme + 3 grup burada sıkışmasın ve gruplar net dursun. */}
+        {/* Görünüm sekmeleri — xl'de aksiyonlardan ÖNCE (order-2), aksiyonlar
+            order-3; xl altında w-full + order-3 ile alt kata iner. */}
+        <nav
+          className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
+          aria-label={t("topbar.viewAria")}
+        >
+          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
+        </nav>
 
         {/* Sağ aksiyonlar */}
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto">
+        <div className="order-2 xl:order-3 flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto">
           <button
             onClick={onSearch}
             className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
@@ -293,18 +302,6 @@ export default function TopBar({
         </div>
       </div>
 
-      {/* Görünüm seçici — kendi tam-genişlik satırı. Üç grup kendi kabuğunda.
-          Dar ekranda (ör. yarım pencere) tek satıra sığmayınca YATAY KAYDIRMA
-          yerine ALT SATIRA sarar (flex-wrap) — böylece "Aile Kitabı" sağa,
-          "Çevre/Soy" sola taşıp gizlenmez, hepsi erişilebilir kalır. */}
-      <div className="px-3 sm:px-4 pb-2 -mt-1">
-        <nav
-          className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
-          aria-label={t("topbar.viewAria")}
-        >
-          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
-        </nav>
-      </div>
     </header>
     {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </>
