@@ -90,7 +90,7 @@ interface Props {
 
 function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq }: Props) {
   const t = useT();
-  const { fitView, setCenter, getZoom } = useReactFlow();
+  const { fitView, setCenter, getZoom, zoomIn, zoomOut } = useReactFlow();
 
   // Ayrıntı düzeyi YALNIZ kuşak/kalabalıktan belirlenir — yakınlaştırmadan
   // BAĞIMSIZ. Böylece zoom yaparken `dim` (dolayısıyla `positions` düzeni)
@@ -366,9 +366,23 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
       <Controls
         showInteractive={false}
+        showZoom={false}
+        showFitView={false}
         position="bottom-right"
         className="!bottom-24 lg:!bottom-6 !right-4"
       >
+        {/* Yakınlaştır / Uzaklaştır — React Flow'un varsayılan düğmeleri kapatıldı
+           (İngilizce ipucu veriyorlardı); yerine i18n başlıklı düğmeler (#5). */}
+        <ControlButton onClick={() => zoomIn({ duration: 200 })} title={t("tree.zoomIn")} aria-label={t("tree.zoomIn")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </ControlButton>
+        <ControlButton onClick={() => zoomOut({ duration: 200 })} title={t("tree.zoomOut")} aria-label={t("tree.zoomOut")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </ControlButton>
         {/* Ortala — seçili kişiyi ekranın ortasına getir; seçim yoksa tüm ağacı
            sığdır. (#4) Profil kartındaki "Ortala" da aynı işi yapar. */}
         <ControlButton
