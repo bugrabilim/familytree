@@ -284,14 +284,18 @@ function ordinalAta(up: number, gender: Person["gender"]): string {
   const taban = gender === "female" ? "nine" : gender === "male" ? "dede" : "ata";
   if (up === 2) return taban === "ata" ? "büyük ata" : taban;
   if (up <= 4) return `${ATA_ADI[up - 1]} ${taban}`.trim();
-  return `${up - 1}. kuşak ${taban}`;
+  // "N. kuşak" = kişiden kaç kuşak uzakta (kuşak görüntüleyicideki kutu adıyla
+  // aynı sayım): 5. kuşak ata "5. kuşak dede" olur, "4." değil.
+  return `${up}. kuşak ${taban}`;
 }
 
 function ordinalTorun(down: number): string {
   if (down === 1) return "çocuk";
   if (down === 2) return "torun";
   if (down === 3) return "torun çocuğu";
-  return `${down - 1}. kuşak torun`;
+  // "N. kuşak torun" = kişiden N kuşak aşağıda (kutu adıyla aynı): 4 kuşak
+  // aşağıdaki soy "4. kuşak torun" olur, "3." değil.
+  return `${down}. kuşak torun`;
 }
 
 /**
