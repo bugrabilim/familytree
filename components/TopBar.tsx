@@ -11,7 +11,7 @@ import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey =
   | "agac" | "cevre" | "soy" | "yelpaze" | "liste" | "zaman" | "harita"
-  | "istatistik" | "iliski" | "tablo" | "kitap";
+  | "istatistik" | "iliski" | "takvim" | "tablo" | "kitap";
 
 const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
   agac: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3",
@@ -23,14 +23,15 @@ const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
   harita: "M12 21s6-5.6 6-10.4A6 6 0 006 10.6C6 15.4 12 21 12 21z M12 8.4a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z",
   istatistik: "M4 13h6V4H4v9zm10 7h6v-9h-6v9zM4 20h6v-4H4v4zm10-11h6V4h-6v5z",
   iliski: "M9 12h6M10 8H8a4 4 0 000 8h2M14 8h2a4 4 0 010 8h-2",
+  takvim: "M3.5 5h17v15h-17zM3.5 9h17M8 3v3M16 3v3M12 12v4M10 14h4",
   kitap: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z",
 };
 
 /** Üst menü sekmeleri, üç mantıksal grupta (aralarına ayraç konur):
- *  1) görünümler, 2) çözümleme (istatistik/ilişki), 3) kitap. */
+ *  1) görünümler, 2) çözümleme (istatistik/ilişki/takvim), 3) kitap. */
 export const VIEW_GROUPS: ViewKey[][] = [
   ["agac", "cevre", "soy", "yelpaze", "liste", "zaman", "harita"],
-  ["istatistik", "iliski"],
+  ["istatistik", "iliski", "takvim"],
   ["kitap"],
 ];
 
@@ -46,13 +47,10 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().m
 function ViewTabs({
   view,
   onViewChange,
-  onCalendarExport,
   t,
 }: {
   view: ViewKey;
   onViewChange: (v: ViewKey) => void;
-  /** "Takvime aktar" — çözümleme grubunda (İlişki hesapla'nın sağında). */
-  onCalendarExport?: () => void;
   t: TFunction;
 }) {
   return (
@@ -85,21 +83,6 @@ function ViewTabs({
               <span className="hidden sm:inline">{t(`view.${key}.label`)}</span>
             </button>
           ))}
-          {/* "Takvime aktar" — çözümleme grubunun sonunda (İlişki hesapla'nın
-              sağında). Bir görünüm DEĞİL; tıklanınca pencere açar (#4). */}
-          {gi === 1 && onCalendarExport && (
-            <button
-              onClick={onCalendarExport}
-              title={t("cal.export.hint")}
-              className="flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5 h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium transition-all duration-150 min-w-0 whitespace-nowrap text-text-muted hover:text-text"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-                <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.9" />
-                <path d="M3.5 9h17M8 3v3M16 3v3M12 12v4M10 14h4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-              </svg>
-              <span className="hidden sm:inline">{t("cal.export.title")}</span>
-            </button>
-          )}
         </div>
       ))}
     </>
@@ -116,8 +99,6 @@ interface Props {
   onOpenShare: () => void;
   /** ⋮ → Kişiler hub'ı (içe/dışa aktar, tablo, tüm kişileri sil). Verilmezse gizli. */
   onOpenPeople?: () => void;
-  /** "Takvime aktar" penceresini açar (üst barda, İlişki hesapla'nın sağında). */
-  onCalendarExport?: () => void;
   /** ⋮ menüsündeki "Yazdır" — açık görünümü yazdırır (Madde 8). */
   onPrintView: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
@@ -139,7 +120,6 @@ export default function TopBar({
   onOpenSettings,
   onOpenShare,
   onOpenPeople,
-  onCalendarExport,
   onPrintView,
   onAiChat,
   peopleCount,
@@ -223,7 +203,7 @@ export default function TopBar({
           className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
           aria-label={t("topbar.viewAria")}
         >
-          <ViewTabs view={view} onViewChange={onViewChange} onCalendarExport={onCalendarExport} t={t} />
+          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
         </nav>
 
         {/* Sağ aksiyonlar */}

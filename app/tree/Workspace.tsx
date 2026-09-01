@@ -28,7 +28,7 @@ import PedigreeView from "@/components/PedigreeView";
 import FanChart from "@/components/FanChart";
 import TimelineView from "@/components/TimelineView";
 import Modal from "@/components/ui/Modal";
-import CalendarExport from "@/components/CalendarExport";
+import CalendarView from "@/components/CalendarView";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
@@ -152,7 +152,6 @@ function WorkspaceInner({
   const [gedcomOpen, setGedcomOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [shareHubOpen, setShareHubOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
@@ -528,7 +527,6 @@ function WorkspaceInner({
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShare={() => setShareHubOpen(true)}
         onOpenPeople={!publicView ? () => setPeopleOpen(true) : undefined}
-        onCalendarExport={!isEmpty ? () => setCalendarOpen(true) : undefined}
         onPrintView={printCurrentView}
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
@@ -632,6 +630,8 @@ function WorkspaceInner({
             onSelect={setSelectedId}
             onAdd={openAdd}
           />
+        ) : view === "takvim" ? (
+          <CalendarView people={people} onSelect={setSelectedId} />
         ) : (
           <PanelView
             people={people}
@@ -734,13 +734,6 @@ function WorkspaceInner({
           onCleared={() => { setPeopleOpen(false); handleCleared(); }}
           onRestored={() => { setPeopleOpen(false); notify(t("history.restored")); router.refresh(); }}
         />
-      )}
-
-      {/* Takvime aktar (üst bar → İlişki hesapla'nın sağı) */}
-      {calendarOpen && (
-        <Modal title={t("cal.export.title")} onClose={() => setCalendarOpen(false)}>
-          <CalendarExport people={people} />
-        </Modal>
       )}
 
       {/* Paylaş hub'ı (⋮ → Paylaş) */}
