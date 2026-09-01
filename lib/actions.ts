@@ -21,6 +21,7 @@ export interface PersonPayload {
   officialBirthDate?: string;
   deathDate?: string;
   birthPlace?: string;
+  birthCoords?: { lat: number; lng: number } | null;
   religion?: string;
   denomination?: string;
   language?: string;

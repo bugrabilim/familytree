@@ -9,6 +9,7 @@ import {
   unprojectEquirectangular,
   type LatLng,
 } from "@/lib/places";
+import { geocodeNominatim } from "@/lib/geocode";
 import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { useT } from "@/lib/i18n";
 
@@ -126,28 +127,82 @@ export default function LocationPicker({
     onChange({ lat: Math.round(ll.lat * 1e5) / 1e5, lng: Math.round(ll.lng * 1e5) / 1e5 });
   };
 
-  const geocode = () => {
-    const hit = addressForGeocode ? resolvePlace(addressForGeocode) : null;
-    if (hit) {
-      onChange({ lat: hit.lat, lng: hit.lng });
-      const w = VW / 12;
-      const h = w * (VH / VW);
-      const { x, y } = projectEquirectangular(hit.lat, hit.lng, VW, VH);
-      setBox(clampBox({ x: x - w / 2, y: y - h / 2, w, h }));
+  const focusOn = (hit: LatLng) => {
+    onChange({ lat: Math.round(hit.lat * 1e5) / 1e5, lng: Math.round(hit.lng * 1e5) / 1e5 });
+    const w = VW / 12;
+    const h = w * (VH / VW);
+    const { x, y } = projectEquirectangular(hit.lat, hit.lng, VW, VH);
+    setBox(clampBox({ x: x - w / 2, y: y - h / 2, w, h }));
+  };
+
+  // "Adresten konumu bul": önce yerel sözlük (anlık), yoksa canlı Nominatim.
+  const [geoBusy, setGeoBusy] = useState(false);
+  const geocode = async () => {
+    const q = addressForGeocode?.trim();
+    if (!q) return;
+    const local = resolvePlace(q);
+    if (local) { focusOn(local); return; }
+    setGeoBusy(true);
+    try {
+      const hit = await geocodeNominatim(q);
+      if (hit) focusOn(hit);
+    } finally {
+      setGeoBusy(false);
+    }
+  };
+
+  // Serbest arama (canlı Nominatim) — ör. "Evlek, Gürgentepe, Ordu".
+  const [query, setQuery] = useState("");
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchMiss, setSearchMiss] = useState(false);
+  const search = async () => {
+    const q = query.trim();
+    if (!q) return;
+    setSearchBusy(true);
+    setSearchMiss(false);
+    try {
+      const hit = resolvePlace(q) ?? (await geocodeNominatim(q));
+      if (hit) focusOn(hit);
+      else setSearchMiss(true);
+    } finally {
+      setSearchBusy(false);
     }
   };
 
   return (
     <div className="space-y-2">
+      {/* Serbest arama — köy/mahalle/ilçe adını (şehir bilgisiyle) yaz, canlı
+          coğrafi kodlamayla bul; iğneyi oraya taşır. Yer adı METNİ değişmez. */}
       <div className="flex items-center gap-2">
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setSearchMiss(false); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); search(); } }}
+          placeholder={t("loc.searchPlaceholder")}
+          className="flex-1 h-8 px-2.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+        />
         <button
           type="button"
-          onClick={geocode}
-          disabled={!addressForGeocode?.trim()}
-          className="h-8 px-2.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-text-muted disabled:opacity-50 transition-colors"
+          onClick={search}
+          disabled={!query.trim() || searchBusy}
+          className="h-8 px-2.5 rounded-lg border border-primary/30 bg-primary-soft text-[11px] font-medium text-primary disabled:opacity-50 transition-colors"
         >
-          {t("burial.geocode")}
+          {searchBusy ? t("loc.searching") : t("loc.search")}
         </button>
+      </div>
+      {searchMiss && <p className="text-[11px] text-danger">{t("loc.searchMiss")}</p>}
+
+      <div className="flex items-center gap-2">
+        {addressForGeocode?.trim() && (
+          <button
+            type="button"
+            onClick={geocode}
+            disabled={geoBusy}
+            className="h-8 px-2.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-text-muted disabled:opacity-50 transition-colors"
+          >
+            {geoBusy ? t("loc.searching") : t("burial.geocode")}
+          </button>
+        )}
         {coords && (
           <button
             type="button"

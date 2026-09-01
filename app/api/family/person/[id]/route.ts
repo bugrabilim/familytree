@@ -46,6 +46,9 @@ export async function PUT(
     officialBirthDate: body.officialBirthDate || data.people[index].officialBirthDate,
     deathDate: body.deathDate || data.people[index].deathDate,
     birthPlace: body.birthPlace || data.people[index].birthPlace,
+    // Doğum yeri koordinatı: undefined → değiştirme; "" / null → temizle; değer → ayarla.
+    birthCoords:
+      body.birthCoords === undefined ? data.people[index].birthCoords : (body.birthCoords || undefined),
     religion: body.religion ?? data.people[index].religion,
     denomination: body.denomination ?? data.people[index].denomination,
     language: body.language ?? data.people[index].language,
