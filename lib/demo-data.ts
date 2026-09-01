@@ -1441,12 +1441,36 @@ const CEVRE: Seed[] = [
     bio: "Arda'nın mahalle arkadaşı. Bisikletleri hep birlikte, akşam ezanına kadar sokaktalar." },
 ];
 
-export const DEMO_PEOPLE: Person[] = build([
+/** Demo: örnek defin (mezar) yerleri — gerçek mezarlık konumları. Haritadaki
+ *  "Defin yerleri" katmanını (ayrı renk) doldurmak için vefat edenlere sırayla
+ *  atanır. Yaşayanlara dokunulmaz; zaten defin bilgisi olan kayıt korunur. */
+const DEMO_CEMETERIES: Array<{ place: string; lat: number; lng: number }> = [
+  { place: "Karacaahmet Mezarlığı, Üsküdar, İstanbul", lat: 41.0033, lng: 29.0247 },
+  { place: "Cebeci Asri Mezarlığı, Ankara", lat: 39.9346, lng: 32.8756 },
+  { place: "Develi Şehir Mezarlığı, Kayseri", lat: 38.3906, lng: 35.4917 },
+  { place: "Zincirlikuyu Mezarlığı, Şişli, İstanbul", lat: 41.0678, lng: 29.0089 },
+  { place: "Bornova Mezarlığı, İzmir", lat: 38.4622, lng: 27.2211 },
+  { place: "Adana Asri Mezarlığı", lat: 37.0201, lng: 35.3411 },
+  { place: "Melikgazi Mezarlığı, Kayseri", lat: 38.7286, lng: 35.4931 },
+  { place: "Südfriedhof, Köln", lat: 50.9137, lng: 6.954 },
+];
+
+function withDemoBurials(people: Person[]): Person[] {
+  let i = 0;
+  return people.map((p) => {
+    if (!p.deathDate || p.burialPlace) return p;
+    const cem = DEMO_CEMETERIES[i % DEMO_CEMETERIES.length];
+    i++;
+    return { ...p, burialPlace: cem.place, burialCoords: { lat: cem.lat, lng: cem.lng } };
+  });
+}
+
+export const DEMO_PEOPLE: Person[] = withDemoBurials(build([
   // Soyadı Kanunu (1934) öncesi kuşaklar — soyadsız, patronim + lakapla anılır
   ...patronimik([...K0A, ...K0B, ...K0C, ...K0D, ...K1, ...K1B, ...K2, ...K3, ...K4]),
   ...K5, ...K6, ...K7, ...K8, ...K9, ...K10, ...K11,
   ...GOC, ...LGBT, ...EK, ...EK2, ...EK3, ...EK4,
   ...CEVRE,
-]);
+]));
 
 export const DEMO_FAMILY_NAME = "Demirtaş";
