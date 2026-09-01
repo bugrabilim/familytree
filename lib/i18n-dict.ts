@@ -34,6 +34,7 @@ export const tr: Dict = {
 
   /* --- Üst çubuk --- */
   "tree.fitAll": "Tümünü sığdır",
+  "tree.center": "Ortala",
   "topbar.appName": "Soy Ağacı",
   "topbar.viewAria": "Görünüm",
   "topbar.search": "Ara",
@@ -1342,6 +1343,7 @@ export const en: Dict = {
 
   /* --- Top bar --- */
   "tree.fitAll": "Fit all",
+  "tree.center": "Center",
   "topbar.appName": "Family Tree",
   "topbar.viewAria": "View",
   "topbar.search": "Search",
