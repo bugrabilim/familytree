@@ -1,4 +1,4 @@
-import { put, get } from "@vercel/blob";
+import { put, get, list } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
 import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
@@ -34,17 +34,33 @@ export async function getTreeAccess(
   opts: { strict?: boolean } = {}
 ): Promise<TreeAccess> {
   const pathname = accessPathname(treeId);
-  // ÖNEMLİ: Blob'u DOĞRUDAN sabit pathname ile oku — `list()` KULLANMA.
-  // `list()` eventual-consistent'tır: bir ağacın erişim kaydı İLK KEZ
-  // oluşturulduğunda (ilk davet/üye/paylaşım) list onu hemen görmeyebilir ve
-  // getTreeAccess boş döner. Bu, YENİ oluşturulan paylaşım bağlantısını
-  // "Bağlantı geçersiz" yapıyordu (#2 — ilk paylaşımda görülür). `get` doğrudan
-  // pathname ile okuduğundan yazılan objeyi hemen görür (güçlü tutarlılık).
+
+  // (1) Önce DOĞRUDAN pathname ile `get` — YENİ yazılan kaydı hemen görür (güçlü
+  //     tutarlılık; #2 ilk-paylaşım penceresi için). Ancak bazı ortamlarda
+  //     pathname'den URL çözümü blob'u bulamayıp `null`/304 dönebiliyor — bu
+  //     durumda paylaşım "geçersiz" görünüyordu. O yüzden başarısızsa (2)'ye düş.
   try {
-    const result = await get(pathname, { access: "private", useCache: false });
-    // `get` blob yoksa null döner (gerçekten hiç kayıt yok). Aksi hâlde stream
-    // vardır; okuma/çözme hatası aşağıdaki catch'e düşer (katı modda yükselir).
-    if (!result) return empty();
+    const direct = await get(pathname, { access: "private", useCache: false });
+    if (direct && direct.statusCode === 200) {
+      return normalizeAccess((await new Response(direct.stream).json()) as TreeAccess);
+    }
+    // direct === null (blob yok gibi görünüyor) ya da 304 → list yedeğine düş.
+  } catch {
+    /* doğrudan get hata verdi → (2) list yedeğine düş */
+  }
+
+  // (2) `list({prefix}) + get(latest.pathname)` — uygulamanın geri kalanında
+  //     (aile verisi okuması) ÇALIŞTIĞI KANITLI yol. `addRandomSuffix:false`
+  //     olsa da bu ortamda güvenilir okuma yolu budur; doğrudan get bazı
+  //     blob'ları çözemediğinde kaydı yine de bulur.
+  try {
+    const { blobs } = await list({ prefix: pathname });
+    if (blobs.length === 0) return empty(); // gerçekten hiç kayıt yok
+    const latest = blobs.sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    )[0];
+    const result = await get(latest.pathname, { access: "private", useCache: false });
+    if (!result || result.statusCode !== 200) return empty();
     return normalizeAccess((await new Response(result.stream).json()) as TreeAccess);
   } catch (e) {
     if (opts.strict) throw e;
@@ -309,26 +325,24 @@ export async function findValidShare(
   const parsed = parseInviteToken(token);
   if (!parsed) return null;
 
-  // Erişim kaydını OKU. Blob geçici bir okuma hatası verirse (statusCode≠200),
-  // bunu "kayıt yok" saymak bağlantıyı yanlışlıkla geçersiz gösterir — kullanıcı
-  // "erişiminiz yok / bağlantı geçersiz" görürdü (#6). Bu yüzden katı okur ve
-  // kısa aralıklarla birkaç kez dener; ancak gerçekten hiç kayıt yoksa
-  // (blobs boş) getTreeAccess zaten hatasız empty() döndürür ve döngü biter.
-  let data: TreeAccess | null = null;
+  // Erişim kaydını OKU ve jetonu bul. Okuma hatası VEYA henüz görünmeyen taze
+  // kayıt (blob eventual-consistency) yüzünden jeton bulunamazsa, bağlantıyı
+  // hemen "geçersiz" saymak yanlış olur (#2/#6). Bu yüzden bulunana kadar kısa
+  // aralıklarla birkaç kez dener. Jeton gerçekten yoksa 3 denemede null döner.
   for (let attempt = 0; attempt < 3; attempt++) {
+    let data: TreeAccess | null = null;
     try {
       data = await getTreeAccess(parsed.treeId, { strict: true });
-      break;
     } catch {
-      if (attempt === 2) break;
-      await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+      data = null;
     }
+    if (data) {
+      const share = normalizeShares(data).find((s) => s.token === token);
+      if (share) return isExpired(share) ? null : { treeId: parsed.treeId, share };
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
   }
-  if (!data) return null;
-
-  const share = normalizeShares(data).find((s) => s.token === token);
-  if (!share || isExpired(share)) return null;
-  return { treeId: parsed.treeId, share };
+  return null;
 }
 
 /** Bir ziyareti kaydeder (best-effort; anonim). */
