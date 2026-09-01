@@ -404,6 +404,16 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
             <path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </ControlButton>
+        {/* Tümünü sığdır — tüm ağacı ekrana sığdır (seçimden bağımsız). */}
+        <ControlButton
+          onClick={() => fitView({ padding: 0.15, duration: 400 })}
+          title={t("tree.fitAll")}
+          aria-label={t("tree.fitAll")}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </ControlButton>
       </Controls>
       <MiniMap
         pannable
