@@ -12,9 +12,7 @@ import {
   computeStats,
   describeRelation,
   findRelationPath,
-  genitive,
   indexPeople,
-  possessive,
   relativesByGeneration,
 } from "@/lib/relations";
 import { fullName } from "@/lib/name";
@@ -34,9 +32,12 @@ interface Props {
   onPrint?: () => void;
   /** "stats" = İstatistikler (sayı/grafik), "relations" = İlişki hesapla (akrabalık araçları). */
   mode?: "stats" | "relations";
+  /** Ağaçta merkezde olan (kök/odak) kişi — İlişki hesapla araçlarında
+   *  varsayılan seçili gelir (#6). */
+  focusId?: string;
 }
 
-export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint, mode = "stats" }: Props) {
+export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint, mode = "stats", focusId }: Props) {
   const isStats = mode !== "relations";
   const isRelations = mode === "relations";
   const { view, hideLiving } = usePrivacy();
@@ -84,17 +85,10 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
     () => byAge.filter((x) => x.living).sort((a, b) => b.age - a.age).slice(0, 5),
     [byAge]
   );
-  // #3 — en gençleri iki gruba böl: yeni doğanlar (0–1) ve çocuklar (2–12).
+  // Yeni doğanlar (0–1 yaş, yaşayan). "Çocuklar" alanı kaldırıldı; "En uzun
+  // yaşamışlar" artık kendi bileşeninde (LongestLived) hesaplanıyor.
   const newborns = useMemo(
     () => byAge.filter((x) => x.living && x.age <= 1).sort((a, b) => a.age - b.age).slice(0, 8),
-    [byAge]
-  );
-  const children = useMemo(
-    () => byAge.filter((x) => x.living && x.age >= 2 && x.age <= 12).sort((a, b) => a.age - b.age).slice(0, 8),
-    [byAge]
-  );
-  const longestLived = useMemo(
-    () => [...byAge].sort((a, b) => b.age - a.age).slice(0, 5),
     [byAge]
   );
 
@@ -445,6 +439,21 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
               bars={charts.ageBuckets.map((b) => ({ key: b.label, label: b.label, value: b.people.length, people: b.people }))}
               onPick={openDrill}
             />
+
+            {/* Yeni doğanlar — doğum yerinin altında (sol sütun). */}
+            <Card title={t("panel.card.newborns")} hint={t("panel.card.newbornsHint")} empty={newborns.length === 0 ? t("panel.card.noDated") : undefined}>
+              <AgeList rows={newborns} onSelect={onSelect} />
+            </Card>
+            {/* En uzun yaşamışlar — yaş dağılımının altında (sağ sütun); "yalnız
+                yaşayanlar" seçeneği varsayılan AÇIK. */}
+            <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")}>
+              <LongestLived rows={byAge} onSelect={onSelect} />
+            </Card>
+
+            {/* Yaş aralığı — yeni doğanların altında (sol sütun). */}
+            <Card title={t("panel.card.ageRange")} hint={t("panel.card.ageRangeHint")}>
+              <AgeRangeFinder rows={byAge} onSelect={onSelect} />
+            </Card>
           </div>
         </section>
         </>
@@ -581,25 +590,22 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             <>
               {/* Kişinin akrabaları — "Hatice'nin halası kim?" */}
               <Card title={t("panel.card.relatives")} hint={t("panel.card.relativesHint")}>
-                <RelativesFinder people={people} idx={idx} onSelect={onSelect} />
+                <RelativesFinder people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
               {/* Kuşak görüntüleyici KALDIRILDI (#2). */}
 
               {/* Kuşaklara göre akrabalar — kuşak-uzaklığına göre ayrı sütunlar */}
               <Card title={t("panel.card.genSpread")} hint={t("panel.card.genSpreadHint")} className="lg:col-span-2">
-                <GenerationSpread people={people} idx={idx} onSelect={onSelect} />
+                <GenerationSpread people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
               {/* Yakınlık derecesi */}
               <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
-                <DegreeViewer people={people} idx={idx} onSelect={onSelect} />
+                <DegreeViewer people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
-              {/* Akrabalık hesaplayıcı */}
-              <Card title={t("panel.card.calculator")} hint={t("panel.card.calculatorHint")}>
-                <RelationCalculator people={people} idx={idx} onSelect={onSelect} />
-              </Card>
+              {/* Akrabalık hesaplayıcı KALDIRILDI (#7). */}
             </>
           )}
 
@@ -645,27 +651,8 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, onPrint,
             <AgeList rows={livingOldest} onSelect={onSelect} />
           </Card>
 
-          {/* #3 Çocuklar (2–12 yaş, yaşayan) */}
-          <Card title={t("panel.card.children")} collapsible defaultOpen={false} hint={t("panel.card.childrenHint")} empty={children.length === 0 ? t("panel.card.noDated") : undefined}>
-            <AgeList rows={children} onSelect={onSelect} />
-          </Card>
-
-          {/* #4 Yaş aralığı filtresi — ör. yaşayan 25–35 yaş */}
-          <Card title={t("panel.card.ageRange")} hint={t("panel.card.ageRangeHint")}>
-            <AgeRangeFinder rows={byAge} onSelect={onSelect} />
-          </Card>
-
-          {/* Yeni doğanlar + En uzun yaşamışlar — yan yana (#1). */}
-          <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
-            {/* #3 Yeni doğanlar (0–1 yaş, yaşayan) */}
-            <Card title={t("panel.card.newborns")} hint={t("panel.card.newbornsHint")} empty={newborns.length === 0 ? t("panel.card.noDated") : undefined}>
-              <AgeList rows={newborns} onSelect={onSelect} />
-            </Card>
-            {/* #7 En uzun yaşamışlar (yaşayan + vefat) */}
-            <Card title={t("panel.card.longestLived")} hint={t("panel.card.longestLivedHint")} empty={longestLived.length === 0 ? t("panel.card.noDated") : undefined}>
-              <AgeList rows={longestLived} onSelect={onSelect} />
-            </Card>
-          </div>
+          {/* "Çocuklar" alanı kaldırıldı; Yeni doğanlar / En uzun yaşamışlar /
+              Yaş aralığı yukarıya, grafiklerin altına taşındı. */}
 
           {/* Soyadları + uyarılar */}
           <Card title={t("panel.card.families")} collapsible defaultOpen={false} hint={t("panel.card.familiesHint")}>
@@ -752,6 +739,45 @@ function MiniStat({
 }
 
 /** Yaşa göre kişi listesi — #6/#7 kartlarında ortak. */
+/** En uzun yaşamışlar — "yalnız yaşayanlar" seçeneği VARSAYILAN AÇIK. Kapalıyken
+ *  vefat edenler de dahil olur (yaşamış/yaşayan tüm kişiler arasında en yüksek yaş). */
+function LongestLived({
+  rows,
+  onSelect,
+}: {
+  rows: Array<{ p: Person; age: number; living: boolean }>;
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const [livingOnly, setLivingOnly] = useState(true);
+  const shown = useMemo(
+    () =>
+      [...rows]
+        .filter((x) => !livingOnly || x.living)
+        .sort((a, b) => b.age - a.age)
+        .slice(0, 5),
+    [rows, livingOnly]
+  );
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-[11px] text-text cursor-pointer select-none mb-2 w-fit">
+        <input
+          type="checkbox"
+          checked={livingOnly}
+          onChange={(e) => setLivingOnly(e.target.checked)}
+          className="accent-[var(--primary)]"
+        />
+        {t("panel.ageRange.livingOnly")}
+      </label>
+      {shown.length === 0 ? (
+        <p className="text-sm text-text-subtle py-2">{t("panel.card.noDated")}</p>
+      ) : (
+        <AgeList rows={shown} onSelect={onSelect} />
+      )}
+    </div>
+  );
+}
+
 function AgeList({
   rows,
   onSelect,
@@ -1148,12 +1174,14 @@ function RelativesFinder({
   people,
   idx,
   onSelect,
+  defaultPersonId,
 }: {
   people: Person[];
   idx: ReturnType<typeof indexPeople>;
   onSelect: (id: string) => void;
+  defaultPersonId?: string;
 }) {
-  const [personId, setPersonId] = useState("");
+  const [personId, setPersonId] = useState(defaultPersonId ?? "");
   const [filter, setFilter] = useState("");
   const { view } = usePrivacy();
   const t = useT();
@@ -1318,12 +1346,14 @@ function GenerationSpread({
   people,
   idx,
   onSelect,
+  defaultPersonId,
 }: {
   people: Person[];
   idx: ReturnType<typeof indexPeople>;
   onSelect: (id: string) => void;
+  defaultPersonId?: string;
 }) {
-  const [personId, setPersonId] = useState("");
+  const [personId, setPersonId] = useState(defaultPersonId ?? "");
   const [gen, setGen] = useState(2);
   const { view, hideLiving } = usePrivacy();
   const t = useT();
@@ -1440,12 +1470,14 @@ function DegreeViewer({
   people,
   idx,
   onSelect,
+  defaultPersonId,
 }: {
   people: Person[];
   idx: ReturnType<typeof indexPeople>;
   onSelect: (id: string) => void;
+  defaultPersonId?: string;
 }) {
-  const [personId, setPersonId] = useState("");
+  const [personId, setPersonId] = useState(defaultPersonId ?? "");
   const [degree, setDegree] = useState(1);
   const t = useT();
 
@@ -1546,84 +1578,5 @@ function Card({
       )}
       {open && <div className={collapsible ? "mt-3" : undefined}>{body}</div>}
     </section>
-  );
-}
-
-function RelationCalculator({
-  people,
-  idx,
-  onSelect,
-}: {
-  people: Person[];
-  idx: ReturnType<typeof indexPeople>;
-  onSelect: (id: string) => void;
-}) {
-  const [aId, setAId] = useState("");
-  const [bId, setBId] = useState("");
-  const t = useT();
-
-  const sorted = useMemo(() => {
-    const coll = new Intl.Collator("tr");
-    return [...people].sort(
-      (x, y) => coll.compare(x.firstName, y.firstName) || coll.compare(x.lastName, y.lastName)
-    );
-  }, [people]);
-
-  const result = useMemo(() => {
-    if (!aId || !bId || aId === bId) return null;
-    return describeRelation(aId, bId, people, idx);
-  }, [aId, bId, people, idx]);
-
-  const a = aId ? idx.get(aId) : undefined;
-  const b = bId ? idx.get(bId) : undefined;
-
-  const selectCls =
-    "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <select value={aId} onChange={(e) => setAId(e.target.value)} className={selectCls} aria-label={t("panel.rc.firstAria")}>
-          <option value="">{t("common.choosePerson")}</option>
-          {sorted.map((p) => (
-            <option key={p.id} value={p.id}>
-              {fullName(p)}
-            </option>
-          ))}
-        </select>
-        <select value={bId} onChange={(e) => setBId(e.target.value)} className={selectCls} aria-label={t("panel.rc.secondAria")}>
-          <option value="">{t("common.choosePerson")}</option>
-          {sorted.map((p) => (
-            <option key={p.id} value={p.id}>
-              {fullName(p)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {a && b && (
-        <div className="p-3.5 rounded-xl bg-primary-soft text-center">
-          {result ? (
-            <p className="text-sm text-text leading-relaxed">
-              <button onClick={() => onSelect(b.id)} className="font-semibold hover:underline">
-                {fullName(b)}
-              </button>
-              {" — "}
-              <button onClick={() => onSelect(a.id)} className="font-semibold hover:underline">
-                {genitive(a.firstName)}
-              </button>{" "}
-              <span className="font-semibold text-primary">
-                {possessive(result.toLocaleLowerCase("tr"))}
-              </span>
-              .
-            </p>
-          ) : (
-            <p className="text-sm text-text-muted">
-              {t("panel.rc.noBond")}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

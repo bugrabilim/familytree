@@ -629,6 +629,7 @@ function WorkspaceInner({
             mode="relations"
             onSelect={setSelectedId}
             onAdd={openAdd}
+            focusId={effectiveRoot}
           />
         ) : view === "takvim" ? (
           <CalendarView people={people} onSelect={setSelectedId} />
