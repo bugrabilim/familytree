@@ -293,12 +293,13 @@ export default function TopBar({
         </div>
       </div>
 
-      {/* Görünüm seçici — kendi tam-genişlik satırı (tüm ekranlarda). Üç grup
-          kendi kabuğunda, aralarında boşluk; masaüstünde ortalanır, dar
-          ekranda yatay kaydırılır. */}
+      {/* Görünüm seçici — kendi tam-genişlik satırı. Üç grup kendi kabuğunda.
+          Dar ekranda (ör. yarım pencere) tek satıra sığmayınca YATAY KAYDIRMA
+          yerine ALT SATIRA sarar (flex-wrap) — böylece "Aile Kitabı" sağa,
+          "Çevre/Soy" sola taşıp gizlenmez, hepsi erişilebilir kalır. */}
       <div className="px-3 sm:px-4 pb-2 -mt-1">
         <nav
-          className="flex items-center gap-2 sm:gap-3 sm:justify-center overflow-x-auto no-scrollbar"
+          className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} t={t} />

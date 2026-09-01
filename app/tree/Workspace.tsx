@@ -537,7 +537,7 @@ function WorkspaceInner({
 
       <main
         className={`flex-1 min-h-0 relative transition-[padding] duration-300 ${
-          selected ? "md:pr-[360px]" : ""
+          selected ? "sm:pr-[340px]" : ""
         }`}
       >
         {isEmpty ? (

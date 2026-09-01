@@ -2,7 +2,6 @@ import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
 import { saveFamilyData } from "@/lib/blob";
 import { listTrees, deleteTree } from "@/lib/trees";
-import { resetShares } from "@/lib/members";
 import { DEMO_PEOPLE } from "@/lib/demo-data";
 import type { User } from "@/types/user";
 
@@ -55,13 +54,11 @@ export async function prepareDemoAccount(): Promise<User> {
     /* temizlik başarısız olsa da demo çalışmaya devam eder */
   }
 
-  // Ziyaretçilerin ürettiği herkese açık paylaşım bağlantıları da birikir; her
-  // istekte QR üretimi paylaşım oluşturmayı yavaşlatır. Girişte temizle.
-  try {
-    await resetShares(user.id);
-  } catch {
-    /* temizlik başarısız olsa da demo çalışmaya devam eder */
-  }
+  // NOT: Paylaşım bağlantılarını girişte SIFIRLAMIYORUZ. Eskiden resetShares
+  // çağrılıyordu; bu, ziyaretçinin demo'da oluşturduğu paylaşım linkini
+  // (bazen daha o linke tıklamadan) siliyor ve link "Bağlantı geçersiz"
+  // veriyordu. Demo verisi sabittir (DEMO_PEOPLE), bir link hep geçerli demo
+  // ağacını gösterir; birikim MAX_SHARES ile zaten sınırlıdır.
 
   return user;
 }
