@@ -1350,6 +1350,11 @@ export const tr: Dict = {
   "map.clickHint": "Bir noktaya tıklayarak o yerde doğanları görebilirsin.",
   "map.topPlaces": "En sık doğum yerleri",
   "map.noLocation": " · konum yok",
+  "map.burialTitle": "Defin yerleri",
+  "map.birthKind": "Doğum yeri",
+  "map.burialKind": "Defin yeri",
+  "map.legendBirth": "Doğum",
+  "map.legendBurial": "Defin",
   "map.unlocatedTitle": "Konumu bilinmeyen yerler",
   "map.unlocatedBody":
     "Haritada gösterilemiyor — konum bulunamadı. Yine de burada listeli.",
@@ -2689,6 +2694,11 @@ export const en: Dict = {
   "map.openGmaps": "Open in Google Maps",
   "map.clickHint": "Click a dot to see who was born there.",
   "map.topPlaces": "Most common birthplaces",
+  "map.burialTitle": "Burial places",
+  "map.birthKind": "Birthplace",
+  "map.burialKind": "Burial place",
+  "map.legendBirth": "Birth",
+  "map.legendBurial": "Burial",
   "map.noLocation": " · no location",
   "map.unlocatedTitle": "Places without coordinates",
   "map.unlocatedBody":

@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
@@ -30,6 +30,12 @@ function saveGeoCache(cache: Record<string, LatLng | null>) {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Katman renkleri: doğum yerleri kırmızı, defin (mezar) yerleri mor. */
+const BIRTH_COLOR = "#c0392b";
+const BIRTH_BORDER = "#8a1f1f";
+const BURIAL_COLOR = "#7c3aed";
+const BURIAL_BORDER = "#5b21b6";
+
 interface Props {
   people: Person[];
   onSelect: (id: string) => void;
@@ -51,6 +57,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
   const { view: priv } = usePrivacy();
   const t = useT();
   const [activePlace, setActivePlace] = useState<string | null>(null);
+  const [activeKind, setActiveKind] = useState<"birth" | "burial">("birth");
   const [showMigration, setShowMigration] = useState(false);
 
   // Doğum yılı sınırları + dönem (era) süzgeci — haritayı zamanda daralt.
@@ -131,13 +138,49 @@ export default function PlacesMap({ people, onSelect }: Props) {
   const located = useMemo(() => aggregates.filter((a) => a.coords), [aggregates]);
   const unlocated = useMemo(() => aggregates.filter((a) => !a.coords), [aggregates]);
 
+  // Defin (mezar) yerleri — ayrı katman. `burialPlace`e göre gruplanır;
+  // koordinat önce kayıttaki `burialCoords` (elle seçilmiş), yoksa sözlük /
+  // coğrafi kodlama. Doğum yerlerinden AYRI renkte gösterilir (kullanıcı #).
+  const burialBase = useMemo(() => {
+    const map = new Map<string, { place: string; count: number; personIds: string[]; override: LatLng | null }>();
+    for (const p of eraFiltered) {
+      const mp = priv(p);
+      const place = mp.burialPlace?.trim();
+      if (!place) continue;
+      let e = map.get(place);
+      if (!e) { e = { place, count: 0, personIds: [], override: null }; map.set(place, e); }
+      e.count++;
+      e.personIds.push(mp.id);
+      if (!e.override && mp.burialCoords) e.override = mp.burialCoords;
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [eraFiltered, priv]);
+
+  const burialAgg = useMemo(
+    () =>
+      burialBase.map((a) => {
+        const coords =
+          a.override ??
+          gazetteerExact(a.place) ??
+          (a.place in geo ? (geo[a.place] ?? resolvePlace(a.place)) : null);
+        return { place: a.place, count: a.count, personIds: a.personIds, coords };
+      }),
+    [burialBase, geo]
+  );
+  const burialLocated = useMemo(() => burialAgg.filter((a) => a.coords), [burialAgg]);
+  const maxBurial = useMemo(() => burialLocated.reduce((m, a) => Math.max(m, a.count), 1), [burialLocated]);
+
   // Sözlükte tam karşılığı olmayan ve henüz kodlanmamış yerleri Nominatim ile
   // (dünya geneli) sırayla kodla; Nominatim ilkesi gereği ~1 istek/sn aralıkla.
   // Sonuçlar tarayıcı önbelleğine yazılır → sonraki açılışlar anlık.
   useEffect(() => {
-    const pending = baseAgg
-      .map((a) => a.place)
-      .filter((place) => !gazetteerExact(place) && !placeOverride.has(place));
+    const burialPending = burialBase
+      .filter((a) => !a.override && !gazetteerExact(a.place))
+      .map((a) => a.place);
+    const pending = [
+      ...baseAgg.map((a) => a.place).filter((place) => !gazetteerExact(place) && !placeOverride.has(place)),
+      ...burialPending,
+    ].filter((place, i, arr) => arr.indexOf(place) === i); // benzersiz
     if (pending.length === 0) return;
 
     let cancelled = false;
@@ -160,7 +203,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
       cancelled = true;
       ctrl.abort();
     };
-  }, [baseAgg, placeOverride]);
+  }, [baseAgg, placeOverride, burialBase]);
 
   // Kişi → doğum yeri koordinatı (maskeli aggregate'lerden → gizlilik korunur).
   const personCoord = useMemo(() => {
@@ -198,9 +241,13 @@ export default function PlacesMap({ people, onSelect }: Props) {
   }, [people, priv]);
 
   const active = useMemo(
-    () => located.find((a) => a.place === activePlace) ?? null,
-    [located, activePlace]
+    () => (activeKind === "burial" ? burialLocated : located).find((a) => a.place === activePlace) ?? null,
+    [located, burialLocated, activeKind, activePlace]
   );
+  const pick = useCallback((place: string, kind: "birth" | "burial") => {
+    setActiveKind(kind);
+    setActivePlace(place);
+  }, []);
 
   if (people.length === 0 || aggregates.length === 0) {
     return (
@@ -287,20 +334,35 @@ export default function PlacesMap({ people, onSelect }: Props) {
           <div className="no-print relative rounded-2xl border border-border bg-surface p-2 sm:p-3">
             <TileMap
               located={located}
+              burialLocated={burialLocated}
               migrations={migrations}
               showMigration={showMigration}
               maxCount={maxCount}
+              maxBurial={maxBurial}
               activeCoords={active?.coords ?? null}
-              onPick={setActivePlace}
+              onPick={pick}
               ariaLabel={t("map.ariaMap")}
             />
+            {/* Renk açıklaması — doğum (kırmızı) / defin (mor). */}
+            <div className="mt-2 flex items-center gap-4 px-1 text-[11px] text-text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: BIRTH_COLOR }} />
+                {t("map.legendBirth")}
+              </span>
+              {burialLocated.length > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: BURIAL_COLOR }} />
+                  {t("map.legendBurial")}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Yan paneller — harita altında ızgara */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-start">
             {active ? (
               <section className="rounded-2xl border border-border bg-surface p-4">
-                <div className="flex items-baseline justify-between gap-2 mb-3">
+                <div className="flex items-baseline justify-between gap-2 mb-1">
                   <h2 className="font-serif text-base font-semibold text-text truncate">{active.place}</h2>
                   <button
                     onClick={() => setActivePlace(null)}
@@ -308,6 +370,16 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   >
                     {t("map.close")}
                   </button>
+                </div>
+                {/* Doğum mu defin mi — renk noktası + etiket. */}
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: activeKind === "burial" ? BURIAL_COLOR : BIRTH_COLOR }}
+                  />
+                  <span className="text-[11px] text-text-subtle">
+                    {activeKind === "burial" ? t("map.burialKind") : t("map.birthKind")} · {active.count}
+                  </span>
                 </div>
                 <a
                   href={googleMapsUrl(active.coords ? `${active.coords.lat},${active.coords.lng}` : active.place)}
@@ -335,7 +407,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 {aggregates.slice(0, 8).map((a) => (
                   <li key={a.place}>
                     <button
-                      onClick={() => a.coords && setActivePlace(a.place)}
+                      onClick={() => a.coords && pick(a.place, "birth")}
                       className={`w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left transition-colors ${
                         a.coords ? "hover:bg-surface-2" : "cursor-default"
                       }`}
@@ -343,8 +415,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{
-                          background: a.coords ? "var(--primary)" : "var(--text-subtle)",
-                          opacity: a.coords ? 0.7 : 0.4,
+                          background: a.coords ? BIRTH_COLOR : "var(--text-subtle)",
+                          opacity: a.coords ? 0.85 : 0.4,
                         }}
                       />
                       <span className="text-sm text-text truncate flex-1 min-w-0">
@@ -357,6 +429,33 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 ))}
               </ul>
             </section>
+
+            {/* Defin (mezar) yerleri — ayrı grup, mor renk (kullanıcı #). */}
+            {burialLocated.length > 0 && (
+              <section className="rounded-2xl border border-border bg-surface p-4">
+                <div className="flex items-baseline justify-between gap-2 mb-3">
+                  <h2 className="font-serif text-base font-semibold text-text">{t("map.burialTitle")}</h2>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text-subtle shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: BURIAL_COLOR }} />
+                    {burialLocated.length}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {burialLocated.slice(0, 8).map((a) => (
+                    <li key={a.place}>
+                      <button
+                        onClick={() => pick(a.place, "burial")}
+                        className="w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left hover:bg-surface-2 transition-colors"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: BURIAL_COLOR, opacity: 0.85 }} />
+                        <span className="text-sm text-text truncate flex-1 min-w-0">{a.place}</span>
+                        <span className="text-xs text-text-muted tabular-nums shrink-0">{a.count}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {/* Konumu bilinmeyen yerler */}
             {unlocated.length > 0 && (
@@ -392,24 +491,29 @@ export default function PlacesMap({ people, onSelect }: Props) {
  *  görselleştirme (imperatif Leaflet API'si effect'lerle senkronlanır). */
 function TileMap({
   located,
+  burialLocated,
   migrations,
   showMigration,
   maxCount,
+  maxBurial,
   activeCoords,
   onPick,
   ariaLabel,
 }: {
   located: ReturnType<typeof aggregatePlaces>;
+  burialLocated: Array<{ place: string; count: number; personIds: string[]; coords: LatLng | null }>;
   migrations: Array<{ from: LatLng; to: LatLng; n: number }>;
   showMigration: boolean;
   maxCount: number;
+  maxBurial: number;
   activeCoords: LatLng | null;
-  onPick: (place: string) => void;
+  onPick: (place: string, kind: "birth" | "burial") => void;
   ariaLabel: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
+  const burialRef = useRef<L.LayerGroup | null>(null);
   const migRef = useRef<L.LayerGroup | null>(null);
   const fitted = useRef(false);
   const onPickRef = useRef(onPick);
@@ -424,6 +528,7 @@ function TileMap({
       attribution: "&copy; OpenStreetMap katkıda bulunanlar",
     }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
+    burialRef.current = L.layerGroup().addTo(map);
     migRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
     // Konteyner ilk render'da tam boyutlanmamış olabilir.
@@ -432,37 +537,57 @@ function TileMap({
       map.remove();
       mapRef.current = null;
       markersRef.current = null;
+      burialRef.current = null;
       migRef.current = null;
     };
   }, []);
 
-  // Doğum-yeri işaretçileri.
+  // Doğum-yeri işaretçileri (kırmızı daire) + defin-yeri işaretçileri (mor).
   useEffect(() => {
     const g = markersRef.current;
+    const bg = burialRef.current;
     const map = mapRef.current;
-    if (!g || !map) return;
+    if (!g || !bg || !map) return;
     g.clearLayers();
+    bg.clearLayers();
     const pts: L.LatLngExpression[] = [];
     for (const a of located) {
       if (!a.coords) continue;
       const r = 5 + 11 * Math.sqrt(a.count / maxCount);
       const marker = L.circleMarker([a.coords.lat, a.coords.lng], {
         radius: r,
-        color: "#8a1f1f",
+        color: BIRTH_BORDER,
         weight: 1,
-        fillColor: "#c0392b",
+        fillColor: BIRTH_COLOR,
         fillOpacity: 0.55,
       });
       marker.bindTooltip(`${a.place} · ${a.count}`, { direction: "top" });
-      marker.on("click", () => onPickRef.current(a.place));
+      marker.on("click", () => onPickRef.current(a.place, "birth"));
       marker.addTo(g);
+      pts.push([a.coords.lat, a.coords.lng]);
+    }
+    // Defin yerleri — mor daire; hafif dış çeper doğumla karışmasın diye.
+    for (const a of burialLocated) {
+      if (!a.coords) continue;
+      const r = 5 + 10 * Math.sqrt(a.count / maxBurial);
+      const marker = L.circleMarker([a.coords.lat, a.coords.lng], {
+        radius: r,
+        color: BURIAL_BORDER,
+        weight: 1.5,
+        fillColor: BURIAL_COLOR,
+        fillOpacity: 0.55,
+        dashArray: "2 2",
+      });
+      marker.bindTooltip(`⚰ ${a.place} · ${a.count}`, { direction: "top" });
+      marker.on("click", () => onPickRef.current(a.place, "burial"));
+      marker.addTo(bg);
       pts.push([a.coords.lat, a.coords.lng]);
     }
     if (pts.length && !fitted.current) {
       fitted.current = true;
       map.fitBounds(pts as L.LatLngBoundsExpression, { padding: [40, 40], maxZoom: 8 });
     }
-  }, [located, maxCount]);
+  }, [located, burialLocated, maxCount, maxBurial]);
 
   // Göç yolları.
   useEffect(() => {
