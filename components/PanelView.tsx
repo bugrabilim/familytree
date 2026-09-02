@@ -23,6 +23,8 @@ import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
 import { usePrivacy } from "./PrivacyContext";
+import { countByKind, researchTasks, taskKey } from "@/lib/research";
+import { findIssues } from "@/lib/consistency";
 import PersonPicker, { pickerSelectCls } from "./PersonPicker";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
@@ -621,6 +623,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
               className="lg:col-span-2"
             >
               <HeredityView shown={shown} onSelect={onSelect} />
+            </Card>
+          )}
+
+          {/* Araştırma görevleri — "sırada ne var" */}
+          {isStats && (
+            <Card
+              title={t("research.title")}
+              hint={t("research.hint")}
+              className="lg:col-span-2"
+            >
+              <ResearchView people={people} shown={shown} hideLiving={hideLiving} onSelect={onSelect} />
             </Card>
           )}
 
@@ -1460,6 +1473,180 @@ function SevenGenerations({
  * 2. **Maskeli veriyle çalışır.** `shown` (yani `people.map(view)`) verilir;
  *    gizlenmiş kişilerin sağlık kaydı toplamaya hiç girmez.
  */
+/** Cihazda tutulan "tamamlandı/yoksay" işaretleri. */
+const RESEARCH_DONE_KEY = "soyagaci_research_done";
+
+/**
+ * Araştırma görevleri — "bu ağaçta sırada ne var".
+ *
+ * Liste HAM `people`den üretilir, gösterim `shown` (maskeli) üzerinden yapılır.
+ * Neden ikisi ayrı: bir görevin ağırlığı ağacın YAPISINA bakar (kaç kişi bu
+ * dalın açılmasını bekliyor) ve yapı maskeli kopyada da aynıdır; ama ekrana
+ * çıkan ad, tarih ve yer gizlilik katmanından geçmelidir. Gizli bir kişinin
+ * görevi listede adıyla görünür — ad zaten maskeli kopyada da duruyor —
+ * ayrıntısı görünmez.
+ */
+function ResearchView({
+  people,
+  shown,
+  hideLiving,
+  onSelect,
+}: {
+  people: Person[];
+  shown: Person[];
+  hideLiving: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const [done, setDone] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = JSON.parse(localStorage.getItem(RESEARCH_DONE_KEY) || "[]");
+      return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const [showAll, setShowAll] = useState(false);
+
+  const mark = (id: string) => {
+    setDone((prev) => {
+      const next = new Set(prev).add(id);
+      try {
+        localStorage.setItem(RESEARCH_DONE_KEY, JSON.stringify([...next]));
+      } catch {
+        /* yoksay */
+      }
+      return next;
+    });
+  };
+
+  const byId = useMemo(() => new Map(shown.map((p) => [p.id, p])), [shown]);
+
+  /*
+   * Gizli kişiler için ALAN temelli görev üretilmez.
+   *
+   * Görevler yapıyı görebilmek için ham listeden türetiliyor (maskeli kopya
+   * `parentIds`i koruduğu için "eksik ata" ve dal büyüklüğü zaten aynı çıkar).
+   * Ama "doğum tarihi yok" gibi bir görev, gizli birinin o alanının DOLU olup
+   * olmadığını ele verirdi: görev varsa boş, yoksa dolu. Küçük ama gerçek bir
+   * çıkarım kanalı; kapatmak bir satır.
+   *
+   * Maskeli kopyadan üretmek çözüm değildi: orada alanlar zaten silinmiş
+   * olduğundan herkes için sahte "eksik" görevi çıkardı.
+   */
+  const gizli = useMemo(
+    () => new Set(shown.filter((p) => isMasked(p, hideLiving)).map((p) => p.id)),
+    [shown, hideLiving]
+  );
+  const ALAN_GOREVLERI = useMemo(
+    () => new Set(["eksikTarih", "eksikYer", "kaynaksiz"]),
+    []
+  );
+
+  const tasks = useMemo(
+    () =>
+      researchTasks(people, { issues: findIssues(people), done }).filter(
+        (t) => !(gizli.has(t.personId) && ALAN_GOREVLERI.has(t.kind))
+      ),
+    [people, done, gizli, ALAN_GOREVLERI]
+  );
+  const counts = useMemo(() => countByKind(tasks), [tasks]);
+  const görünen = showAll ? tasks.slice(0, 60) : tasks.slice(0, 12);
+
+  if (tasks.length === 0) {
+    return <p className="text-sm text-text-subtle py-2">{t("research.empty")}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Tür dağılımı */}
+      <div className="flex flex-wrap gap-1.5">
+        {counts.map((c) => (
+          <span
+            key={c.kind}
+            className="text-[11px] px-2 py-1 rounded-lg bg-surface-2 text-text-muted"
+          >
+            {t(taskKey(c.kind))} <span className="tabular-nums opacity-70">{c.count}</span>
+          </span>
+        ))}
+      </div>
+
+      <ul className="space-y-1">
+        {görünen.map((task) => {
+          const person = byId.get(task.personId);
+          if (!person) return null;
+          return (
+            <li
+              key={task.id}
+              className="flex items-center gap-1 rounded-xl bg-surface-2/50 hover:bg-surface-2 transition-colors"
+            >
+              <button
+                onClick={() => onSelect(task.personId)}
+                className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
+              >
+                <Avatar person={person} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-text truncate leading-tight">{fullName(person)}</p>
+                  <p className="text-[11px] text-text-subtle leading-tight">
+                    {task.severity === "error" ? "⚠️ " : ""}
+                    {t(taskKey(task.kind))}
+                    {task.kind === "eksikEbeveyn" && task.reach > 0
+                      ? ` · ${t("research.reach", { count: task.reach })}${task.reachCapped ? "+" : ""}`
+                      : ""}
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={() => mark(task.id)}
+                title={t("research.markDone")}
+                // `title` erişilebilir ad OLMAZ: düğmenin metni "✓" olduğu için
+                // ekran okuyucu onu okur ve ne yaptığı anlaşılmaz.
+                aria-label={t("research.markDone")}
+                className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-accent hover:bg-accent-soft transition-colors"
+              >
+                ✓
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] text-text-subtle">
+          {t("research.showing", { shown: görünen.length, total: tasks.length })}
+        </p>
+        {tasks.length > görünen.length && !showAll && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="text-[11px] text-accent hover:underline"
+          >
+            {t("research.more")}
+          </button>
+        )}
+        {done.size > 0 && (
+          <button
+            onClick={() => {
+              setDone(new Set());
+              try {
+                localStorage.removeItem(RESEARCH_DONE_KEY);
+              } catch {
+                /* yoksay */
+              }
+            }}
+            className="text-[11px] text-text-subtle hover:text-text"
+          >
+            {t("research.resetDone", { count: done.size })}
+          </button>
+        )}
+      </div>
+
+      {/* İşaretler bu cihazda kalır — ortak bir liste değil. */}
+      <p className="text-[11px] text-text-subtle">{t("research.localNote")}</p>
+    </div>
+  );
+}
+
 function HeredityView({
   shown,
   onSelect,
