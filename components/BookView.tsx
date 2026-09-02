@@ -1,5 +1,6 @@
 "use client";
 
+import nextDynamic from "next/dynamic";
 import { Fragment, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import HTMLFlipBook from "react-pageflip";
@@ -20,6 +21,12 @@ import { useT, useLang, type TFunction } from "@/lib/i18n";
 import { generatePreface } from "@/lib/preface";
 import { uploadCover } from "@/lib/actions";
 import { usePaginate, type RenderedPage, type Unit } from "./book/paginate";
+
+/**
+ * `qrcode` yalnız sesli anı olan bir sayfa çizilirken yüklensin — ana
+ * pakete girmesi için hiçbir sebep yok.
+ */
+const AudioQr = nextDynamic(() => import("./AudioQr"), { ssr: false });
 
 interface Props {
   people: Person[];
@@ -356,16 +363,33 @@ export default function BookView({ people, allPeople, familyName, coverPhoto, on
           });
         }
       }
-      const mems = person.memories?.filter((m) => m.text) ?? [];
+      // Sesli anılar da giriyor: metni olmayan bir kayıt eskiden kitaba HİÇ
+      // girmiyordu — oysa yalnız sesli bırakılmış bir anı da anıdır. Yanındaki
+      // QR okutulunca kayıt açılır.
+      const mems = person.memories?.filter((m) => m.text || m.audio) ?? [];
       if (mems.length > 0) {
         u.push({ kind: "block", key: `p-${person.id}-mh`, age, personId: person.id, section: secLabel, keepWithNext: true, node: <p className="text-xs font-semibold uppercase tracking-wide opacity-50 mt-2 mb-1">{t("print.memories")}</p> });
         for (const m of mems) {
           u.push({
             kind: "block", key: `p-${person.id}-m-${m.id}`, age, personId: person.id, section: secLabel,
             node: (
-              <div className="text-sm mb-1.5">
-                {m.prompt && <p className="italic opacity-60 leading-snug">{m.prompt}</p>}
-                <p className="opacity-90 whitespace-pre-line leading-snug">{m.text}</p>
+              <div className="text-sm mb-1.5 flex gap-2 items-start">
+                <div className="min-w-0 flex-1">
+                  {m.prompt && <p className="italic opacity-60 leading-snug">{m.prompt}</p>}
+                  {m.text ? (
+                    <p className="opacity-90 whitespace-pre-line leading-snug">{m.text}</p>
+                  ) : (
+                    <p className="opacity-60 italic leading-snug">{t("book.audioOnly")}</p>
+                  )}
+                </div>
+                {m.audio && (
+                  <span className="shrink-0 text-center">
+                    <AudioQr url={m.audio} />
+                    <span className="block text-[7px] uppercase tracking-wide opacity-50 mt-0.5">
+                      {t("book.listen")}
+                    </span>
+                  </span>
+                )}
               </div>
             ),
           });

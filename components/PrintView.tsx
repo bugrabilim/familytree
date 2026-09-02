@@ -1,5 +1,6 @@
 "use client";
 
+import nextDynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
@@ -24,6 +25,12 @@ import { resolveAssociations } from "@/lib/associates";
 import BookMap from "./BookMap";
 import TreeSchema from "./TreeSchema";
 import RelationMatrix from "./RelationMatrix";
+
+/**
+ * `qrcode` yalnız sesli anı olan bir sayfa çizilirken yüklensin — ana
+ * pakete girmesi için hiçbir sebep yok.
+ */
+const AudioQr = nextDynamic(() => import("./AudioQr"), { ssr: false });
 
 interface Props {
   people: Person[];
@@ -448,16 +455,32 @@ export default function PrintView({ people, allPeople, familyName, coverPhoto, o
                       </ul>
                     )}
 
-                    {/* Yazılı anılar — ses basılamaz, bu yüzden yalnız metin. */}
-                    {p.memories?.some((m) => m.text) && (
+                    {/* Anılar. Sesin KENDİSİ basılamaz ama ona giden yol basılır:
+                       sesli anının yanındaki QR okutulunca kayıt açılır. Bu yüzden
+                       yalnız sesli bırakılmış anılar da artık sayfaya giriyor. */}
+                    {p.memories?.some((m) => m.text || m.audio) && (
                       <div className="mt-3 space-y-1.5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{t("print.memories")}</p>
                         {p.memories
-                          .filter((m) => m.text)
+                          .filter((m) => m.text || m.audio)
                           .map((m) => (
-                            <div key={m.id} className="text-sm">
-                              {m.prompt && <p className="text-neutral-500 italic leading-snug">{m.prompt}</p>}
-                              <p className="text-neutral-700 whitespace-pre-line leading-snug">{m.text}</p>
+                            <div key={m.id} className="text-sm flex gap-2 items-start">
+                              <div className="min-w-0 flex-1">
+                                {m.prompt && <p className="text-neutral-500 italic leading-snug">{m.prompt}</p>}
+                                {m.text ? (
+                                  <p className="text-neutral-700 whitespace-pre-line leading-snug">{m.text}</p>
+                                ) : (
+                                  <p className="text-neutral-500 italic leading-snug">{t("book.audioOnly")}</p>
+                                )}
+                              </div>
+                              {m.audio && (
+                                <span className="shrink-0 text-center">
+                                  <AudioQr url={m.audio} />
+                                  <span className="block text-[7px] uppercase tracking-wide text-neutral-400 mt-0.5">
+                                    {t("book.listen")}
+                                  </span>
+                                </span>
+                              )}
                             </div>
                           ))}
                       </div>
