@@ -311,3 +311,30 @@ export function applyFacts(
   }
   return out as Partial<Person>;
 }
+
+/* ------------------------------------------------------------------ */
+/* Ses dosyası türü                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tarayıcının verdiği MIME türünü ses türüne çevirir; ses değilse `null`.
+ *
+ * `MediaRecorder` çıktısı çoğu tarayıcıda `video/webm` etiketli geliyor —
+ * kapsayıcı aynı, içinde yalnız ses var. Bunu reddetseydik uygulamanın
+ * KENDİ kaydettiği dosya kabul edilmezdi. iOS Safari ise bazen tür hiç
+ * göndermiyor; orada uzantıya düşüyoruz.
+ */
+export function audioMimeOf(name: string, type: string): string | null {
+  const mime = (type || "").toLowerCase();
+  if (mime.startsWith("audio/")) return mime.split(";")[0].trim();
+  if (mime === "video/webm") return "audio/webm";
+  if (mime === "video/mp4") return "audio/mp4";
+  const ad = (name || "").toLowerCase();
+  const uzanti: Record<string, string> = {
+    ".webm": "audio/webm", ".ogg": "audio/ogg", ".oga": "audio/ogg",
+    ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".mp4": "audio/mp4",
+    ".wav": "audio/wav", ".aac": "audio/aac", ".flac": "audio/flac",
+  };
+  for (const [ext, m] of Object.entries(uzanti)) if (ad.endsWith(ext)) return m;
+  return null;
+}
