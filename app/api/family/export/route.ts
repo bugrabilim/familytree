@@ -4,6 +4,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { exportGedcom } from "@/lib/gedcom";
 import { EXPORT_META, exportCsv, exportJson, type ExportFormat } from "@/lib/import";
 import { exportXlsx } from "@/lib/export-xlsx";
+import { makeGedzip } from "@/lib/gedzip";
 
 export async function GET(req: NextRequest) {
   const ctx = await resolveActiveTree();
@@ -26,7 +27,20 @@ export async function GET(req: NextRequest) {
   // GEDCOM 7 ayrı bir biçim DEĞİL, aynı biçimin başka sürümü: dosya yine .ged,
   // sürüm başlıkta yazar. Bu yüzden `ExportFormat` büyütülmedi. Varsayılan
   // 5.5.1 olarak KALIR — alandaki programların çoğu hâlâ onu okuyor.
-  const gedcom7 = q === "gedcom7" || q === "gedcom-7";
+  const gedcom7 = q === "gedcom7" || q === "gedcom-7" || q === "gedzip";
+
+  // GEDZIP — GEDCOM 7'nin resmî paketi: kökünde `gedcom.ged` olan bir ZIP.
+  // İçerik 7.0'dır; paket biçimi 5.5.1 için tanımlı değil.
+  if (q === "gedzip") {
+    const zip = makeGedzip(exportGedcom(people, { version: "7.0" }));
+    return new NextResponse(new Uint8Array(zip), {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="aile-agaci.gdz"`,
+      },
+    });
+  }
+
   const format: ExportFormat = q === "csv" || q === "json" ? q : "gedcom";
   const body =
     format === "csv"
