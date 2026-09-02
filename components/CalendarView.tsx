@@ -5,6 +5,7 @@ import type { Person } from "@/types/family";
 import Avatar from "./ui/Avatar";
 import CalendarAdd from "./CalendarAdd";
 import CalendarExport from "./CalendarExport";
+import MemorialCalendar from "./MemorialCalendar";
 import { calcAge, humanizeDays, signedDaysToAnniversary } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { isMasked } from "@/lib/privacy";
@@ -203,6 +204,9 @@ export default function CalendarView({ people, onSelect }: Props) {
             </ul>
           )}
         </section>
+
+        {/* Anma takvimi — 3./7./40./52. gece ve sene-i devriye (Miladi + Hicri). */}
+        <MemorialCalendar people={people} onSelect={onSelect} />
 
         {/* Takvime aktar (.ics) — çoktan seçmeli. */}
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5 no-print">
