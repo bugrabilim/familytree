@@ -1,4 +1,8 @@
 import type { Recipe } from "@/types/recipe";
+import { fold } from "./turkish.ts";
+
+// Katlama tek kaynaktan; çağıranlar için buradan da açık kalsın.
+export { fold };
 
 /**
  * Tarif defteri — saf yardımcılar (arama, ayıklama, öbekleme).
@@ -45,17 +49,7 @@ export function fromLines(lines: readonly string[]): string {
  * Türkçe arama katlaması — `lib/duplicates.ts` ve `lib/surnames.ts` ile aynı
  * kural. "İ" büyük harfli i'dir; `toLowerCase()` onu "i̇" yapıp aramayı bozar.
  */
-export function fold(s: string): string {
-  return s
-    .toLocaleLowerCase("tr")
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .trim();
-}
+
 
 /** Tarifte aranan metin geçiyor mu — başlık, malzeme, adım, yöre, not. */
 export function matches(recipe: Recipe, query: string): boolean {

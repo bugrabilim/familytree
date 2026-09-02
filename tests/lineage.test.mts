@@ -87,18 +87,14 @@ const P = (extra: Partial<Person> = {}): Person => ({
   check(matchesQuery(p, "kara mehmetgil"), "küçük harfle de bulunuyor");
   check(!matchesQuery(P(), "Kara Mehmet"), "sülalesi olmayan eşleşmiyor");
   /*
-   * BULGU (bu işin dışında): `lib/search.ts`in `norm`u yalnız Türkçe küçük
-   * harfe çeviriyor, aksanları KATLAMIYOR. Yani "hacilarin" yazan biri
-   * "Hacıların"ı bulamıyor — ve bu sülaleye özgü değil, aramanın tamamında
-   * böyle ("Yilmaz" da "Yılmaz"ı bulmuyor). Katlama kuralı depoda üç yerde
-   * zaten var (`duplicates`, `surnames`, `recipes`); arama onu kullanmıyor.
-   *
-   * Test bugünkü davranışı yazıyor ki düzeltince BU SATIR düşsün ve düzeltme
-   * gözden kaçmasın.
+   * Aksansız yazım da bulmalı. Bu satır önce ters yazılmıştı — o gün arama
+   * katlamıyordu ve test bugünkü (yanlış) davranışı belgeliyordu; katlama
+   * `lib/turkish.ts`e taşınıp aramaya bağlanınca test düştü ve düzeltmenin
+   * geldiğini söyledi. Beklenen buydu.
    */
   check(matchesQuery(P({ lineage: "Hacıların Ocağı" }), "hacıların"), "aynı yazımla bulunuyor");
-  check(!matchesQuery(P({ lineage: "Hacıların Ocağı" }), "hacilarin"),
-    "BUGÜNKÜ DAVRANIŞ: aksansız yazım bulmuyor (arama katlaması yok)");
+  check(matchesQuery(P({ lineage: "Hacıların Ocağı" }), "hacilarin"),
+    "aksansız yazım da bulunuyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

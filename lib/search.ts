@@ -1,4 +1,5 @@
 import type { Gender, Person } from "@/types/family";
+import { foldKey } from "./turkish.ts";
 
 /**
  * Gelişmiş arama/filtre (Madde 7) — saf, test edilebilir mantık. Liste
@@ -30,7 +31,12 @@ export function emptyFieldFilters(): FieldFilters {
   return { genders: [], place: "", occupation: "", education: "" };
 }
 
-const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
+/*
+ * Arama katlaması artık `lib/turkish.ts`ten. Eskiden yalnız küçük harfe
+ * çeviriyordu; "Yilmaz" yazan "Yılmaz"ı bulamıyordu — oysa kopya bulucu
+ * ikisini aynı kişi sayıyordu. Aynı ürünün iki farklı "aynı mı" tanımı vardı.
+ */
+const norm = foldKey;
 
 export function yearOf(date?: string): number | undefined {
   if (!date) return undefined;

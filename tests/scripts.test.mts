@@ -44,12 +44,49 @@ check(/exit 1/.test(s["typecheck:mobile"] ?? ""),
 check(/apps\/mobile\/node_modules/.test(s["typecheck:mobile"] ?? ""),
   "mobil bağımlılık varlığını denetliyor");
 
+/*
+ * `tsconfig.json` JSONC'dir: TypeScript ve Next yorum kabul eder, `JSON.parse`
+ * etmez. Dosyaya bir açıklama yazılınca bu test kırılıyordu — kırılan şey
+ * yapılandırma değil, testin okuma biçimiydi. Satır ve blok yorumları
+ * ayıklanıyor; dize İÇİNDEKİ "//" (ör. bir URL) korunuyor.
+ */
+function parseJsonc(text: string): unknown {
+  let out = "";
+  let dizede = false, kacis = false, satirYorum = false, blokYorum = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i + 1];
+    if (satirYorum) { if (c === "\n") { satirYorum = false; out += c; } continue; }
+    if (blokYorum) { if (c === "*" && n === "/") { blokYorum = false; i++; } continue; }
+    if (dizede) {
+      out += c;
+      if (kacis) kacis = false;
+      else if (c === "\\") kacis = true;
+      else if (c === '"') dizede = false;
+      continue;
+    }
+    if (c === '"') { dizede = true; out += c; continue; }
+    if (c === "/" && n === "/") { satirYorum = true; i++; continue; }
+    if (c === "/" && n === "*") { blokYorum = true; i++; continue; }
+    out += c;
+  }
+  return JSON.parse(out);
+}
+
 // `apps` kök denetimlerinin dışında kalmalı — web derlemesi korunsun
-const tsconfig = JSON.parse(
+const tsconfig = parseJsonc(
   readFileSync(new URL("../tsconfig.json", import.meta.url), "utf8")
-) as { exclude?: string[] };
+) as { exclude?: string[]; compilerOptions?: Record<string, unknown> };
 check(tsconfig.exclude?.includes("apps") ?? false,
   "apps kök tsconfig'in dışında (web derlemesi mobilden etkilenmez)");
+
+/*
+ * Testler çıplak `node --experimental-strip-types` ile koşuyor ve Node `@/…`
+ * takma adını çözemiyor. Paylaşılan saf mantığın kitaplıklar arasında göreli
+ * `./x.ts` ile içe aktarılabilmesi buna bağlı; bayrak kalkarsa o içe
+ * aktarımlar derlemeyi kırar.
+ */
+check(tsconfig.compilerOptions?.allowImportingTsExtensions === true,
+  "allowImportingTsExtensions açık (kitaplıklar arası göreli .ts içe aktarımı)");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
