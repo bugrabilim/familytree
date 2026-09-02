@@ -218,29 +218,46 @@ export function traceCondition(
     }
   }
 
-  // En uzun kesintisiz zincir.
-  //
-  // Döngü kontrolü kenarda yapılır: zaten yoldaki bir çocuğa GİTMEYİZ. Önce
-  // gidip sonra "engellendim" diye 1 döndürmek, o düğümü sahte bir kuşak
-  // olarak sayardı (a↔b döngüsü 2 kişiyle 3 kuşak verirdi — test yakaladı).
-  //
-  // Bellekleme (memo) yok: derinlik yola bağlı olduğundan bir yol altında
-  // hesaplanan değeri başka yolda yeniden kullanmak yanlış olur.
-  const depth = (id: string, guard: Set<string>): number => {
-    guard.add(id);
-    let best = 1;
+  /*
+   * En uzun kesintisiz zincir — TOPOLOJİK sıra üzerinde, özyinelemesiz.
+   *
+   * Önceki sürüm her etkilenen kişi için ayrı bir özyineleme koşuyordu ve
+   * bellekleme yoktu (yol-bağımlı olduğu gerekçesiyle). Akraba evliliğinde
+   * yollar birleştiği için bu ÜSTEL davranıyordu: 22 kuşakta 44 kişi 1,6
+   * saniye sürüyordu. Türkiye bağlamında akraba evliliği yaygın olduğundan
+   * bu gerçekçi bir yük.
+   *
+   * Kahn sıralaması hem doğrusal hem de özyinelemesiz (derin zincirde yığın
+   * taşmaz). Bozuk veride döngü kalırsa Kahn onu kendiliğinden tespit eder:
+   * kuyruğa hiç giremeyen düğümler döngüdedir. O bileşen için ayrık bir zincir
+   * en fazla düğüm sayısı kadar olabileceğinden, o sayı ÜST SINIR olarak
+   * bildirilir (kesin değil — döngülü veride kesin cevap yoktur).
+   */
+  const affectedIds = [...sourcesById.keys()];
+  const indeg = new Map<string, number>(affectedIds.map((id) => [id, 0]));
+  for (const { childId } of links) indeg.set(childId, (indeg.get(childId) ?? 0) + 1);
+
+  const chain = new Map<string, number>(affectedIds.map((id) => [id, 1]));
+  const queue = affectedIds.filter((id) => (indeg.get(id) ?? 0) === 0);
+  let processed = 0;
+
+  for (let head = 0; head < queue.length; head++) {
+    const id = queue[head];
+    processed++;
     for (const child of childrenOf.get(id) ?? []) {
-      if (guard.has(child)) continue;
-      best = Math.max(best, 1 + depth(child, guard));
+      chain.set(child, Math.max(chain.get(child) ?? 1, (chain.get(id) ?? 1) + 1));
+      const left = (indeg.get(child) ?? 0) - 1;
+      indeg.set(child, left);
+      if (left === 0) queue.push(child);
     }
-    guard.delete(id);
-    return best;
-  };
+  }
 
   let generationsSpanned = 0;
-  for (const id of sourcesById.keys()) {
-    generationsSpanned = Math.max(generationsSpanned, depth(id, new Set()));
-  }
+  for (const v of chain.values()) generationsSpanned = Math.max(generationsSpanned, v);
+
+  // Döngüde kalanlar: üst sınır olarak o düğümlerin sayısı.
+  const inCycle = affectedIds.length - processed;
+  if (inCycle > 0) generationsSpanned = Math.max(generationsSpanned, inCycle);
 
   return { key: wanted, label, affected, links, generationsSpanned };
 }
