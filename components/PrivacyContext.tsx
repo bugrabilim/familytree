@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { Person } from "@/types/family";
-import { isMasked, maskPerson, stripPrivateFields } from "@/lib/privacy";
+import { viewPerson } from "@/lib/privacy";
 
 /** localStorage anahtarı — yaşayanları gizleme tercihi */
 const STORAGE_KEY = "soyagaci:hideLiving";
@@ -83,8 +83,9 @@ export function PrivacyProvider({
   );
 
   const view = useCallback(
-    // Tümüyle maskeliyse whitelist kopya; değilse alan-bazlı gizli alanları çıkar.
-    (p: Person): Person => (isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p)),
+    // Tek kaynak `lib/privacy.ts` → `viewPerson`. Sunucu tarafı da aynısını
+    // kullanır; ikisi ayrışırsa gizlilik sessizce bozulurdu.
+    (p: Person): Person => viewPerson(p, hideLiving),
     [hideLiving]
   );
 
