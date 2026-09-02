@@ -115,5 +115,22 @@ eq(zodiacSign("2000-13-01"), null, "geçersiz ay → null");
 eq(zodiacSign("2000-02-31"), null, "var olmayan gün → null");
 eq(sign("2000-02-29"), "balik", "artık gün geçerli");
 
+/* --- H10: yıl 0-99 ve gün denetimi -------------------------------------- */
+
+// Doğrulama `Date.UTC` ile yapılınca yıl 0-99, 1900+y'ye kayıyordu:
+// 0000 proleptik Gregoryen'de artık yıldır, 1900 değildir.
+eq(sign("0000-02-29"), "balik", "yıl 0 artık yıl — 29 Şubat geçerli");
+eq(zodiacSign("0100-02-29"), null, "yıl 100 artık değil (yüzyıl kuralı)");
+eq(sign("0400-02-29"), "balik", "yıl 400 artık (400 kuralı)");
+eq(zodiacSign("0001-02-29"), null, "yıl 1 artık değil");
+eq(sign("0050-07-04"), "yengec", "yıl 50 normal gün");
+
+// Var olmayan günler
+eq(zodiacSign("2023-04-31"), null, "31 Nisan → null");
+eq(zodiacSign("2023-06-31"), null, "31 Haziran → null");
+eq(zodiacSign("2023-09-31"), null, "31 Eylül → null");
+eq(zodiacSign("2023-11-31"), null, "31 Kasım → null");
+eq(sign("2023-01-31"), "kova", "31 Ocak geçerli");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

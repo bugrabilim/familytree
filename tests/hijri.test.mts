@@ -153,5 +153,25 @@ check((hijriYearsBetween("1990-01-01", "2023-01-01") ?? 0) > 33, "33 miladi yıl
 eq(hijriYearsBetween("2023", "2024-01-01"), null, "kısmi tarihte null");
 eq(hijriYearsBetween("2024-07-19", "2024-07-18"), -1, "geriye doğru negatif");
 
+/* --- H9: var olmayan gün SESSİZCE kaydırılmamalı ------------------------ */
+
+// "2023-02-30" eskiden 2 Mart'ın hicri karşılığını döndürüyordu ve çağıran
+// bunu fark edemiyordu.
+eq(toHijri("2023-02-30"), null, "31 Şubat → null (kaydırılmıyor)");
+eq(toHijri("2023-04-31"), null, "31 Nisan → null");
+eq(toHijri("2023-06-31"), null, "31 Haziran → null");
+eq(toHijri("2023-02-29"), null, "artık olmayan yılda 29 Şubat → null");
+check(toHijri("2024-02-29") !== null, "artık yılda 29 Şubat geçerli");
+check(toHijri("2023-01-31") !== null, "31 Ocak geçerli");
+check(toHijri("2023-12-31") !== null, "31 Aralık geçerli");
+eq(hijriAnniversariesInGregorianYear("2023-02-30", 2024), [],
+  "geçersiz tarihten yıl dönümü üretilmez");
+eq(hijriYearsBetween("2023-02-30", "2024-01-01"), null, "geçersiz tarihte fark null");
+
+// Aritmetik denetim `Date`'den bağımsız: yıl 0-99 de doğru
+check(toHijri("0050-06-15") !== null, "yıl 50 geçerli");
+check(toHijri("0004-02-29") !== null, "yıl 4 artık");
+eq(toHijri("0001-02-29"), null, "yıl 1 artık değil");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

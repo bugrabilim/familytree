@@ -126,6 +126,21 @@ export function hijriYearLength(year: number): number {
 
 /* --------------------------------------------------- Depolama biçimi köprüsü */
 
+/**
+ * Bir Miladi ayın gün sayısı — `Date` KULLANILMADAN.
+ *
+ * `Date` ile doğrulama iki tuzak taşıyor: (1) `Date.UTC` yıl 0–99'u 1900+y'ye
+ * kaydırır, (2) var olmayan bir gün sessizce sonraki aya taşar (31 Şubat →
+ * 3 Mart). Aritmetik denetim ikisinden de bağımsızdır.
+ */
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
+}
+
 const FULL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function pad(n: number): string {
@@ -142,7 +157,10 @@ export function toHijri(stored?: string): HijriDate | null {
   const m = stored ? FULL_DATE.exec(stored) : null;
   if (!m) return null;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  if (mo < 1 || mo > 12 || d < 1) return null;
+  // Var olmayan gün SESSİZCE kaydırılmamalı: "2023-02-30" eskiden 2 Mart'ın
+  // hicri karşılığını döndürüyordu ve çağıran bunu fark edemiyordu.
+  if (d > daysInMonth(y, mo)) return null;
   return jdnToHijri(gregorianToJdn(y, mo, d));
 }
 
