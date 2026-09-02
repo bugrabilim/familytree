@@ -389,11 +389,14 @@ export default function PersonDrawer({
 
           {(person.language || person.religion || person.denomination ||
             person.ethnicity || person.nationality || person.orientation ||
-            person.occupation || person.education) && (
+            person.occupation || person.education || person.lineage) && (
             <section>
               <SectionTitle>{t("drawer.identity")}</SectionTitle>
               <dl className="space-y-1.5">
                 {([
+                  // Sülale kimlik satırlarının BAŞINDA: ailenin kendi
+                  // kullandığı ad, meslekten önce gelir.
+                  [t("drawer.lineage"), person.lineage],
                   [t("drawer.occupation"), person.occupation],
                   [t("drawer.education"), person.education
                     ? ((EDUCATION_LEVELS as readonly string[]).includes(person.education)

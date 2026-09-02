@@ -78,6 +78,13 @@ export const PERSON_FIELDS: readonly FieldSpec[] = [
   F("gender", "text", { drawer: false, labelKey: "form.field.gender" }),
   F("nickname", "text", { drawer: false, labelKey: "form.nickname" }),
   F("patronymic", "text", { drawer: false, labelKey: "form.patronymic" }),
+  /*
+   * Gizlilik grubu YOK — bilerek. `origin` (etnik köken/uyruk/ana dil) grubu
+   * KVKK'nın özel nitelikli verisi içindir; sülale bir etnik kategori değil,
+   * ailenin kendi kullandığı addır ve `patronymic` gibi bir kimlik alanıdır
+   * (o da gruplu değil). Tüm kaydı gizlemek gerekiyorsa `confidential` var.
+   */
+  F("lineage", "text", { labelKey: "form.lineage" }),
   F("orientation", "text", { labelKey: "form.orientation" }, "orientation"),
   F("birthDate", "text", { labelKey: "form.field.birthDate" }),
   F("officialBirthDate", "text", { labelKey: "form.field.officialBirthDate" }),

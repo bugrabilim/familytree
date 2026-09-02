@@ -120,6 +120,20 @@ export interface Person {
    */
   patronymic?: string;
   /**
+   * Sülale / ocak — ailenin kendi kullandığı geniş aile adı ("Kara
+   * Mehmetgil", "Sarıoğulları", "Hacıların ocağı").
+   *
+   * SERBEST METİN. Bilerek hazır bir liste sunulmuyor: sülale adları yöreye,
+   * lehçeye ve ailenin kendi diline göre değişir; hazır bir taksonomi hem
+   * eksik kalır hem de aileye kendi adını başkasının kelimesiyle yazdırır.
+   *
+   * Ve soyadından ÇIKARILMAZ. 1934 Soyadı Kanunu soyadlarını devlet eliyle
+   * dağıttı; birçok ailenin soyadı ile sülale adı birbiriyle ilgisizdir.
+   * "Yılmaz soyadı → Yılmazlar sülalesi" gibi bir tahmin, kaydı ailenin
+   * bilmediği bir şeyle doldurmak olurdu.
+   */
+  lineage?: string;
+  /**
    * Cinsel yönelim (isteğe bağlı, serbest metin): "Eşcinsel", "Biseksüel"…
    * Yalnızca kişi/aile kaydetmek isterse.
    */
