@@ -44,7 +44,7 @@ Hepsi yeni ve izole. Mevcut hiçbir dosya değişmiyor, arayüz yok, dış servi
 | 10 | **`view()` kaçağı testi + lint kuralı** | C | 31 ve 34'ten önce şart: tek satır kaçak tüm gizlilik katmanını boşa çıkarır | ✅
 | 11 | Mobil CI tip denetimi | C | ayrı `tsc --noEmit` adımı; `apps/` bugün denetimsiz | ✅
 
-## K2 — Bende kolay: yeni görünüm/rota (12–25)
+## K2 — Bende kolay: yeni görünüm/rota (12–25) ✅ TAMAMLANDI
 
 Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğrularım.
 
@@ -63,7 +63,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 | 22 | Araştırma görev yöneticisi | C | `consistency.ts` + `RecordHints` zaten iş üretiyor | ✅
 | 23 | Aile tarifleri | C | **ayrı koleksiyon**; `Person`'a alan olarak eklenirse K3'e düşer | ✅
 | 24 | Zaman kilitli mektup | C | içerik istemciye **asla** erken gitmez: API seviyesinde kapı + testi | ✅
-| 25 | Taziye / vefat duyurusu nesnesi | C | kültürel olarak en hassas yüzey; ayrı nesne, `Person`'a dokunmaz |
+| 25 | Taziye / vefat duyurusu nesnesi | C | kültürel olarak en hassas yüzey; ayrı nesne, `Person`'a dokunmaz | ✅
 
 ## K3 — Bende orta: mevcut koda dokunuyor (26–32)
 
