@@ -28,10 +28,20 @@ const three = P("a", {
 eq(conditionsOf(three).map((c) => c.source), ["congenital", "acquired", "fatal"],
   "üç alan da okunur");
 
-// Serbest metinde birden çok durum
-eq(conditionsOf(P("a", { healthCondition: "astım, tansiyon; şeker / guatr" })).length, 4,
-  "virgül, noktalı virgül ve eğik çizgi ayırır");
-eq(conditionsOf(P("a", { healthCondition: "  ,  ; / " })), [],
+// Serbest metinde birden çok durum — noktalı virgül ve eğik çizgi ayırır
+eq(conditionsOf(P("a", { healthCondition: "astım; şeker / guatr" })).length, 3,
+  "noktalı virgül ve eğik çizgi ayırır");
+
+// VİRGÜL AYIRMAZ: Türkçede virgül cümle ayracı da olabiliyor ve gerçek veride
+// "Şeker hastalığı, 46 yaşında konuldu" → "46 yaşında konuldu" gibi anlamsız
+// bir "durum" doğuruyordu.
+eq(conditionsOf(P("a", { healthCondition: "Şeker hastalığı, 46 yaşında konuldu" })).length, 1,
+  "virgül bölmez — açıklama tek parça kalır");
+eq(conditionsOf(P("a", { healthCondition: "Şeker hastalığı, 46 yaşında konuldu" }))[0].label,
+  "Şeker hastalığı, 46 yaşında konuldu", "metin bozulmadan korunur");
+eq(conditionsOf(P("a", { congenitalCondition: "Doğuştan işitme engelli — iki taraflı koklear implant" })).length, 1,
+  "açıklamalı kayıt bir durumdur, iki değil");
+eq(conditionsOf(P("a", { healthCondition: "  ;  / " })), [],
   "yalnız ayraçtan durum çıkmaz");
 eq(conditionsOf(P("a", { healthCondition: " Astım " }))[0].label, "Astım",
   "özgün yazım korunur");
