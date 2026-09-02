@@ -11,7 +11,7 @@ import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey =
   | "agac" | "cevre" | "soy" | "yelpaze" | "liste" | "zaman" | "harita"
-  | "istatistik" | "iliski" | "takvim" | "tablo" | "kitap" | "tarifler";
+  | "istatistik" | "iliski" | "takvim" | "tablo" | "kitap" | "tarifler" | "mektup";
 
 const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
   agac: "M12 3v18M12 8L6 12M12 8l6 4M12 14l-4 3M12 14l4 3",
@@ -25,6 +25,8 @@ const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
   iliski: "M9 12h6M10 8H8a4 4 0 000 8h2M14 8h2a4 4 0 010 8h-2",
   takvim: "M3.5 5h17v15h-17zM3.5 9h17M8 3v3M16 3v3M12 12v4M10 14h4",
   kitap: "M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5zM20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z",
+  // Zarf + kilit.
+  mektup: "M3 7l9 6 9-6M3 7h18v10H3zM16 11V9.5a2 2 0 114 0V11M15.5 11h5v4h-5z",
   // Tencere + buhar.
   tarifler: "M5 11h14v6a3 3 0 01-3 3H8a3 3 0 01-3-3v-6zM3 11h18M9 7c0-1 1-1.5 1-2.5M12 6.5c0-1 1-1.5 1-2.5M15 7c0-1 1-1.5 1-2.5",
 };
@@ -34,7 +36,7 @@ const ICONS: Record<Exclude<ViewKey, "tablo">, string> = {
 export const VIEW_GROUPS: ViewKey[][] = [
   ["agac", "cevre", "soy", "yelpaze", "liste", "zaman", "harita"],
   ["istatistik", "iliski", "takvim"],
-  ["kitap", "tarifler"],
+  ["kitap", "tarifler", "mektup"],
 ];
 
 /** Düz liste (geriye dönük kullanım için). */
