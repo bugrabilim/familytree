@@ -111,6 +111,7 @@ export default function PersonForm({
     lastName: initial?.lastName ?? relation?.target.lastName ?? "",
     nickname: initial?.nickname ?? "",
     patronymic: initial?.patronymic ?? "",
+    lineage: initial?.lineage ?? "",
     orientation: initial?.orientation ?? "",
     // Madde 15 — "bilinmiyor" cinsiyet yok; yeni kişide seçim zorunlu (boş başlar).
     // Eski kayıtlarda "unknown" gelirse boş sayılır ve kaydetmeden önce seçtirilir.
@@ -458,6 +459,7 @@ export default function PersonForm({
       lastName: form.lastName.trim(),
       nickname: form.nickname.trim() || undefined,
       patronymic: form.patronymic.trim() || undefined,
+      lineage: form.lineage.trim(),
       orientation: form.orientation.trim() || undefined,
       gender: form.gender as Person["gender"],
       /*
@@ -1074,6 +1076,15 @@ export default function PersonForm({
             <input id="pf-patronim" className={field} value={form.patronymic}
               onChange={(e) => set("patronymic", e.target.value)}
               placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
+          </div>
+          {/* Sülale — SERBEST METİN. Hazır bir liste ya da soyaddan öneri
+             BİLEREK yok; gerekçesi `types/family.ts`te yazılı. */}
+          <div>
+            <label className={label} htmlFor="pf-sulale">{t("form.lineage")}</label>
+            <input id="pf-sulale" className={field} value={form.lineage}
+              onChange={(e) => set("lineage", e.target.value)}
+              placeholder={t("form.lineagePlaceholder")} />
+            <p className="mt-1 text-[11px] text-text-subtle leading-snug">{t("form.lineageHint")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

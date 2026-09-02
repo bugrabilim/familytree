@@ -16,6 +16,8 @@ export interface PersonPayload {
   gender: Gender;
   nickname?: string;
   patronymic?: string;
+  /** Sülale / ocak — serbest metin. */
+  lineage?: string;
   orientation?: string;
   birthDate?: string;
   officialBirthDate?: string;

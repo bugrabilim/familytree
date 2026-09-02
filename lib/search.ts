@@ -46,6 +46,7 @@ export function matchesQuery(p: Person, query: string): boolean {
     norm(`${p.firstName} ${p.lastName}`).includes(q) ||
     norm(p.nickname ?? "").includes(q) ||
     norm(p.patronymic ?? "").includes(q) ||
+    norm(p.lineage ?? "").includes(q) ||
     (p.code ?? "").includes(q) ||
     norm(p.birthPlace ?? "").includes(q) ||
     norm(p.bio ?? "").includes(q) ||
