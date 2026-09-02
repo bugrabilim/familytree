@@ -71,7 +71,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 |---|---|:-:|---|
 | 26 | **`Person` alan kayıt defteri** | D | Geniş ama tamamen mekanik. Bugün bir alan 5 yeri güncelliyor (`types/family.ts` + `PersonForm` 1637 sr + iki API rotası + `PersonDrawer` 951 sr + `i18n-dict` 2731 sr). **Sonraki tüm alan işlerini bir bant ucuzlatır** → 27 ve 28'den önce.  ✅|
 | 27 | Nötr **"sülale"** alanı | D | Kanonik alan-ekleme işi. Asla hazır taksonomi, asla soyaddan çıkarım | ✅
-| 28 | Genogram duygusal ilişki katmanı | D | İki uçlu **kenar listesi** = yeni birinci sınıf veri türü. 5–6 tür, varsayılan kapalı |
+| 28 | Genogram duygusal ilişki katmanı | D | İki uçlu **kenar listesi** = yeni birinci sınıf veri türü. 5–6 tür, varsayılan kapalı | ✅
 | 29 | `lib/history.ts` fark tabanlı yeniden yazım | E | Her kaydetmede tüm kişi listesini kopyalıyor; `people-diff.ts` zaten var. 44'ün ön koşulu |
 | 30 | Sesli Şecere | C | `AudioRecorder` + Gemini hattı hazır; ses akışı doğrulaması bende zor kısım. 3'e bağlı |
 | 31 | Gömülebilir ağaç `/embed/<token>` | C | Riski rota değil, **global güvenlik ayarı**: `X-Frame-Options: DENY` yalnız burada gevşer. 10'a bağlı |

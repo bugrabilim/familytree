@@ -22,11 +22,14 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
+import BondEdge, { type BondEdgeData } from "./BondEdge";
 import { genderTone } from "./ui/Avatar";
 import { buildUnions, layout } from "@/lib/tree-layout";
 import { isAssociate, isMember } from "@/lib/associates";
 import { compareSiblings } from "@/lib/siblings";
 import type { Person } from "@/types/family";
+import type { Bond } from "@/types/bond";
+import { bondTypeKey, pruneBonds } from "@/lib/bonds";
 import type { RelationType } from "@/lib/actions";
 
 /**
@@ -65,6 +68,9 @@ function UnionNode() {
 }
 
 const nodeTypes = { person: PersonNode, union: UnionNode as unknown as React.FC<NodeProps> };
+// Genogram bağları için ayrı kenar türü — hazır biçimlerin hiçbiri zigzag/çift
+// çizgi çizmiyor (bkz. `components/BondEdge.tsx`).
+const edgeTypes = { bond: BondEdge };
 
 /* Birlik (union) mantığı ve dagre yerleşimi test edilebilir olsun diye saf
    modülde: `lib/tree-layout.ts`. */
@@ -86,9 +92,17 @@ interface Props {
   onQuickAdd: (relation: RelationType, targetId: string) => void;
   /** Tek seferlik "Odakla" isteği: seq her istekte artar, kamera o kişiye gider. */
   locateReq?: { id: string; seq: number };
+  /**
+   * Genogram duygusal bağ katmanı. VARSAYILAN KAPALI: ağacın asıl işi soy
+   * bağını göstermek, duygusal katman ayrı bir okuma. Boş dizi geçilmesi ile
+   * katmanın kapalı olması aynı şey değil — `showBonds` ayrı tutuluyor ki
+   * "hiç bağ yok" ile "bakmak istemiyorum" karışmasın.
+   */
+  bonds?: Bond[];
+  showBonds?: boolean;
 }
 
-function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq, bonds, showBonds = false }: Props) {
   const t = useT();
   const { fitView, setCenter, getZoom, zoomIn, zoomOut } = useReactFlow();
 
@@ -269,8 +283,32 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       });
     }
 
+    /*
+     * Duygusal bağlar — yalnız katman açıkken. Her iki ucu da GÖRÜNÜR olan
+     * bağlar çiziliyor: `pruneBonds` ağaçtan silinmiş kişileri eler, `ids`
+     * ise o an süzgeçle gizlenmiş olanları. Görünmeyen bir karta çizgi
+     * çekmek boşluğa uzanan bir çizgi bırakırdı.
+     */
+    if (showBonds && bonds?.length) {
+      for (const b of pruneBonds(bonds, ids)) {
+        const data: BondEdgeData = {
+          bondType: b.type,
+          faded: soluk(b.a, b.b),
+          label: t(bondTypeKey(b.type)),
+        };
+        out.push({
+          id: `b:${b.id}`,
+          source: b.a,
+          target: b.b,
+          type: "bond",
+          zIndex: 5,
+          data: data as unknown as Record<string, unknown>,
+        });
+      }
+    }
+
     return out;
-  }, [people, unions, ids, byId, highlightIds, assocEdges]);
+  }, [people, unions, ids, byId, highlightIds, assocEdges, bonds, showBonds, t]);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(nodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(edges);
@@ -348,6 +386,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onInit={onInit}
       minZoom={0.15}
       maxZoom={1.8}

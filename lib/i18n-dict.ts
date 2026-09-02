@@ -1719,6 +1719,37 @@ export const tr: Dict = {
   "map.unlocatedTitle": "Konumu bilinmeyen yerler",
   "map.unlocatedBody":
     "Haritada gösterilemiyor — konum bulunamadı. Yine de burada listeli.",
+
+  /* --- Genogram: duygusal bağlar --- */
+  "bond.layer": "Duygusal bağlar",
+  "bond.layerHint":
+    "Genogram katmanı. Kimin kiminle nasıl geçindiğini gösterir; soy bağıyla ilgisi yok.",
+  "bond.private":
+    "Bu katman ailenin kendi içinde kalır: paylaşım bağlantısında, dışa aktarmada ve kitapta yer almaz.",
+  "bond.add": "Bağ ekle",
+  "bond.edit": "Bağı düzenle",
+  "bond.delete": "Bağı sil",
+  "bond.deleteConfirm": "Bu bağ silinsin mi?",
+  "bond.save": "Kaydet",
+  "bond.cancel": "Vazgeç",
+  "bond.empty": "Henüz duygusal bağ eklenmemiş.",
+  "bond.emptyHint": "İki kişi seçip aralarındaki ilişkiyi işaretleyin.",
+  "bond.other": "Kiminle?",
+  "bond.type": "İlişki",
+  "bond.note": "Not",
+  "bond.notePlaceholder": "2012'den beri konuşmuyorlar…",
+  "bond.type.yakin": "Yakın",
+  "bond.type.yakin.desc": "Güvenli, sıcak ilişki.",
+  "bond.type.icice": "İç içe",
+  "bond.type.icice.desc": "Sınırların kaybolduğu aşırı yakınlık.",
+  "bond.type.mesafeli": "Mesafeli",
+  "bond.type.mesafeli.desc": "Bağ var ama uzak, seyrek.",
+  "bond.type.catismali": "Çatışmalı",
+  "bond.type.catismali.desc": "Sürekli gerginlik, tartışma.",
+  "bond.type.icice-catismali": "İç içe ve çatışmalı",
+  "bond.type.icice-catismali.desc": "Hem ayrılamayan hem geçinemeyen.",
+  "bond.type.kopuk": "Kopuk",
+  "bond.type.kopuk.desc": "İlişki tamamen kesilmiş.",
 };
 
 /* İngilizce — eklenti dil. Anahtarlar `tr` ile birebir aynı olmalı. */
@@ -3425,6 +3456,37 @@ export const en: Dict = {
   "map.unlocatedTitle": "Places without coordinates",
   "map.unlocatedBody":
     "Can’t be shown on the map — location not found. Still listed here.",
+
+  /* --- Genogram: emotional bonds --- */
+  "bond.layer": "Emotional bonds",
+  "bond.layerHint":
+    "The genogram layer. It shows how people get along — unrelated to descent.",
+  "bond.private":
+    "This layer stays inside the family: it never appears in share links, exports or the book.",
+  "bond.add": "Add bond",
+  "bond.edit": "Edit bond",
+  "bond.delete": "Delete bond",
+  "bond.deleteConfirm": "Delete this bond?",
+  "bond.save": "Save",
+  "bond.cancel": "Cancel",
+  "bond.empty": "No emotional bonds yet.",
+  "bond.emptyHint": "Pick two people and mark the relationship between them.",
+  "bond.other": "With whom?",
+  "bond.type": "Relationship",
+  "bond.note": "Note",
+  "bond.notePlaceholder": "Haven't spoken since 2012…",
+  "bond.type.yakin": "Close",
+  "bond.type.yakin.desc": "Secure, warm relationship.",
+  "bond.type.icice": "Fused",
+  "bond.type.icice.desc": "Closeness so intense the boundaries are gone.",
+  "bond.type.mesafeli": "Distant",
+  "bond.type.mesafeli.desc": "A bond exists, but remote and infrequent.",
+  "bond.type.catismali": "Conflictual",
+  "bond.type.catismali.desc": "Constant tension and argument.",
+  "bond.type.icice-catismali": "Fused and conflictual",
+  "bond.type.icice-catismali.desc": "Can neither separate nor get along.",
+  "bond.type.kopuk": "Cut off",
+  "bond.type.kopuk.desc": "The relationship is entirely severed.",
 };
 
 export const DICTS: Record<Lang, Dict> = { tr, en };

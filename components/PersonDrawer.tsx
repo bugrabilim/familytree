@@ -39,6 +39,8 @@ import { ASSOCIATION_TYPES } from "@/types/family";
 import useEscapeKey from "@/lib/useEscapeKey";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
+import BondSection from "./BondSection";
+import type { UseBonds } from "@/lib/useBonds";
 import { isMasked } from "@/lib/privacy";
 import { useT } from "@/lib/i18n";
 
@@ -56,6 +58,11 @@ interface Props {
   /** Kişi merkezli "Çevre" grafiğini aç. */
   onEgo: (id: string) => void;
   onDeleted: () => void;
+  /**
+   * Duygusal bağ katmanı. Panel açıkken yüklenir (katman kapalı olsa bile):
+   * bağı EKLEMEK için katmanı açmak zorunda kalmak tuhaf olurdu.
+   */
+  bonds: UseBonds;
 }
 
 export default function PersonDrawer({
@@ -70,6 +77,7 @@ export default function PersonDrawer({
   onLocate,
   onEgo,
   onDeleted,
+  bonds,
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -600,6 +608,21 @@ export default function PersonDrawer({
                   {t("drawer.addAssociate")}
                 </button>
               )}
+            </section>
+          )}
+
+          {/* Genogram duygusal bağlar — maskeli kişide gizli: maske "bu kişinin
+              ayrıntısını gösterme" demek, ilişkileri en ayrıntılı kısmı. */}
+          {!masked && (
+            <section>
+              <SectionTitle>{t("bond.layer")}</SectionTitle>
+              <BondSection
+                person={rawPerson}
+                people={people}
+                bonds={bonds}
+                readOnly={readOnly}
+                onSelect={onSelect}
+              />
             </section>
           )}
 
