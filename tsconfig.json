@@ -6,6 +6,17 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // `./x.ts` biçiminde göreli içe aktarıma izin verir.
+    //
+    // Neden gerekli: bu depodaki testler çıplak `node --experimental-strip-types`
+    // ile koşuyor ve Node `@/…` takma adını çözemiyor. Bir kitaplık `@/lib/…`
+    // ile başka bir kitaplığı ÇALIŞMA ZAMANINDA içe aktarınca birim testi
+    // koşulamaz hâle geliyordu (bkz. CLAUDE.md). Sonuç: paylaşılan saf mantık
+    // ya kopyalanıyor ya da enjekte ediliyordu.
+    //
+    // `.ts` uzantılı göreli yol hem Node hem paketleyici tarafından çözülüyor.
+    // `noEmit` açık olduğu için TypeScript de buna izin veriyor.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

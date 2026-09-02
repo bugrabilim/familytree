@@ -1,4 +1,5 @@
 import type { Person } from "@/types/family";
+import { foldKey } from "./turkish.ts";
 
 /**
  * Soyadı yaygınlığı — SAF, bağımlılıksız.
@@ -27,14 +28,8 @@ import type { Person } from "@/types/family";
  */
 
 /** `lib/duplicates.ts` ile aynı katlama — iki yerde ayrışmasın diye birebir. */
-function fold(s: string): string {
-  return s
-    .toLocaleLowerCase("tr")
-    .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
-    .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+const fold = foldKey;
+
 
 export interface PlaceCount {
   place: string;

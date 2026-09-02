@@ -1,3 +1,4 @@
+import { foldKey } from "./turkish.ts";
 import type { Person } from "@/types/family";
 
 /**
@@ -14,14 +15,8 @@ export interface DuplicatePair {
   reason: "yearMatch" | "sharedParent" | "sharedSpouse";
 }
 
-function normName(s: string): string {
-  return s
-    .toLocaleLowerCase("tr")
-    .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
-    .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+const normName = foldKey;
+
 
 /** Gruplama anahtarı: yalnız AD. Böylece soyadı boş ("Buğra") ile soyadlı
  *  ("Buğra Bilim") aynı kişi olabilecek kayıtlar da karşılaştırılır (3C). */
