@@ -36,6 +36,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const BIRTH_COLOR = "#c0392b";
 const BIRTH_BORDER = "#8a1f1f";
 const BURIAL_COLOR = "#7c3aed";
+/** Belgeye dayanan kişisel göç yolu (kullanıcının girdiği taşınmalar). */
+const MIG_PERSONAL = "#2563eb";
+/**
+ * Ağaçtan çıkarılan kuşak kayması — belge değil, o yüzden soluk ve kesikli.
+ * Mor KULLANILAMAZ: defin işaretçilerinin rengi o; aynı moru çizgide de
+ * kullanmak "bu çizgi mezarlarla ilgili" izlenimi verirdi.
+ */
+const MIG_GENERATION = "#64748b";
 const BURIAL_BORDER = "#5b21b6";
 
 interface Props {
@@ -225,6 +233,26 @@ export default function PlacesMap({ people, onSelect }: Props) {
       }),
     [burialBase, geo]
   );
+  /**
+   * Kullanıcının kendi girdiği göç/taşınma olaylarının yerleri.
+   *
+   * Bunlar doğum ya da defin yeri değil; kimse haritaya koymadığı sürece
+   * görünmüyorlardı — oysa "ne zaman nereye taşındı" bilgisinin en doğrudan
+   * kaynağı bu. `events` gizli bir alan grubudur, o yüzden `scoped` (maskeden
+   * geçmiş) liste okunur: gizli bir kişinin taşınma yeri sızmaz.
+   */
+  const eventPlaces = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of scoped) {
+      for (const ev of p.events ?? []) {
+        if (ev.type !== "goc-tasinma") continue;
+        const place = ev.place?.trim();
+        if (place) set.add(place);
+      }
+    }
+    return [...set];
+  }, [scoped]);
+
   const burialLocated = useMemo(() => burialAgg.filter((a) => a.coords), [burialAgg]);
   const maxBurial = useMemo(() => burialLocated.reduce((m, a) => Math.max(m, a.count), 1), [burialLocated]);
 
@@ -238,6 +266,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
     const pending = [
       ...baseAgg.map((a) => a.place).filter((place) => !gazetteerExact(place) && !placeOverride.has(place)),
       ...burialPending,
+      ...eventPlaces.filter((place) => !gazetteerExact(place)),
     ].filter((place, i, arr) => arr.indexOf(place) === i); // benzersiz
     if (pending.length === 0) return;
 
@@ -261,7 +290,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
       cancelled = true;
       ctrl.abort();
     };
-  }, [baseAgg, placeOverride, burialBase]);
+  }, [baseAgg, placeOverride, burialBase, eventPlaces]);
 
   // Kişi → doğum yeri koordinatı (maskeli aggregate'lerden → gizlilik korunur).
   const personCoord = useMemo(() => {
@@ -272,22 +301,63 @@ export default function PlacesMap({ people, onSelect }: Props) {
 
   // Göç yolları — ebeveyn doğum yeri → çocuk doğum yeri (farklıysa). Yinelenen
   // aynı yol kalınlaşır. Gizli kişiler koordinatsız olduğundan otomatik dışlanır.
+  /*
+   * Göç yolları — İKİ AYRI ŞEY, ayrı çizilir:
+   *
+   * "kisisel": bir kişinin kendi ömründeki taşınmaları — doğduğu yerden
+   *   başlar, kendi girdiği göç/taşınma olaylarından TARİH SIRASIYLA geçer,
+   *   gömüldüğü yerde biter. Kullanıcının yazdığı bilgiye dayanır.
+   *
+   * "kusak": ebeveynin doğum yerinden çocuğun doğum yerine. Kimsenin
+   *   yazmadığı, ağacın kendisinden çıkan bir kayma; bir ömrün yolculuğu
+   *   değildir. (Eskiden katmanda yalnız bu vardı ve "göç yolu" deniyordu.)
+   *
+   * İkisini aynı renkte çizmek yanlış olurdu: biri belge, öbürü çıkarım.
+   */
+  type Leg = { from: LatLng; to: LatLng; n: number; kind: "kisisel" | "kusak" };
+
   const migrations = useMemo(() => {
-    const map = new Map<string, { from: LatLng; to: LatLng; n: number }>();
+    const map = new Map<string, Leg>();
+    const add = (from: LatLng, to: LatLng, kind: Leg["kind"]) => {
+      if (from.lat === to.lat && from.lng === to.lng) return;
+      const key = `${kind}|${from.lat},${from.lng}>${to.lat},${to.lng}`;
+      const e = map.get(key);
+      if (e) e.n++;
+      else map.set(key, { from, to, n: 1, kind });
+    };
+
     for (const p of scoped) {
-      const c = personCoord.get(p.id);
-      if (!c) continue;
-      for (const pid of p.parentIds ?? []) {
-        const pc = personCoord.get(pid);
-        if (!pc || (pc.lat === c.lat && pc.lng === c.lng)) continue;
-        const key = `${pc.lat},${pc.lng}>${c.lat},${c.lng}`;
-        const e = map.get(key);
-        if (e) e.n++;
-        else map.set(key, { from: pc, to: c, n: 1 });
+      // (1) Kişisel yol: doğum → göç olayları (tarihe göre) → defin.
+      const stops: LatLng[] = [];
+      const birth = personCoord.get(p.id);
+      if (birth) stops.push(birth);
+      const moves = (p.events ?? [])
+        .filter((ev) => ev.type === "goc-tasinma" && ev.place?.trim())
+        // Tarihsizler sona: "YYYY-MM-DD" dizeleri sözlüksel sıralanır ve bu
+        // tarih sırasıyla aynıdır; tarihsiz bir taşınmayı araya sokmak sırayı
+        // uydurmak olurdu.
+        .sort((a, b) => (a.date ?? "9999").localeCompare(b.date ?? "9999"));
+      for (const ev of moves) {
+        const c = coordsFor(ev.place!.trim());
+        if (c) stops.push(c);
+      }
+      const burial = p.burialPlace?.trim();
+      if (burial) {
+        const c = p.burialCoords ?? coordsFor(burial);
+        if (c) stops.push(c);
+      }
+      for (let i = 1; i < stops.length; i++) add(stops[i - 1], stops[i], "kisisel");
+
+      // (2) Kuşak kayması: ebeveyn doğum yeri → kişinin doğum yeri.
+      if (birth) {
+        for (const pid of p.parentIds ?? []) {
+          const pc = personCoord.get(pid);
+          if (pc) add(pc, birth, "kusak");
+        }
       }
     }
     return [...map.values()];
-  }, [scoped, personCoord]);
+  }, [scoped, personCoord, coordsFor]);
 
   const maxCount = useMemo(() => located.reduce((m, a) => Math.max(m, a.count), 1), [located]);
 
@@ -497,6 +567,23 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   {t("map.legendBurial")}
                 </span>
               )}
+              {/* Göç açıkken iki çizgi türünü ayırt et: biri kullanıcının
+                 yazdığı taşınmalar, öbürü ağaçtan çıkan kayma. */}
+              {showMigration && (
+                <>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-4 h-0.5 rounded" style={{ background: MIG_PERSONAL }} />
+                    {t("map.legendMigPersonal")}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="w-4 h-0"
+                      style={{ borderTop: `2px dashed ${MIG_GENERATION}` }}
+                    />
+                    {t("map.legendMigGeneration")}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -665,7 +752,7 @@ function TileMap({
 }: {
   located: ReturnType<typeof aggregatePlaces>;
   burialLocated: Array<{ place: string; count: number; personIds: string[]; coords: LatLng | null }>;
-  migrations: Array<{ from: LatLng; to: LatLng; n: number }>;
+  migrations: Array<{ from: LatLng; to: LatLng; n: number; kind: "kisisel" | "kusak" }>;
   showMigration: boolean;
   maxCount: number;
   maxBurial: number;
@@ -679,6 +766,13 @@ function TileMap({
   const burialRef = useRef<L.LayerGroup | null>(null);
   const migRef = useRef<L.LayerGroup | null>(null);
   const fitted = useRef(false);
+  /*
+   * Yakınlaştırma düzeyi durum olarak tutulur: göç katmanı, iki ucu ekranda
+   * çok yakın düşen bacaklara ok koymaz (ok çizgiden uzun görünürdü). Ama o
+   * karar ölçeğe bağlı — kullanıcı yakınlaşınca kısa bacaklar açılır ve
+   * oklarını hak eder. Katman yeniden çizilmezse o oklar hiç gelmezdi.
+   */
+  const [zoom, setZoom] = useState(0);
   const onPickRef = useRef(onPick);
   useEffect(() => { onPickRef.current = onPick; });
 
@@ -694,6 +788,7 @@ function TileMap({
     burialRef.current = L.layerGroup().addTo(map);
     migRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    map.on("zoomend", () => setZoom(map.getZoom()));
     // Konteyner ilk render'da tam boyutlanmamış olabilir.
     setTimeout(() => map.invalidateSize(), 0);
     return () => {
@@ -758,16 +853,51 @@ function TileMap({
     if (!g) return;
     g.clearLayers();
     if (!showMigration) return;
+    const map = mapRef.current;
     for (const m of migrations) {
+      const kisisel = m.kind === "kisisel";
       L.polyline(
         [
           [m.from.lat, m.from.lng],
           [m.to.lat, m.to.lng],
         ],
-        { color: "#2563eb", weight: Math.min(5, 1 + m.n), opacity: 0.45 }
+        {
+          // Belge (kişisel) dolu ve koyu; çıkarım (kuşak) kesikli ve soluk.
+          color: kisisel ? MIG_PERSONAL : MIG_GENERATION,
+          weight: Math.min(5, 1 + m.n),
+          opacity: kisisel ? 0.7 : 0.35,
+          dashArray: kisisel ? undefined : "4 5",
+        }
       ).addTo(g);
+
+      /*
+       * Yön oku. Yönsüz bir çizgi göçün asıl bilgisini söylemez: aile
+       * İstanbul'a mı gitmiş, İstanbul'dan mı gelmiş?
+       *
+       * Açı EKRAN düzleminde (`latLngToLayerPoint`) hesaplanır, enlem-boylam
+       * farkından değil: Mercator'da kuzeye gidildikçe boylam sıkışır, ham
+       * lat/lng farkından bulunan açı okla çizginin arasını açardı.
+       */
+      if (!map) continue;
+      const a = map.latLngToLayerPoint([m.from.lat, m.from.lng]);
+      const b = map.latLngToLayerPoint([m.to.lat, m.to.lng]);
+      if (Math.hypot(b.x - a.x, b.y - a.y) < 24) continue; // çok kısa: ok sığmaz
+      const deg = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+      L.marker([m.to.lat, m.to.lng], {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "",
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+          html:
+            `<div style="width:12px;height:12px;transform:rotate(${deg}deg);` +
+            `color:${kisisel ? MIG_PERSONAL : MIG_GENERATION};opacity:${kisisel ? 0.9 : 0.5};` +
+            `font-size:12px;line-height:12px;text-align:center">\u25B6</div>`,
+        }),
+      }).addTo(g);
     }
-  }, [migrations, showMigration]);
+  }, [migrations, showMigration, zoom]);
 
   // Seçili yere uç (yan panelden ya da işaretçiden seçilince).
   useEffect(() => {

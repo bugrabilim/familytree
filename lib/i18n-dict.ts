@@ -1584,6 +1584,8 @@ export const tr: Dict = {
   "map.burialKind": "Defin yeri",
   "map.legendBirth": "Doğum",
   "map.legendBurial": "Defin",
+  "map.legendMigPersonal": "Kişisel göç yolu",
+  "map.legendMigGeneration": "Kuşak kayması",
   "map.unlocatedTitle": "Konumu bilinmeyen yerler",
   "map.unlocatedBody":
     "Haritada gösterilemiyor — konum bulunamadı. Yine de burada listeli.",
@@ -3157,6 +3159,8 @@ export const en: Dict = {
   "map.burialKind": "Burial place",
   "map.legendBirth": "Birth",
   "map.legendBurial": "Burial",
+  "map.legendMigPersonal": "Personal migration route",
+  "map.legendMigGeneration": "Generational drift",
   "map.noLocation": " · no location",
   "map.unlocatedTitle": "Places without coordinates",
   "map.unlocatedBody":
