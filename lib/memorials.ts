@@ -76,21 +76,45 @@ export interface Observance {
 
 const FULL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/**
+ * Bir Miladi ayın gün sayısı — `Date` KULLANILMADAN.
+ *
+ * `Date` ile doğrulama iki tuzak taşıyor: (1) `Date.UTC` yıl 0–99'u 1900+y'ye
+ * kaydırır, (2) var olmayan bir gün sessizce sonraki aya taşar. Aritmetik
+ * denetim ikisinden de bağımsızdır.
+ */
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
+}
+
+/**
+ * `Date.UTC` yıl 0–99'u 1900+y olarak kurar; `setUTCFullYear` ile geri alınır.
+ * Gün aritmetiği (`+40 gün`) için `Date` gerekiyor, bu yüzden burada `Date`
+ * kullanılıyor ama kaydırması etkisizleştiriliyor.
+ */
+function utcDate(y: number, m: number, d: number): Date {
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (y >= 0 && y <= 99) dt.setUTCFullYear(y);
+  return dt;
+}
+
 function parse(stored?: string): { y: number; m: number; d: number } | null {
   const m = stored ? FULL_DATE.exec(stored) : null;
   if (!m) return null;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-  // Gerçekten var olan bir gün mü? (31 Şubat elenir.)
-  const probe = new Date(Date.UTC(y, mo - 1, d));
-  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== mo - 1 || probe.getUTCDate() !== d) {
-    return null;
-  }
+  if (mo < 1 || mo > 12 || d < 1) return null;
+  if (d > daysInMonth(y, mo)) return null; // 31 Şubat elenir
   return { y, m: mo, d };
 }
 
 function iso(date: Date): string {
-  const y = date.getUTCFullYear();
+  // Yıl DÖRT haneye tamamlanır: aksi hâlde "150-03-10" gibi bozuk bir dize
+  // dışarı çıkar ve pencere karşılaştırması (sözlüksel) sessizce kırılır.
+  const y = String(date.getUTCFullYear()).padStart(4, "0");
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
   const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
@@ -98,16 +122,13 @@ function iso(date: Date): string {
 
 function addDays(p: { y: number; m: number; d: number }, days: number): string {
   // UTC ile: yaz saati geçişleri gün kaydırmasın.
-  return iso(new Date(Date.UTC(p.y, p.m - 1, p.d + days)));
+  return iso(utcDate(p.y, p.m, p.d + days));
 }
 
 /** 29 Şubat'ta ölen biri için artık olmayan yıllarda 28 Şubat'a kırpılır. */
 function sameDayInYear(p: { m: number; d: number }, year: number): string {
-  const probe = new Date(Date.UTC(year, p.m - 1, p.d));
-  if (probe.getUTCMonth() !== p.m - 1) {
-    return iso(new Date(Date.UTC(year, p.m - 1 + 1, 0))); // ayın son günü
-  }
-  return iso(probe);
+  const day = Math.min(p.d, daysInMonth(year, p.m));
+  return iso(utcDate(year, p.m, day));
 }
 
 export interface Window {

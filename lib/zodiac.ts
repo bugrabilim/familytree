@@ -72,6 +72,21 @@ export interface ZodiacResult {
   alternative: ZodiacSign | null;
 }
 
+/**
+ * Bir Miladi ayın gün sayısı — `Date` KULLANILMADAN.
+ *
+ * `Date` ile doğrulama iki tuzak taşıyor: (1) `Date.UTC` yıl 0–99'u 1900+y'ye
+ * kaydırır, (2) var olmayan bir gün sessizce sonraki aya taşar (31 Şubat →
+ * 3 Mart). Aritmetik denetim ikisinden de bağımsızdır.
+ */
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
+}
+
 const FULL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
@@ -107,10 +122,10 @@ export function zodiacSign(stored?: string): ZodiacResult | null {
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  // Gerçek yılla doğrula: 29 Şubat yalnız artık yılda geçerlidir.
-  const probe = new Date(Date.UTC(year, month - 1, day));
-  if (probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+  if (month < 1 || month > 12 || day < 1) return null;
+  // Aritmetik denetim: 29 Şubat yalnız artık yılda geçerli, ve `Date`'in
+  // yıl 0–99 kaydırması devreye girmiyor (0000-02-29 geçerli bir gündür).
+  if (day > daysInMonth(year, month)) return null;
 
   const sign = signOf(month, day);
 

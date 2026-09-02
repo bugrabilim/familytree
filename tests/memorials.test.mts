@@ -215,5 +215,34 @@ const sadeceMiladi = observancesFor(P("h6", "2020-06-15"), { from: "2020-01-01",
 eq(dates(sadeceMiladi), ["2021-06-15", "2022-06-15", "2023-06-15"], "miladi devriye aynı");
 eq(sadeceMiladi.map((o) => o.year), [1, 2, 3], "miladi numaralar aynı");
 
+/* --- H5: dört haneli yıl ve 0-99 aralığı -------------------------------- */
+
+// iso() yılı sıfırla doldurmayınca "150-03-10" gibi bozuk bir dize dışarı
+// çıkıyor ve pencere karşılaştırması (sözlüksel) sessizce kırılıyordu.
+const dar = observancesFor(P("y1", "0150-03-03"), { from: "0100-01-01", to: "0900-12-31" },
+  { enabled: ["gece7"] });
+eq(dates(dar), ["0150-03-10"], "dar pencerede bulunuyor (sözlüksel karşılaştırma doğru)");
+const genis = observancesFor(P("y2", "0150-03-03"), { from: "0100-01-01", to: "9999-12-31" },
+  { enabled: ["gece7"] });
+eq(dates(genis), ["0150-03-10"], "geniş pencerede de aynı, dize dört haneli");
+check(genis.every((o) => /^\d{4}-\d{2}-\d{2}$/.test(o.date)), "tüm tarihler YYYY-MM-DD biçiminde");
+
+// Date.UTC yıl 0-99'u 1900+y'ye kaydırıyordu → bu yıllar tümüyle eleniyordu
+const erken = observancesFor(P("y3", "0050-03-03"), { from: "0001-01-01", to: "9999-12-31" },
+  { enabled: ["gece7"] });
+eq(dates(erken), ["0050-03-10"], "yıl 0-99 aralığı eleniyor DEĞİL");
+eq(dates(observancesFor(P("y4", "0001-01-01"), { from: "0001-01-01", to: "0001-12-31" },
+  { enabled: ["gece40"] })), ["0001-02-10"], "yıl 1 de çalışıyor");
+
+// Var olmayan gün elenmeli (Date'e bırakılınca sessizce kayıyordu)
+eq(observancesFor(P("y5", "2023-02-30"), WIDE, { enabled: ["gece7"] }), [],
+  "31 Şubat elenir");
+eq(observancesFor(P("y6", "2023-04-31"), WIDE, { enabled: ["gece7"] }), [],
+  "31 Nisan elenir");
+eq(dates(observancesFor(P("y7", "2024-02-29"), WIDE, { enabled: ["gece7"] })), ["2024-03-07"],
+  "artık yılda 29 Şubat geçerli");
+eq(observancesFor(P("y8", "2023-02-29"), WIDE, { enabled: ["gece7"] }), [],
+  "artık olmayan yılda 29 Şubat elenir");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
