@@ -186,8 +186,9 @@ tam klinik genogram sembolojisi · risk skoru · mobilde web'i aynalamak.
 - İçe/dışa aktarım artık **GEDCOM + CSV + JSON** (`lib/import.ts`, biçim otomatik
   algılanır; CSV/JSON'da id/baba/anne/eş ile bağlar korunur). Testler:
   `tests/import.test.mts`.
-- Sonraki fikir: GEDCOM dışa aktarımında fotoğraf URL'lerini `OBJE` olarak yaz
-  (medya taşınsın).
+- ✅ GEDCOM dışa aktarımında fotoğraf URL'leri `OBJE`/`FILE` olarak yazılıyor
+  (`lib/gedcom.ts`); içe aktarımda hem satır-içi hem `@M@` işaretçi çözülüyor.
+  Test: `tests/gedcom-media.test.mts`.
 
 ## Bekleyen — Supabase Auth devamı (sonra yapılacak)
 
