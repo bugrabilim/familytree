@@ -4,6 +4,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
+import { buildPersonFields } from "@/lib/person-fields";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling" | "associate";
 
@@ -23,45 +24,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  /*
+   * Alanlar KAYIT DEFTERİNDEN kurulur (`lib/person-fields.ts`).
+   *
+   * Eskiden burada kırk satırlık elle yazılmış bir liste vardı ve aynısının
+   * bir başkası PUT rotasındaydı. İki listenin ayrışması kaçınılmazdı: bir
+   * alan birinde `??`, öbüründe `||` ile birleşiyordu ve fark kimsenin
+   * gözüne çarpmıyordu.
+   *
+   * Deftere girmeyenler burada kalır: kimlik/kod sunucunundur, ilişki grafiği
+   * kendi karşılıklılık akışını yürütür.
+   */
   const person: Person = {
     id: crypto.randomUUID(),
     code: nextCode(data.people),
-    firstName: (body.firstName ?? "").trim(),
-    lastName: (body.lastName ?? "").trim(),
-    gender: body.gender ?? "unknown",
-    nickname: body.nickname || undefined,
-    patronymic: body.patronymic || undefined,
-    orientation: body.orientation || undefined,
-    birthDate: body.birthDate || undefined,
-    officialBirthDate: body.officialBirthDate || undefined,
-    deathDate: body.deathDate || undefined,
-    birthPlace: body.birthPlace || undefined,
-    birthCoords: body.birthCoords || undefined,
-    religion: body.religion || undefined,
-    denomination: body.denomination || undefined,
-    language: body.language || undefined,
-    ethnicity: body.ethnicity || undefined,
-    nationality: body.nationality || undefined,
-    occupation: body.occupation || undefined,
-    education: body.education || undefined,
-    congenitalCondition: body.congenitalCondition || undefined,
-    healthCondition: body.healthCondition || undefined,
-    deathCause: body.deathCause || undefined,
-    burialPlace: body.burialPlace || undefined,
-    burialCoords: body.burialCoords || undefined,
-    photo: body.photo || undefined,
-    photos: Array.isArray(body.photos) ? body.photos : undefined,
-    videos: Array.isArray(body.videos) ? body.videos : undefined,
-    documents: Array.isArray(body.documents) ? body.documents : undefined,
-    bio: body.bio || undefined,
-    events: Array.isArray(body.events) ? body.events : undefined,
-    sources: Array.isArray(body.sources) ? body.sources : undefined,
-    memories: Array.isArray(body.memories) ? body.memories : undefined,
+    ...buildPersonFields(body as Record<string, unknown>),
+    // Ad/soyad her zaman bulunur (boş da olsa) ve kırpılır.
+    firstName: ((body.firstName as string) ?? "").trim(),
+    lastName: ((body.lastName as string) ?? "").trim(),
+    gender: (body.gender as Person["gender"]) ?? "unknown",
+    // "cevre" dışındaki her değer varsayılan (üye) demektir.
     kind: body.kind === "cevre" ? "cevre" : undefined,
-    associations: Array.isArray(body.associations) ? body.associations : undefined,
-    confidential: body.confidential || undefined,
-    privateFields:
-      Array.isArray(body.privateFields) && body.privateFields.length ? body.privateFields : undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],
     parentLinks: body.parentLinks && typeof body.parentLinks === "object" ? body.parentLinks : undefined,
     spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
