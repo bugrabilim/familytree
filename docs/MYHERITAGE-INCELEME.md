@@ -28,7 +28,7 @@ ve ~20 milyar tarihsel kayıt üzerinde çalışır. Üç ayak: (1) çevrimiçi 
   ciddi yazılımlar GEDCOM al/ver eder. **Bizde zaten var.**
 - **GEDCOM medya taşımaz**: fotoğraflar yalnızca URL olarak referanslanırsa
   taşınır; gömülü dosyalar aktarılmaz. (Bizde medya Cloudinary URL'leri → GEDCOM
-  ile URL taşınabilir; ileride `OBJE/FILE` eşlemesi eklenebilir.)
+  ile URL taşınabilir; **`OBJE/FILE` eşlemesi yapıldı** — `lib/gedcom.ts`.)
 - **DNA ham verisi** ayrı bir yükleme türü (bizde kapsam dışı).
 - MyHeritage'ın kendi `.ftb` (Family Tree Builder) biçimi tescillidir; dışarıya
   **GEDCOM** ile çıkılır. Yani bir MyHeritage ağacını bize almanın yolu:
@@ -39,8 +39,9 @@ ve ~20 milyar tarihsel kayıt üzerinde çalışır. Üç ayak: (1) çevrimiçi 
 1. **Çok-biçimli içe/dışa aktarım** (bu turda yapıldı): GEDCOM'a ek olarak CSV
    ve JSON. MyHeritage/Ancestry/FamilySearch hepsi GEDCOM verdiği için asıl
    köprü GEDCOM'dur; CSV ise elektronik tablodan hızlı veri girişini açar.
-2. **GEDCOM medya (URL) eşlemesi**: dışa aktarımda fotoğraf URL'lerini `OBJE`
-   olarak yazmak → MyHeritage'a taşındığında görseller de gitsin. (Sonraki iş.)
+2. ✅ **GEDCOM medya (URL) eşlemesi yapıldı**: dışa aktarımda fotoğraf URL'leri
+   `OBJE`/`FILE` olarak yazılıyor → MyHeritage'a taşındığında görseller de gidiyor.
+   Test: `tests/gedcom-media.test.mts`.
 3. **Fotoğraf zenginleştirme**: renklendirme/netleştirme, Cloudinary'nin hazır
    dönüşümleriyle düşük maliyetle denenebilir (Deep Nostalgia'nın hafif hâli).
 4. **Harita**: PedigreeMap'e benzer şekilde bizde harita var; zaman kaydırıcısı
