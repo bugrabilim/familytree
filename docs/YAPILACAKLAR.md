@@ -5,6 +5,37 @@
 - **Her geliştirme/bug/değişikliğin İngilizcesi de yapılır** (i18n TR+EN),
   onay beklemeden. (Kullanıcı talebi, 2026-08-13.)
 
+## Rekabet araştırması #2 (Eylül 2026) — aday işler
+
+Geniş rekabet taraması: **`docs/REKABET-ARASTIRMASI-2.md`** (3 ajan, ~145 arama).
+Öne çıkan sonuç: en savunulabilir farkımız soyağacı özellikleri değil, **kültürel
+altyapı** (Türkçe akrabalık motoru, 1934 öncesi patronim, e-Devlet PDF, kirve/çevre,
+alan bazında gizlilik). NVİ **mevzuat gereği yan soyu (kardeş/amca/dayı/hala/teyze)
+veremez** → kalıcı boşluk. Konum: *"e-Devlet size atalarınızı verir. Ailenizi vermez."*
+
+Aday işler (öncelik sırasıyla, hiçbiri onaylanmadı):
+
+1. **Anma Takvimi + bildirim** — ölüm tarihinden 3/7/40/52. gece + sene-i devriye;
+   Hicri/Miladi çift takvim; aileye göre açılıp kapanabilir. *(E-postaya bağlı.)*
+2. **Aile Bülteni** — otomatik aylık özet e-postası (Trove modeli). *(E-postaya bağlı.)*
+3. **Dışa dönük soru motoru + hikâye talebi** — girişsiz cevaplanan haftalık soru.
+   *(E-postaya bağlı; `lib/reminders.ts` + `lib/email.ts` zaten hazır.)*
+4. **e-Devlet PDF'ini birincil onboarding yapmak** + hemen yan soyu doldurmaya davet.
+5. **"Yedi Göbek" tamamlanma ölçeri** — anneanne hattını ayrı puanlar (en çok
+   şikâyet edilen e-Devlet eksiğini hedefler). Maliyet/etki oranı en yüksek fikir.
+6. **Katkı verici rolü** (contributor ≠ editor) — sektörün en çok istenen özelliği.
+7. **Kitapta sesi çalan QR** + mezar QR sayfası (Türkiye'de kurulu pazar).
+8. **Osmanlı ↔ modern yer adı sözlüğü** + göç yolu katmanı. *(Index Anatolicus lisansı.)*
+9. **Sesli Şecere** — yaşlıdan rehberli ses kaydı → Gemini deşifre → onaylı ağaç kaydı.
+10. **Kalıtsal hastalık örüntüsü** görünümü. **Risk yüzdesi ASLA hesaplanmaz.**
+11. GEDCOM 7 + **GEDZIP** dışa aktarım (5.5.1 varsayılan KALIR — Ancestry/FTM 5.5
+    üstünü reddediyor).
+12. Bağlantısız kişi + iki tıkla ebeveyn değiştirme (çok 1-yıldız üretiyor).
+
+**Bilerek yapılmayacaklar:** DNA · kendi kayıt arşivi · ulusal aşiret dizini
+(1934 Soyadı Kanunu bağlamı — nötr, kullanıcının yazdığı "sülale" alanı olur) ·
+tam klinik genogram sembolojisi · risk skoru · mobilde web'i aynalamak.
+
 ## Bekleyen — E-posta altyapısı (sağlayıcı/anahtar kararı bekliyor)
 
 - Doğum/ölüm/evlilik yıl dönümü **e-posta hatırlatmaları** ve üyelik/bildirim/
