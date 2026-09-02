@@ -174,6 +174,10 @@ export default function PersonForm({
   );
 
   const [confidential, setConfidential] = useState(initial?.confidential ?? false);
+  // Herkese açık paylaşımda bu kişiye ne olacak. Boş = görünür.
+  const [publicVisibility, setPublicVisibility] = useState<"" | "bulanik" | "gizli">(
+    initial?.publicVisibility ?? ""
+  );
   const [privateFields, setPrivateFields] = useState<string[]>(initial?.privateFields ?? []);
 
   // Kişi türü + yakın çevre bağları (aile-dışı yakınlar). "Yakın çevre ekle"
@@ -503,6 +507,8 @@ export default function PersonForm({
         ? associations.filter((a) => a.personId).map((a) => ({ id: a.id, personId: a.personId, type: (a.type || "diger").trim(), note: a.note?.trim() || undefined }))
         : undefined,
       confidential: confidential || undefined,
+      // Boş dize "kısıt yok" demek; API için de temizleme anlamına gelir.
+      publicVisibility,
       privateFields: privateFields.length ? privateFields : undefined,
     };
 
@@ -1432,6 +1438,43 @@ export default function PersonForm({
               <span className="block text-[11px] text-text-subtle leading-snug">{t("private.confidentialHint")}</span>
             </span>
           </label>
+
+          {/* Herkese açık paylaşım — YALNIZ girişsiz bağlantıyı ilgilendirir.
+             `confidential` her yerde maskeler; bu yalnız dışarısı içindir, o
+             yüzden ayrı bir seçim. */}
+          <div className={confidential ? "opacity-40 pointer-events-none" : ""}>
+            <p className="text-[11px] text-text-subtle mb-1.5">{t("private.publicShareHint")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ["", "private.pubVisible"],
+                ["bulanik", "private.pubBlur"],
+                ["gizli", "private.pubHidden"],
+              ] as const).map(([v, key]) => (
+                <button
+                  key={v || "acik"}
+                  type="button"
+                  onClick={() => setPublicVisibility(v)}
+                  aria-pressed={publicVisibility === v}
+                  className={`h-7 px-2.5 rounded-lg text-[11px] border transition-colors ${
+                    publicVisibility === v
+                      ? "border-primary bg-primary-soft text-primary"
+                      : "border-border text-text-muted hover:bg-surface-2"
+                  }`}
+                >
+                  {t(key)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-text-subtle mt-1.5 leading-snug">
+              {t(
+                publicVisibility === "gizli"
+                  ? "private.pubHiddenNote"
+                  : publicVisibility === "bulanik"
+                  ? "private.pubBlurNote"
+                  : "private.pubVisibleNote"
+              )}
+            </p>
+          </div>
 
           <div className={confidential ? "opacity-40 pointer-events-none" : ""}>
             <p className="text-[11px] text-text-subtle mb-1.5">{t("private.fieldsHint")}</p>

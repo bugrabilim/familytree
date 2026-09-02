@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { getFamilyData } from "@/lib/blob";
 import { findValidShare, recordShareVisit } from "@/lib/members";
 import { viewAll } from "@/lib/privacy";
+import { applyPublicVisibility } from "@/lib/public-visibility";
 import { getParents, getSpouses, getChildren, indexPeople } from "@/lib/relations";
 import Workspace from "@/app/tree/Workspace";
 import MemorialPage from "@/components/MemorialPage";
@@ -60,7 +61,21 @@ export default async function SharePage({
    * Burası girişsiz, herkese açık bir yüzey; ham veri buradan çıkmamalı.
    * İstemci tarafı aynı `viewPerson`'ı yeniden uygular (idempotent).
    */
-  const safePeople = viewAll(people, valid.share.hideLiving);
+  /*
+   * SIRA ÖNEMLİ: önce kişi bazlı paylaşım kısıtı, sonra gizlilik maskesi.
+   *
+   * `applyPublicVisibility` gizlenen kişileri listeden ÇIKARIR ve onlara
+   * yapılan başvuruları temizler; `viewAll` ise kalanların hassas alanlarını
+   * maskeler. Ters sırada çalıştırmak yanlış olurdu: maskeleme kimlikleri
+   * korur, dolayısıyla gizlenmiş birinin kimliği başkalarının `parentIds`inde
+   * kalır ve "burada biri vardı" derdi.
+   *
+   * İkisi de SUNUCUDA: ham veri RSC yüküne hiç girmez.
+   */
+  const safePeople = viewAll(
+    applyPublicVisibility(people, { blurredName: translate("tr", "person.blurred") }),
+    valid.share.hideLiving
+  );
 
   /*
    * Tek kişilik paylaşım (mezar QR'ı): jeton bir kişiye daraltılmışsa ağaç

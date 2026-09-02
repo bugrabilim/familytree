@@ -200,6 +200,21 @@ export interface Person {
    * her zaman maskelenir. Yalnızca ekranda etkilidir; veri, API ve GEDCOM
    * aktarımı bundan etkilenmez.
    */
+  /**
+   * HERKESE AÇIK paylaşımda bu kişiye ne olacağı. Belirtilmezse görünür.
+   *
+   * `confidential`den farkı kapsamı: `confidential` her yerde, aile içinde
+   * DE maskeler. Bu alan yalnız girişsiz paylaşım bağlantısını (`/g/<jeton>`)
+   * ilgilendirir — aile kendi ağacında kişiyi olduğu gibi görmeye devam eder.
+   *
+   * · "bulanik" — kart durur, kimlik gitmez. Ağacın ŞEKLİ bozulmaz: kişinin
+   *   çocukları köksüz kalmaz, kuşaklar kaymaz.
+   * · "gizli"   — kişi paylaşılan veriden tamamen çıkarılır ve ona yapılan
+   *   tüm başvurular temizlenir. Bunun bir bedeli var: yalnız bu kişiden
+   *   bağlanan çocuklar paylaşımda kök gibi görünür. Şeklin korunması
+   *   isteniyorsa "bulanik" seçilmeli.
+   */
+  publicVisibility?: "gizli" | "bulanik";
   confidential?: boolean;
 
   /**

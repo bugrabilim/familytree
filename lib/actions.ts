@@ -46,6 +46,8 @@ export interface PersonPayload {
   kind?: "uye" | "cevre";
   associations?: Association[];
   confidential?: boolean;
+  /** "" = görünür, "bulanik" = kart durur kimlik gitmez, "gizli" = paylaşımda hiç yok. */
+  publicVisibility?: "" | "bulanik" | "gizli";
   privateFields?: string[];
   parentIds?: string[];
   parentLinks?: Record<string, ParentLink>;
