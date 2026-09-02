@@ -3,6 +3,35 @@ import { nanoid } from "nanoid";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
+/**
+ * GEDCOM 7'de `FORM` bir uzantı değil IANA medya TÜRÜ ister ("image/jpeg"),
+ * 5.5.1'de ise uzantı ("jpg"). Aynı URL iki biçimde farklı yazılır.
+ */
+const MEDIA_TYPES: Readonly<Record<string, string>> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  bmp: "image/bmp",
+  pdf: "application/pdf",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+};
+
+/** Uzantıdan IANA medya türü; bilinmiyorsa genel ikili tür. */
+function mediaType(url: string): string {
+  return MEDIA_TYPES[mediaForm(url).toLowerCase()] ?? "application/octet-stream";
+}
+
 /** URL'den GEDCOM medya biçimi (uzantı); belirsizse "jpg". */
 function mediaForm(url: string): string {
   const m = url.match(/\.(jpe?g|png|gif|webp|bmp|tiff?)(?:$|[?#])/i);
@@ -37,7 +66,26 @@ function gedcomToDate(gedDate: string): string | undefined {
   return undefined;
 }
 
-export function exportGedcom(people: Person[]): string {
+export type GedcomVersion = "5.5.1" | "7.0";
+
+/**
+ * GEDCOM dışa aktarımı. VARSAYILAN 5.5.1'dir ve öyle kalır: alandaki
+ * programların çoğu hâlâ onu okuyor, 7.0'ı okumayan bir programa 7.0 vermek
+ * kullanıcıyı boşta bırakır.
+ *
+ * 7.0'ın 5.5.1'den ayrıldığı, burada karşılığı olan yerler:
+ * · Başlık: `CHAR` kaldırıldı (7.0 her zaman UTF-8), `GEDC.FORM` artık
+ *   gerekmiyor (yalnız geriye dönük uyumluluk için hoş görülüyor).
+ * · Medya: 5.5.1'de INDI altında satır içi `OBJE/FILE` yazılır; 7.0'da OBJE
+ *   üst düzey bir KAYITTIR ve INDI ona işaretçiyle bağlanır.
+ * · `FORM`: 5.5.1'de uzantı ("jpg"), 7.0'da IANA medya türü ("image/jpeg").
+ * · `PEDI`: 7.0'da BÜYÜK harf ve küme ADOPTED/BIRTH/FOSTER/SEALING/OTHER.
+ */
+export function exportGedcom(
+  people: Person[],
+  opts: { version?: GedcomVersion } = {}
+): string {
+  const v7 = opts.version === "7.0";
   const lines: string[] = [];
 
   lines.push("0 HEAD");
@@ -45,9 +93,11 @@ export function exportGedcom(people: Person[]): string {
   lines.push("2 VERS 1.0");
   lines.push("2 NAME Soy Ağacı");
   lines.push("1 GEDC");
-  lines.push("2 VERS 5.5.1");
-  lines.push("2 FORM LINEAGE-LINKED");
-  lines.push("1 CHAR UTF-8");
+  lines.push(`2 VERS ${v7 ? "7.0" : "5.5.1"}`);
+  if (!v7) {
+    lines.push("2 FORM LINEAGE-LINKED");
+    lines.push("1 CHAR UTF-8");
+  }
 
   const idToGed = new Map<string, string>();
   people.forEach((p, i) => idToGed.set(p.id, `@I${String(i + 1).padStart(4, "0")}@`));
@@ -130,6 +180,9 @@ export function exportGedcom(people: Person[]): string {
     }
   });
 
+  /** 7.0 için: medya URL'si → üst düzey OBJE kaydının xref'i. */
+  const objeXref = new Map<string, string>();
+
   /* ---- INDI kayıtları ---- */
   for (const p of people) {
     lines.push(`0 ${idToGed.get(p.id)} INDI`);
@@ -162,9 +215,20 @@ export function exportGedcom(people: Person[]): string {
       if (url && !media.includes(url)) media.push(url);
     }
     for (const url of media) {
-      lines.push("1 OBJE");
-      lines.push(`2 FILE ${url}`);
-      lines.push(`2 FORM ${mediaForm(url)}`);
+      if (v7) {
+        // 7.0: OBJE üst düzey bir kayıt; INDI yalnız işaretçi tutar. Aynı URL
+        // birden çok kişide geçebilir, tek kayıt paylaşılır.
+        let x = objeXref.get(url);
+        if (!x) {
+          x = `@O${String(objeXref.size + 1).padStart(4, "0")}@`;
+          objeXref.set(url, x);
+        }
+        lines.push(`1 OBJE ${x}`);
+      } else {
+        lines.push("1 OBJE");
+        lines.push(`2 FILE ${url}`);
+        lines.push(`2 FORM ${mediaForm(url)}`);
+      }
     }
 
     if (p.bio) {
@@ -198,9 +262,30 @@ export function exportGedcom(people: Person[]): string {
         .map((pid) => p.parentLinks?.[pid]?.kind)
         .filter((k): k is NonNullable<typeof k> => !!k && k !== "biological");
       if (kinds.length > 0) {
-        const pedi =
-          kinds[0] === "adoptive" ? "adopted" : kinds[0] === "foster" ? "foster" : "step";
-        lines.push(`2 PEDI ${pedi}`);
+        const kind = kinds[0];
+        if (v7) {
+          // 7.0 kümesi: ADOPTED / BIRTH / FOSTER / SEALING / OTHER (BÜYÜK harf).
+          // "Üvey" standart bir değer değil; OTHER + PHRASE ile taşınır.
+          if (kind === "adoptive") lines.push("2 PEDI ADOPTED");
+          else if (kind === "foster") lines.push("2 PEDI FOSTER");
+          else {
+            lines.push("2 PEDI OTHER");
+            lines.push("3 PHRASE step");
+          }
+        } else if (kind === "adoptive") {
+          lines.push("2 PEDI adopted");
+        } else if (kind === "foster") {
+          lines.push("2 PEDI foster");
+        } else {
+          /*
+           * 5.5.1'in PEDI kümesi de adopted/birth/foster/sealing'dir; "step"
+           * ONDA DA yok. Buraya yıllardır `2 PEDI step` yazılıyordu, yani
+           * ürettiğimiz dosya geçersizdi. Standart dışı değeri standart bir
+           * etikete yazmak yerine satıcı uzantısına (alt çizgi) taşındı;
+           * bilgi kaybolmuyor, dosya da geçerli kalıyor.
+           */
+          lines.push("2 _PEDI step");
+        }
       }
     }
     for (const fi of esAile.get(p.id) ?? []) lines.push(`1 FAMS ${famXref(fi)}`);
@@ -216,6 +301,13 @@ export function exportGedcom(people: Person[]): string {
     }
     if (fam.divorced) lines.push("1 DIV Y");
   });
+
+  // 7.0: medya kayıtları en sonda, TRLR'den önce.
+  for (const [url, xref] of objeXref) {
+    lines.push(`0 ${xref} OBJE`);
+    lines.push("1 FILE " + url);
+    lines.push(`2 FORM ${mediaType(url)}`);
+  }
 
   lines.push("0 TRLR");
   return lines.join("\r\n");
@@ -245,6 +337,8 @@ export function importGedcom(content: string): Person[] {
     children: string[];
     divorced?: boolean;
   }
+  /** `PEDI OTHER` görülüp PHRASE'i beklenen kişiler. */
+  const pediOther = new Set<string>();
   /** gedId → ebeveyn bağı türü (FAMC/PEDI'den) */
   const pedigree = new Map<string, "adoptive" | "foster" | "step">();
 
@@ -336,11 +430,16 @@ export function importGedcom(content: string): Person[] {
           curIndi.deathDate = gedcomToDate(value);
         } else if (ctx === "DEAT" && tag === "CAUS") {
           curIndi.deathCause = value || undefined;
-        } else if (ctx === "FAMC" && tag === "PEDI") {
+        } else if (ctx === "FAMC" && (tag === "PEDI" || tag === "_PEDI")) {
+          // 7.0 BÜYÜK harf yazar, 5.5.1 küçük — ikisi de buradan geçer.
           const v = value.toLowerCase();
           if (v === "adopted") pedigree.set(curIndi.gedId, "adoptive");
           else if (v === "foster") pedigree.set(curIndi.gedId, "foster");
           else if (v === "step") pedigree.set(curIndi.gedId, "step");
+          // 7.0'da "üvey" standart bir PEDI değeri değil; OTHER + PHRASE ile
+          // gelir. PHRASE bir sonraki satırdadır, o yüzden burada bayrak
+          // bırakılır ve PHRASE görülünce karara bağlanır.
+          else if (v === "other") pediOther.add(curIndi.gedId);
         } else if (ctx === "EVEN" && curEvent) {
           if (tag === "TYPE") curEvent.type = value || "diger";
           else if (tag === "DATE") curEvent.date = gedcomToDate(value);
@@ -350,6 +449,16 @@ export function importGedcom(content: string): Person[] {
           curIndi.bio += (tag === "CONT" ? "\n" : "") + value;
         }
       } else if (level === 3) {
+        /*
+         * `PEDI OTHER` → `PHRASE`. 7.0'da "üvey" standart bir PEDI değeri
+         * değil; OTHER yazılıp açıklaması PHRASE'e konur ve PHRASE bir alt
+         * seviyededir (`2 PEDI OTHER` / `3 PHRASE step`). Bu yüzden burada.
+         */
+        if (ctx === "FAMC" && tag === "PHRASE" && pediOther.has(curIndi.gedId)) {
+          pediOther.delete(curIndi.gedId);
+          const v = value.trim().toLowerCase();
+          if (v === "step" || v === "üvey") pedigree.set(curIndi.gedId, "step");
+        }
         // EVEN → NOTE altındaki çok satırlı serbest not
         if (ctx === "EVEN" && curEvent && inEvenNote && (tag === "CONT" || tag === "CONC")) {
           // İlk satırda baştan newline eklenmez; sonraki CONT'lar satır kırar

@@ -6,7 +6,7 @@ import Button from "./ui/Button";
 import { useLang, useT } from "@/lib/i18n";
 import { importAnyFile } from "@/lib/import-client";
 
-type ExportChoice = "gedcom" | "csv" | "json" | "xlsx" | "book";
+type ExportChoice = "gedcom" | "gedcom7" | "csv" | "json" | "xlsx" | "book";
 
 interface Props {
   peopleCount: number;
@@ -38,7 +38,8 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
       if (!res.ok) throw new Error(t("gedcom.exportFailed"));
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
-      const ext = exportFmt === "gedcom" ? "ged" : exportFmt;
+      // GEDCOM 7 dosyası da .ged uzantısıdır; sürüm başlıkta yazar.
+      const ext = exportFmt === "gedcom" || exportFmt === "gedcom7" ? "ged" : exportFmt;
       const name = cd.match(/filename="([^"]+)"/)?.[1] ?? `aile-agaci.${ext}`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -91,7 +92,8 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
           </p>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
             {([
-              { v: "gedcom", l: "GEDCOM" },
+              { v: "gedcom", l: "GEDCOM 5.5.1" },
+              { v: "gedcom7", l: "GEDCOM 7" },
               { v: "csv", l: "CSV" },
               { v: "json", l: "JSON" },
               { v: "xlsx", l: t("gedcom.fmtExcel") },

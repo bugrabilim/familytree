@@ -23,8 +23,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // GEDCOM 7 ayrı bir biçim DEĞİL, aynı biçimin başka sürümü: dosya yine .ged,
+  // sürüm başlıkta yazar. Bu yüzden `ExportFormat` büyütülmedi. Varsayılan
+  // 5.5.1 olarak KALIR — alandaki programların çoğu hâlâ onu okuyor.
+  const gedcom7 = q === "gedcom7" || q === "gedcom-7";
   const format: ExportFormat = q === "csv" || q === "json" ? q : "gedcom";
-  const body = format === "csv" ? exportCsv(people) : format === "json" ? exportJson(people) : exportGedcom(people);
+  const body =
+    format === "csv"
+      ? exportCsv(people)
+      : format === "json"
+      ? exportJson(people)
+      : exportGedcom(people, gedcom7 ? { version: "7.0" } : {});
 
   const familyName = "aile-agaci";
   const { ext, mime } = EXPORT_META[format];
