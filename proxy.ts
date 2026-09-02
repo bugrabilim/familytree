@@ -31,6 +31,12 @@ export default auth((req) => {
     pathname === "/pair" ||
     /^\/pair\/[^/]+$/.test(pathname) ||
     pathname.startsWith("/_next") ||
+    // Vercel Analytics / Speed Insights betikleri. İzin listesinde
+    // olmadıkları için oturumsuz her ziyarette /login'e 307 dönüyor,
+    // tarayıcı HTML'i betik diye ayrıştırıp hata veriyordu: yani ölçüm
+    // TAM DA en çok gereken yerde — açılış, tanıtım ve herkese açık
+    // paylaşım sayfalarında — hiç çalışmıyordu.
+    pathname.startsWith("/_vercel/") ||
     pathname === "/favicon.ico";
 
   // Native mobil: `Authorization: Bearer` taşıyan API istekleri çerez oturumu
