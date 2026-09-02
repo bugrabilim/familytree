@@ -12,9 +12,11 @@ import {
   computeStats,
   describeRelation,
   findRelationPath,
+  genitive,
   indexPeople,
   relativesByGeneration,
 } from "@/lib/relations";
+import { completeness, lineLabelKey, MAX_DEPTH } from "@/lib/completeness";
 import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
@@ -621,6 +623,15 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
               {/* Yakınlık derecesi — görsel (halka) (#G/#H) */}
               <Card title={t("panel.card.degree")} hint={t("panel.card.degreeHint")}>
                 <DegreeViewer people={people} idx={idx} onSelect={onSelect} defaultPersonId={focusId} />
+              </Card>
+
+              {/* Yedi Göbek — kaç göbek biliniyor, hangi hat zayıf, ne eksik */}
+              <Card
+                title={t("panel.card.sevenGen")}
+                hint={t("panel.card.sevenGenHint")}
+                className="lg:col-span-2"
+              >
+                <SevenGenerations people={people} onSelect={onSelect} defaultPersonId={focusId} />
               </Card>
 
               {/* Kuşak görüntüleyici KALDIRILDI (#2). */}
@@ -1267,6 +1278,164 @@ function RelativesFinder({
 
 const pickerSelectCls =
   "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
+
+/**
+ * "Yedi Göbek" tamamlanma ölçeri.
+ *
+ * Ölçünün amacı bir sayı vermek değil, ZAYIF HATTI göstermek: e-Devlet'in en
+ * çok şikâyet edilen tarafı anne tarafının kesilmesi, o yüzden anne ve baba
+ * hattı ayrı ayrı puanlanır ve zayıf olan vurgulanır.
+ *
+ * "5/7 göbek" bir sayıdır; "Ayşe'nin babası eksik" bir iştir — bu yüzden
+ * boşluklar tıklanabilir ve doğrudan o kişiyi açar.
+ */
+function SevenGenerations({
+  people,
+  onSelect,
+  defaultPersonId,
+}: {
+  people: Person[];
+  onSelect: (id: string) => void;
+  defaultPersonId?: string;
+}) {
+  const [personId, setPersonId] = useState(defaultPersonId ?? "");
+  const t = useT();
+
+  const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const result = useMemo(
+    () => (personId ? completeness(personId, people) : null),
+    [personId, people]
+  );
+
+  const nameOf = (id: string) => {
+    const p = byId.get(id);
+    return p ? fullName(p) : "";
+  };
+
+  // Anne/baba hattı ve aralarında GERÇEK bir fark olup olmadığı.
+  // "En zayıf hat" rozeti yalnız fark varsa gösterilir: ölçer beraberlikte de
+  // birini seçmek zorunda (bkz. `lib/completeness.ts`), ama ikisi de eşitken
+  // rozet göstermek olmayan bir farkı varmış gibi anlatır.
+  const mainLines = useMemo(
+    () => (result ? result.lines.filter((l) => l.path.length === 1) : []),
+    [result]
+  );
+  const linesDiffer = useMemo(
+    () => new Set(mainLines.map((l) => l.known)).size > 1,
+    [mainLines]
+  );
+
+  return (
+    <div className="space-y-4">
+      <PersonPicker people={people} value={personId} onChange={setPersonId} />
+
+      {!result ? (
+        <p className="text-sm text-text-subtle py-2">{t("sevenGen.empty")}</p>
+      ) : (
+        <div className="space-y-5">
+          {/* Başlık sayısı */}
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl font-semibold tabular-nums text-primary">
+                  {result.unbrokenDepth}
+                </span>
+                <span className="text-lg text-text-subtle tabular-nums">/ {MAX_DEPTH}</span>
+              </div>
+              <p className="text-xs text-text-subtle mt-0.5">{t("sevenGen.unbroken")}</p>
+            </div>
+            <div className="text-xs text-text-subtle space-y-0.5">
+              <p>{t("sevenGen.deepest", { count: result.deepestChain })}</p>
+              <p className="tabular-nums">
+                {t("sevenGen.ancestors", { known: result.known, total: result.total })}
+              </p>
+            </div>
+          </div>
+
+          {/* Anne / baba hattı — işin asıl noktası */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {mainLines
+              .map((line) => {
+                const weak = linesDiffer && result.weakest?.path === line.path;
+                const pct = Math.round((line.known / line.total) * 100);
+                const key = lineLabelKey(line.path);
+                return (
+                  <div
+                    key={line.path}
+                    className={`rounded-xl border p-3 ${
+                      weak ? "border-primary/50 bg-primary/5" : "border-border bg-surface-2"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-text">
+                        {key ? t(key) : line.path}
+                      </span>
+                      <span className="text-xs tabular-nums text-text-subtle">
+                        {line.known}/{line.total}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 rounded-full bg-surface-3 overflow-hidden">
+                      <div
+                        className={weak ? "h-full bg-primary" : "h-full bg-text-subtle/40"}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    {weak && (
+                      <p className="mt-1.5 text-[11px] text-primary">{t("sevenGen.weakest")}</p>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Göbek göbek */}
+          <div className="space-y-1">
+            {result.generations.map((g) => (
+              <div key={g.generation} className="flex items-center gap-2.5">
+                <span className="w-16 shrink-0 text-[11px] text-text-subtle tabular-nums">
+                  {t("sevenGen.generation", { count: g.generation })}
+                </span>
+                <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                  <div
+                    className="h-full bg-primary/70"
+                    style={{ width: `${(g.known / g.total) * 100}%` }}
+                  />
+                </div>
+                <span className="w-14 shrink-0 text-right text-[11px] text-text-subtle tabular-nums">
+                  {g.known}/{g.total}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Eksikler — sayıyı işe çeviren kısım */}
+          {result.gaps.length > 0 ? (
+            <div>
+              <p className="text-xs font-medium text-text mb-1.5">{t("sevenGen.gaps")}</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {result.gaps.map((gap) => (
+                  <li key={gap.path}>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(gap.childId)}
+                      className="px-2.5 py-1 rounded-lg bg-surface-2 border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
+                    >
+                      {t(gap.missing === "father" ? "sevenGen.gapFather" : "sevenGen.gapMother", {
+                        name: genitive(nameOf(gap.childId)),
+                      })}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-xs text-primary">{t("sevenGen.complete")}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function PersonPicker({
   people,

@@ -144,7 +144,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 |---|---|:-:|---|---|
 | **65** | **Burç (güneş burcu)** — `lib/zodiac.ts` | K1 | — | ✅ **yapıldı** |
 | **66** | **`birthTime` alanı + yükselen burç** | K3 | 26'dan (alan kayıt defteri) **sonra** | ⛔ alan yok |
-| **67** | **Burç yorumu / karakter anlatımı** | K3 | 66'dan sonra | ⚠️ **karar bekliyor** |
+| **67** | **Burç karakteristik özellikleri** | K1 | 65'in yanına | ⏭️ sırada |
 
 ### 65 — Burç ✅
 
@@ -174,23 +174,26 @@ Yükselen burç, doğum **anının** ve **yerinin** ikisini birden ister:
 `birthTime` ayrıca burç dışında da işe yarar: nüfus kayıtlarında doğum saati
 geçer ve bazı aileler bunu tutar.
 
-### 67 — Yorum / karakter anlatımı ⚠️ karar bekliyor
+### 67 — Burç karakteristik özellikleri ⏭️
 
-Soru şu: bu metni **kim yazıyor?**
+**Düzeltme (kullanıcı, 2026-09-02):** Bunu önce yanlış anlamıştım. Kastedilen
+kişiye özel bir yorum değil — **her burcun genel karakteristik özellikleri**.
+"Koç: atılgan, girişken, sabırsız" gibi.
 
-| Seçenek | Sonuç |
+Bu ayrım her şeyi değiştiriyor:
+
+| Yanlış anladığım | Kastedilen |
 |---|---|
-| **(a) Aile yazar** — serbest metin alanı | Kaydın sahibi aile; hiçbir iddia uydurulmuyor |
-| **(b) YZ üretir** (`lib/gemini.ts` hazır) | Gerçek, çoğu vefat etmiş insanların kaydına **uydurulmuş karakter iddiaları** girer |
+| Kişi hakkında iddia ("Dedeniz muhtemelen inatçıydı") | Burç hakkında bilgi ("Boğa burcu inatçılıkla anılır") |
+| Kaynaksız, kişiye özel, uydurulmuş | Statik, genel, ansiklopedik |
+| `Source` disiplinini bozar | Bozmaz — kişi kaydına hiçbir iddia girmez |
+| YZ gerekir | YZ gerekmez |
 
-**Önerim (a), ya da (b) ise şu üç kayıtla:** üretilen metin (1) görünür biçimde
-"yorum" etiketli olur, (2) kişinin olgusal alanlarına **karışmaz**, (3) GEDCOM
-dışa aktarımında **olgu olarak çıkmaz**.
+Yani ortada bir karar sorunu yok. Statik bir metin tablosu: 12 burç × özellikler,
+`lib/i18n-dict.ts` içinde TR ve EN. Kişinin kaydına yazılmaz; burç gösterilirken
+yanında durur.
 
-Gerekçe: bu ürünün ayırt edici disiplini `Source` / kaynak-atıf ciddiyeti —
-"bu bilgiyi nereden biliyoruz?". Büyükbabanın kaydına, hiçbir kaynağı olmayan
-bir karakter tahmini eklemek tam da o disiplini bozar. Burç bir olgudur
-(tarihten çıkar); karakter yorumu değildir.
+**Bant K1** (saf veri + i18n), **yeni alan gerekmez**, 65'in doğal devamı.
 
 ## ⚠️ Bu sıralamanın tek kusuru
 
