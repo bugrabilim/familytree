@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Gender, Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
 import Button from "./ui/Button";
 import Modal from "./ui/Modal";
-import { calcAge, lifeSpan } from "@/lib/date";
+import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import {
   bloodDegrees,
   computeStats,
@@ -24,6 +24,7 @@ import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
 import { usePrivacy } from "./PrivacyContext";
 import { countByKind, researchTasks, taskKey } from "@/lib/research";
+import { type ActivityItem } from "@/lib/activity";
 import { findIssues } from "@/lib/consistency";
 import PersonPicker, { pickerSelectCls } from "./PersonPicker";
 import { useReadOnly } from "./ReadOnlyContext";
@@ -623,6 +624,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
               className="lg:col-span-2"
             >
               <HeredityView shown={shown} onSelect={onSelect} />
+            </Card>
+          )}
+
+          {/* Katkı akışı — "ailede son ne oldu" */}
+          {isStats && (
+            <Card
+              title={t("activity.title")}
+              hint={t("activity.hint")}
+              className="lg:col-span-2"
+            >
+              <ActivityFeed shown={shown} hideLiving={hideLiving} people={people} onSelect={onSelect} />
             </Card>
           )}
 
@@ -1473,6 +1485,113 @@ function SevenGenerations({
  * 2. **Maskeli veriyle çalışır.** `shown` (yani `people.map(view)`) verilir;
  *    gizlenmiş kişilerin sağlık kaydı toplamaya hiç girmez.
  */
+/**
+ * Katkı akışı — "ailede son ne oldu".
+ *
+ * Gizli kişilerin katkıları listelenmez. Bu bir güvenlik sınırı değil (akışı
+ * gören zaten tüm veriye erişebilir), tutarlılık meselesi: "yaşayanları gizle"
+ * açıkken o kişilerin sağlık/anı katkılarını sıralamak, kullanıcının az önce
+ * verdiği kararla çelişirdi.
+ */
+function ActivityFeed({
+  shown,
+  hideLiving,
+  people,
+  onSelect,
+}: {
+  shown: Person[];
+  hideLiving: boolean;
+  people: Person[];
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const [data, setData] = useState<{ items: ActivityItem[]; names: Record<string, string> } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/family/activity");
+        const json = await res.json();
+        if (alive && res.ok) setData({ items: json.items ?? [], names: json.names ?? {} });
+        else if (alive) setData({ items: [], names: {} });
+      } catch {
+        if (alive) setData({ items: [], names: {} });
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const byId = useMemo(() => new Map(shown.map((p) => [p.id, p])), [shown]);
+  const gizli = useMemo(
+    () => new Set(people.filter((p) => isMasked(p, hideLiving)).map((p) => p.id)),
+    [people, hideLiving]
+  );
+  const items = useMemo(
+    () => (data?.items ?? []).filter((i) => !gizli.has(i.personId)).slice(0, 15),
+    [data, gizli]
+  );
+
+  if (!data) return <p className="text-sm text-text-subtle py-2">…</p>;
+  if (items.length === 0) {
+    return (
+      <div className="py-2">
+        <p className="text-sm text-text-subtle">{t("activity.empty")}</p>
+        <p className="text-[11px] text-text-subtle mt-0.5">{t("activity.emptyHint")}</p>
+      </div>
+    );
+  }
+
+  const ne = (i: ActivityItem) => {
+    // Sayılı biçim yalnız birden çoksa; "1 fotoğrafı eklendi" kulağı tırmalar.
+    const cokluk = i.count && i.count > 1;
+    const k = cokluk ? `activity.${i.kind}N` : `activity.${i.kind}`;
+    const metin = t(k, cokluk ? { count: i.count! } : undefined);
+    // Çoğul anahtarı olmayan türlerde `t` anahtarı geri döndürür; tekile düş.
+    return metin === k ? t(`activity.${i.kind}`) : metin;
+  };
+
+  return (
+    <ul className="space-y-1">
+      {items.map((i) => {
+        const person = byId.get(i.personId);
+        return (
+          <li
+            key={i.id}
+            className="flex items-center gap-3 rounded-xl bg-surface-2/50 hover:bg-surface-2 transition-colors px-2 py-2"
+          >
+            {person ? (
+              <button onClick={() => onSelect(i.personId)} className="shrink-0">
+                <Avatar person={person} size="sm" />
+              </button>
+            ) : (
+              <span className="w-9 h-9 rounded-full bg-surface-3 shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-text leading-tight">
+                {person ? (
+                  <button onClick={() => onSelect(i.personId)} className="font-medium hover:underline">
+                    {fullName(person)}
+                  </button>
+                ) : (
+                  <span className="font-medium">{i.personName}</span>
+                )}{" "}
+                <span className="text-text-muted">{ne(i)}</span>
+              </p>
+              <p className="text-[11px] text-text-subtle leading-tight">
+                {t("activity.byLine", {
+                  who: (i.by && data.names[i.by]) || t("activity.someone"),
+                  when: formatLong(i.at.slice(0, 10)),
+                })}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** Cihazda tutulan "tamamlandı/yoksay" işaretleri. */
 const RESEARCH_DONE_KEY = "soyagaci_research_done";
 

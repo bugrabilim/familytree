@@ -99,7 +99,7 @@ export async function PUT(
     }
   }
 
-  await saveFamilyData(userId, data);
+  await saveFamilyData(userId, data, { by: ctx.accountId });
   return NextResponse.json(updated);
 }
 
@@ -127,6 +127,6 @@ export async function DELETE(
       spouseIds: p.spouseIds.filter((sid) => sid !== id),
     }));
 
-  await saveFamilyData(userId, data);
+  await saveFamilyData(userId, data, { by: ctx.accountId });
   return NextResponse.json({ success: true });
 }

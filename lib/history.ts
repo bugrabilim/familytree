@@ -20,6 +20,15 @@ interface Snapshot {
   id: string;
   at: string;
   people: Person[];
+  /**
+   * Bu anlık görüntünün ÜZERİNE yazan değişikliği kimin yaptığı.
+   *
+   * Kafa karıştırıcı ama tutarlı: bir anlık görüntü, bir kaydetmeden ÖNCEKİ
+   * durumu tutar. Dolayısıyla `by`, o görüntüyü bir sonrakine (ya da en
+   * yenisi için canlı veriye) dönüştüren kişidir. Katkı akışı iki komşu
+   * görüntüyü karşılaştırırken yazarı buradan okur.
+   */
+  by?: string;
 }
 interface HistoryFile {
   snapshots: Snapshot[];
@@ -30,6 +39,7 @@ export interface HistoryEntry {
   id: string;
   at: string;
   count: number;
+  by?: string;
 }
 
 async function readHistory(treeId: string): Promise<HistoryFile> {
@@ -58,10 +68,14 @@ async function writeHistory(treeId: string, file: HistoryFile): Promise<void> {
 }
 
 /** Bir anlık görüntüyü günlüğe ekler (en yeni başa; MAX ile sınırlı). */
-export async function pushHistorySnapshot(treeId: string, people: Person[]): Promise<void> {
+export async function pushHistorySnapshot(
+  treeId: string,
+  people: Person[],
+  by?: string
+): Promise<void> {
   const file = await readHistory(treeId);
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  file.snapshots.unshift({ id, at: new Date().toISOString(), people });
+  file.snapshots.unshift({ id, at: new Date().toISOString(), people, by });
   if (file.snapshots.length > MAX_SNAPSHOTS) file.snapshots.length = MAX_SNAPSHOTS;
   await writeHistory(treeId, file);
 }
@@ -69,7 +83,7 @@ export async function pushHistorySnapshot(treeId: string, people: Person[]): Pro
 /** Günlüğü özet olarak listeler (en yeni önce). */
 export async function listHistorySnapshots(treeId: string): Promise<HistoryEntry[]> {
   const file = await readHistory(treeId);
-  return file.snapshots.map((s) => ({ id: s.id, at: s.at, count: s.people.length }));
+  return file.snapshots.map((s) => ({ id: s.id, at: s.at, count: s.people.length, by: s.by }));
 }
 
 /** Belirli bir anlık görüntünün kişi listesini döndürür (yoksa null). */
@@ -77,4 +91,20 @@ export async function getHistorySnapshot(treeId: string, id: string): Promise<Pe
   const file = await readHistory(treeId);
   const s = file.snapshots.find((x) => x.id === id);
   return s ? s.people : null;
+}
+
+/**
+ * Katkı akışı için: kişi listeleriyle BİRLİKTE anlık görüntüler (en yeni önce).
+ *
+ * `listHistorySnapshots` bilerek kişi listesi taşımaz (geri yükleme ekranı
+ * için özet yeter). Akış ise iki komşu görüntüyü karşılaştırmak zorunda, o
+ * yüzden ayrı bir okuma yolu var — ve `limit` ile sınırlı, çünkü tüm günlüğü
+ * belleğe almak gereksiz.
+ */
+export async function readSnapshotsForActivity(
+  treeId: string,
+  limit: number
+): Promise<Array<{ id: string; at: string; by?: string; people: Person[] }>> {
+  const file = await readHistory(treeId);
+  return file.snapshots.slice(0, Math.max(0, limit));
 }

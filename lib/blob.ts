@@ -144,7 +144,17 @@ export function versionMismatch(
   return !!base && base !== current;
 }
 
-export async function saveFamilyData(userId: string, data: FamilyData): Promise<void> {
+export async function saveFamilyData(
+  userId: string,
+  data: FamilyData,
+  /**
+   * Bu kaydetmeyi YAPAN hesabın kimliği (katkı akışı için). İsteğe bağlı:
+   * yirmiden fazla çağıran var ve hepsinin kullanıcı bağlamı yok (ör. ağaç
+   * kurulumu). Verilmezse akışta katkı "biri" olarak görünür, kayıt yine
+   * tutulur.
+   */
+  opts: { by?: string } = {}
+): Promise<void> {
   // Hedefli çift-yazma için: AYNI istekte okunmuş TAZE anlık görüntüyü yakala
   // (kaydetmeden önceki durum). Taze değilse (ör. önce okumayan demo yolu)
   // güvenli tam-yenilemeye düşeceğiz.
@@ -163,7 +173,7 @@ export async function saveFamilyData(userId: string, data: FamilyData): Promise<
       prevPeople = meta?.people ?? null;
     }
     if (prevPeople && JSON.stringify(prevPeople) !== JSON.stringify(data.people)) {
-      await pushHistorySnapshot(userId, prevPeople);
+      await pushHistorySnapshot(userId, prevPeople, opts.by);
     }
   } catch { /* günlük başarısız olursa kaydı ETKİLEMEZ */ }
 

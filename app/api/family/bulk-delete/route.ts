@@ -36,6 +36,6 @@ export async function POST(req: NextRequest) {
       formerSpouseIds: p.formerSpouseIds?.filter((id) => !del.has(id)),
     }));
 
-  await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() });
+  await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() }, { by: ctx.accountId });
   return NextResponse.json({ ok: true, deleted: ids.length, count: data.people.length });
 }
