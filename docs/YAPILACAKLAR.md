@@ -12,6 +12,44 @@ savunma hattı, eksikler, karar tablosu, fiyatlama ilkesi ve nihai konumlandırm
 Kaynak belgeler: `GELISTIRME-PLANI.md` §2–3, `MYHERITAGE-INCELEME.md`,
 `REKABET-ARASTIRMASI-2.md`.
 
+## Karar — hepsi yapılacak, sıra belli (2026-09-02)
+
+**Hedef önceliği (kullanıcı):** 1) kendimizi tatmin etmek, 2) kullanıcıya değer,
+3) para. Rekabet raporunun gelir odaklı sıralaması bu yüzden **geçersiz**; puanlama
+yeniden yapıldı.
+
+Puanlama, dalgalar ve gerçek yapım sırası: **`docs/PUANLAMA-VE-SIRA.md`**.
+21 iş puanlandı (T×3 tatmin + K×3 kültürel derinlik + D×2 değer + E×2 ucuzluk +
+B×2 bağımsızlık + P×1 para, azami 65) ve 5 dalgaya bölündü.
+
+- **Dalga 1 (hemen, dış bağımlılık yok):** Yedi Göbek ölçeri · bağlantısız kişi +
+  ebeveyn değiştirme · e-Devlet birincil onboarding · Anma Takvimi'nin uygulama içi
+  kısmı · kitap/mezar QR.
+- **Dalga 2:** e-posta altyapısı ve ona bağlı üç iş birlikte.
+- **Dalga 3:** Sesli Şecere · genogram duygusal katman · kalıtsal hastalık · tarihsel bağlam.
+- **Dalga 4:** katkı verici rolü · gömme + API · etkinlik/RSVP · zaman kilitli mektup.
+- **Dalga 5:** Osmanlı yer adları (lisans) · çevrimdışı · yüz tanıma · GEDCOM 7 · vb.
+
+**Paralelde hemen başlatılacak iki dış görüşme:** e-posta sağlayıcısı seçimi ve
+Index Anatolicus lisansı. İkisi de bizim yazacağımız kod değil, karar/görüşme işi;
+Dalga 1 bunlar beklerken tamamlanır.
+
+## Yeni — Genogram duygusal ilişki katmanı (Dalga 3)
+
+Elimizde genogram'ın **yapısal** katmanı (evlilik, boşanma, `formerSpouseIds`,
+`parentLinks.kind` = evlat edinen/üvey/koruyucu) ve **tıbbi** katmanı (rahatsızlık,
+ölüm nedeni) büyük ölçüde var. Eksik olan **duygusal ilişki katmanı**: iki kişi
+*arasındaki* bağın niteliği, kişi üstünde bir alan değil, **iki uçlu bir kenar**.
+
+Şu an yalnız `estranged` var ve o da kişiye/ebeveyn bağına iliştirilmiş durumda —
+genel bir kenar değil. Yapılacak: `{ aId, bId, type, since?, note? }` biçiminde
+ayrı bir kenar listesi.
+
+**Yalnız 5–6 tür:** yakın · mesafeli · çatışmalı · kopuk · barışmış · bakım veren.
+Tam klinik sembolojiye (kaynağa göre ~25–40 tür, ikiz/düşük/gebelik sembolleri)
+**girilmez** — farklı alıcıya (terapist/genetik danışman) hitap eder ve kartlarımızı
+okunmaz yapar. Varsayılan **kapalı**, `privateFields` ile maskelenebilir.
+
 ## Bekleyen — Gömülebilir ağaç + herkese açık API (kullanıcı isteği, 2026-09-02)
 
 > "Kullanıcılar API ile kendi uygulamalarına gömebilsinler."
