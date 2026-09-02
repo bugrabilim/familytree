@@ -55,7 +55,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 | 14 | Anma Takvimi **görünümü** | B | 9'un görünümü, `CalendarView.tsx` | ✅
 | 15 | Soyadı yaygınlık **haritası** | B | 7'nin katmanı | ✅
 | 16 | Genel rota izin listesini merkezîleştir | C | `proxy.ts` elle yazılmış `if`; 17, 24, 36, 45 buraya dört yeni yüzey ekleyecek | ✅
-| 17 | Mezar QR sayfası | C | `/g/<token>` kalıbının tek kişiye daraltılmışı |
+| 17 | Mezar QR sayfası | C | `/g/<token>` kalıbının tek kişiye daraltılmışı | ✅
 | 18 | Kitapta sesi çalan QR | C | `qrcode` + `Memory.audio` hazır |
 | 19 | Haritaya zaman kaydırıcısı + kuşak filtresi | C | tek dosya, salt görüntü durumu |
 | 20 | Göç yolu katmanı | C | kullanıcı metni + `birthCoords`/`burialCoords` ile; 43 sonradan zenginleştirir |

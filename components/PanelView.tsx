@@ -23,6 +23,7 @@ import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
 import { usePrivacy } from "./PrivacyContext";
+import PersonPicker, { pickerSelectCls } from "./PersonPicker";
 import { useReadOnly } from "./ReadOnlyContext";
 import { isMasked } from "@/lib/privacy";
 import { useT } from "@/lib/i18n";
@@ -1288,9 +1289,6 @@ function RelativesFinder({
   );
 }
 
-const pickerSelectCls =
-  "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
-
 /**
  * "Yedi Göbek" tamamlanma ölçeri.
  *
@@ -1596,39 +1594,6 @@ function HeredityView({
       {/* Sözleşme kullanıcıya da görünür olmalı */}
       <p className="text-[10px] text-text-subtle">{t("heredity.noRisk")}</p>
     </div>
-  );
-}
-
-function PersonPicker({
-  people,
-  value,
-  onChange,
-}: {
-  people: Person[];
-  value: string;
-  onChange: (id: string) => void;
-}) {
-  const { view } = usePrivacy();
-  const t = useT();
-  const sorted = useMemo(() => {
-    const coll = new Intl.Collator("tr");
-    return [...people].sort(
-      (x, y) => coll.compare(x.firstName, y.firstName) || coll.compare(x.lastName, y.lastName)
-    );
-  }, [people]);
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={pickerSelectCls} aria-label={t("common.choosePersonAria")}>
-      <option value="">{t("common.choosePerson")}</option>
-      {sorted.map((p) => {
-        const mp = view(p);
-        return (
-          <option key={p.id} value={p.id}>
-            {fullName(p)}
-            {mp.birthDate ? ` · ${mp.birthDate.slice(0, 4)}` : ""}
-          </option>
-        );
-      })}
-    </select>
   );
 }
 

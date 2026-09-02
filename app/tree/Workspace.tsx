@@ -784,7 +784,7 @@ function WorkspaceInner({
       )}
 
       {shareOpen && role === "admin" && !publicView && (
-        <ShareDialog treeName={familyName} onClose={() => setShareOpen(false)} />
+        <ShareDialog treeName={familyName} people={people} onClose={() => setShareOpen(false)} />
       )}
 
       {membersOpen && role === "admin" && (

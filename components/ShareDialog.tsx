@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
+import PersonPicker from "./PersonPicker";
+import type { Person } from "@/types/family";
+import { fullName } from "@/lib/name";
 import { useT, type TFunction } from "@/lib/i18n";
 
 interface Visit {
@@ -17,6 +20,8 @@ interface Share {
   token: string;
   label: string;
   hideLiving: boolean;
+  /** Doluysa bağlantı tek kişiye daralmıştır (mezar QR'ı). */
+  personId: string | null;
   createdAt: string;
   expiresAt: string | null;
   expired: boolean;
@@ -34,9 +39,12 @@ interface Share {
  */
 export default function ShareDialog({
   treeName,
+  people,
   onClose,
 }: {
   treeName?: string;
+  /** Tek kişilik (mezar QR) bağlantısı için kişi listesi. */
+  people: Person[];
   onClose: () => void;
 }) {
   const t = useT();
@@ -48,6 +56,16 @@ export default function ShareDialog({
   const [hideLiving, setHideLiving] = useState(true);
   // Varsayılan 7 gün — seçimsiz olmasın (#5). Süresiz için kullanıcı 0 yazar.
   const [expiryDays, setExpiryDays] = useState("7");
+  // Tek kişilik (mezar QR) bağlantı — kapalıyken bağlantı ağacın tamamını açar.
+  const [single, setSingle] = useState(false);
+  const [personId, setPersonId] = useState("");
+
+  // id → ad: kartlarda "kimin anma sayfası" yazabilmek için.
+  const nameOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of people) m.set(p.id, fullName(p));
+    return m;
+  }, [people]);
 
   useEffect(() => {
     let alive = true;
@@ -96,7 +114,13 @@ export default function ShareDialog({
   const create = () => {
     if (!label.trim()) return; // Etiket zorunlu (#6)
     const days = expiryDays.trim() ? Number(expiryDays) : 0;
-    call("POST", { hideLiving, label: label.trim(), expiresDays: Number.isFinite(days) ? days : 0 });
+    call("POST", {
+      hideLiving,
+      label: label.trim(),
+      expiresDays: Number.isFinite(days) ? days : 0,
+      // Kutu kapalıysa alan hiç gönderilmez: ağacın tamamı açılır.
+      ...(single && personId ? { personId } : {}),
+    });
     setLabel("");
     setExpiryDays("7");
   };
@@ -147,11 +171,24 @@ export default function ShareDialog({
               <span className="text-text-subtle text-xs">{t("share.expiryDays")}</span>
             </div>
           </div>
+          {/* Tek kişilik bağlantı — mezar taşına basılan QR için. */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
+              <input type="checkbox" checked={single} onChange={(e) => setSingle(e.target.checked)} />
+              {t("share.singleLabel")}
+            </label>
+            {single && (
+              <>
+                <PersonPicker people={people} value={personId} onChange={setPersonId} />
+                <p className="text-[11px] text-text-subtle">{t("share.singleHint")}</p>
+              </>
+            )}
+          </div>
           <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
           {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
           {unlimitedExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.unlimitedWarn")}</p>}
-          <Button size="sm" onClick={create} disabled={busy || labelMissing}>
+          <Button size="sm" onClick={create} disabled={busy || labelMissing || (single && !personId)}>
             {busy ? t("share.working") : t("share.createBtn")}
           </Button>
         </section>
@@ -164,7 +201,7 @@ export default function ShareDialog({
         ) : (
           <div className="space-y-3">
             {shares.map((s) => (
-              <ShareCard key={s.id} s={s} treeName={treeName} busy={busy} onDelete={() => remove(s.id)} onToggleHide={(v) => call("PATCH", { id: s.id, hideLiving: v })} t={t} />
+              <ShareCard key={s.id} s={s} treeName={treeName} personName={s.personId ? nameOf.get(s.personId) : undefined} busy={busy} onDelete={() => remove(s.id)} onToggleHide={(v) => call("PATCH", { id: s.id, hideLiving: v })} t={t} />
             ))}
           </div>
         )}
@@ -176,9 +213,9 @@ export default function ShareDialog({
 }
 
 function ShareCard({
-  s, treeName, busy, onDelete, onToggleHide, t,
+  s, treeName, personName, busy, onDelete, onToggleHide, t,
 }: {
-  s: Share; treeName?: string; busy: boolean; onDelete: () => void; onToggleHide: (v: boolean) => void; t: TFunction;
+  s: Share; treeName?: string; personName?: string; busy: boolean; onDelete: () => void; onToggleHide: (v: boolean) => void; t: TFunction;
 }) {
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -194,6 +231,14 @@ function ShareCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium text-text truncate">{s.label || t("share.untitled")}</p>
+          {/* Bu bağlantının ağacın tamamını mı yoksa tek kişiyi mi açtığı,
+             silmeden önce görülebilmeli. Kişi silinmişse ad çözülemez;
+             o zaman da en azından "tek kişilik" olduğu yazsın. */}
+          {s.personId && (
+            <p className="text-[11px] text-accent truncate">
+              🪦 {personName ?? t("share.singleUnknown")}
+            </p>
+          )}
           <p className="text-[11px] text-text-subtle">
             {s.expired ? <span className="text-danger">{t("share.expired")}</span>
               : s.expiresAt ? t("share.expiresOn", { date: fmt(s.expiresAt) })
