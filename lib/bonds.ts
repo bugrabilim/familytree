@@ -203,3 +203,33 @@ export function zigzagPoints(
   pts.push([x2, y2]);
   return pts;
 }
+
+/**
+ * Bir dikdörtgenin merkezinden hedefe doğru giden ışının, dikdörtgen
+ * KENARINI kestiği nokta.
+ *
+ * Neden gerekli: React Flow'un hazır kenarları düğümlerin tutamaçlarına
+ * (üst/alt) bağlanıyor. Soybağı için doğru — ebeveyn üstte, çocuk altta. Ama
+ * duygusal bağ YANAL: iki kardeş yan yana duruyor ve alt tutamaçtan üst
+ * tutamağa çekilen çizgi kartların İÇİNDEN geçiyordu. Kenar noktasından
+ * kenar noktasına çizince çizgi kartlara değip duruyor, üstlerini çizmiyor.
+ */
+export function rectBorderPoint(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  towardX: number,
+  towardY: number
+): [number, number] {
+  const dx = towardX - cx;
+  const dy = towardY - cy;
+  if (dx === 0 && dy === 0) return [cx, cy];
+  const hw = w / 2;
+  const hh = h / 2;
+  // Işını, önce hangi kenara çarparsa oraya kadar ölçekle.
+  const tx = dx === 0 ? Infinity : hw / Math.abs(dx);
+  const ty = dy === 0 ? Infinity : hh / Math.abs(dy);
+  const t = Math.min(tx, ty);
+  return [cx + dx * t, cy + dy * t];
+}

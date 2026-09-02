@@ -14,6 +14,7 @@ import {
   otherEnd,
   pairKey,
   pruneBonds,
+  rectBorderPoint,
   zigzagPoints,
 } from "../lib/bonds.ts";
 
@@ -191,6 +192,28 @@ check(!isBondType(undefined), "undefined tür değil");
   const p = zigzagPoints(10, 10, 10, 10);
   eq(p, [[10, 10], [10, 10]], "aynı noktada NaN üretmez");
   check(p.flat().every((n) => Number.isFinite(n)), "sonlu sayılar");
+}
+
+/* --- rectBorderPoint: kartın içinden geçmeyen çizgi ---------------------- */
+{
+  // 100x50 kart, merkez (0,0) → kenarlar x=±50, y=±25.
+  const R = (tx: number, ty: number) => rectBorderPoint(0, 0, 100, 50, tx, ty);
+  eq(R(1000, 0), [50, 0], "sağa: sağ kenar");
+  eq(R(-1000, 0), [-50, 0], "sola: sol kenar");
+  eq(R(0, 1000), [0, 25], "aşağı: alt kenar");
+  eq(R(0, -1000), [0, -25], "yukarı: üst kenar");
+  // Köşeye doğru: dar olan kenar (y) önce çarpılır.
+  eq(R(100, 100), [25, 25], "çapraz: önce yatay kenara değil, dikeye çarpar");
+  eq(R(0, 0), [0, 0], "aynı nokta: merkezi döndürür (0'a bölme yok)");
+  // Sonuç HER ZAMAN kenarda olmalı — içeride ya da dışarıda değil.
+  for (const [tx, ty] of [[7, 3], [-2, 90], [40, -1], [-300, -12]] as Array<[number, number]>) {
+    const [x, y] = R(tx, ty);
+    const kenarda = Math.abs(Math.abs(x) - 50) < 1e-9 || Math.abs(Math.abs(y) - 25) < 1e-9;
+    check(kenarda && Math.abs(x) <= 50 + 1e-9 && Math.abs(y) <= 25 + 1e-9,
+      `(${tx},${ty}) için nokta kenarda`);
+  }
+  // Merkez kaydırılınca da çalışır.
+  eq(rectBorderPoint(200, 100, 100, 50, 1000, 100), [250, 100], "kaydırılmış merkez");
 }
 
 console.log(`${ok} geçti, ${fail} kaldı`);

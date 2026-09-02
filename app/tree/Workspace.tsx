@@ -7,6 +7,7 @@ import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
 import type { TreeMeta } from "@/lib/trees";
 import TopBar, { type ViewKey } from "@/components/TopBar";
+import { useBonds } from "@/lib/useBonds";
 import PersonDrawer from "@/components/PersonDrawer";
 import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
@@ -196,6 +197,31 @@ function WorkspaceInner({
     setShowAssociatesState(v);
     try { localStorage.setItem("soyagaci_show_associates", v ? "1" : "0"); } catch { /* yoksay */ }
   }, []);
+
+  /*
+   * Genogram duygusal bağ katmanı — `showAssociates`in tersine VARSAYILAN
+   * KAPALI. Ağacın asıl işi soy bağını göstermek; "kim kiminle nasıl
+   * geçiniyor" ayrı bir okuma ve herkesin baştan görmek isteyeceği bir şey
+   * değil. Yalnız açıkça "1" saklanmışsa açılır.
+   */
+  const [showBonds, setShowBondsState] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowBondsState(localStorage.getItem("soyagaci_show_bonds") === "1");
+    } catch { /* yoksay */ }
+  }, []);
+  const setShowBonds = useCallback((v: boolean) => {
+    setShowBondsState(v);
+    try { localStorage.setItem("soyagaci_show_bonds", v ? "1" : "0"); } catch { /* yoksay */ }
+  }, []);
+
+  /*
+   * Bağlar tembel yükleniyor: katman açılana YA DA bir profil paneli
+   * açılana kadar istek atılmaz. Panelde de gerekiyor, çünkü bağ eklemek
+   * için katmanı açmak zorunda kalmak tuhaf olurdu.
+   */
+  const bonds = useBonds(showBonds || !!selectedId);
 
   // Madde 8 — "Bu görünümü yazdır": açık görünümü (ağaç/harita/soy/panel/liste)
   // olduğu gibi bas. Detay paneli kapatılıp bir render sonra `print-view`
@@ -572,6 +598,8 @@ function WorkspaceInner({
                 onDeselect={() => setSelectedId(undefined)}
                 onQuickAdd={openQuickAdd}
                 locateReq={locateReq}
+                bonds={bonds.bonds}
+                showBonds={showBonds}
               />
               <TreeDepthControl
                 depth={treeDepth}
@@ -670,6 +698,7 @@ function WorkspaceInner({
           onEdit={openEdit}
           onQuickAdd={openQuickAdd}
           onLocate={locatePerson}
+          bonds={bonds}
           onFocus={focusPerson}
           onEgo={(id) => { setEgoId(id); setView("cevre"); }}
           onDeleted={handleDeleted}
@@ -730,6 +759,8 @@ function WorkspaceInner({
           onClose={() => setSettingsOpen(false)}
           showAssociates={showAssociates}
           onToggleAssociates={setShowAssociates}
+          showBonds={showBonds}
+          onToggleBonds={setShowBonds}
         />
       )}
 

@@ -11,6 +11,12 @@ interface Props {
   /** "Arkadaşları göster" — çevre (aile-dışı) kişileri ağaçta göster/gizle. */
   showAssociates: boolean;
   onToggleAssociates: (v: boolean) => void;
+  /**
+   * Genogram duygusal bağ katmanı — VARSAYILAN KAPALI. Ağacın asıl işi soy
+   * bağını göstermek; duygusal katman ayrı bir okuma ve isteyen açar.
+   */
+  showBonds: boolean;
+  onToggleBonds: (v: boolean) => void;
 }
 
 /**
@@ -21,6 +27,8 @@ export default function SettingsDialog({
   onClose,
   showAssociates,
   onToggleAssociates,
+  showBonds,
+  onToggleBonds,
 }: Props) {
   const t = useT();
   const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
@@ -49,6 +57,20 @@ export default function SettingsDialog({
           >
             <span>{t("settings.showAssociates")}</span>
             <Switch on={showAssociates} />
+          </button>
+
+          <button
+            onClick={() => onToggleBonds(!showBonds)}
+            aria-pressed={showBonds}
+            className="w-full flex items-start justify-between gap-3 py-2 text-sm text-text text-left"
+          >
+            <span className="min-w-0">
+              {t("bond.layer")}
+              <span className="block text-[11px] text-text-subtle leading-snug">
+                {t("bond.layerHint")}
+              </span>
+            </span>
+            <Switch on={showBonds} />
           </button>
 
           <div className="w-full flex items-center justify-between gap-3 py-2 text-sm text-text">
