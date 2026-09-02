@@ -12,6 +12,61 @@ savunma hattı, eksikler, karar tablosu, fiyatlama ilkesi ve nihai konumlandırm
 Kaynak belgeler: `GELISTIRME-PLANI.md` §2–3, `MYHERITAGE-INCELEME.md`,
 `REKABET-ARASTIRMASI-2.md`.
 
+## Bekleyen — Gömülebilir ağaç + herkese açık API (kullanıcı isteği, 2026-09-02)
+
+> "Kullanıcılar API ile kendi uygulamalarına gömebilsinler."
+
+**İki ayrı yüzey — karıştırılmamalı:**
+
+- **(A) Gömme (embed)** — *görsel*. `/embed/<token>` üst bar/menü olmayan salt-okunur
+  ağaç; kullanıcı `<iframe>` ile kendi sayfasına koyar. Parametreler:
+  `?view=agac|soy|yelpaze`, `?focus=<personId>`, `?theme=light|dark`, `?lang=tr|en`.
+- **(B) API** — *veri*. `GET /api/v1/public/tree` → maskelenmiş JSON; tüketici kendi
+  arayüzünü çizer.
+
+**Elimizde zaten olan (bu yüzden ucuz):**
+
+- Paylaşım jetonu zaten `<treeId>.<secret>` biçiminde bir **bearer**; `findValidShare()`
+  doğruluyor, süre dolumu / iptal / ziyaret sayacı hazır (`lib/members.ts`).
+- `resolveActiveTree()` hem çerezi hem `Authorization: Bearer` başlığını çözüyor →
+  **rota başına değişiklik gerekmez** (mobil için yapılan iş burada da işe yarıyor).
+- Gizlilik maskesi `lib/privacy.ts` `view()`; `hideLiving` zaten **paylaşım başına** ayarlı.
+- Oran sınırlama `lib/rate-limit.ts`; genel rota izin listesi `proxy.ts`.
+
+**Yapılacaklar:**
+
+1. `/embed/<token>` rotası + `proxy.ts` izin listesine ekleme. `Workspace`'i
+   `publicView` + `role="viewer"` ile, kabuk (TopBar/menü) olmadan render et.
+2. **Çerçeveleme izni YALNIZ bu rotada.** Uygulamanın geri kalanı
+   `X-Frame-Options: DENY` kalmalı (clickjacking). `/embed/*` için
+   `Content-Security-Policy: frame-ancestors` — varsayılan `*`, isteğe bağlı olarak
+   paylaşım başına alan adı listesi.
+3. `GET /api/v1/public/tree` — jeton `Authorization: Bearer` ya da `?token=`;
+   yanıt **her zaman** `view()`'dan geçer. CORS başlıkları + `OPTIONS` ön uçuşu.
+4. Jeton başına oran sınırı. Paylaşımın `views` sayacı API çağrılarıyla şişmemeli —
+   **ayrı sayaç** tut (ziyaret istatistiği insan ziyaretini ölçüyor).
+5. **Sürümleme: `/api/v1/...`.** Üçüncü taraf tüketici olduğu an kırıcı değişiklik
+   yapma hakkımızı kaybederiz; yolu baştan sürümle.
+6. `ShareDialog`'a **kopyalanabilir gömme kodu** + canlı önizleme
+   (`<iframe src="…" width="100%" height="600" style="border:0">`).
+7. Belge: `docs/API.md` — uçlar, dönen alanlar, maskeleme kuralı, sınırlar, örnekler.
+8. i18n TR + EN (kalıcı kural).
+
+**Kararlar ve riskler:**
+
+- **Yazma API'si şimdilik YOK — yalnız okuma.** Yazma; kimlik, rol, çakışma
+  (`x-base-version`) ve kötüye kullanım yüzeyini birden büyütür. İstenirse ayrı iş.
+- Maskelenmemiş veri API'den **asla** çıkmamalı. `view()`'u atlayan tek bir uç, tüm
+  gizlilik katmanını boşa çıkarır → bunun için **test yazılmalı**.
+- Gömülü ağaç fotoğrafları Cloudinary'den çeker; tüketicinin sayfa CSP'si engelleyebilir.
+  Belgede uyarı + gerekli alan adları listelensin.
+- **Konumlandırmayla uyumlu:** "veriniz sizin, kilitlenme yok" duruşunun en güçlü hâli;
+  "dışa aktarım her zaman açık" ilkesinin doğal devamı.
+- **Ücretlendirme:** gömme *ücretsiz* kademede kalmalı (yayılma etkisi — her gömülü ağaç
+  bir tanıtım yüzeyi). **API kotası** ücretli kademeye konabilir.
+- Rekabet araştırmasında bu başlık taranmadı; rakiplerde gömme/API var mı ayrıca
+  bakılmalı (iddiada bulunulmadı).
+
 ## Rekabet araştırması #2 (Eylül 2026) — aday işler
 
 Geniş rekabet taraması: **`docs/REKABET-ARASTIRMASI-2.md`** (3 ajan, ~145 arama).
