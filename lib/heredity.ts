@@ -37,11 +37,22 @@ export type ConditionSource =
   /** Ölüm nedeni olarak kayıtlı (`deathCause`). */
   | "fatal";
 
-/** Serbest metinde birden çok durum: "astım, tansiyon" → iki durum. */
+/**
+ * Serbest metinde birden çok durum: "astım; tansiyon" → iki durum.
+ *
+ * **Virgülle BÖLÜNMEZ.** Türkçe serbest metinde virgül liste ayracı kadar
+ * cümle ayracıdır da: "Şeker hastalığı, 46 yaşında konuldu" bölününce
+ * "46 yaşında konuldu" diye anlamsız bir "durum" doğuyordu (gerçek veride
+ * görüldü). Noktalı virgül ve eğik çizgi ise güvenilir biçimde liste ayracı.
+ *
+ * Bu, açıklama içeren kayıtları tek parça bırakır — doğrusu da budur:
+ * "Doğuştan işitme engelli — iki taraflı koklear implant" bir durumdur,
+ * iki değil.
+ */
 function splitConditions(raw?: string): string[] {
   if (!raw) return [];
   return raw
-    .split(/[,;/]/)
+    .split(/[;/]/)
     .map((s) => s.trim())
     .filter(Boolean);
 }

@@ -17,6 +17,7 @@ import {
   relativesByGeneration,
 } from "@/lib/relations";
 import { completeness, lineLabelKey, MAX_DEPTH } from "@/lib/completeness";
+import { aggregateConditions, traceCondition } from "@/lib/heredity";
 import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
@@ -608,6 +609,17 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                   </li>
                 )}
               </ul>
+            </Card>
+          )}
+
+          {/* Kalıtsal örüntü — yalnız kayıtlı sağlık bilgisi varsa */}
+          {isStats && (
+            <Card
+              title={t("panel.card.heredity")}
+              hint={t("panel.card.heredityHint")}
+              className="lg:col-span-2"
+            >
+              <HeredityView shown={shown} onSelect={onSelect} />
             </Card>
           )}
 
@@ -1433,6 +1445,156 @@ function SevenGenerations({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Kalıtsal durum örüntüsü.
+ *
+ * İki kural bu bileşeni belirliyor:
+ *
+ * 1. **Risk hesaplanmaz.** Ne burada ne `lib/heredity.ts`'te olasılık
+ *    matematiği var. "Taşıma ihtimaliniz %25" demek ürünü tıbbi cihaz
+ *    mevzuatına sokar. Gösterilen şey yalnız KAYITLI olan: kimde var ve
+ *    etkilenenler arasında ebeveyn-çocuk bağı var mı. Bu ayrım kullanıcıya da
+ *    yazılı olarak söylenir.
+ * 2. **Maskeli veriyle çalışır.** `shown` (yani `people.map(view)`) verilir;
+ *    gizlenmiş kişilerin sağlık kaydı toplamaya hiç girmez.
+ */
+function HeredityView({
+  shown,
+  onSelect,
+}: {
+  shown: Person[];
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const [key, setKey] = useState<string | null>(null);
+
+  /*
+   * Yalnız EN AZ İKİ kişide kayıtlı durumlar. Tek kişilik bir kayıt örüntü
+   * değildir: kartın sorusu "bu ailede ne tekrarlıyor". Tekil kayıtlar zaten
+   * yukarıdaki sağlık sayaçlarında ve onların alt listelerinde görünüyor;
+   * burada göstermek kartı serbest metin gürültüsüyle dolduruyordu.
+   */
+  const conditions = useMemo(
+    () => aggregateConditions(shown).filter((c) => c.count >= 2),
+    [shown]
+  );
+  const active = key ?? conditions[0]?.key ?? null;
+  const trace = useMemo(
+    () => (active ? traceCondition(active, shown) : null),
+    [active, shown]
+  );
+
+  const byId = useMemo(() => new Map(shown.map((p) => [p.id, p])), [shown]);
+  const nameOf = (id: string) => {
+    const p = byId.get(id);
+    return p ? fullName(p) : id;
+  };
+
+  if (conditions.length === 0) {
+    return <p className="text-sm text-text-subtle py-2">{t("heredity.empty")}</p>;
+  }
+
+  const agg = conditions.find((c) => c.key === active);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {conditions.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => setKey(c.key)}
+            className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+              c.key === active
+                ? "bg-primary/10 border-primary/50 text-primary"
+                : "bg-surface-2 border-border text-text hover:bg-surface-3"
+            }`}
+          >
+            {c.label} <span className="tabular-nums opacity-70">{c.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {trace && agg && (
+        <div className="rounded-xl border border-border bg-surface-2 p-3 space-y-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-subtle">
+            <span>{t("heredity.affected", { count: trace.affected.length })}</span>
+            <span>{t("heredity.generations", { count: trace.generationsSpanned })}</span>
+            <span>{t("heredity.links", { count: trace.links.length })}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+            {agg.congenital > 0 && (
+              <span className="text-text-subtle">
+                {t("heredity.congenital")}: <span className="text-text tabular-nums">{agg.congenital}</span>
+              </span>
+            )}
+            {agg.acquired > 0 && (
+              <span className="text-text-subtle">
+                {t("heredity.acquired")}: <span className="text-text tabular-nums">{agg.acquired}</span>
+              </span>
+            )}
+            {agg.fatal > 0 && (
+              <span className="text-text-subtle">
+                {t("heredity.fatal")}: <span className="text-text tabular-nums">{agg.fatal}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Kalıtımın ağaçta GÖRÜNEN kısmı — iddia değil gözlem */}
+          {trace.links.length > 0 ? (
+            <div>
+              <p className="text-[11px] font-medium text-text mb-1.5">{t("heredity.chains")}</p>
+              <ul className="space-y-1">
+                {trace.links.map((l) => (
+                  <li key={`${l.parentId}-${l.childId}`} className="flex items-center gap-1.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(l.parentId)}
+                      className="text-text hover:text-primary transition-colors"
+                    >
+                      {nameOf(l.parentId)}
+                    </button>
+                    <span className="text-text-subtle" aria-hidden>→</span>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(l.childId)}
+                      className="text-text hover:text-primary transition-colors"
+                    >
+                      {nameOf(l.childId)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-[11px] text-text-subtle">{t("heredity.noChain")}</p>
+          )}
+
+          <div>
+            <p className="text-[11px] font-medium text-text mb-1.5">{t("heredity.people")}</p>
+            <div className="flex flex-wrap gap-1">
+              {trace.affected.map((a) => (
+                <button
+                  key={a.personId}
+                  type="button"
+                  onClick={() => onSelect(a.personId)}
+                  className="px-2 py-0.5 rounded bg-surface border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
+                >
+                  {nameOf(a.personId)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sözleşme kullanıcıya da görünür olmalı */}
+      <p className="text-[10px] text-text-subtle">{t("heredity.noRisk")}</p>
     </div>
   );
 }
