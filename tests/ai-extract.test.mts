@@ -23,7 +23,13 @@ check("nüfusa göre (resmi) doğum tarihi", by("Ahmet").officialBirthDate === "
 const zeynepParents = by("Zeynep").parentIds.map((id) => people.find((p) => p.id === id)!.firstName).sort();
 check("ebeveyn bağı (father/mother→parentIds)", zeynepParents.join(",") === "Ahmet,Ayşe");
 check("eş bağı çift yönlü", by("Ahmet").spouseIds.includes(by("Ayşe").id) && by("Ayşe").spouseIds.includes(by("Ahmet").id));
-check("geçici id'ler kalıcıya çevrildi (nanoid)", !people.some((p) => p.id.startsWith("p")));
+// Kastedilen: geçici "p1..p4" kimlikleri kalıcı kimliklerle DEĞİŞTİ.
+// "p ile başlamasın" demek yanlıştı: nanoid alfabesi küçük harf içerdiğinden
+// üretilen kimlik meşru olarak "p" ile başlayabiliyor (3 kişide ~%4,6) ve test
+// arada bir sebepsiz kırılıyordu.
+const gecici = new Set(["p1", "p2", "p3", "p4"]);
+check("geçici id'ler kalıcıya çevrildi (nanoid)", !people.some((p) => gecici.has(p.id)));
+check("kimlikler benzersiz", new Set(people.map((p) => p.id)).size === people.length);
 
 // Bozuk/boş girişte güvenli
 check("boş metin → []", parseExtractedJson("").length === 0);
