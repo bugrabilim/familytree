@@ -5,6 +5,9 @@ import { viewAll } from "@/lib/privacy";
 import { getParents, getSpouses, getChildren, indexPeople } from "@/lib/relations";
 import Workspace from "@/app/tree/Workspace";
 import MemorialPage from "@/components/MemorialPage";
+import PublicObituaries from "@/components/PublicObituaries";
+import { readPublicObituaries } from "@/lib/obituary-store";
+import { translate } from "@/lib/i18n-dict";
 import Invalid from "./Invalid";
 
 export const dynamic = "force-dynamic";
@@ -84,15 +87,43 @@ export default async function SharePage({
     );
   }
 
+  /*
+   * Taziye şeridi — YALNIZ ailenin paylaşmayı seçtikleri.
+   *
+   * Okuma yolu `readPublicObituaries`tir; "hepsini oku, sonra süz" demek
+   * süzmeyi unutmayı bir satırlık hata hâline getirirdi. Sunucu tarafı da
+   * kasıtlı: yayımlanmamış bir duyuru bu sayfanın RSC yüküne HİÇ girmez.
+   *
+   * Dil: burası girişsiz bir sayfa ve sunucu bileşeni; kullanıcının dil
+   * tercihi istemcide yaşıyor. Etiketler Türkçe (`tr`) verilir — sayfanın
+   * varsayılan dili odur.
+   */
+  const obits = await readPublicObituaries(valid.treeId).catch(() => []);
+  const L = (k: string) => translate("tr", k);
+
   return (
-    <Workspace
+    <>
+      {obits.length > 0 && (
+        <PublicObituaries
+          obituaries={obits}
+          heading={L("obit.publicHeading")}
+          labels={{
+            serviceOn: L("obit.field.serviceOn"),
+            serviceAt: L("obit.field.serviceAt"),
+            burialAt: L("obit.field.burialAt"),
+            condolenceAt: L("obit.field.condolenceAt"),
+          }}
+        />
+      )}
+      <Workspace
       people={safePeople}
       version={updatedAt}
       familyName={valid.share.treeName}
       role="viewer"
       isFounder={false}
-      publicView
-      hideLivingForced={valid.share.hideLiving}
-    />
+        publicView
+        hideLivingForced={valid.share.hideLiving}
+      />
+    </>
   );
 }
