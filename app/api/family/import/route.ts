@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   imported = imported.map((p) => ({ ...p, entrySource: p.entrySource ?? `içe aktarma: ${format}` }));
 
   if (mode === "replace") {
-    await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() });
+    await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() }, { by: ctx.accountId });
   } else {
     const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
     await saveFamilyData(ctx.treeId, {
