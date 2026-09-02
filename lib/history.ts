@@ -1,37 +1,33 @@
 import { put, list, get } from "@vercel/blob";
 import type { Person } from "@/types/family";
+import {
+  emptyHistory,
+  parseHistory,
+  pushSnapshot,
+  snapshotById,
+  snapshotsWithPeople,
+  type HistoryFileV2,
+} from "@/lib/history-delta";
 
 /**
  * Güncelleme günlüğü (geri alma). Her kaydetmeden ÖNCEki durum, ayrı bir
  * geçmiş blob'una (`family-history-<treeId>.json`) anlık görüntü olarak eklenir.
  * Kullanıcı bir hatadan sonra tarihe göre önceki bir duruma dönebilir.
  *
- * Anlık görüntüler tam kişi listesini taşır (basit ve güvenilir); en yeni MAX
- * tanesi tutulur. Büyük ağaçlarda blob'u şişirmemek için sınır düşük.
+ * FARK TABANLI. Eskiden her görüntü tüm kişi listesinin kopyasıydı; 300
+ * kişilik bir ağaçta 15 görüntü ~835 KB tutuyordu ve `MAX` tam da bu yüzden
+ * 15 gibi düşük bir sayıydı — yani kullanıcı, depolama yüzünden geri alma
+ * derinliğinden oluyordu. Artık bir tam durum + geriye doğru farklar
+ * saklanıyor (~61 KB, 13 kat küçük), bu yüzden sınır da yükseltildi.
+ *
+ * Zincir mantığı ve biçim geçişi `lib/history-delta.ts`te — saf ve birim
+ * testi edilebilir. Burası yalnız blob okuma/yazma.
  */
 
-const MAX_SNAPSHOTS = 15;
+const MAX_SNAPSHOTS = 50;
 
 function historyPath(treeId: string) {
   return `family-history-${treeId}.json`;
-}
-
-interface Snapshot {
-  id: string;
-  at: string;
-  people: Person[];
-  /**
-   * Bu anlık görüntünün ÜZERİNE yazan değişikliği kimin yaptığı.
-   *
-   * Kafa karıştırıcı ama tutarlı: bir anlık görüntü, bir kaydetmeden ÖNCEKİ
-   * durumu tutar. Dolayısıyla `by`, o görüntüyü bir sonrakine (ya da en
-   * yenisi için canlı veriye) dönüştüren kişidir. Katkı akışı iki komşu
-   * görüntüyü karşılaştırırken yazarı buradan okur.
-   */
-  by?: string;
-}
-interface HistoryFile {
-  snapshots: Snapshot[];
 }
 
 /** Geri yüklemede listelenen özet (kişi listesi taşınmaz). */
@@ -42,23 +38,24 @@ export interface HistoryEntry {
   by?: string;
 }
 
-async function readHistory(treeId: string): Promise<HistoryFile> {
+async function readHistory(treeId: string): Promise<HistoryFileV2> {
   try {
     const { blobs } = await list({ prefix: historyPath(treeId) });
-    if (blobs.length === 0) return { snapshots: [] };
+    if (blobs.length === 0) return emptyHistory();
     const latest = blobs.sort(
       (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     )[0];
     const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return { snapshots: [] };
-    const parsed = JSON.parse(await new Response(result.stream).text()) as HistoryFile;
-    return Array.isArray(parsed.snapshots) ? parsed : { snapshots: [] };
+    if (!result || result.statusCode !== 200) return emptyHistory();
+    // `parseHistory` eski biçimi de kabul eder: geçiş YERİNDE olur, bir
+    // sonraki yazmada dosya yeni biçimde diske iner. Ayrı taşıma betiği yok.
+    return parseHistory(JSON.parse(await new Response(result.stream).text()));
   } catch {
-    return { snapshots: [] };
+    return emptyHistory();
   }
 }
 
-async function writeHistory(treeId: string, file: HistoryFile): Promise<void> {
+async function writeHistory(treeId: string, file: HistoryFileV2): Promise<void> {
   await put(historyPath(treeId), JSON.stringify(file), {
     access: "private",
     addRandomSuffix: false,
@@ -75,22 +72,21 @@ export async function pushHistorySnapshot(
 ): Promise<void> {
   const file = await readHistory(treeId);
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  file.snapshots.unshift({ id, at: new Date().toISOString(), people, by });
-  if (file.snapshots.length > MAX_SNAPSHOTS) file.snapshots.length = MAX_SNAPSHOTS;
-  await writeHistory(treeId, file);
+  await writeHistory(
+    treeId,
+    pushSnapshot(file, { id, at: new Date().toISOString(), by }, people, MAX_SNAPSHOTS)
+  );
 }
 
 /** Günlüğü özet olarak listeler (en yeni önce). */
 export async function listHistorySnapshots(treeId: string): Promise<HistoryEntry[]> {
   const file = await readHistory(treeId);
-  return file.snapshots.map((s) => ({ id: s.id, at: s.at, count: s.people.length, by: s.by }));
+  return file.stamps.map((s) => ({ id: s.id, at: s.at, count: s.count, by: s.by }));
 }
 
 /** Belirli bir anlık görüntünün kişi listesini döndürür (yoksa null). */
 export async function getHistorySnapshot(treeId: string, id: string): Promise<Person[] | null> {
-  const file = await readHistory(treeId);
-  const s = file.snapshots.find((x) => x.id === id);
-  return s ? s.people : null;
+  return snapshotById(await readHistory(treeId), id);
 }
 
 /**
@@ -98,13 +94,12 @@ export async function getHistorySnapshot(treeId: string, id: string): Promise<Pe
  *
  * `listHistorySnapshots` bilerek kişi listesi taşımaz (geri yükleme ekranı
  * için özet yeter). Akış ise iki komşu görüntüyü karşılaştırmak zorunda, o
- * yüzden ayrı bir okuma yolu var — ve `limit` ile sınırlı, çünkü tüm günlüğü
- * belleğe almak gereksiz.
+ * yüzden ayrı bir okuma yolu var — ve `limit` ile sınırlı, çünkü zinciri
+ * sonuna kadar açmak gereksiz.
  */
 export async function readSnapshotsForActivity(
   treeId: string,
   limit: number
 ): Promise<Array<{ id: string; at: string; by?: string; people: Person[] }>> {
-  const file = await readHistory(treeId);
-  return file.snapshots.slice(0, Math.max(0, limit));
+  return snapshotsWithPeople(await readHistory(treeId), limit);
 }
