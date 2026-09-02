@@ -56,6 +56,13 @@ export interface MemorialConfig {
    * `hijriAnniversariesInGregorianYear`. Verilmezse o anma üretilmez.
    */
   hijriAnniversaries?: (stored: string, gregorianYear: number) => string[];
+  /**
+   * Kaçıncı Hicri devriye olduğunu söyleyen fonksiyon — `lib/hijri.ts` →
+   * `hijriYearsBetween`. Verilmezse anma yine üretilir ama `year` BOŞ kalır:
+   * yanlış bir sayı basmaktansa hiç basmamak doğru (Miladi fark Hicri devriye
+   * sayısı değildir; aradaki sapma yıllar geçtikçe büyür).
+   */
+  hijriYearsBetween?: (from: string, to: string) => number | null;
 }
 
 export interface Observance {
@@ -135,21 +142,45 @@ export function observancesFor(
     if (inWindow(date)) out.push({ kind, personId: person.id, date });
   }
 
-  // Sene-i devriye: her yıl tekrar eder.
-  for (let year = from.y; year <= to.y; year++) {
-    const n = year - death.y;
-    if (n < 1) continue; // ölüm yılı sene-i devriye değildir
-
-    if (enabled.has("seneiDevriye")) {
+  // Miladi sene-i devriye: yılda tam bir kez, ölüm yılından sonra.
+  if (enabled.has("seneiDevriye")) {
+    for (let year = from.y; year <= to.y; year++) {
+      const n = year - death.y;
+      if (n < 1) continue; // ölüm yılı sene-i devriye değildir
       const date = sameDayInYear(death, year);
       if (inWindow(date)) out.push({ kind: "seneiDevriye", personId: person.id, date, year: n });
     }
+  }
 
-    if (enabled.has("seneiDevriyeHicri") && config.hijriAnniversaries) {
-      for (const date of config.hijriAnniversaries(person.deathDate!, year)) {
-        if (inWindow(date)) {
-          out.push({ kind: "seneiDevriyeHicri", personId: person.id, date, year: n });
-        }
+  /*
+   * Hicri sene-i devriye AYRI bir döngü, çünkü Miladi yıl sayacıyla
+   * yürütülemez:
+   *
+   *  - Hicri yıl ~354 gün olduğundan devriye, ölümün KENDİ Miladi yılı içinde
+   *    ikinci kez düşebilir. Miladi farkı 1'den küçük diye atlamak o ilk
+   *    devriyeyi tümüyle kaybediyordu.
+   *  - Aynı sebeple bir Miladi yıla İKİ devriye düşebilir; Miladi farkı
+   *    kullanmak ikisine de aynı numarayı verirdi.
+   *  - Miladi fark zaten Hicri devriye sayısı değildir ve sapma yıllar
+   *    geçtikçe büyür (32 Miladi yıl ≈ 33 Hicri yıl).
+   *
+   * Sayı, enjekte edilen `hijriYearsBetween` ile gerçek Hicri farktan
+   * hesaplanır; o verilmezse `year` boş bırakılır.
+   */
+  if (enabled.has("seneiDevriyeHicri") && config.hijriAnniversaries) {
+    const deathDate = person.deathDate!;
+    for (let year = from.y; year <= to.y; year++) {
+      for (const date of config.hijriAnniversaries(deathDate, year)) {
+        // Ölüm gününün kendisi devriye değildir (0. yıl).
+        if (date <= deathDate) continue;
+        if (!inWindow(date)) continue;
+        const n = config.hijriYearsBetween?.(deathDate, date) ?? null;
+        out.push({
+          kind: "seneiDevriyeHicri",
+          personId: person.id,
+          date,
+          ...(n !== null && n >= 1 ? { year: n } : {}),
+        });
       }
     }
   }

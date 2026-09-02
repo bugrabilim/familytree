@@ -2,7 +2,7 @@ import {
   observancesFor, memorialCalendar, upcomingMemorials, observanceKey,
   DEFAULT_OBSERVANCES, DEFAULT_OFFSETS, type ObservanceKind,
 } from "../lib/memorials.ts";
-import { hijriAnniversariesInGregorianYear } from "../lib/hijri.ts";
+import { hijriAnniversariesInGregorianYear, hijriYearsBetween } from "../lib/hijri.ts";
 import { tr, en } from "../lib/i18n-dict.ts";
 import type { Person } from "../types/family.ts";
 
@@ -151,6 +151,69 @@ eq(upcomingMemorials([P("r", "2020-01-01")], { today, days: 5 },
 // Bugün olan anma dâhil
 eq(dates(upcomingMemorials([P("s", "2019-12-23")], { today, days: 0 },
   { enabled: ["gece40"] })), ["2020-02-01"], "bugünkü anma dâhil");
+
+/* --- H3: ölümün KENDİ miladi yılındaki hicri devriye kaybolmamalı -------- */
+
+// Hicri yıl ~354 gün: devriye, ölümün kendi miladi yılı içinde ikinci kez
+// düşebilir. Miladi yıl farkı 1'den küçük diye atlamak onu kaybediyordu.
+const HCFG = {
+  enabled: ["seneiDevriyeHicri" as const],
+  hijriAnniversaries: hijriAnniversariesInGregorianYear,
+  hijriYearsBetween,
+};
+const ölüm = "2000-01-01";
+const aynıYıl = observancesFor(P("h1", ölüm), { from: "2000-01-01", to: "2000-12-31" }, HCFG);
+eq(dates(aynıYıl), ["2000-12-21"], "ölüm yılındaki hicri devriye üretiliyor");
+eq(aynıYıl[0]?.year, 1, "ilk hicri devriye 1. yıl");
+
+// Ölüm gününün KENDİSİ devriye değildir
+check(!dates(aynıYıl).includes(ölüm), "ölüm gününün kendisi devriye sayılmaz");
+
+/* --- H4: devriye numarası HİCRİ farktan gelmeli ------------------------- */
+
+const uzun = observancesFor(P("h2", ölüm), { from: "2001-01-01", to: "2032-12-31" }, HCFG);
+for (const o of uzun) {
+  const gercek = hijriYearsBetween(ölüm, o.date);
+  if (o.year !== gercek) {
+    fail++; console.log(`✗ ${o.date}: year=${o.year}, gerçek hicri fark=${gercek}`);
+  } else ok++;
+}
+check(uzun.length > 30, `uzun pencerede çok devriye üretildi (${uzun.length})`);
+
+// Bir miladi yıla iki devriye düşerse FARKLI numara almalı
+const iki = uzun.filter((o) => o.date.startsWith("2032"));
+eq(iki.length, 2, "2032'de iki hicri devriye var");
+check(iki[0]?.year !== iki[1]?.year, `aynı yıldaki iki devriye farklı numara alıyor (${iki[0]?.year}, ${iki[1]?.year})`);
+eq(iki.map((o) => o.year), [33, 34], "numaralar hicri farka göre 33 ve 34");
+
+// Miladi fark hicri farktan KÜÇÜK olmalı (32 miladi ≈ 33 hicri)
+const miladi = observancesFor(P("h3", ölüm), { from: "2032-01-01", to: "2032-12-31" },
+  { enabled: ["seneiDevriye"] });
+eq(miladi.length, 1, "miladi devriye yılda bir");
+check((miladi[0]?.year ?? 0) < (iki[0]?.year ?? 0),
+  `miladi sayı (${miladi[0]?.year}) hicri sayıdan (${iki[0]?.year}) küçük`);
+
+// Devriye numaraları hep artmalı ve 1'den başlamalı
+const seq = observancesFor(P("h4", ölüm), { from: "2000-01-01", to: "2020-12-31" }, HCFG);
+eq(seq[0]?.year, 1, "ilk devriye 1");
+check(seq.every((o, i) => i === 0 || (o.year ?? 0) > (seq[i - 1].year ?? 0)),
+  "devriye numaraları artıyor");
+check(seq.every((o) => (o.year ?? 0) >= 1), "hiçbir devriye 0 ya da negatif değil");
+
+/* --- hijriYearsBetween verilmezse SAYI BASILMAZ ------------------------- */
+
+// Yanlış bir sayı basmaktansa hiç basmamak doğru.
+const sayısız = observancesFor(P("h5", ölüm), { from: "2001-01-01", to: "2001-12-31" },
+  { enabled: ["seneiDevriyeHicri"], hijriAnniversaries: hijriAnniversariesInGregorianYear });
+check(sayısız.length > 0, "sayaç verilmese de anma üretiliyor");
+eq(sayısız[0]?.year, undefined, "sayaç yoksa year boş bırakılıyor");
+
+/* --- Miladi devriye bu değişiklikten etkilenmemeli ---------------------- */
+
+const sadeceMiladi = observancesFor(P("h6", "2020-06-15"), { from: "2020-01-01", to: "2023-12-31" },
+  { enabled: ["seneiDevriye"] });
+eq(dates(sadeceMiladi), ["2021-06-15", "2022-06-15", "2023-06-15"], "miladi devriye aynı");
+eq(sadeceMiladi.map((o) => o.year), [1, 2, 3], "miladi numaralar aynı");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
