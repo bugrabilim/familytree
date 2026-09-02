@@ -456,10 +456,21 @@ export default function PersonForm({
       patronymic: form.patronymic.trim() || undefined,
       orientation: form.orientation.trim() || undefined,
       gender: form.gender as Person["gender"],
-      birthDate: form.birthDate ? displayToStored(form.birthDate) : undefined,
-      officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : undefined,
-      deathDate: form.deathDate ? displayToStored(form.deathDate) : undefined,
-      birthPlace: form.birthPlace.trim() || undefined,
+      /*
+       * TEMİZLEME AÇIKÇA GÖNDERİLİR — `undefined` DEĞİL.
+       *
+       * `undefined` API için "bu alana dokunma" demektir. Bu dört alan
+       * temizlendiğinde `undefined` gönderiliyordu, dolayısıyla kullanıcı
+       * yanlış girilmiş bir doğum tarihini siliyor, kaydediyor ve tarih geri
+       * geliyordu. (Öbür yarısı PUT rotasındaydı: `body.x || mevcut`.)
+       *
+       * `burialPlace` ve `burialCoords` zaten böyle davranıyordu; şimdi kural
+       * bütün alanlarda aynı.
+       */
+      birthDate: form.birthDate ? displayToStored(form.birthDate) : "",
+      officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : "",
+      deathDate: form.deathDate ? displayToStored(form.deathDate) : "",
+      birthPlace: form.birthPlace.trim(),
       // Doğum yeri koordinatı yalnız bir doğum yeri metni varsa anlamlı; yer
       // metni boşsa koordinatı da temizle. `null` = temizle (PUT'ta korunmaz).
       birthCoords: form.birthPlace.trim() ? form.birthCoords : null,

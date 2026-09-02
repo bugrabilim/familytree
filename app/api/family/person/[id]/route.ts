@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { mergePersonFields } from "@/lib/person-fields";
 import { canEdit } from "@/lib/roles";
 
 const conflict = () =>
@@ -30,55 +31,30 @@ export async function PUT(
   if (index === -1)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  /*
+   * Alanlar KAYIT DEFTERİNDEN birleştirilir (`lib/person-fields.ts`).
+   *
+   * Burada kırk satırlık elle yazılmış bir liste vardı ve alanlar iki farklı
+   * kuralla birleşiyordu: çoğu `body.x ?? mevcut`, dördü `body.x || mevcut`.
+   * İkincisi boş bir değeri eskisine geri düşürüyordu, yani doğum tarihi,
+   * resmî doğum tarihi, ölüm tarihi ve doğum yeri HİÇ TEMİZLENEMİYORDU —
+   * yanlış girilmiş bir tarih silinip kaydedilince geri geliyordu.
+   *
+   * Artık tek kural: `undefined` dokunmaz, `""`/`null` temizler.
+   *
+   * Deftere girmeyenler burada kalır: ilişki grafiği karşılıklılık gerektirir
+   * (eş eklenince karşı tarafa da yazılır), kimlik/kod sunucunundur.
+   */
   const updated = {
     ...data.people[index],
-    firstName: body.firstName ?? data.people[index].firstName,
+    ...mergePersonFields(data.people[index], body as Record<string, unknown>),
     // Başlangıç iskeleti etiketi, gerçek bir ad girilir girilmez düşer.
     placeholder: (body.firstName ?? data.people[index].firstName)?.trim()
       ? undefined
       : data.people[index].placeholder,
-    lastName: body.lastName ?? data.people[index].lastName,
-    gender: body.gender ?? data.people[index].gender,
-    nickname: body.nickname ?? data.people[index].nickname,
-    patronymic: body.patronymic ?? data.people[index].patronymic,
-    orientation: body.orientation ?? data.people[index].orientation,
-    birthDate: body.birthDate || data.people[index].birthDate,
-    officialBirthDate: body.officialBirthDate || data.people[index].officialBirthDate,
-    deathDate: body.deathDate || data.people[index].deathDate,
-    birthPlace: body.birthPlace || data.people[index].birthPlace,
-    // Doğum yeri koordinatı: undefined → değiştirme; "" / null → temizle; değer → ayarla.
-    birthCoords:
-      body.birthCoords === undefined ? data.people[index].birthCoords : (body.birthCoords || undefined),
-    religion: body.religion ?? data.people[index].religion,
-    denomination: body.denomination ?? data.people[index].denomination,
-    language: body.language ?? data.people[index].language,
-    ethnicity: body.ethnicity ?? data.people[index].ethnicity,
-    nationality: body.nationality ?? data.people[index].nationality,
-    occupation: body.occupation ?? data.people[index].occupation,
-    education: body.education ?? data.people[index].education,
-    congenitalCondition: body.congenitalCondition ?? data.people[index].congenitalCondition,
-    healthCondition: body.healthCondition ?? data.people[index].healthCondition,
-    deathCause: body.deathCause ?? data.people[index].deathCause,
-    // Defin yeri: undefined → değiştirme; "" / null → temizle; değer → ayarla.
-    burialPlace:
-      body.burialPlace === undefined ? data.people[index].burialPlace : (body.burialPlace || undefined),
-    burialCoords:
-      body.burialCoords === undefined ? data.people[index].burialCoords : (body.burialCoords || undefined),
-    photo: body.photo ?? data.people[index].photo,
-    photos: Array.isArray(body.photos) ? body.photos : data.people[index].photos,
-    videos: Array.isArray(body.videos) ? body.videos : data.people[index].videos,
-    documents: Array.isArray(body.documents) ? body.documents : data.people[index].documents,
-    bio: body.bio ?? data.people[index].bio,
-    events: Array.isArray(body.events) ? body.events : data.people[index].events,
-    sources: Array.isArray(body.sources) ? body.sources : data.people[index].sources,
-    memories: Array.isArray(body.memories) ? body.memories : data.people[index].memories,
+    // "uye" açıkça gönderilirse çevre bayrağı kalkar; defterdeki düz metin
+    // birleştirmesi bu üç durumu ("cevre" / "uye" / dokunma) ayırt edemez.
     kind: body.kind === "cevre" ? "cevre" : body.kind === "uye" ? undefined : data.people[index].kind,
-    associations: Array.isArray(body.associations) ? body.associations : data.people[index].associations,
-    confidential:
-      typeof body.confidential === "boolean" ? body.confidential : data.people[index].confidential,
-    privateFields: Array.isArray(body.privateFields)
-      ? body.privateFields
-      : data.people[index].privateFields,
     parentIds: Array.isArray(body.parentIds)
       ? body.parentIds
       : data.people[index].parentIds,
