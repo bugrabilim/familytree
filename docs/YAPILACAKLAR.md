@@ -5,6 +5,13 @@
 - **Her geliştirme/bug/değişikliğin İngilizcesi de yapılır** (i18n TR+EN),
   onay beklemeden. (Kullanıcı talebi, 2026-08-13.)
 
+## Araştırma özeti (hepsi tek sayfada)
+
+Üç turun birleşik sentezi: **`docs/ARASTIRMA-OZETI.md`** — envanter, yedi bulgu,
+savunma hattı, eksikler, karar tablosu, fiyatlama ilkesi ve nihai konumlandırma.
+Kaynak belgeler: `GELISTIRME-PLANI.md` §2–3, `MYHERITAGE-INCELEME.md`,
+`REKABET-ARASTIRMASI-2.md`.
+
 ## Rekabet araştırması #2 (Eylül 2026) — aday işler
 
 Geniş rekabet taraması: **`docs/REKABET-ARASTIRMASI-2.md`** (3 ajan, ~145 arama).
