@@ -1,19 +1,21 @@
 /**
- * Burç (güneş burcu) — SAF, bağımlılıksız.
+ * Burç (güneş burcu) ve karakteristik özellikleri — SAF, bağımlılıksız.
  *
- * ## Dürüstlük notu: sınır günleri kaymaz değildir
+ * ## Sabit tarih tablosu
  *
- * Burç geçişi bir takvim günü değil, Güneş'in burca girdiği ASTRONOMİK ANdır;
- * yıldan yıla ~1 gün oynar. Sabit bir tablo, geçiş gününde doğan biri için
- * yanlış burç verebilir.
- *
- * Bu yüzden tabloya körü körüne güvenmiyoruz: sınıra 1 gün ya da daha yakın
- * doğumlarda `cusp: true` ve `alternative` döndürülür, arayüz de "sınırda —
- * doğum saatine göre değişebilir" diyebilir. Kesin sonuç doğum saati ve
- * efemeris ister (bkz. yükselen, yapım sırası 66).
+ * Burç tarihleri her yıl AYNIDIR: Koç 21 Mart, Boğa 20 Nisan, ve devamı.
+ * Yaygın burç tabloları böyle yazar, insanlar böyle bilir ve ürün de böyle
+ * davranır. Yıla göre değişen bir sınır ya da "sınırdasın" uyarısı yoktur.
  *
  * Kısmi tarihlerde (`"YYYY"`, `"YYYY-MM"`) null döner: gün bilinmeden burç
  * hesaplanamaz.
+ *
+ * ## Karakteristik özellikler
+ *
+ * `ZODIAC_TRAITS` her BURCUN genel özelliklerini taşır — kişi hakkında bir
+ * iddia değil, burç hakkında bilgi. Bu ayrım önemli: kişinin kaydına hiçbir
+ * şey yazılmaz, dolayısıyla `Source` (kaynak/atıf) disiplini bozulmaz.
+ * Metinler `lib/i18n-dict.ts` içinde TR ve EN olarak durur.
  */
 
 export type ZodiacSign =
@@ -66,10 +68,6 @@ export function elementKey(element: ZodiacElement): string {
 export interface ZodiacResult {
   sign: ZodiacSign;
   element: ZodiacElement;
-  /** Geçiş gününe 1 gün ya da daha yakın: yıla ve saate göre değişebilir. */
-  cusp: boolean;
-  /** Sınırdaysa diğer olasılık; değilse null. */
-  alternative: ZodiacSign | null;
 }
 
 /**
@@ -128,18 +126,39 @@ export function zodiacSign(stored?: string): ZodiacResult | null {
   if (day > daysInMonth(year, month)) return null;
 
   const sign = signOf(month, day);
+  return { sign, element: ELEMENTS[sign] };
+}
 
-  // Komşu günlerde burç değişiyorsa sınırdayız.
-  const dayMs = 86400000;
-  const base = Date.UTC(2001, month - 1, day);
-  const prev = new Date(base - dayMs);
-  const next = new Date(base + dayMs);
-  const prevSign = signOf(prev.getUTCMonth() + 1, prev.getUTCDate());
-  const nextSign = signOf(next.getUTCMonth() + 1, next.getUTCDate());
+/* ------------------------------------------------------- Karakteristikler */
 
-  let alternative: ZodiacSign | null = null;
-  if (prevSign !== sign) alternative = prevSign;
-  else if (nextSign !== sign) alternative = nextSign;
+/**
+ * Her burcun karakteristik özellikleri — i18n anahtarları.
+ *
+ * Bunlar BURÇ hakkında genel bilgidir, kişi hakkında iddia değildir.
+ * Arayüz bunları burcun yanında gösterir; kişinin kaydına yazılmaz ve
+ * dışa aktarımda olgu olarak çıkmaz.
+ */
+export const ZODIAC_TRAITS: Readonly<Record<ZodiacSign, readonly string[]>> = {
+  koc: ["atilgan", "lider", "cesur", "sabirsiz"],
+  boga: ["kararli", "sadik", "sabirli", "inatci"],
+  ikizler: ["merakli", "konuskan", "uyumlu", "degisken"],
+  yengec: ["duygusal", "koruyucu", "aile", "hassas"],
+  aslan: ["cömert", "güvenli", "sicak", "gururlu"],
+  basak: ["titiz", "calıskan", "cozumleyici", "elestirel"],
+  terazi: ["dengeli", "uzlasmaci", "zarif", "kararsiz"],
+  akrep: ["tutkulu", "derin", "kararli", "gizemli"],
+  yay: ["ozgur", "iyimser", "gezgin", "acik"],
+  oglak: ["disiplinli", "sorumlu", "azimli", "temkinli"],
+  kova: ["ozgun", "yenilikci", "bagimsiz", "toplumcu"],
+  balik: ["sezgisel", "sefkatli", "hayalci", "uyumlu"],
+} as const;
 
-  return { sign, element: ELEMENTS[sign], cusp: alternative !== null, alternative };
+/** Özellik i18n anahtarı — `useT()` ile çözülür. */
+export function traitKey(trait: string): string {
+  return `zodiacTrait.${trait}`;
+}
+
+/** Bir burcun özellik anahtarları. */
+export function traitsOf(sign: ZodiacSign): readonly string[] {
+  return ZODIAC_TRAITS[sign];
 }

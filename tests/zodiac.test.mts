@@ -1,10 +1,15 @@
 import {
-  zodiacSign, elementOf, zodiacKey, elementKey, ZODIAC_ORDER,
+  zodiacSign, elementOf, zodiacKey, elementKey, traitKey, traitsOf, ZODIAC_ORDER,
   type ZodiacSign,
 } from "../lib/zodiac.ts";
+import { maskPerson } from "../lib/privacy.ts";
+import type { Person } from "../types/family.ts";
 import { tr, en } from "../lib/i18n-dict.ts";
 
 let ok = 0, fail = 0;
+function check(cond: boolean, msg: string) {
+  if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); }
+}
 function eq<T>(got: T, want: T, msg: string) {
   const g = JSON.stringify(got), w = JSON.stringify(want);
   if (g === w) ok++; else { fail++; console.log(`✗ ${msg}: bekl ${w}, geldi ${g}`); }
@@ -52,43 +57,24 @@ for (const s of ZODIAC_ORDER) counts.set(elementOf(s), (counts.get(elementOf(s))
 eq([...counts.values()].sort(), [3, 3, 3, 3], "her elementte üç burç");
 eq(zodiacSign("2000-04-05")?.element, "ates", "sonuç elementi taşır");
 
-/* --- ASIL DÜRÜSTLÜK: sınır günleri --------------------------------------- */
+/* --- Sabit tarih: sınır günü uyarısı YOK ---------------------------------*/
 
-// Sınırdan uzak günler sınırda İŞARETLENMEMELİ
-for (const [d] of mid) eq(zodiacSign(d)?.cusp, false, `ay ortası sınırda değil: ${d}`);
-for (const [d] of mid) eq(zodiacSign(d)?.alternative, null, `ay ortasında alternatif yok: ${d}`);
+// Burç tarihleri her yıl aynıdır. Yıla göre değişen bir sınır ya da
+// "sınırdasın" uyarısı yok; sonuç yalnız burç ve elementten ibaret.
+eq(Object.keys(zodiacSign("2000-04-20")!).sort(), ["element", "sign"],
+  "sonuçta yalnız sign ve element var (cusp/alternative yok)");
+eq(sign("2000-04-19"), "koc", "19 Nisan Koç");
+eq(sign("2000-04-20"), "boga", "20 Nisan Boğa — sınır kesin");
+eq(sign("2000-04-21"), "boga", "21 Nisan Boğa");
 
-// Geçiş günü ve komşusu sınırda İŞARETLENMELİ
-const r20 = zodiacSign("2000-04-20")!;
-eq(r20.sign, "boga", "20 Nisan Boğa (tabloya göre)");
-eq(r20.cusp, true, "geçiş günü sınırda");
-eq(r20.alternative, "koc", "alternatif önceki burç");
-
-const r19 = zodiacSign("2000-04-19")!;
-eq(r19.sign, "koc", "19 Nisan Koç");
-eq(r19.cusp, true, "geçişin bir gün öncesi de sınırda");
-eq(r19.alternative, "boga", "alternatif sonraki burç");
-
-// Geçişten iki gün uzak artık sınırda değil
-eq(zodiacSign("2000-04-22")?.cusp, false, "geçişten iki gün sonra sınır bitti");
-eq(zodiacSign("2000-04-17")?.cusp, false, "geçişten iki gün önce sınır yok");
-
-// Yıl sınırındaki geçiş de yakalanmalı
-const rOglak = zodiacSign("2000-12-22")!;
-eq(rOglak.sign, "oglak", "22 Aralık Oğlak");
-eq(rOglak.cusp, true, "Yay→Oğlak geçişi sınırda");
-eq(rOglak.alternative, "yay", "alternatif Yay");
-
-// Her burcun bir başlangıç sınırı olmalı — 12 geçiş
-let cuspDays = 0;
-for (let m = 1; m <= 12; m++) {
-  for (let d = 1; d <= 31; d++) {
-    const iso = `2001-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const r = zodiacSign(iso);
-    if (r?.cusp) cuspDays++;
-  }
+// Aynı ay/gün, farklı yıllar → HEP aynı burç
+const yillar = [1900, 1950, 1999, 2000, 2001, 2004, 2023, 2024, 2100];
+for (const [ay, gun, bekl] of [["03", "21", "koc"], ["04", "20", "boga"],
+                                ["12", "22", "oglak"], ["01", "20", "kova"]] as const) {
+  const hepsi = yillar.map((y) => sign(`${y}-${ay}-${gun}`));
+  eq(new Set(hepsi).size, 1, `${ay}-${gun} tüm yıllarda aynı burç`);
+  eq(hepsi[0], bekl, `${ay}-${gun} → ${bekl}`);
 }
-eq(cuspDays, 24, "12 geçişin her biri iki günü sınırda yapar");
 
 /* --- Tüm yıl kapsanmalı --------------------------------------------------- */
 
@@ -131,6 +117,48 @@ eq(zodiacSign("2023-06-31"), null, "31 Haziran → null");
 eq(zodiacSign("2023-09-31"), null, "31 Eylül → null");
 eq(zodiacSign("2023-11-31"), null, "31 Kasım → null");
 eq(sign("2023-01-31"), "kova", "31 Ocak geçerli");
+
+/* --- Karakteristik özellikler ------------------------------------------- */
+
+// Bunlar BURÇ hakkında bilgidir, kişi hakkında iddia değildir.
+for (const sg of ZODIAC_ORDER) {
+  const traits = traitsOf(sg);
+  check(traits.length >= 3, `${sg} en az üç özellik taşıyor (${traits.length})`);
+  eq(new Set(traits).size, traits.length, `${sg} özellikleri benzersiz`);
+}
+
+// Her özelliğin TR ve EN karşılığı olmalı
+let traitMiss = 0;
+for (const sg of ZODIAC_ORDER) {
+  for (const t of traitsOf(sg)) {
+    if (!(traitKey(t) in tr)) { traitMiss++; console.log(`  ✗ TR eksik: ${traitKey(t)}`); }
+    if (!(traitKey(t) in en)) { traitMiss++; console.log(`  ✗ EN eksik: ${traitKey(t)}`); }
+  }
+}
+eq(traitMiss, 0, "tüm özelliklerin TR ve EN karşılığı var");
+
+eq(traitKey("atilgan"), "zodiacTrait.atilgan", "özellik anahtarı");
+check(traitsOf("koc").includes("atilgan"), "Koç atılgan");
+check(traitsOf("boga").includes("inatci"), "Boğa inatçı");
+
+// Etiket anahtarları da yerinde
+check("zodiac.label" in tr && "zodiac.label" in en, "burç etiketi TR+EN");
+check("zodiac.traits" in tr && "zodiac.traits" in en, "özellikler başlığı TR+EN");
+check("zodiac.traitsNote" in tr && "zodiac.traitsNote" in en, "uyarı notu TR+EN");
+
+// Sınır uyarısı anahtarı KALDIRILDI — sabit tarih modelinde anlamsız
+check(!("zodiac.cusp" in tr) && !("zodiac.cusp" in en), "cusp anahtarı sözlükten kaldırıldı");
+
+/* --- Gizlilik: maskeli kişide burç görünmemeli -------------------------- */
+
+// Burç, doğum tarihinin ~1 aylık aralığını ele verir. Maskeli kişide
+// birthDate taşınmadığından burç kendiliğinden boş kalmalı.
+const gizli = maskPerson({
+  id: "g", firstName: "A", lastName: "B", gender: "male",
+  parentIds: [], spouseIds: [], birthDate: "1990-04-05",
+} as unknown as Person);
+eq(gizli.birthDate, undefined, "maskeli kişide doğum tarihi yok");
+eq(zodiacSign(gizli.birthDate), null, "maskeli kişide burç hesaplanmıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
