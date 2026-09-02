@@ -5,6 +5,7 @@ import type { Person } from "@/types/family";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import HistoryDialog from "./HistoryDialog";
+import VoiceDialog from "./VoiceDialog";
 import { usePrivacy } from "./PrivacyContext";
 import { findIssues } from "@/lib/consistency";
 import { indexPeople } from "@/lib/relations";
@@ -50,6 +51,7 @@ export default function PeopleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   // Tutarlılık uyarıları — olası veri hataları (İstatistikler'den taşındı, #2).
   const idx = useMemo(() => indexPeople(people), [people]);
@@ -86,6 +88,16 @@ export default function PeopleDialog({
             {editable && (
               <Button variant="secondary" size="sm" onClick={() => setHistoryOpen(true)}>
                 {t("history.button")}
+              </Button>
+            )}
+            {/*
+              Sesli Şecere de bir veri GİRİŞ yolu — GEDCOM içe aktarmanın
+              yanına düşmesi doğru. Kişi yoksa gizli: konuşulacak bir kişi
+              seçilemeden akış başlamıyor.
+            */}
+            {editable && peopleCount > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => setVoiceOpen(true)}>
+                {t("voice.open")}
               </Button>
             )}
           </div>
@@ -173,6 +185,14 @@ export default function PeopleDialog({
 
         {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
       </div>
+
+      {voiceOpen && (
+        <VoiceDialog
+          people={people}
+          onClose={() => setVoiceOpen(false)}
+          onSaved={() => { setVoiceOpen(false); onRestored(); }}
+        />
+      )}
 
       {historyOpen && (
         <HistoryDialog

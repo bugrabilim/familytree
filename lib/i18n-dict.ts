@@ -1750,6 +1750,37 @@ export const tr: Dict = {
   "bond.type.icice-catismali.desc": "Hem ayrılamayan hem geçinemeyen.",
   "bond.type.kopuk": "Kopuk",
   "bond.type.kopuk.desc": "İlişki tamamen kesilmiş.",
+
+  /* --- Sesli Şecere --- */
+  "voice.title": "Sesli Şecere",
+  "voice.subtitle":
+    "Yaşlı bir akrabaya sorun, anlatsın. Kayıt yazıya dökülür; çıkan bilgiler siz onaylamadan ağaca girmez.",
+  "voice.subject": "Kim anlatılıyor?",
+  "voice.question": "Soru",
+  "voice.recordHint": "Soruyu sesli sorun ve yanıtı kaydedin. Kayıt hem saklanır hem yazıya dökülür.",
+  "voice.transcribing": "Kayıt çözülüyor… Bu biraz sürebilir.",
+  "voice.transcript": "Anlatı",
+  "voice.facts": "Çıkan bilgiler",
+  "voice.factsHint":
+    "Her bilginin altında alındığı cümle var. Yalnız işaretlediğiniz kaydedilir.",
+  "voice.overwrites": "Kayıtta şu an: {old}",
+  "voice.mentioned": "Anlatıda geçen kişiler",
+  "voice.mentionedHint":
+    "Bunlar yalnız bilgi olarak listeleniyor. Kişiyi ve bağını ağaca siz eklersiniz.",
+  "voice.save": "Anlatıyı kaydet",
+  "voice.again": "Yeniden kaydet",
+  "voice.savesTo": "{name} kaydına eklenecek",
+  "voice.failed": "Kayıt işlenemedi.",
+  "voice.open": "Sesli Şecere",
+  "voice.field.birthDate": "Doğum tarihi",
+  "voice.field.deathDate": "Ölüm tarihi",
+  "voice.field.birthPlace": "Doğum yeri",
+  "voice.field.occupation": "Meslek",
+  "voice.field.education": "Eğitim",
+  "voice.field.nickname": "Lakap",
+  "voice.field.patronymic": "Baba adına göre anılma",
+  "voice.field.lineage": "Sülale",
+  "voice.field.bio": "Hayat hikâyesi",
 };
 
 /* İngilizce — eklenti dil. Anahtarlar `tr` ile birebir aynı olmalı. */
@@ -3487,6 +3518,36 @@ export const en: Dict = {
   "bond.type.icice-catismali.desc": "Can neither separate nor get along.",
   "bond.type.kopuk": "Cut off",
   "bond.type.kopuk.desc": "The relationship is entirely severed.",
+
+  /* --- Voice genealogy --- */
+  "voice.title": "Voice genealogy",
+  "voice.subtitle":
+    "Ask an elder relative and let them talk. The recording is transcribed; nothing enters the tree until you approve it.",
+  "voice.subject": "Who is this about?",
+  "voice.question": "Question",
+  "voice.recordHint": "Ask the question out loud and record the answer. The recording is kept and transcribed.",
+  "voice.transcribing": "Transcribing… this can take a moment.",
+  "voice.transcript": "Account",
+  "voice.facts": "Extracted facts",
+  "voice.factsHint": "Each fact shows the sentence it came from. Only what you tick is saved.",
+  "voice.overwrites": "Currently recorded: {old}",
+  "voice.mentioned": "People mentioned",
+  "voice.mentionedHint":
+    "Listed for information only. You add the person and their link to the tree yourself.",
+  "voice.save": "Save the account",
+  "voice.again": "Record again",
+  "voice.savesTo": "Will be added to {name}",
+  "voice.failed": "The recording could not be processed.",
+  "voice.open": "Voice genealogy",
+  "voice.field.birthDate": "Date of birth",
+  "voice.field.deathDate": "Date of death",
+  "voice.field.birthPlace": "Place of birth",
+  "voice.field.occupation": "Occupation",
+  "voice.field.education": "Education",
+  "voice.field.nickname": "Nickname",
+  "voice.field.patronymic": "Patronymic",
+  "voice.field.lineage": "Lineage",
+  "voice.field.bio": "Life story",
 };
 
 export const DICTS: Record<Lang, Dict> = { tr, en };
