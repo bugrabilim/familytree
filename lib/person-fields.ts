@@ -107,6 +107,7 @@ export const PERSON_FIELDS: readonly FieldSpec[] = [
   F("memories", "array", {}, "memories"),
   F("associations", "array", {}),
   F("kind", "text", {}),
+  F("publicVisibility", "text", { drawer: false }),
   F("confidential", "bool", {}),
   F("privateFields", "array", { drawer: false }),
   F("siblingOrder", "text", { form: false }),
