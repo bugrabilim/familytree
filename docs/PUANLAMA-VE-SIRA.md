@@ -1,5 +1,11 @@
 # Puanlama ve Yapım Sırası
 
+> ⚠️ **Bu belgedeki SIRA geçersizdir.** Sıranın tek kaynağı: **`docs/YAPIM-SIRASI.md`**
+> (60 iş, 1'den 60'a, bozma riskine göre). Burada yalnız *puanlama gerekçesi* durur.
+> Sebep: puan bir işin **değerini** ölçüyor, sıralama ise **riski** ile kurulmalı —
+> ve bu tablonun kapsamı (21 yeni özellik) sıralamanın kapsamı değil (60 iş: teknik
+> borç, göç fazları, elle testler ve mobil dâhil).
+
 > Karar: **hepsi yapılacak.** Bu yüzden puan bir *eleme* aracı değil, **sıra**
 > aracıdır. Amaç en iyi işi seçmek değil, doğru sırayla yapmak.
 >

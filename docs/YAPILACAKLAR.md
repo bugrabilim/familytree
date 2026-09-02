@@ -12,6 +12,24 @@ savunma hattı, eksikler, karar tablosu, fiyatlama ilkesi ve nihai konumlandırm
 Kaynak belgeler: `GELISTIRME-PLANI.md` §2–3, `MYHERITAGE-INCELEME.md`,
 `REKABET-ARASTIRMASI-2.md`.
 
+## SIRA — `docs/YAPIM-SIRASI.md` (tek kaynak)
+
+**60 iş, 1'den 60'a, beraberlik yok.** Sıralama ekseni puan değil **bozma riski**:
+A) hiç kod yok → B) izole saf lib → C) yeni rota/bileşen → D) `Person` alanı ekleme
+→ E) çekirdek (kimlik, depolama, senkron). Kendi değerlendirmem + bağımsız bir ajanın
+kod okuyarak yaptığı ikinci değerlendirme birleştirildi.
+
+### Düzeltmeler (bu belge yanlıştı)
+
+- **GEDCOM medya (`OBJE`) eşlemesi ZATEN YAPILMIŞ** — `lib/gedcom.ts:159-166`,
+  `tests/gedcom-media.test.mts`. Aşağıdaki "sonraki fikir" notu geçersiz.
+- **Mobil uygulama "yalnız login/register" DEĞİL** — Aşama 0–8 bitmiş
+  (liste, profil, ekle/düzenle, ağaç, harita, kitap, AI, paylaşım).
+  Kalan yalnız **Aşama 9**: mağaza derlemesi + push.
+- **"Bağlantısız kişi ekleme" büyük ölçüde var** — `PersonForm`'daki "Aile bağları"
+  bölümü mevcut kişide ebeveyn/eş değiştiriyor. Kalan eksik yalnız **tuval üstü**
+  sürükle/iki-tık ebeveyn değiştirme.
+
 ## Karar — hepsi yapılacak, sıra belli (2026-09-02)
 
 **Hedef önceliği (kullanıcı):** 1) kendimizi tatmin etmek, 2) kullanıcıya değer,
