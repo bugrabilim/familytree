@@ -232,5 +232,38 @@ const fullMask = JSON.stringify(maskPerson(base()));
 check(!fullMask.includes("GIZLI"), "tam maskede hassas değer izi yok");
 check(!fullMask.includes("39.8878"), "tam maskede koordinat yok");
 
+/* --- H8: maskeli kopya ham veriyle dizi PAYLAŞMAMALI --------------------- */
+
+// "Buradaki hiçbir şey veriyi değiştirmez" sözü, kopyaya değiştirilebilir bir
+// EL vermemeyi de kapsar: sığ taşımada kopyaya push yapan ham veriyi bozuyordu.
+const shared = {
+  id: "s1", firstName: "A", lastName: "B", gender: "male",
+  parentIds: ["anne"], spouseIds: ["es"], formerSpouseIds: ["eski"],
+  parentLinks: { anne: { kind: "biological" } },
+} as unknown as Person;
+
+const copy = maskPerson(shared);
+check(copy.parentIds !== shared.parentIds, "parentIds ayrı dizi");
+check(copy.spouseIds !== shared.spouseIds, "spouseIds ayrı dizi");
+check(copy.formerSpouseIds !== shared.formerSpouseIds, "formerSpouseIds ayrı dizi");
+check(copy.parentLinks !== shared.parentLinks, "parentLinks ayrı nesne");
+
+// İçerik korunmalı — kopyalama bağları bozmamalı
+eq(copy.parentIds, ["anne"], "içerik aynı");
+eq(copy.spouseIds, ["es"], "eş bağı aynı");
+eq(Object.keys(copy.parentLinks ?? {}), ["anne"], "parentLinks içeriği aynı");
+
+// Kopyayı değiştirmek ham veriyi BOZMAMALI
+copy.parentIds.push("SIZDI");
+copy.spouseIds.push("SIZDI");
+(copy.formerSpouseIds ?? []).push("SIZDI");
+eq(shared.parentIds, ["anne"], "ham parentIds bozulmadı");
+eq(shared.spouseIds, ["es"], "ham spouseIds bozulmadı");
+eq(shared.formerSpouseIds, ["eski"], "ham formerSpouseIds bozulmadı");
+
+// viewPerson üzerinden de aynı garanti
+const viewed = viewPerson(shared, true);
+check(viewed.parentIds !== shared.parentIds, "viewPerson maskeleyince de ayrı dizi");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

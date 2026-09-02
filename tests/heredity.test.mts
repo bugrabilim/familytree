@@ -148,5 +148,60 @@ eq(
   "sıralama kararlı"
 );
 
+/* --- H6: akraba evliliğinde ÜSTEL olmamalı ------------------------------ */
+
+// Yolların birleştiği yapı (her kuşakta iki kişi, çocuklar ikisinin de
+// çocuğu) önceki sürümde üstel davranıyordu: 22 kuşak = 44 kişi 1,6 saniye.
+// Türkiye bağlamında akraba evliliği yaygın, yani bu gerçekçi bir yük.
+function birlesenZincir(kusak: number): Person[] {
+  const out: Person[] = [P("a0", { congenitalCondition: "X" }), P("b0", { congenitalCondition: "X" })];
+  for (let k = 1; k < kusak; k++) {
+    out.push(
+      P(`a${k}`, { parentIds: [`a${k - 1}`, `b${k - 1}`], congenitalCondition: "X" }),
+      P(`b${k}`, { parentIds: [`a${k - 1}`, `b${k - 1}`], congenitalCondition: "X" })
+    );
+  }
+  return out;
+}
+const t0 = Date.now();
+const birlesen = traceCondition("x", birlesenZincir(24));
+const birlesenMs = Date.now() - t0;
+check(birlesenMs < 500, `24 kuşak birleşen zincir hızlı (${birlesenMs} ms)`);
+eq(birlesen.affected.length, 48, "48 kişi etkilenmiş");
+eq(birlesen.generationsSpanned, 24, "24 kuşağa yayılmış");
+
+// Derin düz zincir: yığın taşmamalı (önceki özyinelemeli sürüm ~8000'de çöküyordu)
+function duzZincir(n: number): Person[] {
+  const out: Person[] = [P("p0", { congenitalCondition: "X" })];
+  for (let i = 1; i < n; i++) out.push(P(`p${i}`, { parentIds: [`p${i - 1}`], congenitalCondition: "X" }));
+  return out;
+}
+let derinOk = false;
+let derinMs = 0;
+try {
+  const t1 = Date.now();
+  const derin = traceCondition("x", duzZincir(10000));
+  derinMs = Date.now() - t1;
+  derinOk = derin.generationsSpanned === 10000;
+} catch { derinOk = false; }
+check(derinOk, `10.000 derinlikte yığın taşmıyor ve zincir doğru (${derinMs} ms)`);
+
+// Zincir uzunluğu doğrusal ölçeklenmeli, üstel değil
+const olc = (k: number) => { const t = Date.now(); traceCondition("x", birlesenZincir(k)); return Date.now() - t; };
+const kucuk = Math.max(olc(16), 1);
+const buyuk = Math.max(olc(24), 1);
+check(buyuk < kucuk * 20, `16→24 kuşak arası büyüme üstel değil (${kucuk}ms → ${buyuk}ms)`);
+
+/* --- Döngü: üst sınır bildirilir, çökmez -------------------------------- */
+
+const halka: Person[] = [
+  P("c1", { parentIds: ["c3"], congenitalCondition: "X" }),
+  P("c2", { parentIds: ["c1"], congenitalCondition: "X" }),
+  P("c3", { parentIds: ["c2"], congenitalCondition: "X" }),
+];
+const h = traceCondition("x", halka);
+eq(h.affected.length, 3, "döngüde de kişiler bulunur");
+eq(h.generationsSpanned, 3, "döngüde üst sınır düğüm sayısı");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

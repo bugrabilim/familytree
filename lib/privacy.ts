@@ -78,8 +78,8 @@ export function maskPerson(p: Person): Person {
     firstName: p.firstName,
     lastName: p.lastName,
     gender: p.gender,
-    parentIds: p.parentIds,
-    spouseIds: p.spouseIds,
+    parentIds: [...p.parentIds],
+    spouseIds: [...p.spouseIds],
   };
 
   // Ada ait, hassas olmayan gösterim alanları
@@ -95,9 +95,13 @@ export function maskPerson(p: Person): Person {
   // BİLEREK aktarılmaz — gizli kişinin yakın-çevre bağları sızmasın.
   if (p.kind !== undefined) masked.kind = p.kind;
 
-  // İlişki yapısı — ağaç bozulmasın
-  if (p.parentLinks !== undefined) masked.parentLinks = p.parentLinks;
-  if (p.formerSpouseIds !== undefined) masked.formerSpouseIds = p.formerSpouseIds;
+  // İlişki yapısı — ağaç bozulmasın.
+  //
+  // Diziler KOPYALANIR: sığ taşımada maskeli kopya ile ham kayıt aynı diziyi
+  // paylaşıyordu, yani "görüntü katmanı veriyi değiştirmez" sözü tutulmuyordu —
+  // kopyaya `push` yapan ham veriyi bozuyordu.
+  if (p.parentLinks !== undefined) masked.parentLinks = { ...p.parentLinks };
+  if (p.formerSpouseIds !== undefined) masked.formerSpouseIds = [...p.formerSpouseIds];
 
   return masked;
 }
