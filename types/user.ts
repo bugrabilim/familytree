@@ -68,6 +68,13 @@ export interface ShareLink {
   treeName: string;
   /** Yaşayanların özel bilgileri gizlensin mi? (varsayılan: evet). */
   hideLiving: boolean;
+  /**
+   * Doluysa bağlantı TEK KİŞİYE daralır: `/g/<jeton>` ağacı değil, o kişinin
+   * anma sayfasını açar. Mezar taşına basılan QR için — taş herkesin
+   * görebileceği bir yerdedir, dolayısıyla jetonu tarayan biri tüm ağacı değil
+   * yalnız o kişiyi görmelidir.
+   */
+  personId?: string;
   createdAt: string;
   /** Kullanıcı etiketi (ör. "WhatsApp grubu"). */
   label?: string;

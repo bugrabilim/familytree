@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { auth } from "@/auth";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { getFamilyData } from "@/lib/blob";
 import { canManage } from "@/lib/roles";
 import { listTrees } from "@/lib/trees";
 import {
@@ -42,6 +43,25 @@ async function guard() {
   return { treeId: ctx.treeId, treeName };
 }
 
+/**
+ * Tek kişilik paylaşımın kişisi GERÇEKTEN bu ağaçta mı?
+ *
+ * Doğrulanmazsa başka bir ağacın kişi kimliği kaydedilebilir; bağlantı ya
+ * boş açılır ya da — asıl tehlike — ileride kimlikler çakışırsa yanlış kişiyi
+ * gösterir. Kimlik ağaç içinde çözüldüğü için kontrol burada yapılır.
+ */
+const INVALID = Symbol("gecersiz-kisi");
+
+async function resolvePersonId(
+  treeId: string,
+  raw?: string
+): Promise<string | undefined | typeof INVALID> {
+  const id = raw?.trim();
+  if (!id) return undefined;
+  const { people } = await getFamilyData(treeId);
+  return people.some((p) => p.id === id) ? id : INVALID;
+}
+
 async function decorate(origin: string, share: ShareLink) {
   const url = `${origin}/g/${encodeURIComponent(share.token)}`;
   let qr = "";
@@ -57,6 +77,7 @@ async function decorate(origin: string, share: ShareLink) {
     token: share.token,
     label: share.label ?? "",
     hideLiving: share.hideLiving,
+    personId: share.personId ?? null,
     createdAt: share.createdAt,
     expiresAt: share.expiresAt ?? null,
     expired,
@@ -90,13 +111,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  let body: { hideLiving?: boolean; label?: string; expiresDays?: number } = {};
+  let body: { hideLiving?: boolean; label?: string; expiresDays?: number; personId?: string } = {};
   try { body = await req.json(); } catch { /* varsayılanlar */ }
+  const personId = await resolvePersonId(g.treeId, body.personId);
+  if (personId === INVALID)
+    return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 400 });
   try {
     const { shares } = await createShare(g.treeId, g.treeName, {
       hideLiving: body.hideLiving ?? true,
       label: body.label,
       expiresDays: body.expiresDays,
+      personId,
     });
     return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));
   } catch (e) {
@@ -113,14 +138,23 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  let body: { id?: string; hideLiving?: boolean; label?: string; expiresDays?: number } = {};
+  let body: {
+    id?: string; hideLiving?: boolean; label?: string; expiresDays?: number;
+    personId?: string | null;
+  } = {};
   try { body = await req.json(); } catch { /* boş */ }
   if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
+  // `null` bilerek gönderilir (daraltmayı kaldır) — doğrulamadan geçmemeli.
+  const personId =
+    body.personId === null ? null : await resolvePersonId(g.treeId, body.personId);
+  if (personId === INVALID)
+    return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 400 });
   try {
     const shares = await updateShare(g.treeId, body.id, {
       hideLiving: body.hideLiving,
       label: body.label,
       expiresDays: body.expiresDays,
+      personId: personId ?? undefined,
     });
     if (!shares) return NextResponse.json({ error: "Bağlantı bulunamadı" }, { status: 404 });
     return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));
