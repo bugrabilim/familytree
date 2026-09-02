@@ -2,7 +2,9 @@ import { headers } from "next/headers";
 import { getFamilyData } from "@/lib/blob";
 import { findValidShare, recordShareVisit } from "@/lib/members";
 import { viewAll } from "@/lib/privacy";
+import { getParents, getSpouses, getChildren, indexPeople } from "@/lib/relations";
 import Workspace from "@/app/tree/Workspace";
+import MemorialPage from "@/components/MemorialPage";
 import Invalid from "./Invalid";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +58,31 @@ export default async function SharePage({
    * İstemci tarafı aynı `viewPerson`'ı yeniden uygular (idempotent).
    */
   const safePeople = viewAll(people, valid.share.hideLiving);
+
+  /*
+   * Tek kişilik paylaşım (mezar QR'ı): jeton bir kişiye daraltılmışsa ağaç
+   * DEĞİL, o kişinin anma sayfası açılır — ve gezinilecek başka bir yer
+   * sunulmaz. Taş herkesin görebileceği bir yerdedir; tarayan kişiye tüm soy
+   * ağacını açmak paylaşımın ölçüsünü kaçırır.
+   *
+   * Yakınlar da maskeli listeden (`safePeople`) okunur, ham veriden değil.
+   * Kişi silinmişse bağlantı geçersiz sayılır: boş bir sayfa göstermektense
+   * "bu bağlantı artık geçerli değil" demek doğru.
+   */
+  if (valid.share.personId) {
+    const person = safePeople.find((p) => p.id === valid.share.personId);
+    if (!person) return <Invalid />;
+    const idx = indexPeople(safePeople);
+    return (
+      <MemorialPage
+        person={person}
+        parents={getParents(person, idx)}
+        spouses={getSpouses(person, idx)}
+        kids={getChildren(person, safePeople)}
+        treeName={valid.share.treeName}
+      />
+    );
+  }
 
   return (
     <Workspace

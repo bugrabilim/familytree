@@ -238,7 +238,7 @@ export async function listShares(treeId: string): Promise<ShareLink[]> {
 export async function createShare(
   treeId: string,
   treeName: string,
-  opts: { hideLiving: boolean; label?: string; expiresDays?: number | null }
+  opts: { hideLiving: boolean; label?: string; expiresDays?: number | null; personId?: string }
 ): Promise<{ share: ShareLink; shares: ShareLink[] }> {
   const secret = randomBytes(18).toString("base64url");
   const share: ShareLink = {
@@ -249,6 +249,7 @@ export async function createShare(
     createdAt: new Date().toISOString(),
     label: opts.label?.trim() || undefined,
     expiresAt: daysToExpiry(opts.expiresDays),
+    personId: opts.personId || undefined,
     views: 0,
     visits: [],
   };
@@ -269,7 +270,7 @@ export async function createShare(
 export async function updateShare(
   treeId: string,
   id: string,
-  opts: { hideLiving?: boolean; label?: string; expiresDays?: number | null }
+  opts: { hideLiving?: boolean; label?: string; expiresDays?: number | null; personId?: string | null }
 ): Promise<ShareLink[] | null> {
   const data = await getTreeAccess(treeId, { strict: true });
   const shares = normalizeShares(data);
@@ -278,6 +279,8 @@ export async function updateShare(
   if (opts.hideLiving !== undefined) s.hideLiving = opts.hideLiving;
   if (opts.label !== undefined) s.label = opts.label.trim() || undefined;
   if (opts.expiresDays !== undefined) s.expiresAt = daysToExpiry(opts.expiresDays);
+  // `null` → daraltmayı kaldır (ağacın tümüne dön); "" de aynı anlama gelir.
+  if (opts.personId !== undefined) s.personId = opts.personId || undefined;
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);
