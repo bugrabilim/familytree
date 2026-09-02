@@ -22,24 +22,71 @@ function yearsLived(birth?: string, death?: string): number | null {
  * beslenir. Yalnız `Person` tür'ü + `lib/date`/`lib/relations` (saf) kullanır.
  */
 
-/** Kişinin kuşağı: en uzun ata zincirinin uzunluğu (köksüz = 1). */
+/**
+ * Kişinin kuşağı.
+ *
+ * Temel kural: kuşak = en uzun BİLİNEN ata zincirinin uzunluğu (kökte 1).
+ *
+ * Ama tek başına bu kural yanlış cevap veriyordu. Ebeveyni kayıtlı olmayan
+ * HERKES 1. kuşak sayılıyordu — 1521'de yaşamış kurucu da, 1721'de o aileye
+ * gelin gelmiş biri de. Demo ağacında 370 kişinin 140'ı böyle "1. kuşak"
+ * çıkıyordu; kitabın "1. KUŞAK" bölümü de, haritanın kuşak süzgeci de bunu
+ * olduğu gibi gösteriyordu.
+ *
+ * Bu yüzden ebeveyni kayıtlı olmayan kişi AİLE BAĞLAMINDAN yerleştirilir:
+ * · eşiyle aynı kuşaktadır,
+ * · çocuğundan bir önceki kuşaktadır.
+ *
+ * Ebeveyni BİLİNEN kişilere bu iki kural uygulanmaz: kendi soyu onu zaten
+ * bağlar. Eşler gerçekten farklı derinlikten olabilir (kuşak farkı gerçek bir
+ * şeydir); birini diğerine çekmek, onu kendi anne-babasından koparırdı.
+ *
+ * Gevşetme (relaxation) ile sabit noktaya kadar yinelenir. Değerler yalnız
+ * ARTAR, dolayısıyla döngü sonlanır; ata grafiğinde çevrim varsa (bozuk veri —
+ * `lib/refcheck.ts`in işi) tur sayısı kişi sayısıyla sınırlıdır.
+ */
 export function computeGenerations(people: Person[]): Map<string, number> {
-  const idx = new Map(people.map((p) => [p.id, p]));
-  const cache = new Map<string, number>();
-  const depth = (p: Person, seen: Set<string>): number => {
-    const hit = cache.get(p.id);
-    if (hit !== undefined) return hit;
-    if (seen.has(p.id)) return 1;
-    seen.add(p.id);
-    const parents = p.parentIds.map((id) => idx.get(id)).filter((x): x is Person => !!x);
-    const d = parents.length === 0 ? 1 : 1 + Math.max(...parents.map((pa) => depth(pa, seen)));
-    seen.delete(p.id);
-    cache.set(p.id, d);
-    return d;
-  };
-  const m = new Map<string, number>();
-  for (const p of people) m.set(p.id, depth(p, new Set()));
-  return m;
+  const childrenOf = new Map<string, string[]>();
+  const known = new Set(people.map((p) => p.id));
+  for (const p of people) {
+    for (const pid of p.parentIds) {
+      if (!known.has(pid)) continue;
+      const list = childrenOf.get(pid);
+      if (list) list.push(p.id);
+      else childrenOf.set(pid, [p.id]);
+    }
+  }
+
+  const gen = new Map<string, number>(people.map((p) => [p.id, 1]));
+  // Ebeveyni "kayıtlı olmayan": id'si listede bulunan bir ebeveyni yok.
+  // Sarkan bir ebeveyn kimliği (silinmiş kişi) bağlam sayılmaz.
+  const rootless = people.filter((p) => !p.parentIds.some((id) => known.has(id)));
+
+  for (let pass = 0; pass < people.length; pass++) {
+    let changed = false;
+    for (const p of people) {
+      let g = gen.get(p.id) ?? 1;
+      for (const pid of p.parentIds) {
+        const pg = gen.get(pid);
+        if (pg !== undefined) g = Math.max(g, pg + 1);
+      }
+      if (g !== (gen.get(p.id) ?? 1)) { gen.set(p.id, g); changed = true; }
+    }
+    for (const p of rootless) {
+      let g = gen.get(p.id) ?? 1;
+      for (const sid of p.spouseIds) {
+        const sg = gen.get(sid);
+        if (sg !== undefined) g = Math.max(g, sg);
+      }
+      for (const cid of childrenOf.get(p.id) ?? []) {
+        const cg = gen.get(cid);
+        if (cg !== undefined) g = Math.max(g, cg - 1);
+      }
+      if (g !== (gen.get(p.id) ?? 1)) { gen.set(p.id, g); changed = true; }
+    }
+    if (!changed) break;
+  }
+  return gen;
 }
 
 /** Yaş sıralamalı listelerde bir satır (kimlik + yaş + yaşıyor mu). */

@@ -57,7 +57,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 | 16 | Genel rota izin listesini merkezîleştir | C | `proxy.ts` elle yazılmış `if`; 17, 24, 36, 45 buraya dört yeni yüzey ekleyecek | ✅
 | 17 | Mezar QR sayfası | C | `/g/<token>` kalıbının tek kişiye daraltılmışı | ✅
 | 18 | Kitapta sesi çalan QR | C | `qrcode` + `Memory.audio` hazır | ✅
-| 19 | Haritaya zaman kaydırıcısı + kuşak filtresi | C | tek dosya, salt görüntü durumu |
+| 19 | Haritaya zaman kaydırıcısı + kuşak filtresi | C | tek dosya, salt görüntü durumu | ✅
 | 20 | Göç yolu katmanı | C | kullanıcı metni + `birthCoords`/`burialCoords` ile; 43 sonradan zenginleştirir |
 | 21 | GEDCOM 7 + GEDZIP | C | 5.5.1 varsayılan **kalır** → mevcut yol hiç değişmez |
 | 22 | Araştırma görev yöneticisi | C | `consistency.ts` + `RecordHints` zaten iş üretiyor |
