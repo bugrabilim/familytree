@@ -29,6 +29,7 @@ import FanChart from "@/components/FanChart";
 import TimelineView from "@/components/TimelineView";
 import Modal from "@/components/ui/Modal";
 import CalendarView from "@/components/CalendarView";
+import RecipesView from "@/components/RecipesView";
 import Avatar from "@/components/ui/Avatar";
 import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
@@ -633,6 +634,10 @@ function WorkspaceInner({
           />
         ) : view === "takvim" ? (
           <CalendarView people={people} onSelect={setSelectedId} />
+        ) : view === "tarifler" ? (
+          // Tarifler ağacın verisinden DEĞİL kendi ucundan okur; `people`
+          // yalnız "kimden geldi" seçicisi ve rozet için geçilir.
+          <RecipesView people={people} onSelect={setSelectedId} />
         ) : (
           <PanelView
             people={people}
