@@ -47,7 +47,13 @@ const PRIVATE_GROUP_FIELDS: Record<string, Array<keyof Person>> = {
   photo: ["photo", "photos", "videos", "documents"],
   orientation: ["orientation"],
   memories: ["memories"],
-  birthPlace: ["birthPlace"],
+  // Koordinat, metnin YÜKSEK ÇÖZÜNÜRLÜKLÜ hâlidir: yer adını gizleyip
+  // koordinatı bırakmak gizlemek değildir (bu hata gerçekten oldu).
+  birthPlace: ["birthPlace", "birthCoords"],
+  burialPlace: ["burialPlace", "burialCoords"],
+  // KVKK md. 6 — din, mezhep, ırk ve etnik köken özel nitelikli kişisel veri.
+  belief: ["religion", "denomination"],
+  origin: ["ethnicity", "nationality", "language"],
   events: ["events"],
 };
 

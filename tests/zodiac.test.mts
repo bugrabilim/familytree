@@ -5,9 +5,6 @@ import {
 import { tr, en } from "../lib/i18n-dict.ts";
 
 let ok = 0, fail = 0;
-function check(cond: boolean, msg: string) {
-  if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); }
-}
 function eq<T>(got: T, want: T, msg: string) {
   const g = JSON.stringify(got), w = JSON.stringify(want);
   if (g === w) ok++; else { fail++; console.log(`✗ ${msg}: bekl ${w}, geldi ${g}`); }
