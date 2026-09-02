@@ -8,6 +8,7 @@ import Avatar from "./ui/Avatar";
 import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { aggregatePlaces, gazetteerExact, resolvePlace, googleMapsUrl } from "@/lib/places";
+import { aggregateSurnames, surnamesByPlace } from "@/lib/surnames";
 import { geocodeNominatim } from "@/lib/geocode";
 import { useT } from "@/lib/i18n";
 
@@ -85,12 +86,34 @@ export default function PlacesMap({ people, onSelect }: Props) {
     });
   }, [people, a0, a1, yearBounds]);
 
-  // GİZLİLİK: kişileri görüntü katmanından geçir; maskeli (gizli yaşayan)
-  // kişide `birthPlace` bulunmadığından doğum yeri sızmaz.
-  const baseAgg = useMemo(
-    () => aggregatePlaces(eraFiltered.map((p) => priv(p))),
-    [eraFiltered, priv]
+  // GİZLİLİK: kişileri görüntü katmanından BİR KEZ geçir; maskeli (gizli
+  // yaşayan) kişide `birthPlace` bulunmadığından doğum yeri sızmaz. Aşağıdaki
+  // her katman bu listeden türer — ham `people` bir daha okunmaz.
+  const viewed = useMemo(() => eraFiltered.map((p) => priv(p)), [eraFiltered, priv]);
+
+  // Soyadı yaygınlık katmanı: bir soyadı seçilince harita o soyadı taşıyanlara
+  // daralır — "bu ad nerede yoğunlaşmış" sorusu ancak böyle görülür. Eşleştirme
+  // `aggregateSurnames`in `personIds`i üzerinden yapılır; yazım katlama kuralı
+  // (İ/ı, ğ, ş…) böylece tek yerde, `lib/surnames.ts`te kalır.
+  const surnameStats = useMemo(() => aggregateSurnames(viewed), [viewed]);
+  const [surnameKey, setSurnameKey] = useState<string | null>(null);
+  // Seçili soyadı listeden düşerse (kayıt silindi, dönem süzgeci daraldı)
+  // TÜRETME kendiliğinden "tümü"ne döner — durumu efektle temizlemeye gerek yok.
+  const activeSurname = useMemo(
+    () => surnameStats.surnames.find((s) => s.key === surnameKey) ?? null,
+    [surnameStats, surnameKey]
   );
+  const surnameIds = useMemo(
+    () => (activeSurname ? new Set(activeSurname.personIds) : null),
+    [activeSurname]
+  );
+
+  const scoped = useMemo(
+    () => (surnameIds ? viewed.filter((p) => surnameIds.has(p.id)) : viewed),
+    [viewed, surnameIds]
+  );
+
+  const baseAgg = useMemo(() => aggregatePlaces(scoped), [scoped]);
 
   // Elle düzeltilmiş doğum-yeri koordinatları (birthCoords) — yer adına göre.
   // Aynı adlı köy/mahalle karışıklığında kayıttaki koordinat, coğrafi kodlamaya
@@ -98,13 +121,15 @@ export default function PlacesMap({ people, onSelect }: Props) {
   // değişmez. Bir yerde birden çok kişi varsa ilk bulunan koordinat kullanılır.
   const placeOverride = useMemo(() => {
     const m = new Map<string, LatLng>();
-    for (const p of eraFiltered) {
+    // `viewed` üzerinden: gizli bir kaydın koordinatı, o yeri paylaşan görünür
+    // kişilerin konumunu belirlemesin. Gizlilik katmanı verinin TEK kapısıdır.
+    for (const p of viewed) {
       const place = p.birthPlace?.trim();
       const c = p.birthCoords;
       if (place && c && !m.has(place)) m.set(place, c);
     }
     return m;
-  }, [eraFiltered]);
+  }, [viewed]);
 
   // Canlı coğrafi kodlama önbelleği (yer adı → koordinat/null). Sözlükte tam
   // karşılığı olmayan yerler (köy/mahalle/ilçe, yurt dışı) buradan gelir.
@@ -143,8 +168,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
   // coğrafi kodlama. Doğum yerlerinden AYRI renkte gösterilir (kullanıcı #).
   const burialBase = useMemo(() => {
     const map = new Map<string, { place: string; count: number; personIds: string[]; override: LatLng | null }>();
-    for (const p of eraFiltered) {
-      const mp = priv(p);
+    for (const mp of scoped) {
       const place = mp.burialPlace?.trim();
       if (!place) continue;
       let e = map.get(place);
@@ -154,7 +178,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
       if (!e.override && mp.burialCoords) e.override = mp.burialCoords;
     }
     return [...map.values()].sort((a, b) => b.count - a.count);
-  }, [eraFiltered, priv]);
+  }, [scoped]);
 
   const burialAgg = useMemo(
     () =>
@@ -216,7 +240,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
   // aynı yol kalınlaşır. Gizli kişiler koordinatsız olduğundan otomatik dışlanır.
   const migrations = useMemo(() => {
     const map = new Map<string, { from: LatLng; to: LatLng; n: number }>();
-    for (const p of eraFiltered) {
+    for (const p of scoped) {
       const c = personCoord.get(p.id);
       if (!c) continue;
       for (const pid of p.parentIds ?? []) {
@@ -229,7 +253,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
       }
     }
     return [...map.values()];
-  }, [eraFiltered, personCoord]);
+  }, [scoped, personCoord]);
 
   const maxCount = useMemo(() => located.reduce((m, a) => Math.max(m, a.count), 1), [located]);
 
@@ -239,6 +263,15 @@ export default function PlacesMap({ people, onSelect }: Props) {
     for (const p of people) m.set(p.id, priv(p));
     return m;
   }, [people, priv]);
+
+  // Bir yerdeki soyadı dağılımı — soyadı süzgecinden BAĞIMSIZ (`viewed`), çünkü
+  // bu başka bir soruya cevap veriyor: "bu yerde hangi adlar var". Süzgeç
+  // açıkken de yerin tam karışımını görmek işe yarar.
+  const placeSurnames = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof surnamesByPlace>[number]>();
+    for (const e of surnamesByPlace(viewed)) m.set(e.place, e);
+    return m;
+  }, [viewed]);
 
   const active = useMemo(
     () => (activeKind === "burial" ? burialLocated : located).find((a) => a.place === activePlace) ?? null,
@@ -329,6 +362,48 @@ export default function PlacesMap({ people, onSelect }: Props) {
           )}
         </div>
 
+        {/* Soyadı yaygınlık süzgeci — en sık sekiz soyadı. Tek soyadı bir yerde
+           olabilir, o yüzden burada "yaygın" ölçütü kişi sayısıdır, yer sayısı
+           değil; nerede yoğunlaştığını haritanın kendisi gösterir. */}
+        {surnameStats.surnames.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-text-muted mr-1">{t("map.surnameFilter")}</span>
+            <button
+              onClick={() => setSurnameKey(null)}
+              aria-pressed={activeSurname === null}
+              className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+                activeSurname === null
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-border text-text-subtle hover:bg-surface-2"
+              }`}
+            >
+              {t("map.surnameAll")}
+            </button>
+            {surnameStats.surnames.slice(0, 8).map((sn) => {
+              const on = activeSurname?.key === sn.key;
+              return (
+                <button
+                  key={sn.key}
+                  onClick={() => setSurnameKey(on ? null : sn.key)}
+                  aria-pressed={on}
+                  className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+                    on
+                      ? "border-accent bg-accent-soft text-accent"
+                      : "border-border text-text-subtle hover:bg-surface-2"
+                  }`}
+                >
+                  {sn.surname} <span className="tabular-nums opacity-70">{sn.count}</span>
+                </button>
+              );
+            })}
+            {surnameStats.patronymicOnly > 0 && (
+              <span className="text-[11px] text-text-subtle">
+                {t("map.surnamePatronymic", { count: surnameStats.patronymicOnly })}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="space-y-6">
           {/* Gerçek OSM harita tuvali (Leaflet) — yazdırılamadığından no-print. */}
           <div className="no-print relative rounded-2xl border border-border bg-surface p-2 sm:p-3">
@@ -392,6 +467,27 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   </svg>
                   {t("map.openGmaps")}
                 </a>
+                {/* Yerdeki soyadı dağılımı — yalnız doğum yerinde anlamlı,
+                   çünkü `surnamesByPlace` doğum yerine göre gruplar. */}
+                {activeKind === "birth" && (placeSurnames.get(active.place)?.surnames.length ?? 0) > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[11px] text-text-subtle mb-1.5">{t("map.surnamesHere")}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {placeSurnames.get(active.place)!.surnames.slice(0, 10).map((sn) => (
+                        <button
+                          key={sn.surname}
+                          onClick={() => {
+                            const hit = surnameStats.surnames.find((s) => s.surname === sn.surname);
+                            if (hit) setSurnameKey((k) => (k === hit.key ? null : hit.key));
+                          }}
+                          className="text-[11px] px-2 py-1 rounded-lg border border-border text-text-muted hover:bg-surface-2 transition-colors"
+                        >
+                          {sn.surname} <span className="tabular-nums opacity-70">{sn.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <PersonList ids={active.personIds} byId={byId} onSelect={onSelect} />
               </section>
             ) : (

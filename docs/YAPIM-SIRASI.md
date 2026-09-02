@@ -32,17 +32,17 @@ Hepsi yeni ve izole. Mevcut hiçbir dosya değişmiyor, arayüz yok, dış servi
 
 | # | İş | Kademe | Çıktı |
 |---|---|:-:|---|
-| 1 | Belge düzeltmesi — GEDCOM `OBJE` bitmiş, mobil Aşama 0–8 bitmiş | A | `docs/YAPILACAKLAR.md` |
-| 2 | **Çift takvim (Hicri/Miladi)** | B | yeni `lib/hijri.ts` + `tests/hijri.test.mts` |
-| 3 | Rehberli soru bankası | B | yeni `lib/prompts.ts` — 45, 49, 50'nin ortak tabanı |
-| 4 | "Yedi Göbek" **hesabı** | B | yeni `lib/completeness.ts` + test |
-| 5 | Referans bütünlüğü süpürücüsü | B | sarkan `associations[].personId` / `parentLinks` / `spouseIds` denetimi |
-| 6 | Tarihsel bağlam indeksi | B | yeni `lib/era.ts` — **yalnız zaman ekseni**, yer eşlemesi 43'e bırakılır |
-| 7 | Soyadı yaygınlık **toplayıcısı** | B | saf toplayıcı (`aggregatePlaces` kalıbı) |
-| 8 | Kalıtsal hastalık **türeticisi** | B | saf; alanlar zaten var. **Risk yüzdesi asla hesaplanmaz** |
-| 9 | Anma Takvimi **üreticisi** (3/7/40/52. gece + sene-i devriye) | B | saf; 2'ye bağlı |
-| 10 | **`view()` kaçağı testi + lint kuralı** | C | 31 ve 34'ten önce şart: tek satır kaçak tüm gizlilik katmanını boşa çıkarır |
-| 11 | Mobil CI tip denetimi | C | ayrı `tsc --noEmit` adımı; `apps/` bugün denetimsiz |
+| 1 | Belge düzeltmesi — GEDCOM `OBJE` bitmiş, mobil Aşama 0–8 bitmiş | A | `docs/YAPILACAKLAR.md` | ✅
+| 2 | **Çift takvim (Hicri/Miladi)** | B | yeni `lib/hijri.ts` + `tests/hijri.test.mts` | ✅
+| 3 | Rehberli soru bankası | B | yeni `lib/prompts.ts` — 45, 49, 50'nin ortak tabanı | ✅
+| 4 | "Yedi Göbek" **hesabı** | B | yeni `lib/completeness.ts` + test | ✅
+| 5 | Referans bütünlüğü süpürücüsü | B | sarkan `associations[].personId` / `parentLinks` / `spouseIds` denetimi | ✅
+| 6 | Tarihsel bağlam indeksi | B | yeni `lib/era.ts` — **yalnız zaman ekseni**, yer eşlemesi 43'e bırakılır | ✅
+| 7 | Soyadı yaygınlık **toplayıcısı** | B | saf toplayıcı (`aggregatePlaces` kalıbı) | ✅
+| 8 | Kalıtsal hastalık **türeticisi** | B | saf; alanlar zaten var. **Risk yüzdesi asla hesaplanmaz** | ✅
+| 9 | Anma Takvimi **üreticisi** (3/7/40/52. gece + sene-i devriye) | B | saf; 2'ye bağlı | ✅
+| 10 | **`view()` kaçağı testi + lint kuralı** | C | 31 ve 34'ten önce şart: tek satır kaçak tüm gizlilik katmanını boşa çıkarır | ✅
+| 11 | Mobil CI tip denetimi | C | ayrı `tsc --noEmit` adımı; `apps/` bugün denetimsiz | ✅
 
 ## K2 — Bende kolay: yeni görünüm/rota (12–25)
 
@@ -50,10 +50,10 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 
 | # | İş | Kademe | Not |
 |---|---|:-:|---|
-| 12 | Yedi Göbek **kartı** | B | 4'ün görünümü; anneanne hattı ayrı puanlanır |
-| 13 | Kalıtsal hastalık **görünümü** | B | 8'in görünümü; `view()`'dan geçer |
-| 14 | Anma Takvimi **görünümü** | B | 9'un görünümü, `CalendarView.tsx` |
-| 15 | Soyadı yaygınlık **haritası** | B | 7'nin katmanı |
+| 12 | Yedi Göbek **kartı** | B | 4'ün görünümü; anneanne hattı ayrı puanlanır | ✅
+| 13 | Kalıtsal hastalık **görünümü** | B | 8'in görünümü; `view()`'dan geçer | ✅
+| 14 | Anma Takvimi **görünümü** | B | 9'un görünümü, `CalendarView.tsx` | ✅
+| 15 | Soyadı yaygınlık **haritası** | B | 7'nin katmanı | ✅
 | 16 | Genel rota izin listesini merkezîleştir | C | `proxy.ts` elle yazılmış `if`; 17, 24, 36, 45 buraya dört yeni yüzey ekleyecek |
 | 17 | Mezar QR sayfası | C | `/g/<token>` kalıbının tek kişiye daraltılmışı |
 | 18 | Kitapta sesi çalan QR | C | `qrcode` + `Memory.audio` hazır |
