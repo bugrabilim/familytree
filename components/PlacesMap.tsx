@@ -9,6 +9,7 @@ import { fullName } from "@/lib/name";
 import { usePrivacy } from "./PrivacyContext";
 import { aggregatePlaces, gazetteerExact, resolvePlace, googleMapsUrl } from "@/lib/places";
 import { aggregateSurnames, surnamesByPlace } from "@/lib/surnames";
+import { computeGenerations } from "@/lib/book-stats";
 import { geocodeNominatim } from "@/lib/geocode";
 import { useT } from "@/lib/i18n";
 
@@ -86,10 +87,43 @@ export default function PlacesMap({ people, onSelect }: Props) {
     });
   }, [people, a0, a1, yearBounds]);
 
+  /*
+   * Kuşak süzgeci. Kuşaklar TÜM ağaçtan hesaplanır, dönem süzgecinden geçmiş
+   * listeden değil: yoksa kaydırıcı bir atayı dışarıda bırakınca torunun kuşak
+   * numarası düşer ve rozetler kayıcı bir şey ölçmeye başlar.
+   *
+   * Ham `people` üzerinden hesaplamak gizlilik açısından sorun değil: kuşak
+   * yalnız `parentIds`e bakar, `maskPerson` de onu aynen taşır — maskeli
+   * kopyadan hesaplansa sonuç birebir aynı çıkardı.
+   */
+  const genOf = useMemo(() => computeGenerations(people), [people]);
+  const maxGen = useMemo(() => Math.max(1, ...genOf.values()), [genOf]);
+  /*
+   * Rozet değil ARALIK: derin bir ağaçta kuşak sayısı ona, yirmiye çıkıyor
+   * (demo ağacı 17) ve o kadar rozet bir sıra numara şeridine dönüşüyor.
+   * İki uçlu kaydırıcı hem yer kaplamıyor hem de dönem kaydırıcısıyla aynı
+   * dili konuşuyor: biri zamanı, öbürü ağaçtaki derinliği daraltıyor.
+   */
+  const [genRange, setGenRange] = useState<[number, number] | null>(null);
+  const g0 = genRange ? genRange[0] : 1;
+  const g1 = genRange ? genRange[1] : maxGen;
+  const genAll = g0 <= 1 && g1 >= maxGen;
+
+  const genFiltered = useMemo(
+    () =>
+      genAll
+        ? eraFiltered
+        : eraFiltered.filter((p) => {
+            const g = genOf.get(p.id);
+            return g !== undefined && g >= g0 && g <= g1;
+          }),
+    [eraFiltered, genOf, genAll, g0, g1]
+  );
+
   // GİZLİLİK: kişileri görüntü katmanından BİR KEZ geçir; maskeli (gizli
   // yaşayan) kişide `birthPlace` bulunmadığından doğum yeri sızmaz. Aşağıdaki
   // her katman bu listeden türer — ham `people` bir daha okunmaz.
-  const viewed = useMemo(() => eraFiltered.map((p) => priv(p)), [eraFiltered, priv]);
+  const viewed = useMemo(() => genFiltered.map((p) => priv(p)), [genFiltered, priv]);
 
   // Soyadı yaygınlık katmanı: bir soyadı seçilince harita o soyadı taşıyanlara
   // daralır — "bu ad nerede yoğunlaşmış" sorusu ancak böyle görülür. Eşleştirme
@@ -356,6 +390,39 @@ export default function PlacesMap({ people, onSelect }: Props) {
               {(a0 > yearBounds.min || a1 < yearBounds.max) && (
                 <button onClick={() => setEra(null)} className="text-[11px] text-text-subtle hover:text-text">
                   {t("map.eraAll")}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Kuşak aralığı — "3. kuşak nerede doğmuş" sorusu. Dönem zamanı,
+             bu ise ağaçtaki DERİNLİĞİ daraltır; ikisi aynı şey değil, aynı
+             yıllarda doğmuş iki kişi farklı kuşaklarda olabilir. */}
+          {maxGen > 1 && (
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <span className="shrink-0">{t("map.genFilter")}</span>
+              <input
+                type="range"
+                min={1}
+                max={maxGen}
+                value={g0}
+                onChange={(e) => setGenRange([Math.min(Number(e.target.value), g1), g1])}
+                className="w-20 accent-[var(--primary)]"
+                aria-label={t("map.genFrom")}
+              />
+              <span className="tabular-nums w-[3.5rem] text-center text-text">{g0}–{g1}</span>
+              <input
+                type="range"
+                min={1}
+                max={maxGen}
+                value={g1}
+                onChange={(e) => setGenRange([g0, Math.max(Number(e.target.value), g0)])}
+                className="w-20 accent-[var(--primary)]"
+                aria-label={t("map.genTo")}
+              />
+              {!genAll && (
+                <button onClick={() => setGenRange(null)} className="text-[11px] text-text-subtle hover:text-text">
+                  {t("map.genAll")}
                 </button>
               )}
             </div>
