@@ -144,18 +144,26 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 |---|---|:-:|---|---|
 | **65** | **Burç (güneş burcu)** — `lib/zodiac.ts` | K1 | — | ✅ **yapıldı** |
 | **66** | **`birthTime` alanı + yükselen burç** | K3 | 26'dan (alan kayıt defteri) **sonra** | ⛔ alan yok |
-| **67** | **Burç karakteristik özellikleri** | K1 | 65'in yanına | ⏭️ sırada |
+| **67** | **Burç karakteristik özellikleri** | K1 | 65'in yanına | ✅ **yapıldı** |
 
 ### 65 — Burç ✅
 
 Yalnız doğum tarihinden hesaplanıyor, yeni alan gerekmiyor. Element (ateş/toprak/
-hava/su) da veriliyor.
+hava/su) da veriliyor. `PersonDrawer`'da doğum tarihinin hemen altında görünüyor.
 
-**Dürüstlük notu koda ve arayüze taşınacak:** burç geçişi bir takvim günü değil,
-Güneş'in burca girdiği **astronomik andır** ve yıldan yıla ~1 gün oynar. Sabit
-tabloya körü körüne güvenmiyoruz: sınıra 1 gün ya da daha yakın doğumlarda
-`cusp: true` ve `alternative` dönüyor, arayüz *"sınırda — doğum saatine göre
-Koç olabilir"* diyebiliyor.
+**Sabit tarih tablosu (kullanıcı kararı, 2026-09-02).** Burç tarihleri her yıl
+aynıdır — Koç 21 Mart, Boğa 20 Nisan, ve devamı. Önce "sınırdasın" uyarısı
+eklemiştim; kaldırıldı. Yaygın burç tabloları sabit tarih verir, insanlar öyle
+bilir, ürün de öyle davranır.
+
+*(Olgusal not, kayda geçsin diye: Güneş'in burca giriş **anı** yıldan yıla birkaç
+saat oynar ve ekinoks 19–21 Mart arasında değişir. Ama bu ürünün kullandığı
+sözleşme sabit tablodur; ikisi farklı şeylerdir ve karıştırılmamalı.)*
+
+**Gizlilik:** burç, maskelenmiş kişide görünmez. Doğum tarihinin ~1 aylık
+aralığını ele verdiği için bu bilinçli — `PersonDrawer` burcu `view()`'dan geçmiş
+kişiden hesaplıyor, maskeli kişide `birthDate` taşınmadığından kendiliğinden boş
+kalıyor. Testi var.
 
 ### 66 — `birthTime` + yükselen ⛔
 
@@ -174,26 +182,22 @@ Yükselen burç, doğum **anının** ve **yerinin** ikisini birden ister:
 `birthTime` ayrıca burç dışında da işe yarar: nüfus kayıtlarında doğum saati
 geçer ve bazı aileler bunu tutar.
 
-### 67 — Burç karakteristik özellikleri ⏭️
+### 67 — Burç karakteristik özellikleri ✅
 
 **Düzeltme (kullanıcı, 2026-09-02):** Bunu önce yanlış anlamıştım. Kastedilen
 kişiye özel bir yorum değil — **her burcun genel karakteristik özellikleri**.
-"Koç: atılgan, girişken, sabırsız" gibi.
-
-Bu ayrım her şeyi değiştiriyor:
 
 | Yanlış anladığım | Kastedilen |
 |---|---|
-| Kişi hakkında iddia ("Dedeniz muhtemelen inatçıydı") | Burç hakkında bilgi ("Boğa burcu inatçılıkla anılır") |
+| Kişi hakkında iddia ("Dedeniz muhtemelen inatçıydı") | Burç hakkında bilgi ("Boğa inatçılıkla anılır") |
 | Kaynaksız, kişiye özel, uydurulmuş | Statik, genel, ansiklopedik |
 | `Source` disiplinini bozar | Bozmaz — kişi kaydına hiçbir iddia girmez |
 | YZ gerekir | YZ gerekmez |
 
-Yani ortada bir karar sorunu yok. Statik bir metin tablosu: 12 burç × özellikler,
-`lib/i18n-dict.ts` içinde TR ve EN. Kişinin kaydına yazılmaz; burç gösterilirken
-yanında durur.
-
-**Bant K1** (saf veri + i18n), **yeni alan gerekmez**, 65'in doğal devamı.
+Yapıldı: `ZODIAC_TRAITS` her burç için dört özellik taşıyor, metinler
+`lib/i18n-dict.ts`'te TR ve EN. Arayüzde burcun altında rozet olarak duruyor ve
+yanında *"Burcun genel özellikleri; kişi hakkında bir kayıt değildir."* notu var —
+ayrım kullanıcıya da görünür.
 
 ## ⚠️ Bu sıralamanın tek kusuru
 

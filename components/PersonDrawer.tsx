@@ -15,6 +15,7 @@ import { enhancedUrl, isCloudinaryImage } from "@/lib/photo";
 import { googleMapsUrl, projectEquirectangular } from "@/lib/places";
 import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
+import { zodiacSign, zodiacKey, elementKey, traitsOf, traitKey } from "@/lib/zodiac";
 import {
   describeRelation,
   genitive,
@@ -122,6 +123,13 @@ export default function PersonDrawer({
 
   const referencePerson = referenceId ? idx.get(referenceId) : undefined;
   const age = calcAge(person.birthDate, person.deathDate);
+  /*
+   * Burç, MASKELENMİŞ `person` üzerinden hesaplanır (satır ~104: view()).
+   * Bu bilinçli: burç doğum tarihinin ~1 aylık aralığını ele verir, yani
+   * gizlenmiş bir doğum tarihinden burç göstermek gizliliği delerdi. Maskeli
+   * kişide `birthDate` taşınmadığından burç kendiliğinden boş kalır.
+   */
+  const zodiac = zodiacSign(person.birthDate);
   const years = lifeSpan(person.birthDate, person.deathDate);
 
   // Zaman çizelgesi: doğum + yaşam olayları + vefat tek bir dikey akışta.
@@ -327,6 +335,29 @@ export default function PersonDrawer({
                       event={{ title: t("cal.birthdayTitle", { name: fullName(person) }), date: person.birthDate, yearly: true }}
                     />
                   )}
+                </div>
+              )}
+              {zodiac && (
+                <div className="flex items-start gap-2.5">
+                  <span className="text-sm w-5 text-center shrink-0" aria-hidden>✨</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] text-text-subtle">{t("zodiac.label")}</span>
+                    <p className="text-sm text-text leading-tight">
+                      {t(zodiacKey(zodiac.sign))}
+                      <span className="text-text-subtle"> · {t(elementKey(zodiac.element))}</span>
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {traitsOf(zodiac.sign).map((tr) => (
+                        <span
+                          key={tr}
+                          className="px-1.5 py-0.5 rounded bg-surface-2 border border-border text-[10px] text-text-subtle"
+                        >
+                          {t(traitKey(tr))}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-text-subtle">{t("zodiac.traitsNote")}</p>
+                  </div>
                 </div>
               )}
               {person.officialBirthDate && (
