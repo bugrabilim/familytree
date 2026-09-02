@@ -62,7 +62,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 | 21 | GEDCOM 7 + GEDZIP | C | 5.5.1 varsayılan **kalır** → mevcut yol hiç değişmez | ✅
 | 22 | Araştırma görev yöneticisi | C | `consistency.ts` + `RecordHints` zaten iş üretiyor | ✅
 | 23 | Aile tarifleri | C | **ayrı koleksiyon**; `Person`'a alan olarak eklenirse K3'e düşer | ✅
-| 24 | Zaman kilitli mektup | C | içerik istemciye **asla** erken gitmez: API seviyesinde kapı + testi |
+| 24 | Zaman kilitli mektup | C | içerik istemciye **asla** erken gitmez: API seviyesinde kapı + testi | ✅
 | 25 | Taziye / vefat duyurusu nesnesi | C | kültürel olarak en hassas yüzey; ayrı nesne, `Person`'a dokunmaz |
 
 ## K3 — Bende orta: mevcut koda dokunuyor (26–32)
