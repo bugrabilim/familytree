@@ -1,153 +1,156 @@
-# Yapım Sırası — 60 iş, 1'den 60'a
+# Yapım Sırası — 64 iş, bende kolaydan → sende bitene
 
-> **Bu belge sıranın tek kaynağıdır.** `docs/PUANLAMA-VE-SIRA.md` puanlama
-> gerekçesini tutar ama sırası **geçersizdir**; sıra buradan okunur.
+> **Sıralama ekseni:** *Claude'un tek başına ne kadar kolay yapabildiği.* En başta
+> benim hiç dış girdi olmadan yazıp test edebildiğim işler; sonra giderek zorlaşan,
+> senin gözden geçirmeni gerektiren işler; en sonda **ben yapamadığım, senin yapman
+> gereken** işler.
 >
-> **Karar:** hepsi yapılacak. Eleme yok, beraberlik yok — her işin tek numarası var.
+> Önceki sürüm "bozma riski" eksenindeydi. O eksen hâlâ değerli olduğu için her satırda
+> **kademe** sütunu olarak duruyor (A=kod yok · B=izole saf lib · C=yeni rota/bileşen ·
+> D=`Person` alanı ekleme · E=çekirdek). İki okuma da mümkün.
 >
-> **Sıralama ekseni:** puan değil, **bozma riski.** Hiç kod değiştirmeyen işler başta;
-> mevcut veri modelini, kimlik doğrulamayı ve çekirdek akışları değiştiren işler sonda.
-> Aynı kademe içinde basitten zora.
->
-> **Yöntem:** kendi değerlendirmem + bağımsız bir ajanın kod tabanını okuyarak yaptığı
-> ikinci değerlendirme birleştirildi. Ajanın itirazlarının tamamı kodda doğrulandı ve
-> çoğu kabul edildi (bkz. §4).
+> **64 iş** — önceki 60'tan 4 fazla, çünkü dört işin *hesap* kısmı ile *görünüm* kısmı
+> bu eksende farklı bantlara düşüyor (Yedi Göbek, kalıtsal hastalık, anma takvimi,
+> soyadı haritası). Hesap kısmı bende en kolay bant, görünüm kısmı bir üst bant.
 
-## Kademeler
+## Bantlar
 
-| Kademe | Ne demek | Sıra |
+| Bant | Kim yapar | Sıra |
 |---|---|---|
-| **A** | Hiç kod yok — karar, görüşme, lisans, elle test, belge | 1–9 |
-| **B** | Salt ekleme, izole saf `lib` + yeni görünüm; mevcut dosya değişmiyor | 10–17 |
-| **C** | Yeni rota / yeni bileşen / tek mevcut görünüme ek; tip sistemi değişmiyor | 18–42 |
-| **D** | `types/family.ts`'e alan ekleme — bu projede 5 yeri birden günceller | 43–49 |
-| **E** | Çekirdek: kimlik doğrulama, depolama, senkron, mevcut akış yeniden yazımı | 50–60 |
+| **K1** | Ben — saf mantık + test, dış girdi yok, `npm test` ile doğrularım | 1–11 |
+| **K2** | Ben — yeni görünüm/rota, mevcut arayüze dokunmuyor, tarayıcıda doğrularım | 12–25 |
+| **K3** | Ben — mevcut koda dokunuyor, mekanik ama geniş | 26–32 |
+| **K4** | Ben yazarım, **senin gözden geçirmen gerekir** — çekirdek/riskli | 33–45 |
+| **K5** | **Ortak** — kodu ben yazarım, anahtarı/hesabı sen verirsin | 46–53 |
+| **K6** | **Sen** — ben yapamam | 54–64 |
 
 ---
 
-## KADEME A — hiç kod yok (1–9)
+## K1 — Bende en kolay: saf mantık + test (1–11)
 
-| # | İş | Neden burada |
-|---|---|---|
-| 1 | **E-posta sağlayıcısı + alan adı + anahtar** | İş değil, bir env değişkeni. Kod yazılmış (`lib/email.ts`, `api/cron/reminders`). Tek başına **5 işi** açıyor. Bugün yapılır. |
-| 2 | **Belge düzeltmesi** — GEDCOM `OBJE` bitmiş ama "sonraki fikir" yazıyor; mobil Aşama 0–8 bitmiş ama plan yansıtmıyor | 10 dakika. Yanlış kapsamlı planlamanın kaynağı doğrudan bu. |
-| 3 | **Index Anatolicus lisans görüşmesi** | Kod değil, görüşme; **aylar sürebilir** → 41 ve 42 beklemesin diye 1. günde başlar. |
-| 4 | **Elle test: üyeler ve davetler** (`/join`, roller) | Hiç doğrulanmamış yetki akışının üstüne 50, 39, 40 kurulacak. |
-| 5 | **Elle test: bağlı ağaçlar** (pairing, `/pair`) | En karmaşık yazma yolu, hiç elle koşulmamış. |
-| 6 | **Kapsam kararı: aile meclisi / fon** | Yalnız "hayır" demek (§5). |
-| 7 | **Uygulanabilirlik kararı: telefonla hikâye kaydı** | BTK/operatör araştırması; muhtemelen kapanır (§5). |
-| 8 | **Terminoloji kararı: kuşak adı/rütbesi** (항렬 · 字辈) | Türkçede karşılığı var mı? "Yok" ise iş 44'e erir. |
-| 9 | **Ürün/hukuk kararı: tek seferlik kalıcı arşiv** | Süre taahhüdü + ödeme + saklama garantisi kararı, koddan önce. |
+Hepsi yeni ve izole. Mevcut hiçbir dosya değişmiyor, arayüz yok, dış servis yok.
 
-## KADEME B — salt ekleme, izole (10–17)
+| # | İş | Kademe | Çıktı |
+|---|---|:-:|---|
+| 1 | Belge düzeltmesi — GEDCOM `OBJE` bitmiş, mobil Aşama 0–8 bitmiş | A | `docs/YAPILACAKLAR.md` |
+| 2 | **Çift takvim (Hicri/Miladi)** | B | yeni `lib/hijri.ts` + `tests/hijri.test.mts` |
+| 3 | Rehberli soru bankası | B | yeni `lib/prompts.ts` — 45, 49, 50'nin ortak tabanı |
+| 4 | "Yedi Göbek" **hesabı** | B | yeni `lib/completeness.ts` + test |
+| 5 | Referans bütünlüğü süpürücüsü | B | sarkan `associations[].personId` / `parentLinks` / `spouseIds` denetimi |
+| 6 | Tarihsel bağlam indeksi | B | yeni `lib/era.ts` — **yalnız zaman ekseni**, yer eşlemesi 43'e bırakılır |
+| 7 | Soyadı yaygınlık **toplayıcısı** | B | saf toplayıcı (`aggregatePlaces` kalıbı) |
+| 8 | Kalıtsal hastalık **türeticisi** | B | saf; alanlar zaten var. **Risk yüzdesi asla hesaplanmaz** |
+| 9 | Anma Takvimi **üreticisi** (3/7/40/52. gece + sene-i devriye) | B | saf; 2'ye bağlı |
+| 10 | **`view()` kaçağı testi + lint kuralı** | C | 31 ve 34'ten önce şart: tek satır kaçak tüm gizlilik katmanını boşa çıkarır |
+| 11 | Mobil CI tip denetimi | C | ayrı `tsc --noEmit` adımı; `apps/` bugün denetimsiz |
 
-| # | İş | Dosya | Not |
+## K2 — Bende kolay: yeni görünüm/rota (12–25)
+
+Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğrularım.
+
+| # | İş | Kademe | Not |
+|---|---|:-:|---|
+| 12 | Yedi Göbek **kartı** | B | 4'ün görünümü; anneanne hattı ayrı puanlanır |
+| 13 | Kalıtsal hastalık **görünümü** | B | 8'in görünümü; `view()`'dan geçer |
+| 14 | Anma Takvimi **görünümü** | B | 9'un görünümü, `CalendarView.tsx` |
+| 15 | Soyadı yaygınlık **haritası** | B | 7'nin katmanı |
+| 16 | Genel rota izin listesini merkezîleştir | C | `proxy.ts` elle yazılmış `if`; 17, 24, 36, 45 buraya dört yeni yüzey ekleyecek |
+| 17 | Mezar QR sayfası | C | `/g/<token>` kalıbının tek kişiye daraltılmışı |
+| 18 | Kitapta sesi çalan QR | C | `qrcode` + `Memory.audio` hazır |
+| 19 | Haritaya zaman kaydırıcısı + kuşak filtresi | C | tek dosya, salt görüntü durumu |
+| 20 | Göç yolu katmanı | C | kullanıcı metni + `birthCoords`/`burialCoords` ile; 43 sonradan zenginleştirir |
+| 21 | GEDCOM 7 + GEDZIP | C | 5.5.1 varsayılan **kalır** → mevcut yol hiç değişmez |
+| 22 | Araştırma görev yöneticisi | C | `consistency.ts` + `RecordHints` zaten iş üretiyor |
+| 23 | Aile tarifleri | C | **ayrı koleksiyon**; `Person`'a alan olarak eklenirse K3'e düşer |
+| 24 | Zaman kilitli mektup | C | içerik istemciye **asla** erken gitmez: API seviyesinde kapı + testi |
+| 25 | Taziye / vefat duyurusu nesnesi | C | kültürel olarak en hassas yüzey; ayrı nesne, `Person`'a dokunmaz |
+
+## K3 — Bende orta: mevcut koda dokunuyor (26–32)
+
+| # | İş | Kademe | Neden zorlaşıyor |
+|---|---|:-:|---|
+| 26 | **`Person` alan kayıt defteri** | D | Geniş ama tamamen mekanik. Bugün bir alan 5 yeri güncelliyor (`types/family.ts` + `PersonForm` 1637 sr + iki API rotası + `PersonDrawer` 951 sr + `i18n-dict` 2731 sr). **Sonraki tüm alan işlerini bir bant ucuzlatır** → 27 ve 28'den önce. |
+| 27 | Nötr **"sülale"** alanı | D | Kanonik alan-ekleme işi. Asla hazır taksonomi, asla soyaddan çıkarım |
+| 28 | Genogram duygusal ilişki katmanı | D | İki uçlu **kenar listesi** = yeni birinci sınıf veri türü. 5–6 tür, varsayılan kapalı |
+| 29 | `lib/history.ts` fark tabanlı yeniden yazım | E | Her kaydetmede tüm kişi listesini kopyalıyor; `people-diff.ts` zaten var. 44'ün ön koşulu |
+| 30 | Sesli Şecere | C | `AudioRecorder` + Gemini hattı hazır; ses akışı doğrulaması bende zor kısım. 3'e bağlı |
+| 31 | Gömülebilir ağaç `/embed/<token>` | C | Riski rota değil, **global güvenlik ayarı**: `X-Frame-Options: DENY` yalnız burada gevşer. 10'a bağlı |
+| 32 | Tuval üstü ebeveyn değiştirme | C | Çekirdek etkileşim dosyası; yanlış bırakma = sessiz veri bozulması |
+
+## K4 — Yazarım, senin gözden geçirmen gerekir (33–45)
+
+Buradan sonrası canlı veriye, kimliğe veya göç yoluna dokunuyor. Kodu ben yazarım
+ama **canlıya almadan önce senin bakman** doğru olur.
+
+| # | İş | Kademe | Neden |
+|---|---|:-:|---|
+| 33 | Paylaşımlı oran sınırı | C | `rate-limit.ts` örnek-içi bellekte — sunucusuzda gerçek sınır değil. Supabase tablosuyla yapılır (yeni hesap gerekmez). 34 ve 36'dan önce |
+| 34 | Herkese açık okuma API'si `/api/v1/public/tree` | C | 10 ve 33 olmadan yapılmaz. Sürümleme baştan `/v1` |
+| 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. **55'e bağlı** |
+| 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor |
+| 37 | Osmanlı ↔ modern yer adı sözlüğü | C | `resolvePlace` **ortak çözüm yolunu** değiştiriyor → mevcut pinleri kaydırabilir. **58'e (lisans) bağlı** |
+| 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
+| 39 | Storyworth için ayrı giriş kapısı | E | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor |
+| 40 | **e-Devlet PDF'ini birincil onboarding yapmak** | E | Ayrıştırıcı zaten çalışıyor → bu yeni yetenek değil, **canlı ilk-temas akışının yeniden yazımı**. "Bozarsan herkes görür" katsayısı en yüksek iş |
+| 41 | Supabase Faz 3d — misafir giriş | E | Kimliksiz hesap türü `isFounder`/`treeId` çözümünün her dalını etkiler |
+| 42 | Supabase Faz 3e — e-posta ile kalıcılaştırma | E | Çalışan hesapların kimlik anahtarını yerinde değiştirmek |
+| 43 | Blob ↔ Supabase kayma denetimi | E | İki kaynağın ayrışmadığını gösteren araç yok. **45'in gerçek ön koşulu** |
+| 44 | Çevrimdışı yakalama + senkron | E | **Yalnız mobilde.** İyimser kilitle (`x-base-version`) çakışıyor. 29'a bağlı |
+| 45 | Supabase Faz 4 — bcrypt + `users.json` emekliye | E | **Tek geri dönüşü olmayan iş.** 43, 46 ve 51 olmadan yapılmaz |
+
+## K5 — Ortak: kod bende, anahtar sende (46–53)
+
+Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
+
+| # | İş | Ben teslim ederim | Senden gereken |
 |---|---|---|---|
-| 10 | **Çift takvim (Hicri/Miladi)** | yeni `lib/hijri.ts` + test | Kod tabanında **hiç hicri izi yok**. Listedeki tek matematiksel doğruluk yükü — kendi testini hak ediyor. |
-| 11 | **Rehberli soru bankası → saf lib** | yeni `lib/prompts.ts` | Bugün `MEMORY_PROMPTS` 8 anahtar. 45, 46 ve 35'in ortak tabanı; şimdi ayrılırsa üçü birbirini beklemez. |
-| 12 | **"Yedi Göbek" tamamlanma ölçeri** | yeni `lib/completeness.ts` | `ancestorDepths()` hazır. Anneanne hattı ayrı puanlanır. |
-| 13 | **Tarihsel bağlam indeksi** | yeni `lib/era.ts` | **Yalnız zaman ekseninde** kurulacak; yer eşlemesi 41 gelince ek katman olur (yoksa 41'i bekler). |
-| 14 | **Soyadı yaygınlık haritası** | saf toplayıcı + mevcut haritaya katman | Var olan veriden türetme, yazma yok. |
-| 15 | **Kalıtsal hastalık örüntüsü** | saf türetici + yeni görünüm | Alanlar (`congenitalCondition`, `healthCondition`, `deathCause`) **zaten var** → yeni alan yok. `view()`'dan geçer. **Risk yüzdesi asla hesaplanmaz.** |
-| 16 | **Referans bütünlüğü süpürücüsü** | yeni saf denetleyici | Silme/birleştirme sonrası sarkan `associations[].personId`, `parentLinks` anahtarı, `spouseIds` denetimi. `consistency.ts` tarihe bakıyor, referansa bakmıyor. |
-| 17 | **Anma Takvimi — uygulama içi üretim + görünüm** | saf lib + `CalendarView.tsx` | 3/7/40/52. gece + sene-i devriye. 10'a bağlı. Bildirimi ayrı iş (28). |
+| 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar |
+| 47 | Otomatik aile bülteni | cron + şablon (`reminders` kalıbı hazır) | **e-posta anahtarı (54)** |
+| 48 | Anma Takvimi bildirimi | mevcut cron rotasına ek | **e-posta anahtarı (54)** |
+| 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | **e-posta anahtarı (54)** |
+| 50 | Hikâye talebi | 49'un ikinci yüzü, aynı boru hattı | **e-posta anahtarı (54)** |
+| 51 | E-posta ile şifre sıfırlama | akış + jeton + test | **e-posta anahtarı (54)** |
+| 52 | Fotoğraf zenginleştirme | yalnız deterministik dönüşüm (`e_improve`/`e_sharpen`/`e_upscale`) | Cloudinary eklenti/kota kararı |
+| 53 | Toplu fotoğraf tarama/restorasyon | toplu yükleme hattı | kota/maliyet onayı |
 
-## KADEME C — yeni rota / bileşen (18–42)
+**Kural (49 için):** girişsiz yanıt kayda **doğrudan yazmaz**, jeton başına sınırlı bir
+**onay kuyruğuna** düşer. Bu karar verilmezse iş bir bant yukarı çıkar.
 
-| # | İş | Not |
+## K6 — Senin işin, ben yapamam (54–64)
+
+| # | İş | Neden bende değil |
 |---|---|---|
-| 18 | **`view()` kaçağı testi + lint kuralı** | 39 ve 40'tan **önce** olmalı: tek satırlık maskeleme kaçağı tüm gizlilik katmanını boşa çıkarır. Test = sıfır risk, en yüksek kaldıraç. |
-| 19 | **Genel rota izin listesini merkezîleştir** | `proxy.ts` elle yazılmış bir `if` bloğu; 21, 32, 39, 45 buraya dört yeni genel yüzey ekleyecek. |
-| 20 | Kitapta sesi çalan QR | `qrcode` ve `Memory.audio` hazır; iki parçayı birleştirmek. |
-| 21 | Mezar QR sayfası | `/g/<token>` kalıbının tek kişiye daraltılmış kopyası. |
-| 22 | Haritaya zaman kaydırıcısı + kuşak filtresi | Tek dosya (`PlacesMap.tsx`), salt görüntü durumu. |
-| 23 | Göç yolu katmanı | **Kullanıcının yazdığı metin + `birthCoords`/`burialCoords` ile** çalışacak; 41 sonradan zenginleştirir. |
-| 24 | GEDCOM 7 + GEDZIP | 5.5.1 varsayılan **kalır** → mevcut yol hiç değişmez. `OBJE` işi zaten bitmiş, emek sanılandan az. |
-| 25 | Araştırma görev yöneticisi | `consistency.ts` + `RecordHints` zaten "yapılacak iş" üretiyor, onları besler. |
-| 26 | Aile tarifleri | **Ayrı koleksiyon** olarak; `Person`'a alan olarak eklenirse D'ye düşer. |
-| 27 | Otomatik aile bülteni | `/api/cron/reminders` kalıbı hazır. **1'e bağlı.** |
-| 28 | Anma Takvimi bildirimi | Mevcut cron rotasına ek. **1 ve 17'ye bağlı.** |
-| 29 | Taziye / vefat duyurusu nesnesi | Kültürel olarak en hassas yüzey — yanlış kişiye "vefat" göstermek affedilmez. Ayrı nesne, `Person`'a dokunmaz. |
-| 30 | Zaman kilitli mektup | İçerik istemciye **asla** erken gitmemeli: API seviyesinde zaman kapısı + testi. |
-| 31 | **Paylaşımlı oran sınırı** (Upstash/Supabase) | `lib/rate-limit.ts` örnek-içi bellekte — sunucusuzda **gerçek sınır değil**. 32 ve 40'tan önce şart. |
-| 32 | Aile etkinliği + RSVP | **Anonim yazma yüzeyi** açıyor; 31 olmadan yapılmaz. |
-| 33 | Mobil CI tip denetimi | `apps/` kök tsconfig/eslint dışında — web'i koruyor ama mobili denetimsiz bırakıyor. |
-| 34 | **Native mobil — Aşama 9** (mağaza derlemesi + push) | Aşama 0–8 **bitmiş**. `apps/` hariç tutulduğu için web derlemesini **matematiksel olarak bozamaz**: emek yüksek, risk sıfıra yakın. |
-| 35 | Sesli Şecere | `AudioRecorder` + çok-parçalı Gemini hattı hazır; yazma mevcut onaylı yoldan. Yeni alan yok. 11'e bağlı. |
-| 36 | Fotoğraf zenginleştirme | **Yalnız deterministik dönüşümler** (`e_improve`, `e_sharpen`, `e_upscale`). Üretken renklendirme yok (§5). |
-| 37 | Toplu fotoğraf tarama/restorasyon | İzole ama ağır; kota/maliyet yüzeyi büyük (§5'te itiraz var). |
-| 38 | Tuval üstü ebeveyn değiştirme | Küçük, ama **çekirdek etkileşim** dosyasına dokunuyor; yanlış bırakma = sessiz veri bozulması. Geri alma güvenlik ağı var. |
-| 39 | Gömülebilir ağaç `/embed/<token>` | Riski rotanın kendisi değil, **global güvenlik ayarına** dokunması: `X-Frame-Options: DENY` yalnız bu rotada gevşer. |
-| 40 | Herkese açık okuma API'si `/api/v1/public/tree` | `findValidShare()` + `view()` hazır. 18 ve 31 olmadan yapılmaz. |
-| 41 | **Osmanlı ↔ modern yer adı sözlüğü** | `lib/places.ts` `resolvePlace` **ortak çözüm yolunu** değiştiriyor → mevcut pinleri kaydırabilir. 3'e (lisans) bağlı. |
-| 42 | Yerleşim arama: modern + tarihî idari bölünme | 41'in veri tabanını tüketir; iki çekirdek saf lib'e birden dokunur. |
-
-## KADEME D — mevcut tip/bileşene alan ekleme (43–49)
-
-| # | İş | Not |
-|---|---|---|
-| 43 | **`Person` alan kayıt defteri (field registry)** | **D'nin ilk işi olmalı.** Bugün bir alan eklemek 5 yeri birden güncelliyor (`types/family.ts` + `PersonForm` 1637 satır + iki API rotası + `PersonDrawer` 951 satır + `i18n-dict` 2731 satır). Bildirimsel tek tabloya çekmek **sonraki tüm D işlerini C'ye indirir.** |
-| 44 | Nötr **"sülale"** alanı | Kanonik D işi. Asla hazır taksonomi, asla soyaddan/coğrafyadan çıkarım. |
-| 45 | Dışa dönük soru/istem motoru | **1 ve 11'e bağlı.** Girişsiz yanıt kayda **doğrudan yazmaz** — jeton başına sınırlı **onay kuyruğuna** düşer. Bu karar verilmezse iş D değil E'dir. |
-| 46 | Hikâye talebi (belirli akrabadan) | 45'in ikinci yüzü; ayrı yazılırsa iki kod yolu doğar. Hemen ardından. |
-| 47 | Genogram duygusal ilişki katmanı | İki uçlu **kenar listesi** = yeni birinci sınıf veri türü, alan eklemekten geniş. 5–6 tür, varsayılan kapalı, maskelenebilir. |
-| 48 | ⚠️ Yüz tanıma ile foto etiketleme | Kademe D, **hukuki risk E**. Yapılmaması öneriliyor (§5). |
-| 49 | ⚠️ Şifreli belge kasası | Anahtar kaybı = kalıcı veri kaybı. Yapılmaması öneriliyor (§5). |
-
-## KADEME E — çekirdek (50–60)
-
-| # | İş | Not |
-|---|---|---|
-| 50 | Katkı verici rolü (contributor ≠ editor) | `ORDER = ["viewer","editor","admin"]` dizisine üçüncü kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. `tests/roles.test.mts` ağı var → E'nin en güvenlisi. **4'e bağlı.** |
-| 51 | `lib/history.ts` fark tabanlı yeniden yazım | Her kaydetmede **tüm kişi listesini** kopyalayıp yazıyor (15 anlık görüntü). 500 kişilik ağaçta her düzenleme megabaytlarca I/O. `lib/people-diff.ts` zaten var. 58'in ön koşulu. |
-| 52 | E-posta ile şifre sıfırlama | İkinci kurtarma yolu = ikinci ele geçirme yolu. **1'e bağlı.** 60'ın ön koşulu. |
-| 53 | Otomatik zamanlanmış yedek | `scripts/backup.mjs` elle çalışıyor. 60'a girmeden **çalışan otomatik yedek** olmalı. |
-| 54 | Storyworth için ayrı giriş kapısı | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor. Ucuz görünüp en derine dokunan iş. |
-| 55 | **e-Devlet PDF'ini birincil onboarding yapmak** | Ayrıştırıcı zaten var ve zaten içe aktarımda çalışıyor → bu **yeni yetenek değil, canlı ürünün ilk-çalıştırma akışının yeniden yazımı.** En yüksek "bozarsan herkes görür" katsayısı. |
-| 56 | Supabase Faz 3d — hesapsız (misafir) giriş | Kimliksiz hesap türü, `isFounder`/`treeId` çözümünün her dalını etkiler. |
-| 57 | Supabase Faz 3e — gerçek e-posta ile kalıcılaştırma | Çalışan hesapların kimlik anahtarını yerinde değiştirmek; geri alması zor. |
-| 58 | Çevrimdışı yakalama + senkron | **Yalnız mobilde.** Mevcut iyimser kilitle (`x-base-version`) doğrudan çakışıyor; web'de maliyeti faydasını aşıyor. 51'e bağlı. |
-| 59 | Blob ↔ Supabase kayma denetimi | Çift yazma var, okuma hâlâ Blob'tan. İki kaynağın ayrışmadığını gösteren araç yok. **60'ın gerçek ön koşulu bu**, "hesaplar taşındı mı" değil. |
-| 60 | Supabase Faz 4 — bcrypt + `users.json` emekliye | **Tek geri dönüşü olmayan iş.** Yanlış giderse kullanıcı kilitlenir. Kesinlikle en son. |
+| 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** |
+| 55 | **Elle test: üyeler ve davetler** (`/join`, roller) | Gerçek hesap, gerçek davet, iki tarayıcı. **35'ten önce olmalı** |
+| 56 | **Elle test: bağlı ağaçlar** (pairing, `/pair`) | İki gerçek hesap gerekiyor. En karmaşık yazma yolu, hiç elle koşulmamış |
+| 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
+| 58 | **Index Anatolicus lisans görüşmesi** | Kurumsal görüşme; **aylar sürebilir**. 37 ve 38'i açıyor |
+| 59 | Karar: aile meclisi / fon kapsamı | Para hareketi = finansal düzenleme. Öneri: **hayır** |
+| 60 | Karar: telefonla hikâye kaydı (BTK/operatör) | Numara tahsisi araştırması. Öneri: **hayır** — 30 aynı ihtiyacı karşılıyor |
+| 61 | Karar: kuşak adı/rütbesi terminolojisi | Türkçede karşılığı var mı? Öneri: **yok, alan eklenmesin** — 27'ye erir |
+| 62 | Karar: tek seferlik kalıcı arşiv (ürün/hukuk/ödeme) | Süre taahhüdü + saklama garantisi. Öneri: "sonsuza dek" yerine **"X yıl + her an tam dışa aktarım"** |
+| 63 | Karar: yüz tanıma (KVKK) | Yüz verisi **özel nitelikli kişisel veri**. Öneri: **yapılmasın** |
+| 64 | Karar: şifreli belge kasası | Anahtar kaybı = kalıcı veri kaybı. Öneri: yerine **imzalı, süreli erişim** |
 
 ---
 
-## §4 — Ajanın itirazları ve ne yaptığım
+## ⚠️ Bu sıralamanın tek kusuru
 
-Bağımsız ajan `docs/PUANLAMA-VE-SIRA.md` ile 11 yerde ayrıştı. **Hepsi kodda doğrulandı.**
+Sen "senin işler sonda olsun" dedin ve liste öyle kuruldu — ama **K6'daki iki madde
+blokaj.** Sonda bırakılırsa 10 iş askıda kalır:
 
-**Kabul edilen düzeltmeler:**
+| Madde | Kilitlediği işler |
+|---|---|
+| **54 — e-posta anahtarı** | 47, 48, 49, 50, 51 · dolaylı olarak 45 |
+| **58 — Index Anatolicus lisansı** | 37, 38 |
+| **55 — üyeler/davet elle testi** | 35 |
 
-1. **GEDCOM `OBJE` medya eşlemesi ZATEN YAPILMIŞ** — `lib/gedcom.ts:159-166` + `tests/gedcom-media.test.mts`. Listeden çıkarıldı; belge yanlıştı (iş 2 bunu düzeltiyor).
-2. **Mobil "yalnız login/register" YANLIŞ** — Aşama 0–8 bitmiş, kalan yalnız Aşama 9. Kapsam düzeltildi (34).
-3. **"Bağlantısız kişi" büyük ölçüde var** — `PersonForm`'da "Aile bağları" bölümü mevcut kişide ebeveyn/eş değiştirmeye izin veriyor. Kalan gerçek eksik yalnız **tuval üstü** etkileşim (38). Dalga 1'in 2. sırasından çıkarıldı.
-4. **e-Devlet onboarding: benim 2. sıram → 55.** En büyük ayrılık ve ajan haklı: ayrıştırıcı zaten çalışıyor, bu iş yeni yetenek değil **canlı ilk-temas akışının yeniden yazımı**.
-5. **Katkı verici rolü, API'den ÖNCE değil SONRA.** Ben "API'nin yetki modeli buna dayanacak" demiştim — yanlış: **okuma** API'si role değil bearer jetonuna dayanıyor, yazma API'sini zaten kapsam dışı bıraktık.
-6. **Genogram ile kalıtsal hastalık ayrıldı.** Ben eşlemiştim; kalıtsal hastalık zaten var olan alanlardan türeyen salt-okunur görünüm (B/15), genogram yeni kenar listesi (D/47). Aralarında 32 sıra var — eşlemek ucuzu pahalının arkasına kilitlerdi.
-7. **Hicri takvim ayrı iş oldu** (10). Anma takviminin içinde saymak, tek matematiksel doğruluk yükünü kendi testinden mahrum bırakıyordu.
-8. **Native mobil yukarı çıktı** (34). `apps/` kök tsconfig/eslint dışında olduğu için web'i bozamaz: emek yüksek, risk sıfıra yakın. Risk sıralamasının en net sonucu.
-9. **Puan tablosunun kapsamı, sıralamanın kapsamı olamaz.** Supabase fazları, şifre sıfırlama, elle testler ve mobil 21 satırlık tabloda hiç yoktu; oysa ilk 5 ve son 11 sıranın çoğu bunlar.
+**Öneri:** 54, 58 ve 55 sırada sonda dursun ama **takvimde bugün başlasın.** Üçü de
+oturup yapılacak iş değil — biri hesap açma, biri e-posta yazıp beklemek, biri yarım
+saatlik test. Ben 1'den başlayıp 32'ye kadar sana hiç ihtiyaç duymadan ilerlerim; o
+sırada bu üçü tamamlanmış olur ve K4/K5 açık bulunur.
 
-**Ajanın bulduğu, listede hiç olmayan 11 teknik borç işi** sıralamaya katıldı: alan kayıt defteri (43), `view()` kaçağı testi (18), kayma denetimi (59), `history.ts` yeniden yazımı (51), soru bankası (11), paylaşımlı oran sınırı (31), rota izin listesi (19), referans süpürücüsü (16), mobil CI (33), otomatik yedek (53), belge düzeltmesi (2).
+## Şimdi
 
-## §5 — "Yapılmasın" denenler (karar senin)
-
-Hepsi sıralamada duruyor, ama gerekçeleri kayda geçti:
-
-| # | İş | Gerekçe |
-|---|---|---|
-| 48 | Yüz tanıma | Yüz verisi KVKK'da **özel nitelikli kişisel veri**. Ölmüş insanların yüzlerini üçüncü taraf API'ye göndermek, "gizlilik bir maskedir" duruşunun tam zıddı. Yapılacaksa yalnız istemci taraflı — ki fayda büyük ölçüde silinir. |
-| 49 | Şifreli belge kasası | Anahtar kaybı = **kalıcı, geri alınamaz** veri kaybı; ürünün varlık sebebiyle zıt. Anahtarı sunucu tutarsa güvenlik tiyatrosu. Yerine: imzalı, süreli erişim. |
-| 6 | Aile meclisi / fon | Para hareketi = finansal düzenleme + ihtilaf çözümü. Aile parasını tutmak, kaybedilecek tek şeyi (güven) riske atar. |
-| 7 | Telefonla hikâye kaydı | BTK/operatör yükü; sabit hat kullanımı hedef kitlede bile düşüyor. WhatsApp sesli mesaj + Sesli Şecere (35) aynı ihtiyacı sıfır regülasyonla karşılıyor. |
-| 8 | Kuşak adı/rütbesi | Türk-İslam onomastiğinde birebir karşılığı **yok**; zorlama taksonomi olur ve 44'ün ilkesiyle çelişir. |
-| 37 | Toplu foto restorasyon | Ne masa payı ne farklılaştırıcı; sürekli kota maliyeti. |
-| 36 | Üretken renklendirme | Atanın gözünü/tenini modelin uydurduğu görüntü, `Source` (kaynak/atıf) disipliniyle çelişir. Yapılırsa **ayrı türev** olarak, orijinal değişmeden. |
-| 9 | Tek seferlik kalıcı arşiv | "Sonsuza dek", finanse edilmemiş ve hukuken bağlayıcı bir taahhüt — kategorinin en sık ihanet edilen vaadi. Yerine: "X yıl + her an tam dışa aktarım". |
-
----
-
-## Şimdi başlanacaklar
-
-**Bugün, paralel:** 1 (e-posta kararı) · 3 (lisans görüşmesi) · 2 (belge düzeltmesi).
-**İlk kod:** 10 — `lib/hijri.ts`. Hiçbir şey beklemiyor, kendi testiyle gelir, 17'yi açar.
+**Sıra 1–11 tamamen bende ve hiçbiri seni beklemiyor.** İlk kod: **2 — `lib/hijri.ts`**,
+kendi testiyle gelir ve 9 ile 14'ü açar.

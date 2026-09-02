@@ -14,10 +14,20 @@ Kaynak belgeler: `GELISTIRME-PLANI.md` §2–3, `MYHERITAGE-INCELEME.md`,
 
 ## SIRA — `docs/YAPIM-SIRASI.md` (tek kaynak)
 
-**60 iş, 1'den 60'a, beraberlik yok.** Sıralama ekseni puan değil **bozma riski**:
-A) hiç kod yok → B) izole saf lib → C) yeni rota/bileşen → D) `Person` alanı ekleme
-→ E) çekirdek (kimlik, depolama, senkron). Kendi değerlendirmem + bağımsız bir ajanın
-kod okuyarak yaptığı ikinci değerlendirme birleştirildi.
+**64 iş, 1'den 64'e, beraberlik yok.** Sıralama ekseni: **Claude'un tek başına ne kadar
+kolay yapabildiği** — en başta dış girdi gerektirmeyen saf mantık, en sonda Claude'un
+yapamadığı, kullanıcının yapması gereken işler (hesap açma, elle test, mağaza derlemesi,
+lisans görüşmesi, ürün/hukuk kararları).
+
+Bantlar: **K1** saf mantık+test → **K2** yeni görünüm/rota → **K3** mevcut koda dokunan
+→ **K4** çekirdek/riskli (gözden geçirme ister) → **K5** ortak (kod Claude'da, anahtar
+kullanıcıda) → **K6** yalnız kullanıcı.
+
+Önceki "bozma riski" ekseni (A/B/C/D/E) her satırda **kademe** sütunu olarak korundu.
+
+**Blokaj uyarısı:** K6'daki 54 (e-posta anahtarı), 58 (Index Anatolicus lisansı) ve
+55 (üyeler/davet elle testi) listede sonda ama **takvimde bugün başlamalı** — yoksa
+10 iş askıda kalır. Sıra 1–32 arası hiçbiri kullanıcıyı beklemiyor.
 
 ### Düzeltmeler (bu belge yanlıştı)
 
