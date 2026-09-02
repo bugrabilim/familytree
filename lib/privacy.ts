@@ -95,3 +95,21 @@ export function maskPerson(p: Person): Person {
 
   return masked;
 }
+
+/**
+ * Görüntü katmanının TEK kaynağı: tümüyle maskeliyse beyaz listeli kopya,
+ * değilse alan-bazlı gizli grupları çıkarılmış kopya.
+ *
+ * Hem istemcide (`PrivacyContext`) hem SUNUCUDA kullanılır. Sunucu tarafı
+ * şart: Next.js'te bir sunucu bileşeninden istemci bileşenine geçen proplar
+ * RSC yüküne serileştirilip tarayıcıya gider. Yalnız çizim anında maskelemek,
+ * ham veriyi zaten göndermiş olmak demektir.
+ */
+export function viewPerson(p: Person, hideLiving: boolean): Person {
+  return isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p);
+}
+
+/** `viewPerson`'ın liste hâli. */
+export function viewAll(people: Person[], hideLiving: boolean): Person[] {
+  return people.map((p) => viewPerson(p, hideLiving));
+}

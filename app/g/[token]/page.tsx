@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { getFamilyData } from "@/lib/blob";
 import { findValidShare, recordShareVisit } from "@/lib/members";
+import { viewAll } from "@/lib/privacy";
 import Workspace from "@/app/tree/Workspace";
 import Invalid from "./Invalid";
 
@@ -42,9 +43,23 @@ export default async function SharePage({
 
   const { people, updatedAt } = await getFamilyData(valid.treeId);
 
+  /*
+   * Maskeleme SUNUCUDA yapılır — bu satır bir gizlilik sınırıdır.
+   *
+   * `Workspace` bir istemci bileşeni ("use client"). Next.js'te sunucu
+   * bileşeninden istemci bileşenine geçen proplar RSC yüküne serileştirilip
+   * tarayıcıya gönderilir. Yalnız çizim anında maskelemek (istemcideki
+   * `PrivacyContext`) ham veriyi zaten göndermiş olmak demekti: yaşayanların
+   * doğum tarihi, sağlık kaydı, hikâyesi sayfa kaynağında görünüyordu.
+   *
+   * Burası girişsiz, herkese açık bir yüzey; ham veri buradan çıkmamalı.
+   * İstemci tarafı aynı `viewPerson`'ı yeniden uygular (idempotent).
+   */
+  const safePeople = viewAll(people, valid.share.hideLiving);
+
   return (
     <Workspace
-      people={people}
+      people={safePeople}
       version={updatedAt}
       familyName={valid.share.treeName}
       role="viewer"
