@@ -134,6 +134,64 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 
 ---
 
+## Sonradan eklenenler — burç ve yükselen (kullanıcı isteği, 2026-09-02)
+
+> Mevcut 1–64 numaraları **değişmedi**; commit ve PR'larda onlara atıf yapıldı.
+> Yeni işler 65'ten devam ediyor, ama her biri **hangi banda ait olduğu** ve
+> **sırada nerede koşacağı** ile yazıldı.
+
+| # | İş | Bant | Koşma yeri | Durum |
+|---|---|:-:|---|---|
+| **65** | **Burç (güneş burcu)** — `lib/zodiac.ts` | K1 | — | ✅ **yapıldı** |
+| **66** | **`birthTime` alanı + yükselen burç** | K3 | 26'dan (alan kayıt defteri) **sonra** | ⛔ alan yok |
+| **67** | **Burç yorumu / karakter anlatımı** | K3 | 66'dan sonra | ⚠️ **karar bekliyor** |
+
+### 65 — Burç ✅
+
+Yalnız doğum tarihinden hesaplanıyor, yeni alan gerekmiyor. Element (ateş/toprak/
+hava/su) da veriliyor.
+
+**Dürüstlük notu koda ve arayüze taşınacak:** burç geçişi bir takvim günü değil,
+Güneş'in burca girdiği **astronomik andır** ve yıldan yıla ~1 gün oynar. Sabit
+tabloya körü körüne güvenmiyoruz: sınıra 1 gün ya da daha yakın doğumlarda
+`cusp: true` ve `alternative` dönüyor, arayüz *"sınırda — doğum saatine göre
+Koç olabilir"* diyebiliyor.
+
+### 66 — `birthTime` + yükselen ⛔
+
+Yükselen burç, doğum **anının** ve **yerinin** ikisini birden ister:
+
+- **Saat:** `birthTime` alanı **yok**, eklenmeli → kanonik D bandı işi
+  (`types/family.ts` + `PersonForm` + iki API rotası + `PersonDrawer` + i18n).
+  Bu yüzden **26'dan (alan kayıt defteri) sonra** yapılmalı; o iş bunu bir bant
+  ucuzlatıyor.
+- **Yer:** `birthCoords` **zaten var** (harita işinde eklenmişti) — enlem/boylam
+  hazır.
+- **Hesap:** yerel yıldız zamanı + ekliptik eğimi + enlemden yükselen derecesi.
+  Gerçek gökbilim; Hicri takvimde olduğu gibi **doğrulama çıpası** gerekiyor,
+  yoksa sessizce yanlış sonuç üretir. Çıpa bulunmadan yazılmamalı.
+
+`birthTime` ayrıca burç dışında da işe yarar: nüfus kayıtlarında doğum saati
+geçer ve bazı aileler bunu tutar.
+
+### 67 — Yorum / karakter anlatımı ⚠️ karar bekliyor
+
+Soru şu: bu metni **kim yazıyor?**
+
+| Seçenek | Sonuç |
+|---|---|
+| **(a) Aile yazar** — serbest metin alanı | Kaydın sahibi aile; hiçbir iddia uydurulmuyor |
+| **(b) YZ üretir** (`lib/gemini.ts` hazır) | Gerçek, çoğu vefat etmiş insanların kaydına **uydurulmuş karakter iddiaları** girer |
+
+**Önerim (a), ya da (b) ise şu üç kayıtla:** üretilen metin (1) görünür biçimde
+"yorum" etiketli olur, (2) kişinin olgusal alanlarına **karışmaz**, (3) GEDCOM
+dışa aktarımında **olgu olarak çıkmaz**.
+
+Gerekçe: bu ürünün ayırt edici disiplini `Source` / kaynak-atıf ciddiyeti —
+"bu bilgiyi nereden biliyoruz?". Büyükbabanın kaydına, hiçbir kaynağı olmayan
+bir karakter tahmini eklemek tam da o disiplini bozar. Burç bir olgudur
+(tarihten çıkar); karakter yorumu değildir.
+
 ## ⚠️ Bu sıralamanın tek kusuru
 
 Sen "senin işler sonda olsun" dedin ve liste öyle kuruldu — ama **K6'daki iki madde
