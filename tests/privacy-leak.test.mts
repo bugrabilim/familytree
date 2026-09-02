@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import {
-  isLiving, isMasked, maskPerson, viewPerson, viewAll,
+  isLiving, isMasked, maskPerson, stripPrivateFields, viewPerson, viewAll,
 } from "../lib/privacy.ts";
+import { PRIVATE_GROUPS } from "../types/family.ts";
+import { tr, en } from "../lib/i18n-dict.ts";
 import type { Person } from "../types/family.ts";
 
 let ok = 0, fail = 0;
@@ -139,6 +141,96 @@ const ctx = readFileSync(new URL("../components/PrivacyContext.tsx", import.meta
 check(/viewPerson\s*\(/.test(ctx), "PrivacyContext tek kaynağı (viewPerson) kullanıyor");
 check(!/isMasked\([^)]*\)\s*\?\s*maskPerson/.test(ctx),
   "istemcide maskeleme mantığı tekrarlanmıyor");
+
+/* --- SINIF KORUMASI: hassas alanların hiçbiri gruplarsız kalmasın --------- */
+
+/**
+ * `maskPerson` beyaz liste olduğu için yeni alanlar orada varsayılan gizli.
+ * Ama `stripPrivateFields` KARA listedir: eşlemede adı geçmeyen bir alan
+ * hiçbir grupla gizlenemez ve sessizce açıkta kalır.
+ *
+ * `birthCoords` tam olarak böyle kaçmıştı: `birthPlace` grubu metni
+ * gizlerken koordinat kopyada duruyordu — yani aynı bilgi daha yüksek
+ * çözünürlükle. Bu tablo o hatanın tekrarını engeller.
+ */
+const MUST_BE_COVERABLE: Record<string, unknown> = {
+  bio: "GIZLI hikaye",
+  congenitalCondition: "GIZLI dogustan",
+  healthCondition: "GIZLI saglik",
+  healthNote: "GIZLI not",
+  deathCause: "GIZLI olum nedeni",
+  photo: "https://gizli.example/foto.jpg",
+  photos: ["https://gizli.example/a.jpg"],
+  videos: ["https://gizli.example/v.mp4"],
+  documents: ["https://gizli.example/d.pdf"],
+  orientation: "GIZLI yonelim",
+  memories: [{ id: "m1", text: "GIZLI ani" }],
+  events: [{ id: "e1", type: "goc-tasinma", date: "1950" }],
+  birthPlace: "GIZLI-Sivas",
+  birthCoords: { lat: 39.8878, lng: 37.7561 },
+  burialPlace: "GIZLI-Mezarlik",
+  burialCoords: { lat: 40.1, lng: 38.2 },
+  // KVKK md. 6 — özel nitelikli kişisel veri
+  religion: "GIZLI din",
+  denomination: "GIZLI mezhep",
+  ethnicity: "GIZLI koken",
+  nationality: "GIZLI uyruk",
+  language: "GIZLI dil",
+};
+
+const base = (over: Partial<Person> = {}): Person => ({
+  id: "p9", firstName: "Ali", lastName: "Yılmaz", gender: "male",
+  parentIds: [], spouseIds: [], ...MUST_BE_COVERABLE, ...over,
+} as unknown as Person);
+
+// Her alan EN AZ BİR grupla gizlenebilmeli
+const groups = [...PRIVATE_GROUPS];
+const uncovered: string[] = [];
+for (const field of Object.keys(MUST_BE_COVERABLE)) {
+  const hidden = groups.some((g) => {
+    const v = stripPrivateFields(base({ privateFields: [g] })) as unknown as Record<string, unknown>;
+    return v[field] === undefined;
+  });
+  if (!hidden) uncovered.push(field);
+}
+eq(uncovered, [], "hassas alanların hepsi bir grupla gizlenebiliyor");
+
+// Koordinat, metniyle AYNI grupta olmalı — ayrı kalırsa biri açıkta unutulur
+const bp = stripPrivateFields(base({ privateFields: ["birthPlace"] })) as unknown as Record<string, unknown>;
+eq(bp.birthPlace, undefined, "birthPlace grubu metni gizler");
+eq(bp.birthCoords, undefined, "birthPlace grubu KOORDİNATI da gizler");
+
+const bur = stripPrivateFields(base({ privateFields: ["burialPlace"] })) as unknown as Record<string, unknown>;
+eq(bur.burialPlace, undefined, "burialPlace grubu metni gizler");
+eq(bur.burialCoords, undefined, "burialPlace grubu koordinatı da gizler");
+
+// KVKK özel nitelikli veriler
+const bel = stripPrivateFields(base({ privateFields: ["belief"] })) as unknown as Record<string, unknown>;
+eq(bel.religion, undefined, "din gizlenebiliyor");
+eq(bel.denomination, undefined, "mezhep gizlenebiliyor");
+
+const org = stripPrivateFields(base({ privateFields: ["origin"] })) as unknown as Record<string, unknown>;
+eq(org.ethnicity, undefined, "etnik köken gizlenebiliyor");
+eq(org.nationality, undefined, "uyruk gizlenebiliyor");
+
+// Grup SEÇİCİ olmalı: bir grup başka grubun alanını götürmemeli
+const only = stripPrivateFields(base({ privateFields: ["belief"] })) as unknown as Record<string, unknown>;
+check(only.birthPlace !== undefined, "belief grubu doğum yerine dokunmuyor");
+check(only.bio !== undefined, "belief grubu hikâyeye dokunmuyor");
+
+// Her grubun i18n etiketi olmalı — arayüz PRIVATE_GROUPS'u map ediyor
+let labelMiss = 0;
+for (const g of groups) {
+  if (!(`private.${g}` in tr) || !(`private.${g}` in en)) {
+    labelMiss++; console.log(`  ✗ etiket eksik: private.${g}`);
+  }
+}
+eq(labelMiss, 0, "tüm gizlilik gruplarının TR ve EN etiketi var");
+
+// Tam maskede zaten hiçbiri yok (beyaz liste)
+const fullMask = JSON.stringify(maskPerson(base()));
+check(!fullMask.includes("GIZLI"), "tam maskede hassas değer izi yok");
+check(!fullMask.includes("39.8878"), "tam maskede koordinat yok");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

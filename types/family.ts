@@ -314,7 +314,10 @@ export const PRIVATE_GROUPS = [
   "photo",       // fotoğraf + galeri
   "orientation", // cinsel yönelim
   "memories",    // anılar
-  "birthPlace",  // doğum yeri
+  "birthPlace",  // doğum yeri + elle işaretlenmiş koordinatı
+  "burialPlace", // defin yeri + koordinatı
+  "belief",      // din + mezhep — KVKK'da özel nitelikli
+  "origin",      // etnik köken + uyruk + ana dil — KVKK'da özel nitelikli
   "events",      // yaşam olayları
 ] as const;
 
