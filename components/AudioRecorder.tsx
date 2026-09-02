@@ -7,6 +7,15 @@ import { useT } from "@/lib/i18n";
 interface Props {
   /** Yükleme bittiğinde Cloudinary URL'i döner. */
   onUploaded: (url: string) => void;
+  /**
+   * HAM dosya — yükleme beklenmeden verilir. Sesli Şecere kaydı hem
+   * Cloudinary'ye saklamak hem de deşifreye göndermek zorunda; deşifrenin
+   * yüklemeyi beklemesi için bir sebep yok.
+   *
+   * Kendi hatasını KENDİ yönetir: buradaki hata gösterimi yükleme içindir,
+   * çağıranın işini üstlenmez.
+   */
+  onFile?: (file: File) => void;
   disabled?: boolean;
 }
 
@@ -15,7 +24,7 @@ interface Props {
  * Cloudinary'ye (ses = "video" kaynağı) yükleme. Mikrofon izni yoksa dosya
  * seçme yedeği sunar. Kayıt Blob'u webm/ogg olur; `<audio>` bunları oynatır.
  */
-export default function AudioRecorder({ onUploaded, disabled }: Props) {
+export default function AudioRecorder({ onUploaded, onFile, disabled }: Props) {
   const t = useT();
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -40,6 +49,7 @@ export default function AudioRecorder({ onUploaded, disabled }: Props) {
     async (file: File) => {
       setUploading(true);
       setError(undefined);
+      onFile?.(file);
       try {
         const url = await uploadAudio(file);
         onUploaded(url);
@@ -49,7 +59,7 @@ export default function AudioRecorder({ onUploaded, disabled }: Props) {
         setUploading(false);
       }
     },
-    [onUploaded]
+    [onUploaded, onFile]
   );
 
   const start = useCallback(async () => {

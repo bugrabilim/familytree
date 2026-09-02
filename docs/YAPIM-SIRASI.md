@@ -73,7 +73,7 @@ Mevcut arayüzü değiştirmiyor; Playwright ile ekran görüntüsü alıp doğr
 | 27 | Nötr **"sülale"** alanı | D | Kanonik alan-ekleme işi. Asla hazır taksonomi, asla soyaddan çıkarım | ✅
 | 28 | Genogram duygusal ilişki katmanı | D | İki uçlu **kenar listesi** = yeni birinci sınıf veri türü. 5–6 tür, varsayılan kapalı | ✅
 | 29 | `lib/history.ts` fark tabanlı yeniden yazım | E | Her kaydetmede tüm kişi listesini kopyalıyor; `people-diff.ts` zaten var. 44'ün ön koşulu | ✅
-| 30 | Sesli Şecere | C | `AudioRecorder` + Gemini hattı hazır; ses akışı doğrulaması bende zor kısım. 3'e bağlı |
+| 30 | Sesli Şecere | C | `AudioRecorder` + Gemini hattı hazır; ses akışı doğrulaması bende zor kısım. 3'e bağlı | ✅
 | 31 | Gömülebilir ağaç `/embed/<token>` | C | Riski rota değil, **global güvenlik ayarı**: `X-Frame-Options: DENY` yalnız burada gevşer. 10'a bağlı |
 | 32 | Tuval üstü ebeveyn değiştirme | C | Çekirdek etkileşim dosyası; yanlış bırakma = sessiz veri bozulması |
 
