@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "for f in tests/*.test.mts; do node --experimental-strip-types \"$f\" || exit 1; done"
+    "typecheck": "tsc --noEmit",
+    "typecheck:mobile": "if [ -d apps/mobile/node_modules ]; then npm --prefix apps/mobile run typecheck; else echo \"apps/mobile/node_modules yok. Önce: npm --prefix apps/mobile install\" >&2; exit 1; fi",
+    "test": "for f in tests/*.test.mts; do node --experimental-strip-types \"$f\" || exit 1; done",
+    "check": "npm run lint && npm run typecheck && npm test && npm run typecheck:mobile"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
