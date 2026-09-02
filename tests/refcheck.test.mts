@@ -170,5 +170,101 @@ eq(r10.people.length, 3, "hiçbir kişi silinmedi");
 const twice = repairRefs(repairRefs(afterDelete).people);
 eq(twice.applied, [], "ikinci onarımda yapacak iş kalmaz");
 
+/* --- H1: `only` GERÇEKTEN sınırlamalı ------------------------------------ */
+
+// Önceki sürümde temizlik körlemesine koşuyordu: `only` verilse bile istenmeyen
+// alanlarda silme oluyor, üstelik o silme `skipped` diye raporlanıyordu.
+const h1: Person[] = [
+  P("a", { spouseIds: ["b"], parentIds: ["HAYALET"] }),
+  P("b", { spouseIds: [] }),
+];
+const only1 = repairRefs(h1, ["asymmetricSpouse"]);
+eq(only1.people[0].parentIds, ["HAYALET"], "only dışındaki sarkan referans KORUNUR");
+eq(only1.people[1].spouseIds, ["a"], "only içindeki simetri uygulanır");
+check(only1.skipped.some((i) => i.kind === "danglingParent"), "dokunulmayan sorun skipped'ta");
+check(!only1.applied.some((i) => i.kind === "danglingParent"), "dokunulmayan sorun applied'da DEĞİL");
+
+// Rapor ile gerçek örtüşmeli: skipped denen hiçbir şey değişmemiş olmalı
+const before1 = JSON.stringify(h1[0]);
+check(JSON.stringify({ ...only1.people[0], spouseIds: h1[0].spouseIds }) === before1,
+  "skipped edilen alanlar bire bir korunmuş");
+
+// Tersi de doğru olmalı
+const only2 = repairRefs(h1, ["danglingParent"]);
+eq(only2.people[0].parentIds, [], "seçilen tür onarılır");
+eq(only2.people[1].spouseIds, [], "seçilmeyen simetri uygulanmaz");
+
+// Yinelenenler de only'ye uymalı
+const dupOnly: Person[] = [P("a", { parentIds: ["b", "b"], spouseIds: ["c", "c"] }), P("b"), P("c", { spouseIds: ["a"] })];
+const dOnly = repairRefs(dupOnly, ["duplicateParent"]);
+eq(dOnly.people[0].parentIds, ["b"], "seçilen yinelenen tekilleşir");
+eq(dOnly.people[0].spouseIds, ["c", "c"], "seçilmeyen yinelenen KORUNUR");
+
+// Kendine referans da only'ye uymalı
+const selfOnly: Person[] = [P("a", { parentIds: ["a"], spouseIds: ["a"] })];
+eq(repairRefs(selfOnly, []).people[0].parentIds, ["a"], "boş only hiçbir şeyi silmez");
+
+/* --- H2: onarım YENİ sorun doğurmamalı ----------------------------------- */
+
+// A "hâlâ evliyiz" diyor, B "boşandık" diyor. Geri referans eklemek
+// `spouseAlsoFormer` doğururdu — o da onarılamaz. Onarım onaramayacağı bir
+// sorun üretmemeli; bu kayıt onarılamaz işaretlenir.
+const h2: Person[] = [
+  P("a", { spouseIds: ["b"] }),
+  P("b", { spouseIds: [], formerSpouseIds: ["a"] }),
+];
+const disagreement = findRefIssues(h2).find((i) => i.kind === "asymmetricSpouse")!;
+eq(disagreement.repairable, false, "karşı taraf 'eski eş' diyorsa asimetri onarılamaz");
+const fixed2 = repairRefs(h2);
+check(!findRefIssues(fixed2.people).some((i) => i.kind === "spouseAlsoFormer"),
+  "onarım spouseAlsoFormer DOĞURMUYOR");
+eq(fixed2.people[1].spouseIds, [], "çelişkili bağ eklenmedi");
+eq(fixed2.people[1].formerSpouseIds, ["a"], "eski eş kaydı korundu");
+check(fixed2.skipped.some((i) => i.kind === "asymmetricSpouse"), "anlaşmazlık bildirildi");
+
+// Karşı taraf eski eş DEMİYORSA normal simetrikleştirme sürmeli
+const plainPair: Person[] = [P("a", { spouseIds: ["b"] }), P("b")];
+eq(findRefIssues(plainPair).find((i) => i.kind === "asymmetricSpouse")?.repairable, true,
+  "çelişki yoksa asimetri onarılabilir");
+eq(repairRefs(plainPair).people[1].spouseIds, ["a"], "çelişki yoksa simetrikleşir");
+
+/* --- DEĞİŞMEZ: onarım hiçbir zaman yeni sorun doğurmamalı ---------------- */
+
+// Rastgele bozuk ağaçlarda: onarım sonrası sorun kümesi, öncekinin ALT KÜMESİ
+// olmalı — onarım hiçbir yeni tür üretmemeli.
+function randTree(seed: number): Person[] {
+  let x = seed;
+  const rnd = () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const n = 3 + Math.floor(rnd() * 6);
+  const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+  return ids.map((id) => {
+    const pick = () => (rnd() < 0.25 ? "HAYALET" : ids[Math.floor(rnd() * n)]);
+    const e: Partial<Person> = {};
+    if (rnd() < 0.6) e.parentIds = [pick(), pick()].slice(0, 1 + Math.floor(rnd() * 2));
+    if (rnd() < 0.6) e.spouseIds = [pick()];
+    if (rnd() < 0.3) e.formerSpouseIds = [pick()];
+    if (rnd() < 0.3) e.parentLinks = { [pick()]: { kind: "step" } };
+    return P(id, e);
+  });
+}
+let born = 0, checked = 0;
+for (let seed = 1; seed <= 300; seed++) {
+  const tree = randTree(seed);
+  const beforeKinds = new Set(findRefIssues(tree).map((i) => i.kind));
+  const after = repairRefs(tree);
+  const afterKinds = new Set(findRefIssues(after.people).map((i) => i.kind));
+  checked++;
+  for (const k of afterKinds) if (!beforeKinds.has(k)) { born++; console.log(`  ✗ tohum ${seed}: onarım ${k} doğurdu`); }
+}
+eq(born, 0, `300 rastgele ağaçta onarım yeni sorun türü doğurmadı (${checked} ağaç)`);
+
+// Ve onarım hâlâ idempotent
+let notIdem = 0;
+for (let seed = 1; seed <= 300; seed++) {
+  const once = repairRefs(randTree(seed)).people;
+  if (repairRefs(once).applied.length !== 0) notIdem++;
+}
+eq(notIdem, 0, "300 rastgele ağaçta onarım idempotent");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
