@@ -4,6 +4,14 @@ export interface User {
   passwordHash: string;
   recoveryCodeHash: string;
   createdAt: string;
+  /**
+   * MİSAFİR hesap mı (Faz 3d)? Kayıt olmadan denemek için açılmış, şifresiz,
+   * sahiplenilebilir hesap. Kısıtları `lib/guest.ts`te.
+   *
+   * Varsayılan yokluğudur: alan yoksa hesap GERÇEK sayılır. Bu yön bilinçli —
+   * mevcut hesapların hiçbiri misafir değil.
+   */
+  guest?: boolean;
   /** Bildirim e-posta adresi (opt-in). Giriş surname+şifre olduğundan e-posta
    *  yalnız hatırlatma/bildirim için, kullanıcının açık onayıyla saklanır. */
   notifyEmail?: string;

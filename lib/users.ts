@@ -45,7 +45,8 @@ export async function createUser(
   id: string,
   familyName: string,
   passwordHash: string,
-  recoveryCodeHash: string
+  recoveryCodeHash: string,
+  opts?: { guest?: boolean }
 ): Promise<User> {
   const data = await getUsersData();
   const user: User = {
@@ -54,6 +55,7 @@ export async function createUser(
     passwordHash,
     recoveryCodeHash,
     createdAt: new Date().toISOString(),
+    ...(opts?.guest ? { guest: true } : {}),
   };
   data.users.push(user);
   await saveUsersData(data);
@@ -102,6 +104,34 @@ export async function updateUserNotify(
  * jetonun geçerli kalması, artık bağlı olmayan bir adresin doğrulanmasına
  * izin vermek olurdu.
  */
+/**
+ * Misafir ağacını gerçek hesaba çevirir (Faz 3d — sahiplenme).
+ *
+ * `guest` bayrağı KALDIRILIYOR, bırakılıp `false` yapılmıyor: bayrağın
+ * yokluğu "gerçek hesap" demek ve tek bir doğruluk biçimi olsun.
+ */
+export async function claimGuestUser(
+  id: string,
+  familyName: string,
+  passwordHash: string,
+  recoveryCodeHash: string
+): Promise<User | null> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user || !user.guest) return null;
+  user.familyName = familyName;
+  user.passwordHash = passwordHash;
+  user.recoveryCodeHash = recoveryCodeHash;
+  delete user.guest;
+  await saveUsersData(data);
+  try {
+    await dbUpsertAccount(user);
+  } catch (e) {
+    console.warn(`[cift-yazma] sahiplenme→postgres (${user.id}):`, (e as Error).message);
+  }
+  return user;
+}
+
 export async function updateUserAuthEmail(
   id: string,
   patch: {

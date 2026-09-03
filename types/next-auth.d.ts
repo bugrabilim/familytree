@@ -14,6 +14,9 @@ declare module "next-auth" {
       treeName?: string;
       /** Ağacı kuran hesap mı? (üye değilse) — çoklu ağaç sahipliği için. */
       isFounder?: boolean;
+    isGuest?: boolean;
+      /** Misafir oturumu (Faz 3d) — kısıtlar `lib/guest.ts`te. */
+      isGuest?: boolean;
       /**
        * Davetli ÜYENİN kendi kimliği (`lib/members.ts`). Kurucuda yoktur:
        * onun kimliği ağacın kimliğidir. `id` ağacı, bu alan kişiyi söyler.
