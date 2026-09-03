@@ -1790,6 +1790,27 @@ export const tr: Dict = {
   "embed.hint":
     "Bu kodu bir siteye yapıştırın; ağaç orada salt okunur açılır. Aynı bağlantı, aynı gizlilik tercihi.",
   "embed.poweredBy": "Soy Ağacı",
+
+  /* --- Tuval üstü ebeveyn değiştirme --- */
+  "reparent.mode": "Bağ kur",
+  "reparent.modeHint":
+    "Açıkken bir kartı başka bir kartın üstüne bırakınca ebeveyn bağı önerilir. Onaylamadan hiçbir şey değişmez.",
+  "reparent.title": "Ebeveyn bağı",
+  "reparent.body": "{child} → {parent}'ın çocuğu olacak.",
+  "reparent.removes": "Bu işlem {name} ile olan ebeveyn bağını koparır.",
+  "reparent.chooseBody":
+    "{child} kişisinin iki ebeveyni dolu. {parent} hangisinin yerine geçsin?",
+  "reparent.confirm": "Bağı kur",
+  "reparent.saving": "Kaydediliyor…",
+  "reparent.cancel": "Vazgeç",
+  "reparent.close": "Kapat",
+  "reparent.error.ayni": "Bir kişi kendisinin ebeveyni olamaz.",
+  "reparent.error.yok": "Kişi bulunamadı.",
+  "reparent.error.cevre": "Çevre kişileri soy bağına giremez.",
+  "reparent.error.dongu":
+    "Bu bağ bir döngü kurardı: seçtiğiniz kişi zaten bu kişinin soyundan geliyor.",
+  "reparent.error.zaten": "Bu bağ zaten var.",
+  "reparent.error.secim": "Bir seçim gerekiyor.",
 };
 
 /* İngilizce — eklenti dil. Anahtarlar `tr` ile birebir aynı olmalı. */
@@ -3566,6 +3587,26 @@ export const en: Dict = {
   "embed.hint":
     "Paste this into a site and the tree opens there, read-only. Same link, same privacy setting.",
   "embed.poweredBy": "Soy Ağacı",
+
+  /* --- Reparenting on the canvas --- */
+  "reparent.mode": "Link mode",
+  "reparent.modeHint":
+    "While on, dropping one card onto another proposes a parent link. Nothing changes until you confirm.",
+  "reparent.title": "Parent link",
+  "reparent.body": "{child} will become a child of {parent}.",
+  "reparent.removes": "This breaks the parent link with {name}.",
+  "reparent.chooseBody": "{child} already has two parents. Which one should {parent} replace?",
+  "reparent.confirm": "Create link",
+  "reparent.saving": "Saving…",
+  "reparent.cancel": "Cancel",
+  "reparent.close": "Close",
+  "reparent.error.ayni": "Someone can't be their own parent.",
+  "reparent.error.yok": "Person not found.",
+  "reparent.error.cevre": "Close-circle people can't take part in descent.",
+  "reparent.error.dongu":
+    "This would create a loop: the person you picked already descends from this one.",
+  "reparent.error.zaten": "That link already exists.",
+  "reparent.error.secim": "A choice is needed.",
 };
 
 export const DICTS: Record<Lang, Dict> = { tr, en };
