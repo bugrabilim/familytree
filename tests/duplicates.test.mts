@@ -173,5 +173,53 @@ check("zincirde tüketilen çift atlanır", chained.merged === 1 && chained.peop
   check("gizlilik işareti birleştirmede kalkmıyor", out.confidential === true);
 }
 
+/* --- Birleştirmede `parentLinks` anahtarları da çevrilir ----------------- */
+/*
+ * `parentLinks` ANAHTARLARI ebeveyn kimliğidir; `parentIds` gibi çevrilmeleri
+ * gerekir. Eskiden iki nesne üst üste bindiriliyordu, yani bırakılan kimliğe
+ * bakan anahtar olduğu gibi kalıyor ve kendine bağ temizlenmiyordu.
+ *
+ * Bedeli sarkan bir kimlikten ağır: `parentLinkOf` bağı GÜNCEL ebeveyn
+ * kimliğiyle arıyor, bulamayınca evlatlık/üvey/koruyucu bağ sessizce KAN
+ * BAĞINA dönüyor — görünmeyen bir veri bozulması.
+ */
+{
+  const kisi = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+
+  // (a) Kişi kendi ebeveyniyle birleşiyor → kendine bağ kalmamalı.
+  {
+    const out = mergePeople(
+      [kisi({ id: "dad" }), kisi({ id: "child", parentIds: ["dad"], parentLinks: { dad: { kind: "step" } } })],
+      "child", "dad");
+    const c = out.find((x) => x.id === "child")!;
+    check("kendi ebeveyniyle birleşince kendine parentLinks kalmıyor",
+      !c.parentLinks || !("child" in c.parentLinks) && !("dad" in c.parentLinks));
+    check("kendi ebeveyniyle birleşince parentIds da temiz", !c.parentIds.includes("child") && !c.parentIds.includes("dad"));
+  }
+
+  // (b) Bırakılan kimliğe bakan bağ TUTULANA çevrilmeli, türü korunarak.
+  {
+    const out = mergePeople(
+      [kisi({ id: "k" }), kisi({ id: "d" }),
+       kisi({ id: "c", parentIds: ["d"], parentLinks: { d: { kind: "foster" } } })],
+      "k", "d");
+    const c = out.find((x) => x.id === "c")!;
+    check("bırakılan ebeveyn kimliği tutulana çevrildi", c.parentIds.includes("k"));
+    check("bağın TÜRÜ korundu (koruyucu aile kan bağına dönmedi)", c.parentLinks?.k?.kind === "foster");
+  }
+
+  // (c) Alakasız bir ebeveyne bakan bağ olduğu gibi kalmalı.
+  {
+    const out = mergePeople(
+      [kisi({ id: "gp" }),
+       kisi({ id: "a", parentIds: ["gp"], parentLinks: { gp: { kind: "adoptive" } } }),
+       kisi({ id: "b", parentIds: ["gp"] })],
+      "a", "b");
+    const a = out.find((x) => x.id === "a")!;
+    check("ilgisiz ebeveyn bağı bozulmadan duruyor", a.parentLinks?.gp?.kind === "adoptive");
+  }
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);
