@@ -1,4 +1,4 @@
-import { consume, type BucketState, type RateOpts, type RateResult } from "@/lib/rate-limit-core";
+import { consume, type BucketState, type RateOpts, type RateResult } from "./rate-limit-core.ts";
 
 /**
  * Hız sınırı — iki katman.
@@ -23,7 +23,7 @@ import { consume, type BucketState, type RateOpts, type RateResult } from "@/lib
  * katman devreye girer ve hiçbir durumda "sınır yok" olmaz.
  */
 
-export type { RateResult, RateOpts } from "@/lib/rate-limit-core";
+export type { RateResult, RateOpts } from "./rate-limit-core.ts";
 
 const buckets = new Map<string, BucketState>();
 

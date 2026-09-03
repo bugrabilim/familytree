@@ -165,6 +165,43 @@ export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null
 }
 
 /**
+ * Ağaç satırını oku — kayma denetimi için (Madde 43).
+ *
+ * `dbGetFamilyData` ile aynı sorguyu iki kez yapmamak adına ayrı: denetim
+ * ağacın Postgres'te VAR OLUP OLMADIĞINI ve adının Blob'daki adla aynı olup
+ * olmadığını ayrıca bilmek zorunda. Yoksa `null`.
+ */
+export async function dbGetTreeRow(
+  treeId: string
+): Promise<{ id: string; name: string; owner_account: string; is_home: boolean } | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("trees")
+    .select("id, name, owner_account, is_home")
+    .eq("id", treeId)
+    .maybeSingle();
+  if (error) throw new Error(`tree row: ${error.message}`);
+  return (data as { id: string; name: string; owner_account: string; is_home: boolean } | null) ?? null;
+}
+
+/**
+ * Ağacın HAM kişi satırları — `data` (JSONB) YANINDA denormalize sütunlarla.
+ *
+ * `dbGetFamilyData` yalnız `data`yı çeker, çünkü uygulama için gereken o.
+ * Kayma denetimi ise sütunların `data` ile çelişip çelişmediğine bakıyor
+ * (`lib/drift.ts`, `columnDrift`) — bu yüzden sütunların kendisi lazım.
+ */
+export async function dbGetPeopleRows(
+  treeId: string
+): Promise<Array<{ person_id: string; data: Person } & Record<string, unknown>>> {
+  const { data, error } = await supabaseAdmin()
+    .from("people")
+    .select("person_id, first_name, last_name, gender, birth_date, death_date, sibling_order, data")
+    .eq("tree_id", treeId);
+  if (error) throw new Error(`people rows: ${error.message}`);
+  return (data ?? []) as Array<{ person_id: string; data: Person } & Record<string, unknown>>;
+}
+
+/**
  * Tanıtım (landing) sosyal-kanıt taban değerleri (Madde 9). Gerçek sayaç bunun
  * ALTINDA kalırsa taban gösterilir; üstüne çıkarsa gerçek sayı gösterilir —
  * böylece şerit hiçbir zaman bu değerlerden düşük görünmez.

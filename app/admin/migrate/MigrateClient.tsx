@@ -62,6 +62,11 @@ export default function MigrateClient() {
           dokunulmaz (kaynak doğruluğu hâlâ Blob&apos;da), uygulama kesintisiz çalışmaya devam eder.
           Önce <b>Önizle</b>, sonra <b>Göçü başlat</b>. Tekrar çalıştırmak güvenlidir (idempotent).
         </p>
+        <p className="text-sm text-text-muted mb-6 leading-relaxed">
+          Buradaki sayılar yalnız <b>kaç kişi</b> olduğunu söyler; iki kaynağın <i>içeriğinin</i> de
+          aynı olduğunu göstermez. Onun için{" "}
+          <Link href="/admin/drift" className="text-accent underline">kayma denetimi</Link> var.
+        </p>
 
         <div className="flex gap-2 mb-6">
           <button
@@ -100,7 +105,7 @@ export default function MigrateClient() {
                         )}
                         <th className="py-1.5 px-2 font-medium tabular-nums">Üye</th>
                         <th className="py-1.5 px-2 font-medium tabular-nums">Davet</th>
-                        <th className="py-1.5 pl-2 font-medium">Durum</th>
+                        <th className="py-1.5 pl-2 font-medium">Sayı</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -119,10 +124,16 @@ export default function MigrateClient() {
                           <td className="py-1.5 px-2 tabular-nums">{String(t.invites ?? "—")}</td>
                           <td className="py-1.5 pl-2">
                             {kind === "preview" ? (
+                              /*
+                                "eşitlenmiş" DEMİYORUZ. Bu yalnız bir SAYI
+                                karşılaştırması: bir kişi eklenip başkası
+                                silindiğinde sayı aynı kalır, içerik ayrışır.
+                                Gerçek yanıt kayma denetiminde (/admin/drift).
+                              */
                               t.inSync ? (
-                                <span className="text-primary">✓ eşitlenmiş</span>
+                                <span className="text-text-muted">sayılar eşit</span>
                               ) : (
-                                <span className="text-danger">✗ farklı</span>
+                                <span className="text-danger">✗ sayılar farklı</span>
                               )
                             ) : t.ok ? (
                               <span className="text-primary">✓ {String(t.verifiedPeople)} doğrulandı</span>
