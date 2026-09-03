@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLogin } from "@/lib/credentials";
-import { signMobileToken } from "@/lib/mobile-token";
+import { isMobileTokenConfigured, signMobileToken } from "@/lib/mobile-token";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +11,12 @@ export const dynamic = "force-dynamic";
  * ile gönderir. Doğrulama mantığı web ile ortak (lib/credentials).
  */
 export async function POST(req: NextRequest) {
+  if (!isMobileTokenConfigured())
+    return NextResponse.json(
+      { error: "Sunucu yapılandırması eksik; mobil giriş şu an kapalı." },
+      { status: 503 }
+    );
+
   // Kaba-kuvvet koruması: IP başına.
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
   const rl = await rateLimitShared(`mobile:login:${ip}`, { capacity: 10, refillPerSec: 0.1 });

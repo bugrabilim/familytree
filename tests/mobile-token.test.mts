@@ -1,4 +1,11 @@
-import { signMobileToken, verifyMobileToken } from "../lib/mobile-token.ts";
+/*
+ * Test sırrı: `lib/mobile-token.ts` artık `AUTH_SECRET` yokken FIRLATIYOR
+ * (eskiden depoda yazılı bir sabite düşüyordu). Test kendi sırrını kurar;
+ * yokluk hâli aşağıda ayrıca sınanıyor.
+ */
+process.env.AUTH_SECRET = "test-secret-yalnizca-testte";
+
+import { isMobileTokenConfigured, signMobileToken, verifyMobileToken } from "../lib/mobile-token.ts";
 
 let ok = 0, fail = 0;
 const check = (n: string, c: boolean) => { if (c) ok++; else { fail++; console.log(`✗ ${n}`); } };
@@ -40,6 +47,32 @@ check("kurcalanmış jeton → null", (await verifyMobileToken(token.slice(0, -3
   check("üye kimliksiz jeton geçerli", c !== null);
   check("kurucuda üye kimliği yok", c?.memberId === undefined);
 }
+
+/* --- SIR YOKKEN KAPALI DÜŞÜYOR ---------------------------------------- */
+/*
+ * Asıl kural. Eskiden `AUTH_SECRET` tanımsızken depoda YAZILI bir sabite
+ * düşülüyordu; o sabiti bilen herkes istediği `sub` için geçerli bir Bearer
+ * jetonu imzalayabilirdi — `proxy.ts` Bearer taşıyan isteği giriş duvarından
+ * geçirdiği ve `resolveActiveTree` jetondaki `sub`u hesap kimliği saydığı
+ * için kiracı yalıtımının tamamı o tek değişkenin varlığına bağlıydı.
+ */
+const yedek = process.env.AUTH_SECRET;
+check("sır varken yapılandırılmış sayılıyor", isMobileTokenConfigured());
+delete process.env.AUTH_SECRET;
+check("sır yokken yapılandırılmamış", !isMobileTokenConfigured());
+
+let firladi = false;
+try {
+  await signMobileToken({ sub: "x", role: "admin", isFounder: true });
+} catch {
+  firladi = true;
+}
+check("sır yokken jeton İMZALANMIYOR", firladi);
+// Doğrulama tarafı da: sessizce kabul etmek yerine null.
+check("sır yokken jeton DOĞRULANMIYOR", (await verifyMobileToken(token)) === null);
+
+process.env.AUTH_SECRET = yedek;
+check("sır geri gelince yeniden doğrulanıyor", (await verifyMobileToken(token)) !== null);
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

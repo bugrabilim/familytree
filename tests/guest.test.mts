@@ -32,6 +32,12 @@ check(!guestCan("upload"), "yükleme misafire KAPALI (maliyet hesap başına)");
 for (const a of ["invite", "share", "pair", "gathering", "email"] as GuestAction[]) {
   check(!guestCan(a), `${a} misafire kapalı`);
 }
+/*
+ * EK AĞAÇ açmak da kapalı ve gerekçesi 1. maddenin aynısı: her ağaç yeni bir
+ * blob + Postgres satırı, yani misafirin çarpanı geri gelir. Kendi ağacını
+ * yeniden adlandırmak/silmek kapsam dışı — o kendi ağacının içi.
+ */
+check(!guestCan("tree"), "ek ağaç açma misafire kapalı");
 
 /* ── Kendi ağacında kalanlar açık ────────────────────────────────────────── */
 for (const a of ["edit", "read", "export"] as GuestAction[]) {
@@ -39,7 +45,7 @@ for (const a of ["edit", "read", "export"] as GuestAction[]) {
 }
 
 /* ── Gerçek hesaba hiçbir kısıt yok ──────────────────────────────────────── */
-for (const a of ["ai", "upload", "invite", "share", "pair", "gathering", "email", "edit"] as GuestAction[]) {
+for (const a of ["ai", "upload", "invite", "share", "pair", "gathering", "email", "tree", "edit"] as GuestAction[]) {
   check(canDo(false, a), `gerçek hesapta ${a} açık`);
   check(canDo(true, a) === guestCan(a), `misafirde ${a} listeye uyuyor`);
 }
@@ -50,9 +56,9 @@ for (const a of ["ai", "upload", "invite", "share", "pair", "gathering", "email"
    * Her eylem ya kapalı listede ya da bilerek açık. Yeni bir yüzey eklenince
    * karar vermek zorunda kalınsın diye burada tek tek sayılıyor.
    */
-  const hepsi: GuestAction[] = ["ai", "upload", "invite", "share", "pair", "gathering", "email", "edit", "read", "export"];
+  const hepsi: GuestAction[] = ["ai", "upload", "invite", "share", "pair", "gathering", "email", "tree", "edit", "read", "export"];
   const acik = hepsi.filter((a) => !GUEST_DENIED.has(a));
-  check(GUEST_DENIED.size === 7, `kapalı eylem sayısı 7 (${GUEST_DENIED.size})`);
+  check(GUEST_DENIED.size === 8, `kapalı eylem sayısı 8 (${GUEST_DENIED.size})`);
   check(acik.join(",") === "edit,read,export", `açık olanlar tam olarak edit/read/export (${acik.join(",")})`);
 }
 

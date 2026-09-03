@@ -42,8 +42,18 @@ export async function POST(req: NextRequest) {
   if (!treeName) return NextResponse.json({ error: "Ağaç bulunamadı." }, { status: 404 });
 
   const passwordHash = await hash(password, 12);
-  const result = await acceptInvite(token, displayName, passwordHash);
+  const result = await acceptInvite(token, displayName, passwordHash, password);
   if (!result) return NextResponse.json({ error: "Davet geçersiz ya da süresi dolmuş." }, { status: 400 });
+  /*
+   * Aynı ağaçta aynı şifre olamaz. Giriş formu üye seçtirmediği için kimlik
+   * şifreye göre çözülüyor; iki üyenin aynı şifresi olsaydı biri ötekinin
+   * kimliğiyle (ve ROLÜYLE) oturum açardı.
+   */
+  if ("error" in result)
+    return NextResponse.json(
+      { error: "Bu şifre bu ağaçta kullanılıyor. Başka bir şifre seçin." },
+      { status: 409 }
+    );
 
   return NextResponse.json({ treeName, role: result.member.role });
 }
