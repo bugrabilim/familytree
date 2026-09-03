@@ -69,6 +69,27 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
     if (f.surfaces.drawer) check(drawer.includes(key), `PersonDrawer "${key}" alanını gösteriyor`);
   }
 
+  /*
+   * `PersonPayload` (lib/actions.ts) BEŞİNCİ yüzey ve gözden kaçmıştı.
+   * `PersonForm` kaydederken bu türü kullanıyor; alan defterde ve formda
+   * olsa bile burada yoksa TypeScript kaydetmeyi reddediyor. Yani "alan
+   * eklemek artık tek yerden" sözü bu dosya olmadan tam değildi.
+   *
+   * Kapsam FORMUN taşıdığı alanlar (`surfaces.form`). `healthNote` ve
+   * `siblingOrder` bilerek dışarıda: ilki yalnız gösteriliyor, ikincisini
+   * kardeş sıralama rotası kendi yazıyor — ikisi de bu yükten geçmiyor.
+   */
+  {
+    const actions = read("../lib/actions.ts");
+    const i = actions.indexOf("export interface PersonPayload {");
+    const govde = actions.slice(i, actions.indexOf("\n}", i));
+    for (const f of PERSON_FIELDS) {
+      if (!f.surfaces.form) continue;
+      const key = String(f.key);
+      check(new RegExp(`^\\s{2}${key}\\??:`, "m").test(govde), `PersonPayload "${key}" alanını taşıyor`);
+    }
+  }
+
   // API rotaları artık kayıt defterinden geçmeli; alanları tek tek saymak
   // yerine defterin KULLANILDIĞINI denetliyoruz — asıl güvence bu.
   check(post.includes("buildPersonFields"), "POST rotası kayıt defterinden kuruyor");

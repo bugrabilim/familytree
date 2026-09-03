@@ -146,6 +146,18 @@ export interface Person {
    * tarihi (`birthDate`) kullanır; bu yalnız kayıt olarak tutulur/gösterilir.
    */
   officialBirthDate?: string;
+  /**
+   * Doğum SAATİ — "HH:MM" (24 saat, yerel saat). İsteğe bağlı.
+   *
+   * Nüfus kayıtlarında ve doğum belgelerinde geçer; bazı aileler bunu tutar.
+   * Ayrıca yükselen burcun hesabı bunu ister (doğum ANI + YERİ birlikte).
+   *
+   * Saat dilimi TAŞIMIYOR. Kayıtta yazan yerel saat neyse odur; 1930'ların
+   * bir nüfus kaydına UTC farkı uydurmak, elimizde olmayan bir kesinlik
+   * iddia etmek olurdu. Yükselen hesabı bu belirsizliği kendi içinde ele
+   * alıyor (bkz. `lib/ascendant.ts`).
+   */
+  birthTime?: string;
   deathDate?: string;
   birthPlace?: string;
   /**

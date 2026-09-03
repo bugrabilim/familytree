@@ -88,6 +88,12 @@ export const PERSON_FIELDS: readonly FieldSpec[] = [
   F("orientation", "text", { labelKey: "form.orientation" }, "orientation"),
   F("birthDate", "text", { labelKey: "form.field.birthDate" }),
   F("officialBirthDate", "text", { labelKey: "form.field.officialBirthDate" }),
+  /*
+   * Gizlilik grubu YOK — `birthDate` gibi. Maskeleme beyaz listeyle çalıştığı
+   * için (`maskPerson`) yeni alan zaten maskeli kişiye HİÇ taşınmıyor;
+   * ayrıca alan-bazlı gizleme grubu gerekmiyor.
+   */
+  F("birthTime", "text", { labelKey: "form.birthTime" }),
   F("deathDate", "text", { labelKey: "form.field.deathDate" }),
   F("birthPlace", "text", { labelKey: "form.birthPlace" }, "birthPlace"),
   F("birthCoords", "obj", { drawer: false }, "birthPlace"),
