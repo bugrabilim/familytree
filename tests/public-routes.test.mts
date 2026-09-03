@@ -1,8 +1,12 @@
-import { hasBearerApi, isPublicPath, PUBLIC_PREFIXES } from "../lib/public-routes.ts";
+import { hasBearerApi, isPublicPath, PUBLIC_PREFIXES, frameHeaders, isFrameable } from "../lib/public-routes.ts";
 
 let ok = 0, fail = 0;
 function check(cond: boolean, msg: string) {
   if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); }
+}
+function eq<T>(got: T, want: T, msg: string) {
+  if (got === want) ok++;
+  else { fail++; console.log(`✗ ${msg}: bekl ${JSON.stringify(want)}, geldi ${JSON.stringify(got)}`); }
 }
 const pub = (p: string) => check(isPublicPath(p), `açık olmalı: ${p}`);
 const prot = (p: string) => check(!isPublicPath(p), `KORUNMALI: ${p}`);
@@ -69,6 +73,43 @@ check(!hasBearerApi("/api/family", "bearer abc"), "küçük harf 'bearer' geçme
 // Sayfa isteğinde bir başlık kimlik yerine geçmez: yönlendirme yerine ham
 // HTML dönerdi ve koruma anlamsızlaşırdı.
 check(!hasBearerApi("/tree", "Bearer abc"), "sayfa isteği Bearer ile geçmez");
+
+/* --- Çerçeveleme (iframe) politikası ------------------------------------- */
+/*
+ * Bu depoda daha önce HİÇBİR çerçeveleme koruması yoktu: oturum açmış
+ * kullanıcının `/tree` sayfası herhangi bir sitenin iframe'ine gömülebiliyor
+ * ve tıklama kaçırmaya açık duruyordu. Varsayılan artık REDDET; `/embed` tek
+ * istisna. Bu testin işi o istisnanın DAR kalmasını sağlamak.
+ */
+check(isFrameable("/embed"), "/embed gömülebilir");
+check(isFrameable("/embed/tok3n"), "/embed/<jeton> gömülebilir");
+check(!isFrameable("/embedded"), "önek benzeri yol gömülemez");
+check(!isFrameable("/embed-sahte"), "tire ile uzayan yol gömülemez");
+check(!isFrameable("/tree"), "ağaç sayfası gömülemez");
+check(!isFrameable("/g/tok3n"), "paylaşım sayfası gömülemez");
+check(!isFrameable("/"), "ana sayfa gömülemez");
+check(!isFrameable("/api/family"), "API gömülemez");
+
+{
+  const korumali = frameHeaders("/tree");
+  eq(korumali["X-Frame-Options"], "DENY", "korumalı yolda X-Frame-Options DENY");
+  eq(korumali["Content-Security-Policy"], "frame-ancestors 'none'", "korumalı yolda frame-ancestors none");
+
+  const gomulebilir = frameHeaders("/embed/tok3n");
+  eq(gomulebilir["Content-Security-Policy"], "frame-ancestors *", "gömülebilir yolda frame-ancestors *");
+  /*
+   * `X-Frame-Options` HİÇ verilmemeli: o başlığın "herkese izin ver" değeri
+   * yok. `ALLOWALL` standartta bulunmuyor; verirsek bazı tarayıcılar
+   * geçersiz sayıp yok sayar, bazıları DENY'a düşer ve gömme sessizce
+   * çalışmaz.
+   */
+  check(!("X-Frame-Options" in gomulebilir), "gömülebilir yolda X-Frame-Options hiç yok");
+}
+
+// Gömülebilir yol aynı zamanda oturumsuz da açılabilmeli — yoksa iframe
+// /login'e yönlenir ve gömen sitede bir giriş formu belirirdi.
+pub("/embed");
+pub("/embed/tok3n");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

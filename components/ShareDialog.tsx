@@ -220,8 +220,31 @@ function ShareCard({
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showEmbed, setShowEmbed] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const copy = async () => {
     try { await navigator.clipboard.writeText(s.url); setCopied(true); window.setTimeout(() => setCopied(false), 1600); } catch { /* yoksay */ }
+  };
+
+  /*
+   * Gömme kodu. `/g/<jeton>` → `/embed/<jeton>`; aynı jeton, aynı gizlilik
+   * tercihi, yalnız sunum sade. Yol değiştirmesi bir dizeyle yapılıyor,
+   * çünkü jetonun kendisi URL'in son parçası ve elimizde ayrıca durmuyor.
+   *
+   * `loading="lazy"` gömen sayfa hızlansın diye; `title` ekran okuyucu için
+   * zorunlu — başlıksız bir iframe erişilebilirlik denetimlerinde düşer.
+   */
+  const embedUrl = s.url.replace("/g/", "/embed/");
+  const embedCode =
+    `<iframe src="${embedUrl}" width="100%" height="520" ` +
+    `style="border:1px solid #ddd;border-radius:12px" loading="lazy" ` +
+    `title="${(treeName ?? "").replace(/"/g, "&quot;")}"></iframe>`;
+  const copyEmbed = async () => {
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setEmbedCopied(true);
+      window.setTimeout(() => setEmbedCopied(false), 1600);
+    } catch { /* yoksay */ }
   };
   const fmt = (iso: string) => { try { return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }); } catch { return iso; } };
   const fmtDT = (iso: string) => { try { return new Date(iso).toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return iso; } };
@@ -271,7 +294,35 @@ function ShareCard({
             {showQr ? t("share.hideQr") : t("share.showQr")}
           </button>
         )}
+        {/*
+          Gömme yalnız TAM AĞAÇ bağlantıları için. Tek kişilik jeton (mezar
+          QR'ı) bir anma sayfasına, yani bir varış noktasına işaret ediyor;
+          `/embed` o jetonu zaten reddediyor. Düğmeyi göstermek çalışmayan
+          bir kod vermek olurdu.
+        */}
+        {!s.personId && !s.expired && (
+          <button onClick={() => setShowEmbed((v) => !v)} className="text-text-muted hover:text-text">
+            {showEmbed ? t("embed.hide") : t("embed.show")}
+          </button>
+        )}
       </div>
+
+      {showEmbed && !s.personId && (
+        <div className="rounded-xl bg-surface-2 border border-border p-2.5 space-y-2">
+          <p className="text-[11px] text-text-subtle leading-snug">{t("embed.hint")}</p>
+          <textarea
+            readOnly
+            value={embedCode}
+            rows={3}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label={t("embed.code")}
+            className="w-full p-2 rounded-lg bg-surface border border-border text-text text-[11px] font-mono"
+          />
+          <Button variant="secondary" size="sm" onClick={copyEmbed}>
+            {embedCopied ? t("share.copied") : t("embed.copy")}
+          </Button>
+        </div>
+      )}
 
       {showQr && s.qr && (
         <div className="flex justify-center">

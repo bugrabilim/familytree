@@ -43,6 +43,8 @@ export const PUBLIC_PREFIXES: readonly string[] = [
   "/api/tree/join",
   // Herkese açık salt-okunur paylaşım görünümü (üyeliksiz).
   "/g",
+  // Gömülebilir ağaç — başka bir sitenin iframe'inde açılır (üyeliksiz).
+  "/embed",
   "/_next",
   // Vercel Analytics / Speed Insights betikleri.
   "/_vercel",
@@ -76,4 +78,54 @@ export function isPublicPath(pathname: string): boolean {
  */
 export function hasBearerApi(pathname: string, authorization: string | null): boolean {
   return pathname.startsWith("/api/") && (authorization?.startsWith("Bearer ") ?? false);
+}
+
+/* ------------------------------------------------------------------ */
+/* Çerçeveleme (iframe) politikası                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Başka bir sitenin iframe'inde açılmasına İZİN VERİLEN yollar.
+ *
+ * Bugüne kadar bu depoda hiçbir çerçeveleme koruması YOKTU: `X-Frame-Options`
+ * da `frame-ancestors` da hiçbir yerde ayarlanmamıştı. Yani oturum açmış bir
+ * kullanıcının `/tree` sayfası herhangi bir sitenin iframe'ine gömülebiliyor
+ * ve tıklama kaçırmaya (clickjacking) açık duruyordu — görünmez bir çerçeve
+ * üstüne konan bir düğme, kullanıcının farkında olmadan "Sil"e basmasını
+ * sağlayabilirdi.
+ *
+ * Bu yüzden sıra şu: önce HER YERDE reddet, sonra tam olarak bu yol için
+ * gevşet. Gömme özelliği bir korumayı gevşetmiyor, eksik olan korumayı
+ * getiriyor ve kendine dar bir delik açıyor.
+ *
+ * Neden `/embed` gömülebilir: içeriği jetonla sınırlı, salt okunur ve zaten
+ * herkese açık bir paylaşımın aynısı. Gömen sitenin göremeyeceği bir şey
+ * yok; oturum çerezi de kullanılmıyor.
+ */
+export const FRAMEABLE_PREFIXES: readonly string[] = ["/embed"];
+
+export function isFrameable(pathname: string): boolean {
+  return FRAMEABLE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+  );
+}
+
+/**
+ * Bir yola konacak çerçeveleme başlıkları.
+ *
+ * `Content-Security-Policy: frame-ancestors` modern tarayıcılarda geçerli
+ * olan; `X-Frame-Options` eski tarayıcılar için. İkisi birlikte veriliyor,
+ * ama gömülebilir yolda `X-Frame-Options` HİÇ verilmiyor — çünkü o başlığın
+ * "herkese izin ver" değeri yok. `ALLOWALL` diye bir değer standartta
+ * bulunmuyor; verirsek bazı tarayıcılar geçersiz sayıp yok sayar, bazıları
+ * DENY'a düşer ve gömme sessizce çalışmaz.
+ */
+export function frameHeaders(pathname: string): Record<string, string> {
+  if (isFrameable(pathname)) {
+    return { "Content-Security-Policy": "frame-ancestors *" };
+  }
+  return {
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+  };
 }
