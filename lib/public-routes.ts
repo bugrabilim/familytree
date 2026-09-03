@@ -45,6 +45,8 @@ export const PUBLIC_PREFIXES: readonly string[] = [
   "/g",
   // Gömülebilir ağaç — başka bir sitenin iframe'inde açılır (üyeliksiz).
   "/embed",
+  // Herkese açık okuma API'si (v1) — jetonla, oturumsuz.
+  "/api/v1/public",
   "/_next",
   // Vercel Analytics / Speed Insights betikleri.
   "/_vercel",
