@@ -66,8 +66,32 @@ export default function EmptyState({ onAdd, onStarter, starterLoading, onImport 
           </div>
         ) : (
           <>
+            {/*
+              e-DEVLET BİRİNCİL (madde 40).
+              Buradaki tek gerçek "sıfırdan yazmadan ağaç" yolu bu: e-Devlet
+              Alt-Üst Soy Belgesi zaten kişileri VE aralarındaki bağı
+              taşıyor, ayrıştırıcı da hazır (`lib/edevlet.ts`). İskelet ise
+              boş kartlar açıyor — kullanıcı yine her adı elle yazıyor.
+
+              Öteki yollar KALDIRILMADI, sırası değişti. İlk temas akışı canlı
+              ve herkes görüyor; buradaki doğru hamle eklemek, yeniden yazmak
+              değil. Alışkın kullanıcı iskeleti aynı yerde bulur.
+            */}
+            <Button size="lg" full onClick={onImport}>
+              {t("empty.edevlet")}
+            </Button>
+            <p className="mt-2.5 text-xs text-text-subtle leading-relaxed">
+              {t("empty.edevletHint")}
+            </p>
+
+            <div className="flex items-center gap-3 my-4">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[11px] text-text-subtle">{t("empty.or")}</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-              <Button size="lg" onClick={onStarter} disabled={!!starterLoading}>
+              <Button size="lg" variant="secondary" onClick={onStarter} disabled={!!starterLoading}>
                 {starterLoading ? t("empty.starterLoading") : t("empty.starter")}
               </Button>
               <Button size="lg" variant="secondary" onClick={onImport}>
