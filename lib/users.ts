@@ -94,6 +94,36 @@ export async function updateUserNotify(
   return true;
 }
 
+/**
+ * Kimlik e-postasını yazar (Faz 3e). `lib/account-email.ts` neyin
+ * uygulanacağına karar verir; burası yalnız uygular.
+ *
+ * Bekleyen doğrulama jetonu da birlikte yazılıyor: adres değişince eski
+ * jetonun geçerli kalması, artık bağlı olmayan bir adresin doğrulanmasına
+ * izin vermek olurdu.
+ */
+export async function updateUserAuthEmail(
+  id: string,
+  patch: {
+    authEmail: string;
+    authEmailVerified: boolean;
+    emailTokenHash?: string | null;
+    emailTokenExpires?: string | null;
+  }
+): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user) return false;
+  user.authEmail = patch.authEmail || undefined;
+  user.authEmailVerified = patch.authEmailVerified || undefined;
+  if (patch.emailTokenHash !== undefined)
+    user.emailTokenHash = patch.emailTokenHash || undefined;
+  if (patch.emailTokenExpires !== undefined)
+    user.emailTokenExpires = patch.emailTokenExpires || undefined;
+  await saveUsersData(data);
+  return true;
+}
+
 export async function updateUserPassword(
   familyName: string,
   newPasswordHash: string

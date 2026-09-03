@@ -2,6 +2,7 @@
 
 import Modal from "./ui/Modal";
 import ThemeToggle from "./ThemeToggle";
+import AccountEmailSection from "./AccountEmailSection";
 import LanguageSwitch from "./LanguageSwitch";
 import { usePrivacy } from "./PrivacyContext";
 import { useT } from "@/lib/i18n";
@@ -84,7 +85,12 @@ export default function SettingsDialog({
           </div>
         </section>
 
-        {/* Bildirimler — yalnız hesap sahibi (founder) için görünür */}
+        {/*
+          Hesabın kimlik e-postası — yalnız hesap sahibine görünür. Bileşen
+          uç 403 dönerse kendini hiç çizmiyor, o yüzden burada ayrıca rol
+          denetimi yok.
+        */}
+        <AccountEmailSection />
       </div>
     </Modal>
   );

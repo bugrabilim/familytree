@@ -33,6 +33,17 @@ export const PUBLIC_PREFIXES: readonly string[] = [
   "/login",
   "/register",
   "/forgot-password",
+  /*
+   * E-posta doğrulama (Faz 3e). Bağlantı POSTADAN geliyor ve kullanıcı onu
+   * başka bir cihazda/tarayıcıda açabiliyor; oturum duvarına takılırsa
+   * doğrulama hiçbir zaman tamamlanamaz. Kimlik jetonun kendisinde.
+   *
+   * DİKKAT: yalnız `/verify` altı açık. Önek eşleşmesi `p === önek` ya da
+   * `önek + "/"` ile başladığı için BAĞLAMA ucu (`/api/account/email`)
+   * kapalı kalıyor — o oturum ve founder yetkisi istiyor.
+   */
+  "/verify-email",
+  "/api/account/email/verify",
   "/api/auth",
   "/api/register",
   "/api/reset-password",

@@ -9,6 +9,22 @@ export interface User {
   notifyEmail?: string;
   /** Doğum/ölüm/evlilik yıl dönümü e-posta hatırlatmalarını istiyor mu? */
   notifyReminders?: boolean;
+  /**
+   * KİMLİK e-postası (Supabase Faz 3e). `notifyEmail`den AYRI ve bilerek:
+   * o bir bildirim adresi, bu hesabı geri almanın yolu olacak (madde 51).
+   * Güven eşikleri aynı olmadığı için tek alana indirilmedi — ayrıntı
+   * `lib/account-email.ts` başında.
+   */
+  authEmail?: string;
+  /**
+   * Adresin sahipliği KANITLANDI mı? Doğrulanmamış adres asla kurtarma yolu
+   * değildir ve adres her değiştiğinde bu bayrak sıfırlanır.
+   */
+  authEmailVerified?: boolean;
+  /** Bekleyen doğrulamanın jeton ÖZETİ (ham jeton yalnız bağlantıda). */
+  emailTokenHash?: string;
+  /** Bekleyen doğrulamanın son kullanma anı (ISO). */
+  emailTokenExpires?: string;
 }
 
 export interface UsersData {

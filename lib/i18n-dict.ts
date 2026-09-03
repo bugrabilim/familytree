@@ -1818,6 +1818,22 @@ export const tr: Dict = {
   "reparent.error.zaten": "Bu bağ zaten var.",
   "reparent.error.secim": "Bir seçim gerekiyor.",
 
+  /* --- E-posta doğrulama (Faz 3e) --- */
+  "verifyEmail.title": "E-posta doğrulama",
+  "verifyEmail.hint": "Bu adresi hesabınıza bağlamak için aşağıdaki düğmeye basın. Doğrulanana kadar adres hesabı kurtarmak için kullanılamaz.",
+  "verifyEmail.action": "Doğrula",
+  "verifyEmail.working": "Doğrulanıyor…",
+  "verifyEmail.done": "{email} adresi hesabınıza bağlandı.",
+  "verifyEmail.failed": "Doğrulanamadı.",
+  "verifyEmail.toTree": "Ağaca dön",
+  "account.email.label": "Hesap e-postası",
+  "account.email.hint": "Hesabınızı geri almak için kullanılacak adres. Bildirim adresinden ayrıdır ve doğrulanana kadar kurtarma için kullanılamaz.",
+  "account.email.verified": "Doğrulandı",
+  "account.email.unverified": "Doğrulanmadı",
+  "account.email.pending": "Doğrulama bağlantısı gönderildi.",
+  "account.email.undeliverable": "E-posta gönderimi henüz yapılandırılmadı; adres kaydedildi ama doğrulama bağlantısı gönderilemiyor.",
+  "account.email.save": "Kaydet",
+
   /* --- Aile karnesi (yıl dökümü) --- */
   "report.title": "Aile karnesi",
   "report.hint": "Bir yılın dökümü. Ailede olanlar ile kayda geçenler ayrı durur — birini ötekinin yerine saymak yanlış olurdu.",
@@ -3728,6 +3744,22 @@ export const en: Dict = {
   "reparent.error.secim": "A choice is needed.",
 
   /* --- Milestones --- */
+  /* --- Email verification (Phase 3e) --- */
+  "verifyEmail.title": "Verify email",
+  "verifyEmail.hint": "Press the button below to bind this address to your account. Until it is verified the address cannot be used to recover the account.",
+  "verifyEmail.action": "Verify",
+  "verifyEmail.working": "Verifying…",
+  "verifyEmail.done": "{email} is now bound to your account.",
+  "verifyEmail.failed": "Could not verify.",
+  "verifyEmail.toTree": "Back to the tree",
+  "account.email.label": "Account email",
+  "account.email.hint": "The address used to recover your account. Separate from the notification address, and unusable for recovery until verified.",
+  "account.email.verified": "Verified",
+  "account.email.unverified": "Not verified",
+  "account.email.pending": "Verification link sent.",
+  "account.email.undeliverable": "Email delivery is not configured yet; the address was saved but the verification link cannot be sent.",
+  "account.email.save": "Save",
+
   /* --- Family year in review --- */
   "report.title": "Year in review",
   "report.hint": "One year, laid out. What happened in the family and what was recorded stay apart — counting one as the other would be wrong.",
