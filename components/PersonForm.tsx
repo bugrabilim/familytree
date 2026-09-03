@@ -118,6 +118,7 @@ export default function PersonForm({
     gender: (initial?.gender && initial.gender !== "unknown" ? initial.gender : "") as Person["gender"] | "",
     birthDate: storedToDisplay(initial?.birthDate),
     officialBirthDate: storedToDisplay(initial?.officialBirthDate),
+    birthTime: initial?.birthTime ?? "",
     deathDate: storedToDisplay(initial?.deathDate),
     birthPlace: initial?.birthPlace ?? "",
     birthCoords: (initial?.birthCoords ?? null) as { lat: number; lng: number } | null,
@@ -484,6 +485,7 @@ export default function PersonForm({
        */
       birthDate: form.birthDate ? displayToStored(form.birthDate) : "",
       officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : "",
+      birthTime: form.birthTime.trim(),
       deathDate: form.deathDate ? displayToStored(form.deathDate) : "",
       birthPlace: form.birthPlace.trim(),
       // Doğum yeri koordinatı yalnız bir doğum yeri metni varsa anlamlı; yer
@@ -916,6 +918,23 @@ export default function PersonForm({
           />
           {errors.deathDate && <p className="text-[11px] text-danger mt-1">{errors.deathDate}</p>}
         </div>
+      </div>
+
+      {/*
+        Doğum saati. `type="time"` bilerek: serbest metin "sabah 3 gibi" kabul
+        eder ve hiçbir hesaba girmez. Saat dilimi sorulmuyor — kayıtta yazan
+        yerel saat neyse odur (bkz. `types/family.ts`, `birthTime`).
+      */}
+      <div>
+        <label className={label} htmlFor="pf-dogum-saat">{t("form.birthTime")}</label>
+        <input
+          id="pf-dogum-saat"
+          type="time"
+          className={`${field} tabular-nums`}
+          value={form.birthTime}
+          onChange={(e) => set("birthTime", e.target.value)}
+        />
+        <p className="text-[11px] text-text-subtle mt-1">{t("form.birthTimeHint")}</p>
       </div>
 
       {/* Nüfusa göre (resmi) doğum tarihi — eski kuşaklarda gerçekten farklı olur */}

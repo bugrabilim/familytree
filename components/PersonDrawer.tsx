@@ -368,6 +368,13 @@ export default function PersonDrawer({
                   </div>
                 </div>
               )}
+              {/*
+                Doğum saati maskeli kişide zaten görünmez: `maskPerson` beyaz
+                liste ile çalışıyor ve bu alanı taşımıyor.
+              */}
+              {person.birthTime && (
+                <Fact icon="🕰️" label={t("drawer.birthTime")} value={person.birthTime} />
+              )}
               {person.officialBirthDate && (
                 <Fact icon="🪪" label={t("drawer.officialBirth")} value={formatLong(person.officialBirthDate)} />
               )}

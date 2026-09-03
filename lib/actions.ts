@@ -21,6 +21,8 @@ export interface PersonPayload {
   orientation?: string;
   birthDate?: string;
   officialBirthDate?: string;
+  /** "HH:MM" (24 saat, yerel). */
+  birthTime?: string;
   deathDate?: string;
   birthPlace?: string;
   birthCoords?: { lat: number; lng: number } | null;
