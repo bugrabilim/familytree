@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { mutationHeaders } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -40,7 +41,7 @@ export default function MergeDialog({
     try {
       const res = await fetch("/api/family/merge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(), // iyimser kilit: toplu işlem de sürüm taşısın
         body: JSON.stringify({ keepId, dropId }),
       });
       const data = await res.json();

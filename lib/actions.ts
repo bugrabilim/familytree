@@ -72,7 +72,16 @@ export function setBaseVersion(version: string | null): void {
   baseVersion = version;
 }
 
-function mutationHeaders(json = true): Record<string, string> {
+/**
+ * Değiştirme isteklerinin ortak başlıkları.
+ *
+ * Dışa aktarılıyor çünkü TOPLU işlemler (`bulk-delete`, `merge`, `merge-all`)
+ * kendi bileşenlerinden doğrudan `fetch` ediyor ve bu başlığı hiç
+ * göndermiyordu — yani en yıkıcı işlemlerin eşzamanlılık koruması yoktu.
+ * Tek kişilik düzenleme korunurken yirmi kişiyi silen işlemin korunmaması
+ * ters bir öncelikti.
+ */
+export function mutationHeaders(json = true): Record<string, string> {
   const h: Record<string, string> = json ? { "Content-Type": "application/json" } : {};
   if (baseVersion) h["x-base-version"] = baseVersion;
   return h;

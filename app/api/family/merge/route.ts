@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { mergePeople } from "@/lib/duplicates";
@@ -26,7 +26,19 @@ export async function POST(req: NextRequest) {
   if (!keepId || !dropId || keepId === dropId)
     return NextResponse.json({ error: "keepId ve dropId (farklı) gerekli." }, { status: 400 });
 
-  const { people } = await getFamilyData(ctx.treeId, { skipCache: true });
+  const veri = await getFamilyData(ctx.treeId, { skipCache: true });
+  /*
+   * İYİMSER KİLİT. Toplu/birleştirme işlemleri bu denetimden geçmiyordu: tek
+   * kişilik düzenleme korunurken kayıt birleştiren işlem korunmuyordu — ters
+   * bir öncelik. Başlık gelmezse `versionMismatch` `false` döner, yani
+   * başlığı göndermeyen çağıranlar (mobil, betikler) etkilenmez.
+   */
+  if (versionMismatch(req, veri.updatedAt))
+    return NextResponse.json(
+      { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
+  const { people } = veri;
   if (!people.some((p) => p.id === keepId) || !people.some((p) => p.id === dropId))
     return NextResponse.json({ error: "Kişi bulunamadı." }, { status: 404 });
 
