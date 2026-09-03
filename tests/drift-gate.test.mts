@@ -49,7 +49,15 @@ check(govdePost.includes("dbUpsertPeople("), "onarım Postgres'e yazıyor");
 check(govdePost.includes("dbDeletePeople("), "onarım fazla kaydı siliyor");
 check(!rota.includes("saveFamilyData"), "rota Blob'a HİÇ yazmıyor");
 check(!/\bput\(/.test(rota), "rota doğrudan blob `put` çağırmıyor");
-check(rota.includes("getFamilyData"), "Blob yalnız OKUNUYOR");
+/*
+ * DÜZELTME. Burada eskiden `getFamilyData` çağrısı "Blob okunuyor" kanıtı
+ * sayılıyordu — ve o iddia yanlıştı: `getFamilyData` Faz 2d'den beri önce
+ * Postgres'e bakıyor, yani denetim Postgres'i Postgres'le karşılaştırıyordu.
+ * Test hatayı yakalamak yerine KİLİTLİYORDU. Ayrıntı ve asıl kilit:
+ * `tests/blob-source.test.mts`.
+ */
+check(rota.includes("readFamilyFromBlob"), "Blob SALT-BLOB okuyucusuyla okunuyor");
+check(!/\bgetFamilyData\s*\(/.test(rota), "Postgres öncelikli okuyucu kullanılmıyor");
 {
   // Hedefli onarım: göçün "hepsini sil, hepsini yaz" davranışı değil.
   check(!rota.includes("dbReplacePeople"), "tam yenileme kullanılmıyor (hedefli onarım)");

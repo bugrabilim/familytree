@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { getFamilyData } from "@/lib/blob";
+import { readFamilyFromBlob } from "@/lib/blob";
 import { getTreeAccess } from "@/lib/members";
 import { listTrees } from "@/lib/trees";
 import { findUserByFamilyName } from "@/lib/users";
@@ -55,7 +55,8 @@ export async function GET() {
   const trees = await listTrees(g.accountId, g.homeName);
   const preview = [];
   for (const t of trees) {
-    const fam = await getFamilyData(t.treeId, { skipCache: true });
+    // SALT BLOB — göç Blob'u Postgres'e kopyalar, "uygulama ne okuyor"u değil.
+    const fam = await readFamilyFromBlob(t.treeId);
     const access = await getTreeAccess(t.treeId);
     // Postgres'teki güncel kişi sayısı — çift-yazma tutarlılığını gözle teyit
     // etmek için Blob sayısıyla yan yana gösterilir.
@@ -69,9 +70,9 @@ export async function GET() {
       tree: t.name,
       treeId: t.treeId,
       home: t.home,
-      people: fam.people.length,
+      people: fam ? fam.people.length : null,
       postgresPeople,
-      inSync: postgresPeople === fam.people.length,
+      inSync: !!fam && postgresPeople === fam.people.length,
       members: access.members.length,
       invites: access.invites.length,
     });
@@ -117,6 +118,25 @@ export async function POST() {
 
   for (const t of trees) {
     try {
+      /*
+       * ÖNCE OKU, SONRA AĞAÇ SATIRINI AÇ — ve okuma SALT BLOB'dan.
+       *
+       * Eskiden ters sıradaydı ve `getFamilyData` ile okunuyordu. İkisi bir
+       * araya gelince göç kendi kendini boşa çıkarıyordu: `dbUpsertTree`
+       * ağaç satırını açıyor, `getFamilyData` (Faz 2d'den beri Postgres
+       * öncelikli) o satırı görüp henüz BOŞ olan kişi listesini döndürüyor,
+       * `dbReplacePeople` de o boş listeyle önce her şeyi silip hiçbir şey
+       * yazmıyordu. Üstelik `ok: people === verified` → `0 === 0` olduğu için
+       * sonuç "başarılı" görünüyordu.
+       *
+       * Salt Blob okuması bunu kökünden çözüyor; sıra da yine de doğrusuna
+       * çevrildi ki gelecekte okuma yolu değişse bile bu tuzak kurulmasın.
+       */
+      const fam = await readFamilyFromBlob(t.treeId);
+      if (!fam) {
+        summary.push({ tree: t.name, treeId: t.treeId, ok: false, error: "Blob'da veri dosyası bulunamadı — göç yapılmadı." });
+        continue;
+      }
       await dbUpsertTree({
         treeId: t.treeId,
         ownerAccount: g.accountId,
@@ -124,7 +144,6 @@ export async function POST() {
         isHome: t.home,
         createdAt: t.createdAt || undefined,
       });
-      const fam = await getFamilyData(t.treeId, { skipCache: true });
       const people = await dbReplacePeople(t.treeId, fam.people);
       const access = await getTreeAccess(t.treeId);
       const members = await dbReplaceMembers(t.treeId, access.members);
