@@ -1,6 +1,6 @@
 import { foldKey } from "./turkish.ts";
 import { PERSON_FIELDS } from "./person-fields.ts";
-import type { Person } from "@/types/family";
+import type { ParentLink, Person } from "@/types/family";
 
 /**
  * Ağaç-içi olası kopya (aynı kişi iki kez girilmiş) tespiti ve birleştirme —
@@ -197,7 +197,25 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
     ...(keep.formerSpouseIds ?? []),
     ...(drop.formerSpouseIds ?? []),
   ]);
-  mergedKeep.parentLinks = { ...(drop.parentLinks ?? {}), ...(keep.parentLinks ?? {}) };
+  /*
+   * `parentLinks` ANAHTARLARI da ebeveyn kimlikleridir; `parentIds` gibi
+   * çevrilmeleri gerekir. Eskiden yalnız iki nesne üst üste bindiriliyordu:
+   * bırakılan kimliğe bakan bir anahtar olduğu gibi kalıyor, kendine bağ
+   * temizlenmiyordu.
+   *
+   * Somut sonuç sarkan bir kimlikten fazlası: `parentLinkOf` bağı GÜNCEL
+   * ebeveyn kimliğiyle arıyor, bulamayınca evlatlık/üvey/koruyucu bağ sessizce
+   * KAN BAĞINA dönüyor. Görünmeyen bir veri bozulması.
+   */
+  {
+    const links: Record<string, ParentLink> = {};
+    for (const [pid, link] of Object.entries({ ...(drop.parentLinks ?? {}), ...(keep.parentLinks ?? {}) })) {
+      const hedef = pid === dropId ? keepId : pid;
+      if (hedef === keepId) continue; // kendine ebeveyn bağı olmaz
+      links[hedef] = link;
+    }
+    mergedKeep.parentLinks = links;
+  }
   // İki kayıtta da DOLU olan ve FARKLI olan tek-değerli alanlar birleştirmede
   // sessizce kaybolmasın: bırakılan kaydın farklı değerleri biyografiye not
   // olarak eklenir. (Eş/çocuk/ebeveyn gibi bağlar zaten birleşim olarak korunur.)

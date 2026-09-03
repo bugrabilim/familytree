@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { mutationHeaders } from "@/lib/actions";
 import { createPortal } from "react-dom";
 import type { Person, Gender } from "@/types/family";
 import { storedToDisplay, displayToStored } from "@/lib/date";
@@ -210,7 +211,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
     try {
       const res = await fetch("/api/family/bulk-delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(), // iyimser kilit: toplu işlem de sürüm taşısın
         body: JSON.stringify({ ids: [...selected] }),
       });
       const d = await res.json();

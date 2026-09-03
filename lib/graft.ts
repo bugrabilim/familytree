@@ -1,4 +1,4 @@
-import type { Person } from "@/types/family";
+import type { ParentLink, Person } from "@/types/family";
 import { nanoid } from "nanoid";
 
 /**
@@ -140,6 +140,50 @@ function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<s
       const clone: Person = { ...peer, id: localId, parentIds: parents, spouseIds: spouses };
       if (formers.length) clone.formerSpouseIds = formers;
       else delete clone.formerSpouseIds;
+
+      /*
+       * `...peer` geri kalan HER ŞEYİ olduğu gibi kopyalıyor — komşu ağacın
+       * kimliklerini taşıyan üç alan dâhil. Üçü de ayrıca ele alınmalı.
+       *
+       * 1) `parentLinks` ANAHTARLARI ebeveyn kimliğidir. Çevrilmezse bağ
+       *    komşunun kimliğinde kalıyor ve `parentLinkOf` bağı GÜNCEL kimlikle
+       *    aradığı için bulamıyor: evlatlık/üvey/koruyucu bir bağ sessizce
+       *    KAN BAĞINA dönüyor. Sarkan bir kimlikten kötü — görünmeyen bir
+       *    veri bozulması.
+       */
+      if (peer.parentLinks) {
+        const links: Record<string, ParentLink> = {};
+        for (const [ppid, link] of Object.entries(peer.parentLinks)) {
+          const hedef = mapIn(ppid, localId);
+          if (hedef) links[hedef] = link;
+        }
+        if (Object.keys(links).length) clone.parentLinks = links;
+        else delete clone.parentLinks;
+      }
+
+      /*
+       * 2) `associations[].personId` de komşunun kimliği. Kapanış dışına
+       *    bakan bağlar atılır; yoksa kendi ağacımızda var olmayan kişilere
+       *    işaret eden `error` düzeyinde kayıtlar oluşuyor (`findRefIssues`).
+       */
+      if (peer.associations?.length) {
+        const bags = peer.associations
+          .map((a) => {
+            const hedef = mapIn(a.personId, localId);
+            return hedef ? { ...a, personId: hedef } : null;
+          })
+          .filter((a): a is NonNullable<typeof a> => !!a);
+        if (bags.length) clone.associations = bags;
+        else delete clone.associations;
+      }
+
+      /*
+       * 3) `code` insan-okur kimlik ve HER ağaç 289001'den başlıyor. Komşunun
+       *    kodunu taşımak, kendi ağacımızda aynı kodu iki kişide oluşturur;
+       *    `ensureCodes` yalnız BOŞ kodları doldurduğu için de kendiliğinden
+       *    düzelmiyor. Kod düşürülür, çağıran rota yenisini verir.
+       */
+      delete clone.code;
       result.push(clone);
       resIdx.set(localId, clone);
       added++;

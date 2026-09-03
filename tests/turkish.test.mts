@@ -47,5 +47,30 @@ for (const s of ["Ağrı Dağı", "İzmir'in", "Kara-Mehmetgil", "ÇOK ŞIK"]) {
   eq(foldKey(s), fold(s).replace(/[^a-z0-9]+/g, " ").trim(), `tutarlı: ${s}`);
 }
 
+/* --- Latin-1 aksanlı sesliler: â/î/û ------------------------------------- */
+/*
+ * Bunlar Türkçe/Osmanlıca adlarda yaygın (Kâmil, Nâzım, Âdem, Alî Rızâ) ve
+ * eskiden katlanmıyordu; `foldKey`in "harf-rakam dışı her şey boşluk" adımı
+ * onları BOŞLUĞA çeviriyordu: "Kâmil" → "k mil". Sonuç: "Kamil" arayan
+ * "Kâmil"i bulamıyor, kopya bulucu ikisini hiç karşılaştırmıyordu — tam da bu
+ * dosyanın önlemek için yazıldığı hata.
+ */
+for (const [a, b] of [["Kamil", "Kâmil"], ["Nazim", "Nâzım"], ["Adem", "Âdem"],
+                      ["Ali Riza", "Alî Rızâ"], ["Resat", "Reşât"]] as const) {
+  check(foldKey(a) === foldKey(b), `aksanlı sesli katlanıyor: "${a}" ≡ "${b}" (${foldKey(a)} / ${foldKey(b)})`);
+  check(!foldKey(b).includes("  ") && !foldKey(b).startsWith(" "),
+    `"${b}" boşluğa bölünmüyor (${JSON.stringify(foldKey(b))})`);
+}
+/*
+ * Ters yön: aksan boşluğa dönerken FARKLI adlar aynı anahtara düşebiliyordu
+ * ("Alî Rızâ" → "ali riz"), yani yanlış birleştirme önerisi doğabilirdi.
+ */
+check(foldKey("Ali Riz") !== foldKey("Alî Rızâ"), "farklı adlar hâlâ farklı");
+check(foldKey("Mehmet") !== foldKey("Ahmet"), "alakasız adlar karışmıyor");
+// Türkçe I/İ kuralı bozulmadı.
+check(fold("İSTANBUL") === "istanbul", "İ hâlâ i'ye iniyor");
+check(fold("ISPARTA") === "isparta", "I hâlâ i'ye iniyor");
+check(foldKey("Işık") === foldKey("Isik"), "ı/i eşitliği korunuyor");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

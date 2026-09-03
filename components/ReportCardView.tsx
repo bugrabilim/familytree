@@ -94,7 +94,12 @@ export default function ReportCardView({
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`/api/family/report-card?year=${yil}`, { cache: "no-store" });
+        /*
+         * Kendi saat farkımızı da yolluyoruz: sunucu UTC'de çalışıyor ve yılın
+         * ilk (ya da son) saatlerinde iki taraf farklı yıllarda oluyor.
+         */
+        const tz = new Date().getTimezoneOffset();
+        const res = await fetch(`/api/family/report-card?year=${yil}&tz=${tz}`, { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as Cevap;
         if (alive) setKayit(data);

@@ -59,5 +59,49 @@ check("mergeTree: toplam 3 kişi", mt.people.length === 3);
 const babaM = mt.people.find((p) => p.firstName === "Baba")!;
 check("mergeTree: babanın dedesi mevcut m1'e bağlandı", babaM.parentIds.includes("m1"));
 
+/* --- Aşılamada komşu ağacın kimlikleri KALMAZ ---------------------------- */
+/*
+ * `{ ...peer }` geri kalan her şeyi olduğu gibi kopyalıyordu; üç alan komşu
+ * ağacın kimliğini taşıyor ve üçü de ayrıca ele alınmalı:
+ *
+ * · `parentLinks` anahtarları — çevrilmezse `parentLinkOf` bağı güncel
+ *   kimlikle arayıp bulamıyor ve evlatlık/üvey bağ sessizce KAN BAĞINA
+ *   dönüyor. Sarkan kimlikten kötü: görünmeyen veri bozulması.
+ * · `associations[].personId` — kendi ağacımızda olmayan kişilere işaret
+ *   eden `error` düzeyinde kayıtlar.
+ * · `code` — her ağaç 289001'den başlıyor, komşunun kodu kendi ağacımızda
+ *   çakışıyor ve `ensureCodes` yalnız BOŞ kodları doldurduğu için kalıcı.
+ */
+{
+  const k = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+
+  const komsu = [
+    k({ id: "p-baba", firstName: "PeerBaba" }),
+    k({ id: "p-dost", firstName: "Dost", kind: "cevre" }),
+    k({ id: "p-cocuk", firstName: "PeerCocuk", parentIds: ["p-baba"],
+        parentLinks: { "p-baba": { kind: "adoptive" } },
+        associations: [
+          { id: "a1", personId: "p-dost", type: "arkadas" },   // kapanış DIŞINDA
+          { id: "a2", personId: "p-baba", type: "komsu" },     // kapanış İÇİNDE
+        ],
+        code: "289001" }),
+  ];
+  const benim = [k({ id: "m1", firstName: "Benim", code: "289001" })];
+  const { people } = graftFromPeer(benim, komsu, "p-cocuk");
+  const cocuk = people.find((x) => x.firstName === "PeerCocuk")!;
+  const babaId = cocuk.parentIds[0];
+
+  check("komşu kimliği parentLinks'te kalmadı", !cocuk.parentLinks || !("p-baba" in cocuk.parentLinks));
+  check("evlatlık bağı YENİ kimlikle korundu", cocuk.parentLinks?.[babaId]?.kind === "adoptive");
+  check("kapanış içindeki çevre bağı çevrildi",
+    !!cocuk.associations?.some((a) => a.personId === babaId));
+  check("kapanış dışına sarkan çevre bağı atıldı",
+    !cocuk.associations?.some((a) => a.personId === "p-dost"));
+  check("komşunun kodu taşınmadı (çakışma yok)", cocuk.code === undefined);
+  const kodlar = people.map((x) => x.code).filter(Boolean);
+  check("ağaçta yinelenen kod yok", new Set(kodlar).size === kodlar.length);
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

@@ -71,6 +71,27 @@ async function readRawFromBlob(userId: string): Promise<FamilyData | null> {
   }
 }
 
+/**
+ * SALT BLOB okuma — Postgres'e hiç bakmaz. Yoksa `null`.
+ *
+ * `getFamilyData` Faz 2d'den beri ÖNCE Postgres'e bakıyor ve ağaç orada varsa
+ * Blob'a hiç inmiyor. Bu, uygulamanın okuma yolu için doğru; ama iki iş için
+ * YANLIŞ, çünkü ikisi de tam olarak "Blob ne diyor" sorusunu soruyor:
+ *
+ * · Göç (`/api/admin/migrate`) — Blob'u Postgres'e kopyalar. `getFamilyData`
+ *   ile okursa, ağaç satırı yeni açıldığı için Postgres'ten BOŞ liste alır ve
+ *   göç sıfır kişi taşır.
+ * · Kayma denetimi (`/api/admin/drift`) — iki kaynağı karşılaştırır.
+ *   `getFamilyData` ile okursa Postgres'i Postgres'le karşılaştırır ve her
+ *   zaman "ayrışma yok" der; yani denetim aracının verebileceği en kötü yanıt.
+ *
+ * Bu yüzden ikisi de bu işlevi kullanmak ZORUNDA. `tests/blob-source.test.mts`
+ * kilitliyor.
+ */
+export async function readFamilyFromBlob(userId: string): Promise<FamilyData | null> {
+  return readRawFromBlob(userId);
+}
+
 async function readMetaFromBlob(userId: string): Promise<{ coverPhoto?: string }> {
   const d = await readRawFromBlob(userId);
   return { coverPhoto: d?.coverPhoto };

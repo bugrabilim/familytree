@@ -3,7 +3,7 @@ import type { Person } from "@/types/family";
 import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { getFamilyData } from "@/lib/blob";
+import { readFamilyFromBlob } from "@/lib/blob";
 import { listTrees } from "@/lib/trees";
 import {
   dbDeletePeople,
@@ -60,17 +60,41 @@ async function guard() {
 async function denetle(
   t: { treeId: string; name: string },
   max: number
-): Promise<{ drift: TreeDrift; blobPeople: Person[] }> {
-  const blob = await getFamilyData(t.treeId, { skipCache: true });
+): Promise<{ drift: TreeDrift & { blobMissing?: boolean }; blobPeople: Person[] | null }> {
+  /*
+   * SALT BLOB. `getFamilyData` KULLANILAMAZ: Faz 2d'den beri önce Postgres'e
+   * bakıyor ve ağaç orada varsa Blob'a hiç inmiyor — yani denetim Postgres'i
+   * Postgres'le karşılaştırır ve her ağaç için "ayrışma yok" derdi. Bir
+   * denetim aracının verebileceği en kötü yanıt bu.
+   */
+  const blob = await readFamilyFromBlob(t.treeId);
   const row = await dbGetTreeRow(t.treeId);
   const rows = row ? await dbGetPeopleRows(t.treeId) : [];
+  const dbPeople = rows.map((r) => r.data).filter(Boolean);
+
+  /*
+   * Blob'da dosya YOK. Bu "hepsi fazla" demek değil, "kaynak okunamadı"
+   * demek — ve ikisini karıştırmak onarımın Postgres'i boşaltmasına yol
+   * açardı. Ayrı bir durum olarak bildiriliyor, temiz sayılmıyor.
+   */
+  if (!blob) {
+    const bos = treeDrift(
+      { treeId: t.treeId, name: t.name, inDb: !!row, blobPeople: [], dbPeople: [], dbName: row?.name },
+      { max }
+    );
+    return {
+      drift: { ...bos, dbPeople: dbPeople.length, clean: false, blobMissing: true },
+      blobPeople: null,
+    };
+  }
+
   const drift = treeDrift(
     {
       treeId: t.treeId,
       name: t.name,
       inDb: !!row,
       blobPeople: blob.people,
-      dbPeople: rows.map((r) => r.data).filter(Boolean),
+      dbPeople,
       rows,
       dbName: row?.name,
     },
@@ -86,7 +110,7 @@ export async function GET(req: NextRequest) {
   // Varsayılan kısa; `?full=1` ile tam liste (büyük ağaçta yanıt şişebilir).
   const max = req.nextUrl.searchParams.get("full") === "1" ? Number.MAX_SAFE_INTEGER : 100;
   const trees = await listTrees(g.accountId, g.homeName);
-  const out: Array<TreeDrift & { error?: string }> = [];
+  const out: Array<TreeDrift & { error?: string; blobMissing?: boolean }> = [];
   for (const t of trees) {
     try {
       out.push((await denetle(t, max)).drift);
@@ -127,6 +151,16 @@ export async function POST() {
     try {
       // Sınırsız: onarım planı kırpılmış listeden çıkarılırsa yarım kalır.
       const { drift: d, blobPeople } = await denetle(t, Number.MAX_SAFE_INTEGER);
+      /*
+       * KAYNAK OKUNAMADIYSA ONARMA. Onarım Blob'u kaynak alıyor ve Blob'da
+       * olmayan her kaydı SİLİYOR; kaynak okunamadığında bu, "Postgres'i
+       * boşalt" demek olurdu. Blob kesintisi onarım düğmesini veri silme
+       * düğmesine çevirmemeli.
+       */
+      if (blobPeople === null) {
+        summary.push({ tree: t.name, treeId: t.treeId, clean: false, error: "Blob'da veri dosyası bulunamadı — onarım yapılmadı." });
+        continue;
+      }
       if (!d.inDb) {
         /*
          * Hiç göç etmemiş ağacı burada kurmuyoruz. Ağaç satırı, sahiplik ve

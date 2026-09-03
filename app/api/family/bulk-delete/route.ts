@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scrubDeleted } from "@/lib/scrub";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 
@@ -27,6 +27,18 @@ export async function POST(req: NextRequest) {
 
   const del = new Set(ids);
   const data = await getFamilyData(ctx.treeId, { skipCache: true });
+  /*
+   * İYİMSER KİLİT. Toplu işlemler bu denetimden geçmiyordu: tek kişilik
+   * düzenleme korunurken yirmi kişiyi silen ya da kayıt birleştiren işlem
+   * korunmuyordu — ters bir öncelik. Başlık gelmezse `versionMismatch`
+   * `false` döner, yani başlığı göndermeyen çağıranlar (mobil, betikler)
+   * etkilenmez.
+   */
+  if (versionMismatch(req, data.updatedAt))
+    return NextResponse.json(
+      { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
 
   // Tekli DELETE ile AYNI işlev (`lib/scrub.ts`) — iki kopya ayrı düşmesin.
   data.people = scrubDeleted(data.people, del);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { mutationHeaders } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import type { Gender, Person } from "@/types/family";
 import Avatar, { genderTone } from "./ui/Avatar";
@@ -247,7 +248,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
     try {
       const res = await fetch("/api/family/merge-all", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(), // iyimser kilit: toplu işlem de sürüm taşısın
         body: JSON.stringify({ pairs }),
       });
       const data = await res.json().catch(() => null);

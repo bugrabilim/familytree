@@ -18,6 +18,24 @@
 export function fold(s: string): string {
   return s
     .toLocaleLowerCase("tr")
+    /*
+     * Latin-1 aksanlı sesliler (â, î, û…) burada düşer.
+     *
+     * Bunlar Türkçe/Osmanlıca adlarda yaygın — Kâmil, Nâzım, Âdem, Alî Rızâ —
+     * ve tam da bu dosyanın var olma nedeni onlardı. Ama aşağıdaki liste
+     * yalnız altı Türkçe harfi kapsıyordu; â/î/û katlanmadan geçiyor, sonra
+     * `foldKey`in "harf-rakam dışı her şey boşluk olsun" adımında BOŞLUĞA
+     * dönüyordu: "Kâmil" → "k mil". Yani "Kamil" arayan "Kâmil"i bulamıyor,
+     * kopya bulucu ikisini hiç karşılaştırmıyor, üstelik "Alî Rızâ" ile
+     * "Ali Riz" aynı anahtara düşüyordu.
+     *
+     * NFD ile ayrıştırıp birleşen imleri atmak doğru sırayla çalışır:
+     * küçük harfe çevirme ZATEN yapıldı (Türkçe "I"/"İ" kuralı korunsun
+     * diye), ı'nın aksanı yok (temel harf) ve altındaki açık kurallarla
+     * i'ye iniyor; ş/ğ/ü/ö/ç'yi ise NFD çözüyor, kurallar da yedekliyor.
+     */
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
     .replace(/ı/g, "i")
     .replace(/ğ/g, "g")
     .replace(/ü/g, "u")
