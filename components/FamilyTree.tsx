@@ -100,11 +100,22 @@ interface Props {
    */
   bonds?: Bond[];
   showBonds?: boolean;
+  /**
+   * Tuval üstü ebeveyn değiştirme — bir kartı başka bir kartın üstüne
+   * bırakınca çağrılır. YAZMAZ: çağıran yer onay ister.
+   *
+   * Yalnız "bağ kurma kipi" açıkken tetiklenir. Kartlar zaten serbestçe
+   * sürükleniyor (oturum içi konum); düz bir bırakmanın soy bağını
+   * değiştirmesi, kartını düzeltmek isteyen herkesin ağacını sessizce
+   * bozardı.
+   */
+  onReparentDrop?: (childId: string, parentId: string) => void;
+  linkMode?: boolean;
 }
 
-function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq, bonds, showBonds = false }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq, bonds, showBonds = false, onReparentDrop, linkMode = false }: Props) {
   const t = useT();
-  const { fitView, setCenter, getZoom, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, setCenter, getZoom, zoomIn, zoomOut, getIntersectingNodes } = useReactFlow();
 
   // Ayrıntı düzeyi YALNIZ kuşak/kalabalıktan belirlenir — yakınlaştırmadan
   // BAĞIMSIZ. Böylece zoom yaparken `dim` (dolayısıyla `positions` düzeni)
@@ -150,9 +161,47 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   // konumu korunur — kart yerinde kalır. Kalıcı DEĞİL: yerleşim rejimi (ayrıntı
   // düzeyi / kişi sayısı) değişince ya da sayfa yenilenince otomatik düzene döner.
   const draggedIds = useRef<Set<string>>(new Set());
-  const onNodeDragStop = useCallback((_: unknown, node: Node) => {
-    if (node.type === "person") draggedIds.current.add(node.id);
-  }, []);
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      if (node.type !== "person") return;
+
+      /*
+       * Bağ kurma kipi: kart başka bir kartın üstüne bırakıldıysa ebeveyn
+       * değişikliği ÖNERİLİR. Kip kapalıyken bırakma yalnız kartı yerinde
+       * tutar — eski davranış.
+       */
+      if (linkMode && onReparentDrop) {
+        const ustunde = getIntersectingNodes(node).filter((n) => n.type === "person");
+        if (ustunde.length > 0) {
+          /*
+           * Birden çok kartla kesişiyorsa EN ÇOK örtüşene değil, listenin
+           * ilkine gitmek yanlış olurdu. Merkezi en yakın olanı seçiyoruz:
+           * kullanıcı kartı nereye bıraktıysa oraya en yakın karttır.
+           */
+          const mx = node.position.x + (node.measured?.width ?? dim.w) / 2;
+          const my = node.position.y + (node.measured?.height ?? dim.h) / 2;
+          const enYakin = ustunde.reduce((a, b) => {
+            const d = (n: Node) =>
+              Math.hypot(
+                n.position.x + (n.measured?.width ?? dim.w) / 2 - mx,
+                n.position.y + (n.measured?.height ?? dim.h) / 2 - my
+              );
+            return d(b) < d(a) ? b : a;
+          });
+          onReparentDrop(node.id, enYakin.id);
+          /*
+           * Sürüklenen kartı "elle taşındı" saymıyoruz: öneri onaylanırsa
+           * ağaç yeniden yerleşecek ve kartın eski, yanlış yerinde kilitli
+           * kalması kafa karıştırırdı.
+           */
+          return;
+        }
+      }
+
+      draggedIds.current.add(node.id);
+    },
+    [linkMode, onReparentDrop, getIntersectingNodes, dim.w, dim.h]
+  );
 
   const nodes = useMemo<Node[]>(() => {
     const personNodes: Node[] = people.map((p) => {

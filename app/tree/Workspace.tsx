@@ -8,6 +8,7 @@ import type { TreeRole } from "@/types/user";
 import type { TreeMeta } from "@/lib/trees";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import { useBonds } from "@/lib/useBonds";
+import ReparentDialog from "@/components/ReparentDialog";
 import PersonDrawer from "@/components/PersonDrawer";
 import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
@@ -222,6 +223,17 @@ function WorkspaceInner({
    * için katmanı açmak zorunda kalmak tuhaf olurdu.
    */
   const bonds = useBonds(showBonds || !!selectedId);
+
+  /*
+   * Bağ kurma kipi — tuval üstü ebeveyn değiştirme.
+   *
+   * Kalıcı DEĞİL (localStorage'a yazılmıyor) ve salt-okunur kipte hiç
+   * açılmıyor. Kartlar zaten serbestçe sürükleniyor; bu kipin açık
+   * unutulması, kartını düzeltmek isteyen birinin ağacını sessizce
+   * bozmasına yol açardı. Her oturumda kapalı başlaması bilinçli.
+   */
+  const [linkMode, setLinkMode] = useState(false);
+  const [reparent, setReparent] = useState<{ childId: string; parentId: string } | null>(null);
 
   // Madde 8 — "Bu görünümü yazdır": açık görünümü (ağaç/harita/soy/panel/liste)
   // olduğu gibi bas. Detay paneli kapatılıp bir render sonra `print-view`
@@ -600,7 +612,31 @@ function WorkspaceInner({
                 locateReq={locateReq}
                 bonds={bonds.bonds}
                 showBonds={showBonds}
+                linkMode={linkMode}
+                onReparentDrop={(childId, parentId) => setReparent({ childId, parentId })}
               />
+              {/*
+                Bağ kurma kipi düğmesi — yalnız düzenleyicide. Açıkken tuval
+                kenarına bir şerit çıkıyor: kipin açık olduğunu unutup kart
+                sürüklemek, tam da kaçınmak istediğimiz sessiz bozulma.
+              */}
+              {!readOnly && (
+                <button
+                  onClick={() => setLinkMode((v) => !v)}
+                  aria-pressed={linkMode}
+                  title={t("reparent.modeHint")}
+                  className={`absolute bottom-4 left-4 z-10 h-9 px-3 rounded-xl border text-xs font-medium shadow-card transition-colors ${
+                    linkMode
+                      ? "bg-primary text-primary-text border-primary"
+                      : "bg-bg-elevated/90 backdrop-blur border-border text-text-muted hover:text-text"
+                  }`}
+                >
+                  🔗 {t("reparent.mode")}
+                </button>
+              )}
+              {linkMode && (
+                <div className="pointer-events-none absolute inset-0 z-[5] ring-2 ring-inset ring-primary/50 rounded-none" aria-hidden />
+              )}
               <TreeDepthControl
                 depth={treeDepth}
                 onChange={setTreeDepth}
@@ -685,6 +721,16 @@ function WorkspaceInner({
         {/* Kayan "Kişi ekle" düğmesi KALDIRILDI (#1): ağaç ve soy görünümünde
            kişi, küçük kartın üzerindeki + düğmeleriyle eklenir. */}
       </main>
+
+      {reparent && (
+        <ReparentDialog
+          childId={reparent.childId}
+          parentId={reparent.parentId}
+          people={people}
+          onClose={() => setReparent(null)}
+          onSaved={() => { setReparent(null); router.refresh(); }}
+        />
+      )}
 
       {/* Detay paneli */}
       {selected && (
