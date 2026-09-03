@@ -22,6 +22,7 @@ import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
+import MilestonesView from "./MilestonesView";
 import { usePrivacy } from "./PrivacyContext";
 import { countByKind, researchTasks, taskKey } from "@/lib/research";
 import { type ActivityItem } from "@/lib/activity";
@@ -624,6 +625,24 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
               className="lg:col-span-2"
             >
               <HeredityView shown={shown} onSelect={onSelect} />
+            </Card>
+          )}
+
+          {/* Kilometre taşları — ağacın kendi başarımları + gerçek aciliyet */}
+          {isStats && (
+            <Card
+              title={t("milestone.title")}
+              hint={t("milestone.hint")}
+              className="lg:col-span-2"
+            >
+              {/*
+                `shown` DEĞİL `people`: kilometre taşı ağacın tamamı hakkında
+                bir olgu. Süzgeçle daralmış bir listeye bakıp "yedi göbek
+                tamamlandı" demek yanlış olurdu. Aciliyet listesi de aynı
+                sebeple tam listeden — gizlilik maskesi `urgentPeople`
+                içinde ayrıca uygulanıyor (gizli kayıt hiç girmiyor).
+              */}
+              <MilestonesView people={people} onSelect={onSelect} />
             </Card>
           )}
 
