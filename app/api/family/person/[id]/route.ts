@@ -101,7 +101,7 @@ export async function PUT(
     }
   }
 
-  await saveFamilyData(userId, data, { by: ctx.accountId });
+  await saveFamilyData(userId, data, { by: ctx.authorId });
   return NextResponse.json(updated);
 }
 
@@ -130,7 +130,7 @@ export async function DELETE(
    */
   data.people = scrubDeleted(data.people, [id]);
 
-  await saveFamilyData(userId, data, { by: ctx.accountId });
+  await saveFamilyData(userId, data, { by: ctx.authorId });
 
   /*
    * Duygusal bağlar ayrı bir blobda; kişi listesinden silmek onları

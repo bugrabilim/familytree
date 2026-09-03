@@ -51,8 +51,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.name = user.name;
         // Girişte rol + ağaç adı + founder bilgisi jetona işlenir.
-        const u = user as { role?: TreeRole; treeName?: string; isFounder?: boolean };
+        const u = user as { role?: TreeRole; treeName?: string; isFounder?: boolean; memberId?: string };
         token.role = u.role ?? "admin";
+        // Üye girişinde KİM olduğu; kurucuda yok (kimliği ağacın kimliğidir).
+        token.memberId = u.memberId;
         token.treeName = u.treeName ?? (user.name as string | undefined);
         token.isFounder = u.isFounder ?? true;
       }
@@ -67,6 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.treeName = (token.treeName as string | undefined) ?? session.user.name ?? undefined;
       // Eski jetonda yoksa founder varsay (ağaç şifresiyle girenler).
       session.user.isFounder = (token.isFounder as boolean | undefined) ?? true;
+      session.user.memberId = token.memberId as string | undefined;
       return session;
     },
   },

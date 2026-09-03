@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Kişi bulunamadı." }, { status: 404 });
 
   const merged = mergePeople(people, keepId, dropId);
-  await saveFamilyData(ctx.treeId, { people: merged, updatedAt: new Date().toISOString() }, { by: ctx.accountId });
+  await saveFamilyData(ctx.treeId, { people: merged, updatedAt: new Date().toISOString() }, { by: ctx.authorId });
 
   return NextResponse.json({ ok: true, count: merged.length });
 }

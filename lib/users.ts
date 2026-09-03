@@ -25,6 +25,17 @@ async function saveUsersData(data: UsersData): Promise<void> {
   });
 }
 
+/**
+ * Hesabı kimliğinden bulur.
+ *
+ * Katkı akışı için gerekli: kurucunun kimliği ağacın kimliğidir ve üye
+ * listesinde tutulmaz, dolayısıyla adı ancak buradan çözülebiliyor.
+ */
+export async function findUserById(id: string): Promise<User | null> {
+  const { users } = await getUsersData();
+  return users.find((u) => u.id === id) ?? null;
+}
+
 export async function findUserByFamilyName(familyName: string): Promise<User | null> {
   const { users } = await getUsersData();
   return users.find((u) => u.familyName.toLowerCase() === familyName.toLowerCase()) ?? null;

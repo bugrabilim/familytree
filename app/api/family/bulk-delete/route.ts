@@ -31,6 +31,6 @@ export async function POST(req: NextRequest) {
   // Tekli DELETE ile AYNI işlev (`lib/scrub.ts`) — iki kopya ayrı düşmesin.
   data.people = scrubDeleted(data.people, del);
 
-  await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() }, { by: ctx.accountId });
+  await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   return NextResponse.json({ ok: true, deleted: ids.length, count: data.people.length });
 }

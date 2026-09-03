@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
   const stamped = imported.map((p) => ({ ...p, entrySource: srcName ? `ai: ${srcName}` : "ai" }));
 
   if (mode === "replace") {
-    await saveFamilyData(ctx.treeId, { people: ensureCodes(stamped), updatedAt: new Date().toISOString() }, { by: ctx.accountId });
+    await saveFamilyData(ctx.treeId, { people: ensureCodes(stamped), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   } else {
     const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
     await saveFamilyData(ctx.treeId, {
