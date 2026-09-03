@@ -87,7 +87,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 | 33 | Paylaşımlı oran sınırı | C | `rate-limit.ts` örnek-içi bellekte — sunucusuzda gerçek sınır değil. Supabase tablosuyla yapılır (yeni hesap gerekmez). 34 ve 36'dan önce | ✅
 | 34 | Herkese açık okuma API'si `/api/v1/public/tree` | C | 10 ve 33 olmadan yapılmaz. Sürümleme baştan `/v1` | ✅
 | 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. **55'e bağlı** |
-| 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor |
+| 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor | ✅
 | 37 | Osmanlı ↔ modern yer adı sözlüğü | C | `resolvePlace` **ortak çözüm yolunu** değiştiriyor → mevcut pinleri kaydırabilir. **58'e (lisans) bağlı** |
 | 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
 | 39 | Storyworth için ayrı giriş kapısı | E | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor |

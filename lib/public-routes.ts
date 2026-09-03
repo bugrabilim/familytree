@@ -47,6 +47,9 @@ export const PUBLIC_PREFIXES: readonly string[] = [
   "/embed",
   // Herkese açık okuma API'si (v1) — jetonla, oturumsuz.
   "/api/v1/public",
+  // Anonim katılım bildirimi (RSVP) — davet jetonuyla, oturumsuz.
+  "/api/rsvp",
+  "/rsvp",
   "/_next",
   // Vercel Analytics / Speed Insights betikleri.
   "/_vercel",

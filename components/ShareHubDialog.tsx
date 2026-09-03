@@ -9,13 +9,15 @@ interface Props {
   onShare?: () => void;
   onManageMembers?: () => void;
   onPair?: () => void;
+  /** Aile etkinlikleri + katılım bildirimi. */
+  onGatherings?: () => void;
 }
 
 /**
  * Paylaş hub'ı (⋮ → Paylaş). Herkese açık paylaşım, üyeler & davetler ve bağlı
  * ağaçlar. (Yazdır artık yalnız ⋮ menüsünde.)
  */
-export default function ShareHubDialog({ onClose, onShare, onManageMembers, onPair }: Props) {
+export default function ShareHubDialog({ onClose, onShare, onManageMembers, onPair, onGatherings }: Props) {
   const t = useT();
 
   return (
@@ -27,6 +29,8 @@ export default function ShareHubDialog({ onClose, onShare, onManageMembers, onPa
 
         {onManageMembers && <Row label={t("members.menu")} onClick={onManageMembers} />}
         {onPair && <Row label={t("pair.menu")} onClick={onPair} />}
+        {/* Etkinlik davetiyesi de bir paylaşım biçimi — burası doğru yeri. */}
+        {onGatherings && <Row label={t("gathering.title")} onClick={onGatherings} />}
       </div>
     </Modal>
   );
