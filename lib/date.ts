@@ -99,12 +99,20 @@ export function calcAge(birth?: string, death?: string): number | null {
   return age >= 0 && age < 130 ? age : null;
 }
 
-/** "23 Nisan 1985" gibi uzun okunabilir biçim. */
+/**
+ * "23 Nisan 1985" gibi uzun okunabilir biçim.
+ *
+ * Ay adı yoksa (aralık dışı ya da sayı olmayan ay) ay ATLANIR. Eskiden
+ * `AYLAR[Number(m) - 1]` doğrudan yazılıyordu ve bozuk bir kayıtta
+ * ekranda "23 undefined 1985" beliriyordu — kullanıcıya İngilizce bir
+ * JavaScript değeri göstermek, tarihi hiç göstermemekten kötü.
+ */
 export function formatLong(stored?: string): string {
   if (!stored) return "";
   const [y, m, d] = stored.split("-");
-  if (d) return `${Number(d)} ${AYLAR[Number(m) - 1]} ${y}`;
-  if (m) return `${AYLAR[Number(m) - 1]} ${y}`;
+  const ay = AYLAR[Number(m) - 1];
+  if (d) return ay ? `${Number(d)} ${ay} ${y}` : `${Number(d)}.${m}.${y}`;
+  if (m) return ay ? `${ay} ${y}` : `${m}.${y}`;
   return y;
 }
 

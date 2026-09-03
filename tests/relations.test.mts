@@ -104,3 +104,43 @@ console.log(`derece testleri: ${dcases.length + 1} kontrol`);
 
 const st = computeStats(people);
 console.log(`istatistik: ${st.total} kişi, ${st.generations} kuşak, ${st.male}E/${st.female}K`);
+
+/* --- CİNSİYETİ BİLİNMEYEN ATA: her kuşak AYRI ad ---------------------- */
+/*
+ * "dede"/"nine" tek başına zaten büyükbaba/büyükanne demek, ama "ata" genel
+ * bir sözcük ("atam" herhangi bir ata). Bu yüzden bilinmeyen cinsiyette
+ * up=2'ye "büyük" ekleniyor — ve o ek up=3'te de eklenince BÜYÜKBABA ile
+ * ONUN BABASI aynı adı taşıyordu ("büyük ata"). Akrabalık adının tek işi
+ * kuşağı söylemek; iki kuşağı ayırt edemediği anda işe yaramıyor.
+ */
+const bilinmeyen: Person[] = [
+  P("k", "Kok", "male", ["a1"]),
+  P("a1", "Ata1", "unknown", ["a2"]),
+  P("a2", "Ata2", "unknown", ["a3"]),
+  P("a3", "Ata3", "unknown", ["a4"]),
+  P("a4", "Ata4", "unknown", ["a5"]),
+  P("a5", "Ata5", "unknown"),
+];
+const bidx = indexPeople(bilinmeyen);
+const adlar = ["a1", "a2", "a3", "a4", "a5"].map((id) =>
+  describeRelation("k", id, bilinmeyen, bidx)
+);
+if (new Set(adlar).size === adlar.length) ok++;
+else { fail++; console.log(`✗ bilinmeyen cinsiyette kuşaklar aynı ada düşüyor: ${JSON.stringify(adlar)}`); }
+for (const [i, bekl] of [[1, "Büyük ata"], [2, "Büyük büyük ata"]] as const) {
+  if (adlar[i] === bekl) ok++;
+  else { fail++; console.log(`✗ bilinmeyen ata ${i + 2}. kuşak: bekl "${bekl}", geldi "${adlar[i]}"`); }
+}
+// Bilinen cinsiyette adlar değişmedi (bunlar zaten özel adlar).
+for (const [a, b, bekl] of [["ben", "dedeM", "Dede"], ["ben", "nineF", "Babaanne"]] as const) {
+  const got = describeRelation(a, b, people, idx);
+  if (got === bekl) ok++;
+  else { fail++; console.log(`✗ ${a} → ${b}: bekl "${bekl}", geldi "${got}"`); }
+}
+
+/*
+ * KAPANIŞ. Bu dosya eskiden başarısızlıkları YAZDIRIP 0 ile çıkıyordu; `npm
+ * test` ilk hatada duruyor ama buradaki hata hiç hata sayılmıyordu — yani
+ * akrabalık adlandırmasının tamamı sessizce bozulabilirdi.
+ */
+if (fail > 0) process.exit(1);

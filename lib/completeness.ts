@@ -1,4 +1,5 @@
 import type { Person } from "@/types/family";
+import { assignParentSlots } from "./fan.ts";
 
 /**
  * "Yedi Göbek" tamamlanma ölçeri — SAF, bağımlılıksız.
@@ -112,18 +113,10 @@ function slotsOf(
     .map((pid) => byId.get(pid))
     .filter((p): p is Person => !!p);
 
-  const father = parents.find((p) => p.gender === "male");
-  const mother = parents.find((p) => p.gender === "female");
-  if (father || mother) {
-    // Cinsiyetle çözülemeyen ikinci ebeveyni boş yuvaya yerleştir.
-    const rest = parents.filter((p) => p !== father && p !== mother);
-    return {
-      father: father ?? (mother ? rest[0] : undefined),
-      mother: mother ?? (father ? rest[0] : undefined),
-    };
-  }
-  // Hiçbiri cinsiyetle çözülemedi → sıraya göre.
-  return { father: parents[0], mother: parents[1] };
+  // Yuva ayrımı TEK yerde (`lib/fan.ts`): iki anneli kişide ikinci annenin
+  // sessizce düşmesi tam da bu kuralın kopyalanmasından doğmuştu.
+  const [father, mother] = assignParentSlots(parents);
+  return { father, mother };
 }
 
 /** `"F"` → baba, `"MM"` → anneanne … i18n anahtarı (bilinen yollar için). */
