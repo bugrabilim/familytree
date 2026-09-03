@@ -1781,6 +1781,15 @@ export const tr: Dict = {
   "voice.field.patronymic": "Baba adına göre anılma",
   "voice.field.lineage": "Sülale",
   "voice.field.bio": "Hayat hikâyesi",
+
+  /* --- Gömülebilir ağaç --- */
+  "embed.show": "Gömme kodu",
+  "embed.hide": "Gömme kodunu gizle",
+  "embed.code": "Gömme kodu",
+  "embed.copy": "Kodu kopyala",
+  "embed.hint":
+    "Bu kodu bir siteye yapıştırın; ağaç orada salt okunur açılır. Aynı bağlantı, aynı gizlilik tercihi.",
+  "embed.poweredBy": "Soy Ağacı",
 };
 
 /* İngilizce — eklenti dil. Anahtarlar `tr` ile birebir aynı olmalı. */
@@ -3548,6 +3557,15 @@ export const en: Dict = {
   "voice.field.patronymic": "Patronymic",
   "voice.field.lineage": "Lineage",
   "voice.field.bio": "Life story",
+
+  /* --- Embeddable tree --- */
+  "embed.show": "Embed code",
+  "embed.hide": "Hide embed code",
+  "embed.code": "Embed code",
+  "embed.copy": "Copy code",
+  "embed.hint":
+    "Paste this into a site and the tree opens there, read-only. Same link, same privacy setting.",
+  "embed.poweredBy": "Soy Ağacı",
 };
 
 export const DICTS: Record<Lang, Dict> = { tr, en };
