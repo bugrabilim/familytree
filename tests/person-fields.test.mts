@@ -178,5 +178,68 @@ const P = (extra: Partial<Person> = {}): Person => ({
   eq(Object.keys(bos).length, 0, "POST: boş gövde boş nesne");
 }
 
+/* --- TEMİZLENEBİLİRLİK: formun ürettiği yük gerçekten siliyor mu? ------- */
+/*
+ * K3/26'da yalnız dört tarih/yer alanı düzeltilmişti, ama oradaki yorum
+ * "şimdi kural bütün alanlarda aynı" diyordu. Değildi: lakap, biyografi,
+ * meslek, din, fotoğraf, anı, kaynak, çevre bağı ve `confidential` hâlâ
+ * boşaltılınca `undefined` gidiyor, yani HİÇ temizlenemiyordu. En kötüsü
+ * `confidential`di: "gizli kayıt" işareti onu koyan tek arayüzden geri
+ * alınamıyordu.
+ *
+ * Bu blok kaynağı okuyor: `PersonForm` yükünde bir alanın boşken
+ * `undefined`a düşürülmesi tam olarak o hatadır.
+ */
+{
+  const form = readFileSync(new URL("../components/PersonForm.tsx", import.meta.url), "utf8");
+  const i = form.indexOf("const payload: PersonPayload = {");
+  const yuk = form.slice(i, form.indexOf("\n    };", i));
+  check(i >= 0, "PersonForm yükü bulundu");
+
+  // Yük içinde `|| undefined` ya da `: undefined` ile biten hiçbir alan olmamalı.
+  const kacaklar = yuk
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /\|\|\s*undefined,?$/.test(l) || /:\s*undefined,?$/.test(l));
+  check(
+    kacaklar.length === 0,
+    `formda temizlenemeyen alan yok (bulunan: ${kacaklar.join(" ; ") || "—"})`
+  );
+
+  // Somut olarak en kritik ikisi:
+  check(/\bconfidential,/.test(yuk), "confidential doğrudan gönderiliyor (false da gidiyor)");
+  check(/\bprivateFields,/.test(yuk), "privateFields doğrudan gönderiliyor (boş dizi de gidiyor)");
+}
+
+/* --- Ve merge katmanı o değerleri gerçekten temizliyor mu? -------------- */
+{
+  const mevcut = {
+    id: "x", firstName: "Ali", lastName: "Demir", gender: "male",
+    parentIds: [], spouseIds: [],
+    nickname: "Topal", bio: "hikaye", occupation: "Terzi",
+    photo: "a.jpg", photos: ["a.jpg"], videos: ["v.mp4"], documents: ["d.pdf"],
+    memories: [{ id: "m", text: "ani" }], sources: [{ id: "s", title: "k" }],
+    associations: [{ id: "a", personId: "z", type: "arkadas" }],
+    confidential: true, privateFields: ["health"],
+  } as unknown as Person;
+
+  const bosaltilmis = {
+    firstName: "Ali", lastName: "Demir", gender: "male",
+    nickname: "", bio: "", occupation: "", photo: "",
+    photos: [], videos: [], documents: [], memories: [], sources: [], associations: [],
+    confidential: false, privateFields: [],
+  };
+
+  const out = mergePersonFields(mevcut, bosaltilmis) as unknown as Record<string, unknown>;
+  for (const k of ["nickname", "bio", "occupation", "photo"]) {
+    check(out[k] === undefined, `${k} temizlendi`);
+  }
+  for (const k of ["photos", "videos", "documents", "memories", "sources", "associations", "privateFields"]) {
+    const v = out[k];
+    check(Array.isArray(v) && v.length === 0, `${k} boşaltıldı`);
+  }
+  check(out.confidential === false, "confidential geri alınabiliyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

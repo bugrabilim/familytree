@@ -128,13 +128,30 @@ eq(viewAll([], true), [], "boş liste");
 
 /* --- Yapısal kilit: herkese açık yüzey SUNUCUDA maskelemeli ------------- */
 
-const sharePage = readFileSync(new URL("../app/g/[token]/page.tsx", import.meta.url), "utf8");
-check(/viewAll\s*\(/.test(sharePage),
-  "herkese açık paylaşım sayfası viewAll ile SUNUCUDA maskeliyor");
-check(!/people=\{people\}/.test(sharePage),
-  "ham people dizisi Workspace'e verilmiyor");
-check(/people=\{safePeople\}/.test(sharePage),
-  "maskelenmiş dizi veriliyor");
+/*
+ * Bu denetim ÖNCE yalnız `/g/[token]` için yazılmıştı ve tam da bu yüzden
+ * bir sızıntı fark edilmeden yaşadı: `Workspace`e ham dizi veren İKİNCİ bir
+ * sunucu sayfası daha vardı (`/p/[treeId]`, eşleşmiş komşu ağacın
+ * görünümü). Orada sınır başka bir HESAP; `confidential` işaretli bir
+ * kişinin sağlık kaydı, hikâyesi, doğum tarihi ve yeri RSC yüküne
+ * giriyordu.
+ *
+ * Ders: kural bir dosyaya değil, "Workspace'e kişi veren her sunucu
+ * sayfası"na ait. Liste bu yüzden çoğul.
+ */
+const SUNUCU_SAYFALARI = [
+  "../app/g/[token]/page.tsx",   // girişsiz paylaşım
+  "../app/p/[treeId]/page.tsx",  // eşleşmiş komşu ağaç (başka hesap)
+];
+
+for (const yol of SUNUCU_SAYFALARI) {
+  const src = readFileSync(new URL(yol, import.meta.url), "utf8");
+  check(/viewAll\s*\(/.test(src), `${yol} viewAll ile SUNUCUDA maskeliyor`);
+  check(!/people=\{people\}/.test(src), `${yol} ham people dizisini vermiyor`);
+  check(/people=\{safePeople\}/.test(src), `${yol} maskelenmiş diziyi veriyor`);
+  // Sunucu bileşeni olmalı: "use client" olsaydı ham veri zaten tarayıcıda olurdu.
+  check(!/^\s*"use client"/m.test(src), `${yol} sunucu bileşeni`);
+}
 
 // Gizlilik tek kaynaktan gelmeli — istemci kendi kopyasını kurmamalı
 const ctx = readFileSync(new URL("../components/PrivacyContext.tsx", import.meta.url), "utf8");

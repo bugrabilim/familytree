@@ -57,5 +57,26 @@ check("eğitim boşsa hepsi", matchesFields(P({ education: "lise" }), f0));
 check("etkin süzgeç sayısı 0", activeFieldCount(f0) === 0);
 check("etkin süzgeç sayısı 3", activeFieldCount({ ...f0, genders: ["male"], place: "İzmir", education: "lisans" }) === 3, String(activeFieldCount({ ...f0, genders: ["male"], place: "İzmir", education: "lisans" })));
 
+/* --- Tarih ve kod aramaları: iki taraf da KATLANMALI ------------------- */
+/*
+ * `norm` `foldKey` olduğunda sorgu "1985-04-23" → "1985 04 23"e dönüşüyor.
+ * Bu iki alan bir dönem HAM hâlleriyle karşılaştırılıyordu, dolayısıyla tam
+ * tarih yazan kullanıcı hiçbir şey bulamıyordu — arama testleri ad, yer,
+ * meslek ve kodu kapsıyordu ama TARİHİ hiç sorgulamıyordu, o yüzden
+ * gerileme sessizce yaşadı.
+ */
+{
+  const t = P({ id: "t", birthDate: "1985-04-23", code: "289042" });
+  check("tam tarihle aranabiliyor", matchesQuery(t, "1985-04-23"));
+  check("yıl-ay ile aranabiliyor", matchesQuery(t, "1985-04"));
+  check("yalnız yılla aranabiliyor", matchesQuery(t, "1985"));
+  check("ay-gün ile aranabiliyor", matchesQuery(t, "04-23"));
+  // Ayırıcı ne olursa olsun aynı sonuç: iki taraf da katlandığı için.
+  check("farklı ayırıcı da bulur", matchesQuery(t, "1985/04/23"));
+  check("kodla aranabiliyor", matchesQuery(t, "289042"));
+  check("başka tarih eşleşmiyor", !matchesQuery(t, "1986-04-23"));
+  check("başka kod eşleşmiyor", !matchesQuery(t, "289043"));
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

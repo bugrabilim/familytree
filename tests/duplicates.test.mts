@@ -1,5 +1,6 @@
 import { findDuplicatePairs, mergePeople, applyBulkMerge } from "../lib/duplicates.ts";
 import type { Person } from "../types/family.ts";
+import { PERSON_FIELDS } from "../lib/person-fields.ts";
 
 let ok = 0,
   fail = 0;
@@ -119,6 +120,58 @@ const chained = applyBulkMerge(chain, [
   { aId: "c2", bId: "c3" }, // c2 tüketildi → atlanır
 ]);
 check("zincirde tüketilen çift atlanır", chained.merged === 1 && chained.people.length === 2);
+
+/* --- KAYIPSIZLIK: kayıt defterindeki HER alan birleştirmeden sağ çıkmalı -- */
+/*
+ * Burada eskiden elle yazılmış bir alan listesi vardı ve sonradan eklenen
+ * alanlar o listeye hiç girmedi: `lineage`, `burialPlace`,
+ * `officialBirthDate`, `videos`, `documents`, `healthNote`, `associations`
+ * ve `birthCoords` bırakılan kayıtla birlikte siliniyordu — fonksiyonun
+ * kendi başlığı "kayıpsız" derken.
+ *
+ * Bu test tek tek alan saymıyor; KAYIT DEFTERİNİ dolaşıyor. Yeni bir alan
+ * eklendiğinde kendiliğinden kapsıyor, böylece aynı sapma tekrarlanamıyor.
+ */
+{
+  const ornek: Record<string, unknown> = {
+    text: "değer", array: ["a"], bool: true,
+    obj: { lat: 41, lng: 29 },
+  };
+  const bosKeep = {
+    id: "k", firstName: "Ali", lastName: "Demir", gender: "male",
+    parentIds: [], spouseIds: [],
+  } as unknown as Person;
+
+  const doluDrop: Record<string, unknown> = {
+    id: "d", firstName: "Ali", lastName: "Demir", gender: "male",
+    parentIds: [], spouseIds: [],
+  };
+  for (const spec of PERSON_FIELDS) {
+    if (["firstName", "lastName", "gender"].includes(String(spec.key))) continue;
+    doluDrop[String(spec.key)] = ornek[spec.merge];
+  }
+
+  const out = mergePeople([bosKeep, doluDrop as unknown as Person], "k", "d")
+    .find((p) => p.id === "k") as unknown as Record<string, unknown>;
+
+  const kayip = PERSON_FIELDS
+    .map((f) => String(f.key))
+    .filter((k) => !["firstName", "lastName", "gender"].includes(k))
+    .filter((k) => {
+      const v = out[k];
+      if (v === undefined) return true;
+      if (Array.isArray(v)) return v.length === 0;
+      return false;
+    });
+  check(`birleştirmede kaybolan alan yok (kayıp: ${kayip.join(", ") || "—"})`, kayip.length === 0);
+}
+{
+  // Mantıksal alanda GÜVENLİ taraf kazanır: biri "gizli kayıt" ise birleşim de.
+  const a = { id: "k", firstName: "A", lastName: "B", gender: "male", parentIds: [], spouseIds: [] } as unknown as Person;
+  const b = { id: "d", firstName: "A", lastName: "B", gender: "male", parentIds: [], spouseIds: [], confidential: true } as unknown as Person;
+  const out = mergePeople([a, b], "k", "d").find((p) => p.id === "k")!;
+  check("gizlilik işareti birleştirmede kalkmıyor", out.confidential === true);
+}
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);
