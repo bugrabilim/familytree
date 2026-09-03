@@ -30,13 +30,39 @@ export async function GET(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
 
+  /*
+   * "İçinde bulunulan yıl" İSTEMCİNİN yılıdır, sunucununki değil.
+   *
+   * Sunucu Vercel'de UTC çalışıyor; İstanbul'da 1 Ocak saat 01:00'de istemci
+   * 2027 derken sunucu hâlâ 2026'da oluyor. Eskiden sunucunun yılına
+   * bakılıyordu, dolayısıyla yılın ilk üç saatinde "kayda geçenler" bölümü
+   * kayboluyor ve üstelik GELECEK bir yıl için "geçmiş yıl" gerekçesi
+   * dönüyordu. UTC-8'de aynı şey 31 Aralık akşamı ters yönde oluyordu.
+   *
+   * İstemci kendi `getTimezoneOffset()` değerini yolluyor; yoksa sunucunun
+   * yılına düşülüyor (eski davranış — bozuk değil, yalnız sınırda şaşıyor).
+   */
   const simdi = new Date();
-  const istenen = Number(req.nextUrl.searchParams.get("year") ?? simdi.getFullYear());
+  const tzHam = Number(req.nextUrl.searchParams.get("tz"));
+  const tz = Number.isFinite(tzHam) && Math.abs(tzHam) <= 900 ? tzHam : null;
+  const yerelSimdi = tz === null ? simdi : new Date(simdi.getTime() - tz * 60_000);
+  const buYil = yerelSimdi.getUTCFullYear();
+
+  const istenen = Number(req.nextUrl.searchParams.get("year") ?? buYil);
   if (!Number.isInteger(istenen) || istenen < 1 || istenen > 9999)
     return NextResponse.json({ error: "Geçersiz yıl" }, { status: 400 });
 
-  if (istenen !== simdi.getFullYear())
-    return NextResponse.json({ year: istenen, record: null, reason: "gecmis-yil" });
+  /*
+   * Karşılaştırma BUGÜNKÜ kişi listesine karşı yapılıyor, o yüzden yalnız
+   * içinde bulunulan yıl için anlamlı. Geçmiş yıl için "o yıl ne eklendi"
+   * bilinmiyor ve tahmin edilmiyor.
+   */
+  if (istenen !== buYil)
+    return NextResponse.json({
+      year: istenen,
+      record: null,
+      reason: istenen > buYil ? "gelecek-yil" : "gecmis-yil",
+    });
 
   const [{ people }, snapshots] = await Promise.all([
     getFamilyData(ctx.treeId),
@@ -47,6 +73,7 @@ export async function GET(req: NextRequest) {
    * Yılın başlangıcına EN YAKIN ama ondan sonraki görüntü. `snapshots` en
    * yeniden eskiye sıralı, o yüzden ölçüte uyan SON öğe en eskisidir.
    */
+  // Yılın başı da yerel: UTC'ye göre kesmek sınırdaki görüntüyü dışarıda bırakırdı.
   const basi = `${istenen}-01-01`;
   const taban = [...snapshots].reverse().find((s) => s.at >= basi);
   if (!taban) return NextResponse.json({ year: istenen, record: null, reason: "gorunti-yok" });
