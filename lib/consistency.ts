@@ -86,10 +86,25 @@ export function findIssues(people: Person[]): Issue[] {
     if (by !== null && dy !== null && dy - by > MAX_AGE)
       issues.push({ personId: p.id, kind: "implausibleAge", severity: "warning" });
 
-    // Ebeveyn/çocuk tarih tutarlılığı
+    /*
+     * Ebeveyn/çocuk tarih tutarlılığı — YALNIZ KAN BAĞINDA.
+     *
+     * Aşağıdaki üç kural biyolojiden geliyor: kimse kendinden büyük birini
+     * doğuramaz, on beşinden küçükken doğuramaz, öldükten sonra doğuramaz.
+     * Hiçbiri evlat edinen, üvey ya da koruyucu ebeveyn için geçerli değil —
+     * üvey baba pekâlâ üvey çocuğundan küçük olabilir, evlat edinen anne
+     * çocuğun doğumundan önce ölmüş olamaz ama evlat edinme bağı ölümden
+     * sonra kurulmuş bir kayıt düzeltmesi olabilir. Kuralı oraya da
+     * uygulamak, kullanıcıya DOĞRU veriyi hata diye göstermek olurdu; ve
+     * susturulamayan yanlış uyarı, bütün listeyi görmezden gelmenin en hızlı
+     * yolu.
+     */
     for (const pid of p.parentIds ?? []) {
       const parent = idx.get(pid);
       if (!parent) continue;
+      const tur = p.parentLinks?.[pid]?.kind;
+      if (tur !== undefined && tur !== "biological") continue;
+
       const pby = year(parent.birthDate);
       if (by !== null && pby !== null) {
         if (pby > by)
@@ -97,9 +112,18 @@ export function findIssues(people: Person[]): Issue[] {
         else if (by - pby < MIN_PARENT_AGE)
           issues.push({ personId: p.id, kind: "tooYoungParent", severity: "warning" });
       }
-      // Ebeveynin ölümünden (baba için +1 yıl tolerans) sonra doğum
+      /*
+       * Ebeveynin ölümünden sonra doğum.
+       *
+       * +1 yıllık tolerans BABAYA ait ve gerekçesi gebelik: baba çocuğun
+       * doğumundan aylar önce ölmüş olabilir. Anneye aynı payı vermek o
+       * gerekçeyi yok sayıp gerçek bir veri hatasını (çoğu zaman karışmış
+       * iki kişi) sessizce geçirmek demekti — anne çocuğunun doğumundan
+       * önce ölmüş olamaz.
+       */
       const pdy = year(parent.deathDate);
-      if (by !== null && pdy !== null && by > pdy + 1)
+      const pay = parent.gender === "female" ? 0 : 1;
+      if (by !== null && pdy !== null && by > pdy + pay)
         issues.push({ personId: p.id, kind: "bornAfterParentDeath", severity: "warning" });
     }
   }

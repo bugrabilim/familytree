@@ -9,6 +9,7 @@ import { primaryName, secondaryName } from "@/lib/name";
 import { isRainbow } from "@/lib/identity";
 import { ancestorDepths, descendantDepths, getChildren, getParents, indexPeople } from "@/lib/relations";
 import { compareSiblings } from "@/lib/siblings";
+import { assignParentSlots } from "@/lib/fan";
 import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
@@ -168,11 +169,16 @@ interface BranchProps {
   onSetRoot: (id: string) => void;
 }
 
-/** Baba önce, anne sonra — tutarlı sıralama */
+/**
+ * Baba önce, anne sonra — sıralama TEK tanımdan (`lib/fan.ts`).
+ *
+ * Buradaki kopya, cinsiyetle yuvaya oturmayan ebeveyni SESSİZCE atıyordu:
+ * iki anneli bir kişide ikinci anne ve onun bütün üst hattı şecereden
+ * kayboluyordu. Yelpaze de aynı hatayı yapıyordu, çünkü kural iki yerde
+ * ayrı yazılmıştı.
+ */
 function ataSirasi(parents: Person[]): Person[] {
-  const father = parents.find((p) => p.gender === "male") ?? parents.find((p) => p.gender === "unknown");
-  const mother = parents.find((p) => p.gender === "female") ?? parents.find((p) => p !== father);
-  return [father, mother].filter((p): p is Person => !!p);
+  return assignParentSlots(parents).filter((p): p is Person => !!p);
 }
 
 /** Bir kişinin atalarını (solda) çizen fan — kişinin kendi kartı hariç */

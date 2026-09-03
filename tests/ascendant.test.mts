@@ -189,8 +189,24 @@ for (const eksik of ["1950", "1950-04", "50-04-23", "", undefined]) {
   check(candidateOffsets(ist.lat, ist.lng, 1950).join() === "2,3", "Türkiye 2016 öncesi → +2 ve +3");
   check(candidateOffsets(ist.lat, ist.lng, 2016).join() === "2,3", "2016 sınır yılında iki aday");
   // Türkiye dışı: boylamdan tek aday.
-  check(candidateOffsets(48.85, 2.35, 1950).join() === "0", "Paris → +0 (boylamdan)");
-  check(candidateOffsets(40.71, -74.0, 1950).join() === "-5", "New York → −5 (boylamdan)");
+  /*
+   * YURT DIŞI: güneş farkı TEK BAŞINA yetmiyor.
+   *
+   * Boylamdan çıkan fark güneş saatidir; resmî saat ondan farklı olabilir ve
+   * genelde farklıdır. Köln (boylam ~7°) güneş farkı 0 verir, oysa Almanya
+   * kışın +1 yazın +2 kullanır. Tek aday üretilince `certain` de zorunlu
+   * olarak `true` oluyordu: tam bir burç yanlış, üstelik "kesin" damgalı.
+   */
+  check(candidateOffsets(48.85, 2.35, 1950).join() === "-1,0,1,2", "Paris → güneş farkı çevresinde aralık");
+  check(candidateOffsets(48.85, 2.35, 1900).join() === "-1,0,1", "yaz saati öncesi üst uç dar");
+  check(candidateOffsets(40.71, -74.0, 1950).join() === "-6,-5,-4,-3", "New York → −5 çevresinde aralık");
+  {
+    // Köln: resmî saat (+1/+2) aday kümesinde OLMALI.
+    const koln = candidateOffsets(50.94, 6.96, 1975);
+    check(koln.includes(1) && koln.includes(2), `Köln resmî saatleri adaylar arasında (${koln.join()})`);
+  }
+  // Türkiye içinde kural değişmedi — orada dilim tarihini biliyoruz.
+  check(candidateOffsets(ist.lat, ist.lng, 2020).length === 1, "Türkiye'de hâlâ tek aday olabiliyor");
 }
 
 /* ── Uçtan uca: kesinlik iddiası dürüst mü ───────────────────────────────── */
@@ -261,6 +277,25 @@ for (const eksik of ["1950", "1950-04", "50-04-23", "", undefined]) {
   check(ascendant(gizli.birthDate, gizli.birthTime, gizli.birthCoords) === null,
     "maskeli kişide yükselen hesaplanmıyor");
 }
+
+/* --- OLMAYAN TARİH: sessizce KAYDIRILMIYOR ----------------------------- */
+/*
+ * `parseFullDate` "31'e kadar her gün olur" diyordu; "1900-02-30" kabul
+ * ediliyor ve `julianDay` onu sessizce 2 Mart'a kaydırıp var olmayan bir gün
+ * için yükselen hesaplıyordu. Olmayan tarihin doğru yanıtı yok.
+ */
+for (const kotu of ["1900-02-30", "2001-02-29", "1999-04-31", "1999-06-31", "1999-09-31", "1999-11-31", "1999-13-01", "1999-00-10", "1999-05-00"]) {
+  check(parseFullDate(kotu) === null, `olmayan tarih reddediliyor: ${kotu}`);
+}
+for (const iyi of ["2000-02-29", "1904-02-29", "1999-02-28", "1999-01-31", "1999-04-30", "1999-12-31"]) {
+  check(parseFullDate(iyi) !== null, `geçerli tarih kabul ediliyor: ${iyi}`);
+}
+// 1900 artık yıl DEĞİL (yüzyıl kuralı), 2000 artık yıl.
+check(parseFullDate("1900-02-29") === null, "1900 artık yıl değil");
+check(parseFullDate("2000-02-29") !== null, "2000 artık yıl");
+// Olmayan tarihle yükselen de hesaplanmıyor.
+check(ascendant("1900-02-30", "10:00", { lat: 41.0, lng: 29.0 }) === null,
+  "olmayan tarihte yükselen null");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

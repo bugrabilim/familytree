@@ -137,12 +137,41 @@ function inTurkey(lat: number, lng: number): boolean {
  * · Türkiye, 2016 ve öncesi → +2 ve +3. Standart saat +2'ydi ama yaz saati
  *   çoğu yıl uygulandı; hangi tarihte yürürlükte olduğunu tarih tarih
  *   bilmiyoruz, o yüzden İKİSİ de aday.
- * · Başka yer → boylamdan türetilen en yakın tam saat. Tek aday: elimizde
- *   o ülkenin dilim tarihi yok ve uydurmuyoruz.
+ * · Başka yer → GÜNEŞ farkı çevresinde bir ARALIK (aşağıda).
+ *
+ * ## Yurt dışında tek aday neden yanlıştı
+ *
+ * Boylamdan türetilen fark GÜNEŞ saatidir; ülkelerin kullandığı RESMÎ saat
+ * ondan farklı olabilir ve genelde farklıdır. Köln (boylam ~7°) güneş farkı
+ * 0 verir ama Almanya kışın +1, yazın +2 kullanır. Tek aday üretilince
+ * `certain` de kaçınılmaz olarak `true` oluyordu: yanıt bir tam burç yanlış
+ * ve üstelik "kesin" damgalıydı — kullanıcının denetleyemeyeceği türden bir
+ * hata.
+ *
+ * Aralık BİLEREK asimetrik: resmî dilim güneş saatinin bir saat sağında ya
+ * da solunda olabilir, ama YAZ SAATİ her zaman ileri alır. Bu yüzden üst uç
+ * yaz saati uygulanan dönemde (1916 ve sonrası) bir saat daha genişliyor —
+ * Köln'ün +2'si ancak öyle kapsanıyor.
+ *
+ * Bunun sonucu, yurt dışı kayıtlarında `certain`in ancak doğum anı burcun
+ * ORTASINDAYSA doğru çıkması — ki zaten doğrusu bu: birkaç saatlik
+ * belirsizlik, burç sınırına yakın her doğumu gerçekten belirsiz kılar.
+ * "Belirsiz" demek, yanlış bir burcu kesin diye sunmaktan iyidir.
+ *
+ * Hâlâ eksik kalan: resmî saati güneş saatinden bir saatten fazla sapan
+ * yerler (İspanya'nın batısı, Çin'in tamamı, Hindistan'ın yarım saati).
+ * Onlar için doğru yanıt dilim tarihi veritabanıdır; o gelene kadar burada
+ * uydurulmuyor.
  */
 export function candidateOffsets(lat: number, lng: number, year: number): number[] {
   if (inTurkey(lat, lng)) return year >= 2017 ? [3] : [2, 3];
-  return [Math.round(lng / 15)];
+  const gunes = Math.round(lng / 15);
+  // Yaz saati 1916'dan itibaren yaygınlaştı; öncesinde üst ucu genişletmenin
+  // gerekçesi yok.
+  const ust = gunes + (year >= 1916 ? 2 : 1);
+  const adaylar: number[] = [];
+  for (let o = gunes - 1; o <= ust; o++) adaylar.push(o);
+  return adaylar;
 }
 
 /* ── Sonuç ────────────────────────────────────────────────────────────────── */
@@ -173,13 +202,29 @@ export function parseTime(time?: string): number | null {
   return h + dk / 60;
 }
 
+/**
+ * Ayın gün sayısı. Artık yıl kuralı Gregoryen — bu modülün geri kalanı da
+ * (`julianDay`) Gregoryen takvimle çalışıyor, ikisi ayrışmasın.
+ */
+function gunSayisi(y: number, ay: number): number {
+  if (ay === 2) return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 29 : 28;
+  return ay === 4 || ay === 6 || ay === 9 || ay === 11 ? 30 : 31;
+}
+
 /** "YYYY-MM-DD" → parçalar. Yıl-ay ya da yalnız yıl YETMEZ: gün şart. */
 export function parseFullDate(stored?: string): { y: number; m: number; d: number } | null {
   if (!stored) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(stored.trim());
   if (!m) return null;
   const y = Number(m[1]), ay = Number(m[2]), g = Number(m[3]);
-  if (ay < 1 || ay > 12 || g < 1 || g > 31) return null;
+  if (ay < 1 || ay > 12 || g < 1) return null;
+  /*
+   * Ayın GERÇEK gün sayısı — "31'e kadar her şey olur" değil. Öyleyken
+   * "1900-02-30" kabul ediliyor ve `julianDay` onu sessizce 2 Mart'a
+   * kaydırıyordu: var olmayan bir güne, sorulmadan, bir yükselen
+   * hesaplanıyordu. Olmayan tarihin doğru yanıtı yok; `null` doğru yanıt.
+   */
+  if (g > gunSayisi(y, ay)) return null;
   return { y, m: ay, d: g };
 }
 

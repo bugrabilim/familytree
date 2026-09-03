@@ -282,8 +282,20 @@ const ATA_ADI = ["", "", "büyük", "büyük büyük", "büyük büyük büyük"
 function ordinalAta(up: number, gender: Person["gender"]): string {
   // up >= 2
   const taban = gender === "female" ? "nine" : gender === "male" ? "dede" : "ata";
-  if (up === 2) return taban === "ata" ? "büyük ata" : taban;
-  if (up <= 4) return `${ATA_ADI[up - 1]} ${taban}`.trim();
+  /*
+   * Cinsiyeti bilinmeyen atada bir KAYDIRMA var ve unutulursa iki kuşak aynı
+   * adı alır. "dede"/"nine" tek başına zaten büyükbaba/büyükanne demek, ama
+   * "ata" genel bir sözcük — "atam" büyükbaba değil, herhangi bir ata. Bu
+   * yüzden up=2 için "büyük ata" deniyor; aynı ek up=3'te de eklenince
+   * büyükbaba ile onun babası AYNI adı taşıyordu ("büyük ata"), yani akrabalık
+   * adı bir kuşağı ayırt edemiyordu.
+   *
+   * Doğrusu: taban zaten bir "büyük" tükettiği için ek sayısı bir artıyor.
+   * Her kuşak için: up=2 "büyük ata", up=3 "büyük büyük ata", …
+   */
+  const kaydirma = taban === "ata" ? 1 : 0;
+  if (up === 2 && !kaydirma) return taban;
+  if (up + kaydirma <= 4) return `${ATA_ADI[up - 1 + kaydirma]} ${taban}`.trim();
   // "N. kuşak" = kişiden kaç kuşak uzakta (kuşak görüntüleyicideki kutu adıyla
   // aynı sayım): 5. kuşak ata "5. kuşak dede" olur, "4." değil.
   return `${up}. kuşak ${taban}`;

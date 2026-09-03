@@ -66,19 +66,47 @@ export function clampGenerations(g: number): number {
   return Math.max(0, Math.min(8, Math.floor(g)));
 }
 
+/**
+ * İki ebeveyni "baba yuvası / anne yuvası" diye ayırır — TEK TANIM.
+ *
+ * Aynı kural üç yerde ayrı ayrı yazılmıştı (`fan`, `PedigreeView`,
+ * `completeness`) ve ikisi aynı hatayı yapıyordu: yuvalar CİNSİYETE göre
+ * doldurulup, hiçbir yuvaya düşmeyen ebeveyn SESSİZCE atılıyordu. İki anneli
+ * bir kişide `father` yuvası boş kalıyor, ikinci anne ve onun bütün hattı
+ * yelpazeden ve şecere görünümünden kayboluyordu — üstelik hiçbir uyarı
+ * vermeden, yani kullanıcı eksiği ancak veriyi başka yerde görürse fark
+ * ediyordu.
+ *
+ * Doğrusu: cinsiyet bir SIRALAMA ipucu, bir eleme ölçütü değil. Cinsiyetle
+ * çözülemeyen ebeveyn boş kalan yuvaya yerleşir; iki yuva da doluysa
+ * fazlası zaten iki ebeveyn varsayımının dışındadır.
+ *
+ * Yalnız girdi sırasına bakmamanın nedeni: `parentIds` sırası veri girişinin
+ * rastlantısı, "baba önce" beklentisi ise ekranda sabit.
+ */
+export function assignParentSlots(
+  parents: readonly Person[]
+): [Person | undefined, Person | undefined] {
+  const father = parents.find((p) => p.gender === "male");
+  const mother = parents.find((p) => p.gender === "female");
+  if (father || mother) {
+    // Cinsiyetle çözülemeyen (ya da ikinci aynı cinsiyetli) ebeveyn → boş yuva.
+    const rest = parents.filter((p) => p !== father && p !== mother);
+    return [
+      father ?? (mother ? rest[0] : undefined),
+      mother ?? (father ? rest[0] : undefined),
+    ];
+  }
+  // Hiçbiri cinsiyetle çözülemedi → giriş sırası.
+  return [parents[0], parents[1]];
+}
+
 /** Baba önce, anne sonra — PedigreeView ile tutarlı sıralama. */
 function orderedParents(
   person: Person,
   idx: ReturnType<typeof indexPeople>
 ): [Person | undefined, Person | undefined] {
-  const parents = getParents(person, idx);
-  const father =
-    parents.find((p) => p.gender === "male") ??
-    parents.find((p) => p.gender === "unknown" || p.gender === "other");
-  const mother =
-    parents.find((p) => p.gender === "female") ??
-    parents.find((p) => p !== father);
-  return [father, mother];
+  return assignParentSlots(getParents(person, idx));
 }
 
 /**

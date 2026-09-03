@@ -72,5 +72,22 @@ check(fold("İSTANBUL") === "istanbul", "İ hâlâ i'ye iniyor");
 check(fold("ISPARTA") === "isparta", "I hâlâ i'ye iniyor");
 check(foldKey("Işık") === foldKey("Isik"), "ı/i eşitliği korunuyor");
 
+/*
+ * GERİLEME KİLİDİ: ayrı duran noktalama YUTULMUYOR.
+ *
+ * NFD katlaması ilk yazıldığında `\p{Diacritic}` kullanılmıştı ve o sınıf
+ * yalnız birleşen imleri değil, kendi başına duran aksan işaretlerini de
+ * kapsıyor: `^` `` ` `` `´` `¨` `·` `¸`. Sonuç, kesme işareti yerine ters
+ * tırnak yazılmış adların BİTİŞMESİYDİ — "O`Brien" → "obrien" — oysa
+ * noktalamayı sadeleştirmek `foldKey`in işi ve orada tek boşluğa iner.
+ */
+check(foldKey("O`Brien") === "o brien", `ters tırnak boşluğa iniyor (${JSON.stringify(foldKey("O`Brien"))})`);
+check(foldKey("O'Brien") === "o brien", "kesme işareti boşluğa iniyor");
+check(foldKey("O´Brien") === "o brien", "akut aksan işareti de boşluğa iniyor");
+check(foldKey("a^b") === "a b", "şapka yutulmuyor");
+check(foldKey("a¨b") === "a b", "ayrı duran çift nokta yutulmuyor");
+// Ama BİRLEŞEN im hâlâ düşüyor — asıl iş bozulmadı.
+check(foldKey("Ka\u0302mil") === "kamil", "birleşen şapka hâlâ düşüyor (NFD girdi)");
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

@@ -1,4 +1,4 @@
-import { normalizeDateInput, displayToStored, isValidDateInput, signedDaysToAnniversary, humanizeDays } from "../lib/date.ts";
+import { normalizeDateInput, displayToStored, isValidDateInput, signedDaysToAnniversary, humanizeDays, formatLong } from "../lib/date.ts";
 
 // [giriş, beklenen normalize, beklenen stored, geçerli mi]
 const cases: Array<[string, string, string, boolean]> = [
@@ -44,7 +44,25 @@ check("yalnız yıl = null", signedDaysToAnniversary("1990", 10, 30) === null);
 check("humanize dün", humanizeDays(-1) === "Dün");
 check("humanize 3 gün önce", humanizeDays(-3) === "3 gün önce");
 check("humanize bugün", humanizeDays(0) === "Bugün");
-console.log(`${ok2}/${ok2 + fail2} tarih-yıldönümü geçti${fail2 ? `, ${fail2} başarısız` : " ✓"}`);
 
+/* --- BOZUK AY: ekrana "undefined" YAZILMAZ ----------------------------- */
+/*
+ * `AYLAR[Number(m) - 1]` aralık dışında `undefined` döner ve şablona
+ * doğrudan giriyordu: "23 undefined 1985". Kullanıcıya bir JavaScript
+ * değeri göstermek, tarihi hiç göstermemekten kötü.
+ */
+for (const kotu of ["1985-13-23", "1985-00-23", "1985-99-01", "1985-xx-23"]) {
+  const c = formatLong(kotu);
+  check(`bozuk ay "undefined" yazmıyor: ${kotu} → ${c}`, !c.includes("undefined"));
+  check(`bozuk ayda yıl korunuyor: ${kotu} → ${c}`, c.includes("1985"));
+}
+check("bozuk ay + gün sayısal biçime düşüyor", formatLong("1985-13-23") === "23.13.1985");
+check("bozuk ay, gün yok", formatLong("1985-13") === "13.1985");
+// Geçerli aylar değişmedi.
+check("normal tam tarih", formatLong("1985-04-23") === "23 Nisan 1985");
+check("normal yıl-ay", formatLong("1985-04") === "Nisan 1985");
+check("yalnız yıl", formatLong("1985") === "1985");
+
+console.log(`${ok2}/${ok2 + fail2} tarih-yıldönümü geçti${fail2 ? `, ${fail2} başarısız` : " ✓"}`);
 console.log(`\n${ok}/${cases.length} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail || fail2) process.exit(1);

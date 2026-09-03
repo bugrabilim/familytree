@@ -35,7 +35,15 @@ export function fold(s: string): string {
      * i'ye iniyor; ş/ğ/ü/ö/ç'yi ise NFD çözüyor, kurallar da yedekliyor.
      */
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
+    /*
+     * BİRLEŞEN im (`\p{Mn}`), "aksanlı görünen her şey" (`\p{Diacritic}`)
+     * DEĞİL. İkincisi ayrı duran noktalama işaretlerini de kapsıyor: `^`,
+     * `` ` ``, `´`, `¨`, `·`, `¸`. Onları burada silmek kesme işaretine
+     * benzeyen karakterleri yutuyordu — "O`Brien" → "obrien" — oysa
+     * noktalamanın sadeleşmesi `foldKey`in işi ve orada tek BOŞLUĞA iniyor.
+     * NFD'den sonra düşmesi gereken şey yalnız birleşen imlerdir.
+     */
+    .replace(/\p{Mn}/gu, "")
     .replace(/ı/g, "i")
     .replace(/ğ/g, "g")
     .replace(/ü/g, "u")

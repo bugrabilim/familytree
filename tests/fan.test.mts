@@ -1,4 +1,5 @@
 import {
+  assignParentSlots,
   buildFanNodes,
   clampGenerations,
   fanExtent,
@@ -99,6 +100,60 @@ check("halka dilimi iki yay içerir", (ringPath.match(/A /g) ?? []).length === 2
 check("fanExtent kuşakla büyür", fanExtent(6) > fanExtent(3));
 check("kök yoksa boş dizi", buildFanNodes(people, "yok", 3).length === 0);
 check("rootId undefined ise boş dizi", buildFanNodes(people, undefined, 3).length === 0);
+
+/* --- İKİ ANNE: hiçbir ebeveyn sessizce DÜŞMEZ ------------------------- */
+/*
+ * Eski kural yuvaları cinsiyete göre dolduruyor, hiçbir yuvaya oturmayan
+ * ebeveyni atıyordu. İki anneli bir kişide `baba` yuvası boş kalıyor ve
+ * ikinci anne — onunla birlikte O HATTIN TAMAMI — yelpazeden kayboluyordu.
+ * Uyarı da yoktu: kullanıcı eksiği ancak veriyi başka ekranda görürse fark
+ * ederdi.
+ */
+{
+  const iki: Person[] = [
+    P("cocuk", "female", ["anne1", "anne2"]),
+    P("anne1", "female", ["nine1"]),
+    P("anne2", "female", ["nine2"]),
+    P("nine1", "female"),
+    P("nine2", "female"),
+  ];
+  const n = buildFanNodes(iki, "cocuk", 3);
+  const kisiler = new Set(n.map((x) => x.person?.id).filter(Boolean));
+  check("iki anne de yelpazede", kisiler.has("anne1") && kisiler.has("anne2"),
+    [...kisiler].join(","));
+  check("ikinci annenin HATTI da geliyor", kisiler.has("nine1") && kisiler.has("nine2"),
+    [...kisiler].join(","));
+}
+{
+  // İki baba için de aynı — kural cinsiyete simetrik.
+  const iki: Person[] = [
+    P("cocuk", "male", ["baba1", "baba2"]),
+    P("baba1", "male"),
+    P("baba2", "male"),
+  ];
+  const kisiler = new Set(buildFanNodes(iki, "cocuk", 2).map((x) => x.person?.id));
+  check("iki baba da yelpazede", kisiler.has("baba1") && kisiler.has("baba2"));
+}
+
+/* --- Yuva ayrımının kendisi -------------------------------------------- */
+{
+  const m = P("m", "male"), f = P("f", "female"), u = P("u", "unknown"), o = P("o", "other");
+  const slot = (a: Person[]) => assignParentSlots(a).map((x) => x?.id ?? "-").join("/");
+  check("baba+anne sırası", slot([f, m]) === "m/f", slot([f, m]));
+  check("iki kadın: ikincisi baba yuvasına", slot([f, P("f2", "female")]) === "f2/f", slot([f, P("f2", "female")]));
+  check("iki erkek: ikincisi anne yuvasına", slot([m, P("m2", "male")]) === "m/m2");
+  check("bilinmeyen tek başına ilk yuvada", slot([u]) === "u/-");
+  check("erkek + bilinmeyen", slot([m, u]) === "m/u");
+  check("kadın + bilinmeyen", slot([f, u]) === "u/f", slot([f, u]));
+  check("iki bilinmeyen giriş sırasıyla", slot([u, o]) === "u/o");
+  check("tek ebeveyn kaybolmuyor", slot([f]) === "-/f");
+  check("boş liste", slot([]) === "-/-");
+  /*
+   * Üçüncü ebeveyn iki-yuva varsayımının dışında; buradaki iddia onun bir
+   * yere sığdırılması değil, İKİ yuvanın da dolu kalması.
+   */
+  check("üç ebeveynde iki yuva da dolu", slot([m, f, u]) === "m/f");
+}
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
