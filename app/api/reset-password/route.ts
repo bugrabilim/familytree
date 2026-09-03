@@ -2,8 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash, compare } from "bcryptjs";
 import { findUserByFamilyName, updateUserPassword } from "@/lib/users";
 import { updateAccountAuthPassword } from "@/lib/auth-users";
+import { rateLimitShared } from "@/lib/rate-limit";
+
+function ipOf(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "bilinmiyor"
+  );
+}
 
 export async function POST(req: NextRequest) {
+  /*
+   * SINIRLI. Oturumsuz bir uç ve her çağrı bir bcrypt doğrulaması demek
+   * (sunucu işlemcisi). Kurtarma kodu 80 bit olduğu için tahmin edilemez ama
+   * sınırsız deneme hem maliyet hem de aşağıdaki numaralandırma sorununu
+   * ölçeklendiriyordu.
+   */
+  const rl = await rateLimitShared(`reset:${ipOf(req)}`, { capacity: 8, refillPerSec: 0.02 });
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: "Çok fazla deneme. Lütfen biraz bekleyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
   try {
     const { familyName, recoveryCode, newPassword } = await req.json();
 
@@ -15,9 +36,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Şifre en az 6 karakter olmalı." }, { status: 400 });
     }
 
+    /*
+     * AYIRT EDİLEMEYEN YANIT. Eskiden "hesap yok" (404) ile "kod yanlış"
+     * (401) ayrı dönüyordu; bu, hangi aile adlarının kayıtlı olduğunu
+     * sorgulayan bir numaralandırma aracıydı. Artık ikisi de aynı mesaj ve
+     * aynı durum kodu.
+     */
     const user = await findUserByFamilyName(familyName.trim());
     if (!user) {
-      return NextResponse.json({ error: "Bu adla bir hesap bulunamadı." }, { status: 404 });
+      return NextResponse.json({ error: "Ağaç adı ya da kurtarma kodu hatalı." }, { status: 401 });
     }
 
     const codeClean = recoveryCode.replace(/-/g, "").toUpperCase();
@@ -28,7 +55,7 @@ export async function POST(req: NextRequest) {
       // also try without dashes
       const validNoDash = await compare(codeClean, user.recoveryCodeHash);
       if (!validNoDash) {
-        return NextResponse.json({ error: "Kurtarma kodu hatalı." }, { status: 401 });
+        return NextResponse.json({ error: "Ağaç adı ya da kurtarma kodu hatalı." }, { status: 401 });
       }
     }
 

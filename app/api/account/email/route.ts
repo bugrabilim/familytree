@@ -86,6 +86,15 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
+  /*
+   * MİSAFİR KAPISI — GET'te vardı ama BURADA YOKTU, yani asıl iş yapan
+   * yöntemde kısıt hiç uygulanmıyordu. Misafir (ve şifresiz demo hesabı)
+   * istediği adrese doğrulama postası tetikleyebiliyordu. Kapı testi de
+   * dosyada `canDo` geçtiğini görüp yeterli saymıştı; artık YÖNTEM BAŞINA
+   * denetleniyor.
+   */
+  if (!canDo(ctx.isGuest, "email"))
+    return NextResponse.json({ error: "Önce ağacınızı sahiplenin; e-posta bağlama ondan sonra." }, { status: 403 });
 
   /*
    * Sınırlı: her istek bir doğrulama postası tetikleyebiliyor, yani sınırsız

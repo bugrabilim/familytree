@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { canDo } from "@/lib/guest";
 import { canManage } from "@/lib/roles";
 import { listTrees } from "@/lib/trees";
 import { acceptPairInvite } from "@/lib/members";
@@ -17,6 +18,15 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Kabul için giriş yapmalısınız." }, { status: 401 });
   if (!canManage(ctx.role))
     return NextResponse.json({ error: "Yalnız ağaç yöneticisi eşleştirmeyi kabul edebilir." }, { status: 403 });
+  /*
+   * MİSAFİR KAPISI. Kardeş uçlarda (`/tree/pair`, `graft`, `merge-tree`)
+   * vardı, burada UNUTULMUŞTU — oysa asıl tehlikeli olan bu: davet kabulü
+   * KARŞI hesabın erişim kaydına yazıyor ve ardından o ağacın verisini
+   * okumayı açıyor. Sahipsiz, atılabilir bir hesabın başka bir ailenin
+   * verisini tutması.
+   */
+  if (!canDo(ctx.isGuest, "pair"))
+    return NextResponse.json({ error: "Misafir hesapta ağaç eşleştirme kapalı. Ağacınızı sahiplenin." }, { status: 403 });
 
   let body: { token?: string };
   try {

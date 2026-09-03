@@ -26,7 +26,34 @@ export interface MobileClaims {
 
 const AUD = "soyagaci-mobile";
 function secret(): Uint8Array {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "dev-insecure-secret-change-me");
+  /*
+   * KAPALI DÜŞÜYOR. Burada eskiden yayımlanmış bir sabite düşülüyordu
+   * (`|| "dev-insecure-secret-change-me"`). O sabit depoda yazılı olduğu için
+   * `AUTH_SECRET` tanımsızken HERKES istediği hesap kimliği için geçerli bir
+   * Bearer jetonu imzalayabilirdi — `proxy.ts` Bearer taşıyan `/api/*`
+   * isteklerini giriş duvarından geçiriyor, `resolveActiveTree` de jetondaki
+   * `sub`u hesap kimliği sayıyor. Yani kiracı yalıtımının tamamı tek bir
+   * ortam değişkeninin yokluğuna bağlıydı.
+   *
+   * Sessizce zayıf bir sırla devam etmektense hiç jeton üretmemek/kabul
+   * etmemek doğru: mobil giriş çalışmaz ve bu görülür, ama kimse başkasının
+   * ağacına giremez.
+   */
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET tanımsız — mobil jeton imzalanamaz/doğrulanamaz.");
+  return new TextEncoder().encode(secret);
+}
+
+/**
+ * Jeton üretilebilir/doğrulanabilir durumda mı?
+ *
+ * `secret()` sır yokken FIRLATIYOR — doğru davranış, ama rotalar bunu İŞ
+ * YAPMADAN ÖNCE sormalı. Kayıt ucu tam tersini yapsaydı hesabı yaratıp
+ * sonra imzada patlar, kullanıcıya kurtarma kodunu HİÇ göstermeden 500
+ * dönerdi: hesap var, sahibi giremiyor.
+ */
+export function isMobileTokenConfigured(): boolean {
+  return !!process.env.AUTH_SECRET;
 }
 
 export async function signMobileToken(c: MobileClaims): Promise<string> {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { canDo } from "@/lib/guest";
 import { getUsersData, updateUserNotify } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,13 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
+  /*
+   * MİSAFİR KAPISI. Bu adres günlük hatırlatma postasının GİDECEĞİ yer ve
+   * doğrulanmıyor; misafir hesabı sınırsız üretilebildiği için kapalı
+   * olmadan, isteyen istediği kutuya hesap sayısı kadar posta yollatabilirdi.
+   */
+  if (!canDo(ctx.isGuest, "email"))
+    return NextResponse.json({ error: "Misafir hesapta bildirim adresi ayarlanamaz. Ağacınızı sahiplenin." }, { status: 403 });
 
   let body: { notifyEmail?: string; notifyReminders?: boolean };
   try {

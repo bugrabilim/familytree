@@ -4,6 +4,7 @@ import { compare } from "bcryptjs";
 import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
 import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 import { withTimeout, MIRROR_TIMEOUT_MS } from "@/lib/with-timeout";
+import { findUserById } from "@/lib/users";
 // Saf normalleştirme `lib/tree-access.ts`te (birim testli): `shares` alanı
 // burada DÜŞÜRÜLMEMELİ — düşerse tüm paylaşım bağlantıları kaybolur.
 import { normalizeAccess, normalizeShares } from "@/lib/tree-access";
@@ -142,8 +143,18 @@ export async function findValidInvite(token: string): Promise<{ treeId: string; 
 export async function acceptInvite(
   token: string,
   displayName: string,
-  passwordHash: string
-): Promise<{ treeId: string; member: Member } | null> {
+  passwordHash: string,
+  /**
+   * Düz-metin şifre — YALNIZ çakışma denetimi için (saklanmıyor).
+   *
+   * Giriş formu ağaç adı + şifre istiyor, üye seçtirmiyor; bu yüzden
+   * `findMemberByPassword` kimliği ŞİFREYE göre çözüyor ve aynı ağaçta iki
+   * üye aynı şifreyi seçerse listedeki ilk eşleşen kazanıyor. Bir `viewer`
+   * kendi şifresini yazıp bir `admin`in kimliğiyle oturum açabilirdi.
+   * Kapı burada: aynı şifre ikinci kez kabul edilmiyor.
+   */
+  plainPassword?: string
+): Promise<{ treeId: string; member: Member } | { error: "sifre-dolu" } | null> {
   const parsed = parseInviteToken(token);
   if (!parsed) return null;
   const { treeId, secret } = parsed;
@@ -152,6 +163,19 @@ export async function acceptInvite(
   const invite = data.invites.find((iv) => iv.tokenHash === hash);
   if (!invite || invite.usedAt) return null;
   if (new Date(invite.expiresAt).getTime() < Date.now()) return null;
+
+  /*
+   * Aynı ağaçta AYNI ŞİFRE olamaz (yukarıdaki gerekçe). Kurucunun şifresi de
+   * denetleniyor: `verifyLogin` önce onu deniyor, dolayısıyla kurucunun
+   * şifresini seçen bir üye hiç giriş yapamaz — sessiz bir kilit olurdu.
+   */
+  if (plainPassword) {
+    for (const m of data.members) {
+      if (await compare(plainPassword, m.passwordHash)) return { error: "sifre-dolu" };
+    }
+    const kurucu = await findUserById(treeId);
+    if (kurucu && (await compare(plainPassword, kurucu.passwordHash))) return { error: "sifre-dolu" };
+  }
 
   const member: Member = {
     id: crypto.randomUUID(),
@@ -166,7 +190,18 @@ export async function acceptInvite(
   return { treeId, member };
 }
 
-/** Giriş için: verilen şifre bir üyenin şifresiyle eşleşiyor mu? */
+/**
+ * Giriş için: verilen şifre bir üyenin şifresiyle eşleşiyor mu?
+ *
+ * DİKKAT — bu, ŞİFREYE göre kimlik çözüyor: giriş formu ağaç adı + şifre
+ * istiyor, üye seçtirmiyor. İki üye aynı şifreyi seçerse listedeki İLK
+ * eşleşen kazanır, yani bir `viewer` kendi şifresini yazıp bir `admin`in
+ * kimliğiyle oturum açabilir (rolü ve `authorId`si de onun olur).
+ *
+ * Kapı bu yüzden KATILMA anına kondu (`acceptInvite`): aynı ağaçta aynı
+ * şifreye izin verilmiyor. Burada çözmek mümkün değil — elde yalnız şifre
+ * var, hangi üyenin kastedildiğini söyleyecek başka bir bilgi yok.
+ */
 export async function findMemberByPassword(
   treeId: string,
   password: string
@@ -442,9 +477,24 @@ export async function acceptPairInvite(
 /** Eşleştirmeyi kaldır — her iki taraftan da siler. */
 export async function removePairing(treeId: string, peerTreeId: string): Promise<void> {
   const a = await getTreeAccess(treeId);
+  const vardi = (a.pairings ?? []).some((p) => p.peerTreeId === peerTreeId);
   a.pairings = (a.pairings ?? []).filter((p) => p.peerTreeId !== peerTreeId);
   await saveTreeAccess(treeId, a);
-  const b = await getTreeAccess(peerTreeId);
+
+  /*
+   * KARŞI TARAFA yalnız gerçekten eşleşme VARSA dokunuluyor.
+   *
+   * Eskiden `peerTreeId` gövdeden geldiği gibi kullanılıyordu ve hiç
+   * eşleşme olmasa bile karşı ağacın erişim kaydı yeniden yazılıyordu. O
+   * kayıt üyeleri, davetleri, paylaşımları ve eşleşmeleri tutuyor;
+   * `getTreeAccess` katı olmayan kipte okuma hatasında BOŞ döndüğü için,
+   * bir okuma aksaklığı karşı tarafın tüm üye listesini silebilirdi —
+   * üstelik `saveTreeAccess` bunu Postgres'e de aynalıyor.
+   *
+   * Katı okuma da şart: boş bir kayıt üstüne yazmak yerine hata versin.
+   */
+  if (!vardi) return;
+  const b = await getTreeAccess(peerTreeId, { strict: true });
   b.pairings = (b.pairings ?? []).filter((p) => p.peerTreeId !== treeId);
   await saveTreeAccess(peerTreeId, b);
 }

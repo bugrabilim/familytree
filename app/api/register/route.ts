@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
+import { rateLimitShared } from "@/lib/rate-limit";
+
+function ipOf(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "bilinmiyor"
+  );
+}
 
 function generateRecoveryCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -13,6 +22,19 @@ function generateRecoveryCode(): string {
 }
 
 export async function POST(req: NextRequest) {
+  /*
+   * SINIRLI. `lib/guest.ts`teki gerekçenin aynısı burada da geçerli ve daha
+   * ağır: hesap sınırsız açılabiliyorsa hesap başına ölçülen her şey (AI,
+   * yükleme, e-posta) ölçüsüz hale gelir — ve buradan açılan hesaplar
+   * misafir değil, o yüzden hiçbir kısıtları yok. Mobil ikizi
+   * (`/api/mobile/register`) zaten sınırlıydı; web ucu atlanmıştı.
+   */
+  const rl = await rateLimitShared(`register:${ipOf(req)}`, { capacity: 5, refillPerSec: 0.02 });
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: "Çok fazla deneme. Lütfen biraz bekleyin." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
   try {
     const { familyName, password } = await req.json();
 

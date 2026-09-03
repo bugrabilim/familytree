@@ -19,7 +19,15 @@ export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization") ?? "";
-  if (secret && auth !== `Bearer ${secret}`) {
+  /*
+   * KAPALI DÜŞÜYOR. Eskiden koşul `secret && …` idi, yani `CRON_SECRET`
+   * tanımsızken denetimin TAMAMI atlanıyordu — ve `.env.local.example`de o
+   * değişken yorum satırında, yani tanımsız olması varsayılan durum.
+   * Sonuç: bu rotanın hiçbir oturum denetimi olmadığı için, herhangi biri
+   * `Bearer x` ile çağırıp BÜTÜN hesaplara posta gönderten günlük işi
+   * istediği zaman tetikleyebiliyordu.
+   */
+  if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
   }
   if (!isEmailConfigured()) {

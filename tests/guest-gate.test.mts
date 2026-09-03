@@ -65,27 +65,64 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 
 /* --- Kapalı her eylem gerçekten bir rotada denetleniyor ------------------ */
 {
-  const rotalar: Array<[string, GuestAction]> = [
-    ["../app/api/ai/act/route.ts", "ai"],
-    ["../app/api/ai/chat/route.ts", "ai"],
-    ["../app/api/ai/extract/route.ts", "ai"],
-    ["../app/api/ai/suggest/route.ts", "ai"],
-    ["../app/api/ai/voice/route.ts", "ai"],
-    ["../app/api/upload/route.ts", "upload"],
-    ["../app/api/tree/access/route.ts", "invite"],
-    ["../app/api/tree/share/route.ts", "share"],
-    ["../app/api/tree/pair/route.ts", "pair"],
-    ["../app/api/tree/graft/route.ts", "pair"],
-    ["../app/api/tree/merge-tree/route.ts", "pair"],
-    ["../app/api/family/gatherings/route.ts", "gathering"],
-    ["../app/api/account/email/route.ts", "email"],
+  /*
+   * Her satır: dosya · eylem · KAPILANMASI GEREKEN yöntemler.
+   *
+   * Yöntemler açıkça sayılıyor çünkü ikisi de gerçek hataya yol açtı:
+   * dosya bütününe bakmak `/api/account/email`de POST'un korumasız
+   * kalmasını onaylamıştı; her yönteme bakmak ise misafirin KENDİ ağacını
+   * yeniden adlandırmasını (`/api/trees` PATCH) yanlışlıkla kısıtlardı.
+   * Kısıt "ek ağaç AÇMA"ya ait, kendi ağacını yönetmeye değil.
+   */
+  const rotalar: Array<[string, GuestAction, string[]]> = [
+    ["../app/api/ai/act/route.ts", "ai", ["POST"]],
+    ["../app/api/ai/chat/route.ts", "ai", ["POST"]],
+    ["../app/api/ai/extract/route.ts", "ai", ["POST"]],
+    ["../app/api/ai/suggest/route.ts", "ai", ["POST"]],
+    ["../app/api/ai/voice/route.ts", "ai", ["POST"]],
+    ["../app/api/upload/route.ts", "upload", ["POST"]],
+    ["../app/api/tree/access/route.ts", "invite", ["POST", "DELETE"]],
+    ["../app/api/tree/share/route.ts", "share", ["POST", "DELETE"]],
+    ["../app/api/tree/pair/route.ts", "pair", ["POST", "DELETE"]],
+    ["../app/api/tree/pair/accept/route.ts", "pair", ["POST"]],
+    ["../app/api/tree/graft/route.ts", "pair", ["POST"]],
+    ["../app/api/tree/merge-tree/route.ts", "pair", ["POST"]],
+    ["../app/api/family/gatherings/route.ts", "gathering", ["POST", "PUT", "DELETE"]],
+    ["../app/api/account/email/route.ts", "email", ["POST"]],
+    ["../app/api/account/notify/route.ts", "email", ["POST"]],
+    ["../app/api/trees/route.ts", "tree", ["POST"]],
   ];
   const gorulen = new Set<GuestAction>();
-  for (const [yol, eylem] of rotalar) {
+  for (const [yol, eylem, yontemler] of rotalar) {
     const s = read(yol);
     const re = new RegExp(`canDo\\(ctx\\.isGuest,\\s*"${eylem}"\\)`);
-    check(re.test(s), `${yol.split("/").slice(-2).join("/")}: canDo(…, "${eylem}") çağrılıyor`);
+    const kisa = yol.split("/").slice(-2).join("/");
+    check(re.test(s), `${kisa}: canDo(…, "${eylem}") çağrılıyor`);
     if (re.test(s)) gorulen.add(eylem);
+
+    /*
+     * Denetim ya yöntemin KENDİ gövdesinde, ya da yöntemin çağırdığı ortak
+     * bir yardımcıda olmalı. Yardımcının adı dosyadan dosyaya değişiyor
+     * (`guard`, `requireAdmin`, `founderCtx`…), o yüzden adı varsaymak
+     * yerine gövdesinde denetim geçen yerel yardımcılar bulunup çağrıları
+     * aranıyor.
+     */
+    const yardimcilar = [...s.matchAll(/^async function (\w+)\(/gm)]
+      .map((m) => m[1])
+      .filter((ad) => {
+        const i = s.indexOf(`async function ${ad}(`);
+        return re.test(s.slice(i, s.indexOf("\n}", i)));
+      });
+    const disaAktarim = [...s.matchAll(/export async function (POST|PUT|PATCH|DELETE)\b/g)];
+    for (let i = 0; i < disaAktarim.length; i++) {
+      const yontem = disaAktarim[i][1];
+      if (!yontemler.includes(yontem)) continue;
+      const bas = disaAktarim[i].index!;
+      const bit = i + 1 < disaAktarim.length ? disaAktarim[i + 1].index! : s.length;
+      const govde = s.slice(bas, bit);
+      const kapili = re.test(govde) || yardimcilar.some((ad) => govde.includes(`${ad}(`));
+      check(kapili, `${kisa} ${yontem}: misafir kapısından geçiyor`);
+    }
   }
   // Listedeki KAPALI her eylemin en az bir rotada karşılığı olmalı.
   for (const a of GUEST_DENIED) {

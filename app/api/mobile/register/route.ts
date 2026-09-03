@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
-import { signMobileToken } from "@/lib/mobile-token";
+import { isMobileTokenConfigured, signMobileToken } from "@/lib/mobile-token";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,12 @@ function generateRecoveryCode(): string {
  * giriş için bir JWT verir. Web'deki /api/register ile aynı kurallar.
  */
 export async function POST(req: NextRequest) {
+  if (!isMobileTokenConfigured())
+    return NextResponse.json(
+      { error: "Sunucu yapılandırması eksik; mobil giriş şu an kapalı." },
+      { status: 503 }
+    );
+
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
   const rl = await rateLimitShared(`mobile:register:${ip}`, { capacity: 5, refillPerSec: 0.02 });
   if (!rl.ok)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createTree, deleteTree, listTrees, renameTree } from "@/lib/trees";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { canDo } from "@/lib/guest";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (name.length < 2) return NextResponse.json({ error: "Ağaç adı en az 2 karakter olmalı." }, { status: 400 });
+  /*
+   * MİSAFİR KAPISI. Misafir `isFounder: true` taşıdığı için yukarıdaki
+   * denetimden geçiyordu; her çağrı yeni bir blob + Postgres satırı demek,
+   * yani `lib/guest.ts`teki çarpan sorununun aynısı.
+   */
+  const ctx = await resolveActiveTree();
+  if (ctx.ok && !canDo(ctx.isGuest, "tree"))
+    return NextResponse.json({ error: "Misafir hesapta ek ağaç açılamaz. Ağacınızı sahiplenin." }, { status: 403 });
   const meta = await createTree(c.accountId, name);
   return NextResponse.json(meta, { status: 201 });
 }

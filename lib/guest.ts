@@ -25,6 +25,9 @@
  *  2. **Kendi ağacının dışına uzanan** her şey kapalı (davet, paylaşım
  *     bağlantısı, eşleştirme, etkinlik/RSVP) — sahipsiz bir ağaçtan
  *     başkalarına ulaşmanın ya da veri yayınlamanın anlamı yok.
+ *  3. **EK ağaç açmak** kapalı. Misafir zaten bir ağaçla geliyor; ikincisi
+ *     "misafir kendi ağacında kalsın" kuralını deler ve her ağaç yeni bir
+ *     blob + Postgres satırı olduğu için 1. maddedeki çarpanı geri getirir.
  *
  * Kalanı — kendi ağacında kişi eklemek, düzenlemek, görüntülemek, dışa
  * aktarmak — açık. Denemenin bütün anlamı orada.
@@ -54,6 +57,7 @@ export type GuestAction =
   | "pair"        // başka ağaçla eşleşme/aşılama
   | "gathering"   // etkinlik + anonim RSVP yüzeyi
   | "email"       // kimlik e-postası bağlama (sahiplenmeden geçmeli)
+  | "tree"        // EK ağaç oluşturma — her ağaç yeni bir blob + DB satırı
   // --- Kendi ağacında kalan ---
   | "edit"        // kişi ekle/düzenle/sil
   | "read"        // görüntüle
@@ -74,6 +78,7 @@ export const GUEST_DENIED: ReadonlySet<GuestAction> = new Set<GuestAction>([
   "pair",
   "gathering",
   "email",
+  "tree",
 ]);
 
 /** Misafir bu eylemi yapabilir mi? */
