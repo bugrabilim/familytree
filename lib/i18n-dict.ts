@@ -1812,6 +1812,26 @@ export const tr: Dict = {
   "reparent.error.zaten": "Bu bağ zaten var.",
   "reparent.error.secim": "Bir seçim gerekiyor.",
 
+  /* --- Aile karnesi (yıl dökümü) --- */
+  "report.title": "Aile karnesi",
+  "report.hint": "Bir yılın dökümü. Ailede olanlar ile kayda geçenler ayrı durur — birini ötekinin yerine saymak yanlış olurdu.",
+  "report.empty": "{year} yılında kayda geçen bir şey görünmüyor. Bildiğiniz bir doğum, evlilik ya da anmayı eklemek iyi bir başlangıç.",
+  "report.hidden": "gizli kayıt",
+  "report.births": "Doğumlar",
+  "report.deaths": "Kaybettiklerimiz",
+  "report.events": "Yaşam olayları",
+  "report.anniversaries": "Yıl dönümleri",
+  "report.annBirth": "{years}. doğum yılı ({from})",
+  "report.annDeath": "{years}. anma yılı ({from})",
+  "report.recorded": "Kayda geçenler",
+  "report.since": "{date} tarihinden bu yana",
+  "report.rec.people": "Kişi",
+  "report.rec.photos": "Fotoğraf",
+  "report.rec.memories": "Anı",
+  "report.rec.sources": "Kaynak",
+  "report.rec.events": "Yaşam olayı",
+  "report.rec.filledIn": "Bilgisi doldurulan kayıt",
+
   /* --- Kilometre taşları --- */
   "milestone.title": "Kilometre taşları",
   "milestone.hint": "Ağacın kendi başarımları. Puan yok, sıralama yok — yalnız neyi kaydettiğiniz.",
@@ -3696,6 +3716,26 @@ export const en: Dict = {
   "reparent.error.secim": "A choice is needed.",
 
   /* --- Milestones --- */
+  /* --- Family year in review --- */
+  "report.title": "Year in review",
+  "report.hint": "One year, laid out. What happened in the family and what was recorded stay apart — counting one as the other would be wrong.",
+  "report.empty": "Nothing is recorded for {year}. Adding a birth, marriage or remembrance you know of is a good start.",
+  "report.hidden": "private record",
+  "report.births": "Births",
+  "report.deaths": "Those we lost",
+  "report.events": "Life events",
+  "report.anniversaries": "Anniversaries",
+  "report.annBirth": "{years}th birth year ({from})",
+  "report.annDeath": "{years}th year of remembrance ({from})",
+  "report.recorded": "Recorded",
+  "report.since": "since {date}",
+  "report.rec.people": "People",
+  "report.rec.photos": "Photos",
+  "report.rec.memories": "Memories",
+  "report.rec.sources": "Sources",
+  "report.rec.events": "Life events",
+  "report.rec.filledIn": "Records filled in",
+
   "milestone.title": "Milestones",
   "milestone.hint": "What the tree itself has reached. No points, no ranking — just what you have recorded.",
   "milestone.reached": "Reached",

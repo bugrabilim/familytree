@@ -23,6 +23,7 @@ import { isAssociate, isMember } from "@/lib/associates";
 import { findDuplicatePairs } from "@/lib/duplicates";
 import MergeDialog from "./MergeDialog";
 import MilestonesView from "./MilestonesView";
+import ReportCardView from "./ReportCardView";
 import { usePrivacy } from "./PrivacyContext";
 import { countByKind, researchTasks, taskKey } from "@/lib/research";
 import { type ActivityItem } from "@/lib/activity";
@@ -643,6 +644,23 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                 içinde ayrıca uygulanıyor (gizli kayıt hiç girmiyor).
               */}
               <MilestonesView people={people} onSelect={onSelect} />
+            </Card>
+          )}
+
+          {/* Aile karnesi — bir yılın dökümü */}
+          {isStats && (
+            <Card
+              title={t("report.title")}
+              hint={t("report.hint")}
+              className="lg:col-span-2"
+            >
+              {/*
+                `shown` DEĞİL `people`: karne bir yıl hakkında olgu bildiriyor.
+                Süzgeçle daralmış bir listeye bakıp "bu yıl iki doğum oldu"
+                demek yanlış olurdu. Gizlilik `lib/report-card.ts` içinde
+                uygulanıyor — gizli kayıtlar sayılıyor ama adsız geliyor.
+              */}
+              <ReportCardView people={people} onSelect={onSelect} />
             </Card>
           )}
 
