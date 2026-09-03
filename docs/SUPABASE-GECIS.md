@@ -100,3 +100,32 @@ Faz 3c–3e oturduktan ve tüm hesaplar Supabase Auth'a taşındıktan sonra:
 `lib/supabase.ts` bu adları sırayla dener; sürüm farklarına dayanıklıdır.
 İstemci-taraflı auth (Faz 3) için `NEXT_PUBLIC_SUPABASE_URL` gerekebilir — o
 aşamada elle eklenir.
+
+
+## Paylaşımlı hız sınırı (K4/33)
+
+`lib/rate-limit.ts` örnek-içi bellekte çalışıyordu. Sunucusuz ortamda her
+örneğin kendi kovası olduğu için bu **gerçek bir sınır değildi**: yeterince
+örnek varsa bir istemci sınırın katları kadar istek geçirebiliyordu. Oysa
+korumaya çalıştığımız şey (Gemini kotası ve faturası) hesap başına değil,
+**global** bir kaynak.
+
+Eklenenler:
+
+- `supabase/schema.sql` → `rate_limits` tablosu + `consume_rate_limit(...)`
+  işlevi. Hesap **işlevin içinde**, satır kilidi altında yapılır; "oku →
+  hesapla → yaz" turunu Node'dan yapmak yarış doğururdu (iki örnek aynı anda
+  okur, ikisi de dolu kova görür, ikisi de geçirir).
+- `lib/rate-limit-core.ts` → token-bucket matematiği, saf ve testli. SQL
+  tarafı bunun birebir karşılığı olmak zorunda; ayrışırlarsa sınır ortama
+  göre farklı davranır ve sebebi bulunamaz. `tests/rate-limit-sql.test.mts`
+  SQL'in aynı kuralları yazdığını denetler.
+- `rateLimitShared(key, opts)` → paylaşımlı sınır. Supabase yapılandırılmamışsa
+  ya da o an ulaşılamıyorsa **isteği reddetmez**, örnek-içi kovaya düşer:
+  bizim altyapı sorunumuz kullanıcıyı uygulamadan etmemeli. Hiçbir durumda
+  "sınır yok" olmaz.
+
+**Senin yapman gereken:** Supabase panelinde **SQL Editor → `schema.sql` →
+Run** (dosya idempotent, tekrar çalıştırmak güvenli). Bunu yapana kadar
+sınırlar eskisi gibi örnek-içi çalışmaya devam eder — uygulama bozulmaz,
+yalnız paylaşımlı koruma devreye girmez.

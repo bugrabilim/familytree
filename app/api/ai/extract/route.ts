@@ -3,7 +3,7 @@ import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 import { buildExtractPrompt, buildExtractSystem, buildRetryPrompt, parseExtractedJson } from "@/lib/ai-extract";
 import { xlsxToText, docxToText } from "@/lib/office-extract";
 import { nextCode } from "@/lib/code";
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!canEdit(ctx.role)) return forbidden();
-  const rl = rateLimit(`ai:extract:${ctx.accountId}`, { capacity: 5, refillPerSec: 0.05 });
+  const rl = await rateLimitShared(`ai:extract:${ctx.accountId}`, { capacity: 5, refillPerSec: 0.05 });
   if (!rl.ok)
     return NextResponse.json(
       { error: "Çok fazla istek. Lütfen biraz bekleyin." },

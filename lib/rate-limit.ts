@@ -1,22 +1,34 @@
+import { consume, type BucketState, type RateOpts, type RateResult } from "@/lib/rate-limit-core";
+
 /**
- * Basit token-bucket hız sınırı (örnek-içi / instance-local). Sunucusuz ortamda
- * birden çok örnek olabileceğinden global değildir; yine de tek bir istemcinin
- * bir örneği döverek Gemini kotasını/maliyetini tüketmesine karşı ilk savunma.
- * Daha güçlü global sınır için paylaşımlı depo (Supabase/Upstash) gerekir.
+ * Hız sınırı — iki katman.
+ *
+ * ## Neden paylaşımlı bir depo gerekiyordu
+ *
+ * Buradaki kovalar örnek-içi bellekteydi. Sunucusuz ortamda her örneğin
+ * kendi belleği var; yani "hesap başına 5 istek" aslında "hesap başına,
+ * ÖRNEK BAŞINA 5 istek" demekti. Yeterince örnek varsa bir istemci sınırın
+ * katlarını geçirebiliyordu — ve tam da korumaya çalıştığımız şey (Gemini
+ * kotası ve faturası) hesap başına değil GLOBAL bir kaynak.
+ *
+ * ## İki katman neden
+ *
+ * `rateLimitShared` Postgres'teki atomik işlevi çağırır (gerçek, global
+ * sınır). Ama Supabase yapılandırılmamışsa ya da o an ulaşılamıyorsa
+ * isteği reddetmek yanlış olurdu: kullanıcı, bizim altyapı sorunumuz
+ * yüzünden uygulamayı kullanamaz hâle gelirdi. O durumda örnek-içi kovaya
+ * düşülür — zayıf ama sıfırdan iyi bir savunma.
+ *
+ * Yani kural şu: paylaşımlı katman ÇALIŞIYORSA sözü onun; çalışmıyorsa yerel
+ * katman devreye girer ve hiçbir durumda "sınır yok" olmaz.
  */
-type Bucket = { tokens: number; updated: number };
-const buckets = new Map<string, Bucket>();
 
-export interface RateResult {
-  ok: boolean;
-  /** Sınır aşıldıysa saniye cinsinden yeniden deneme süresi. */
-  retryAfter: number;
-}
+export type { RateResult, RateOpts } from "@/lib/rate-limit-core";
 
-export function rateLimit(
-  key: string,
-  opts: { capacity: number; refillPerSec: number }
-): RateResult {
+const buckets = new Map<string, BucketState>();
+
+/** Örnek-içi (yerel) sınır — eş zamanlı, yedek katman. */
+export function rateLimit(key: string, opts: RateOpts): RateResult {
   const now = Date.now();
 
   // Bellek sızıntısını önle: ara sıra eski kovaları süpür.
@@ -24,16 +36,43 @@ export function rateLimit(
     for (const [k, b] of buckets) if (now - b.updated > 3_600_000) buckets.delete(k);
   }
 
-  const b = buckets.get(key) ?? { tokens: opts.capacity, updated: now };
-  const elapsed = (now - b.updated) / 1000;
-  b.tokens = Math.min(opts.capacity, b.tokens + elapsed * opts.refillPerSec);
-  b.updated = now;
+  const { state, result } = consume(buckets.get(key), opts, now);
+  buckets.set(key, state);
+  return result;
+}
 
-  if (b.tokens < 1) {
-    buckets.set(key, b);
-    return { ok: false, retryAfter: Math.max(1, Math.ceil((1 - b.tokens) / opts.refillPerSec)) };
+/**
+ * Paylaşımlı (global) sınır. Postgres'te atomik olarak hesaplanır.
+ *
+ * "Oku → hesapla → yaz" turunu buradan yapmıyoruz: iki örnek aynı anda
+ * okuyup ikisi de dolu kova görür ve ikisi de geçirirdi. Bütün hesap tek
+ * bir `for update` kilidi altında, veritabanında.
+ */
+export async function rateLimitShared(key: string, opts: RateOpts): Promise<RateResult> {
+  try {
+    // Dinamik içe aktarma: Supabase yapılandırılmamış kurulumlarda (yerel
+    // geliştirme) istemciyi hiç kurmayalım.
+    const { isSupabaseConfigured, supabaseAdmin } = await import("@/lib/supabase");
+    if (!isSupabaseConfigured()) return rateLimit(key, opts);
+
+    const { data, error } = await supabaseAdmin().rpc("consume_rate_limit", {
+      p_key: key,
+      p_capacity: opts.capacity,
+      p_refill: opts.refillPerSec,
+      p_now_ms: Date.now(),
+    });
+    if (error) throw new Error(error.message);
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.allowed !== "boolean") throw new Error("beklenmeyen yanıt");
+
+    return { ok: row.allowed, retryAfter: Number(row.retry_after) || 0 };
+  } catch {
+    /*
+     * Paylaşımlı katman çalışmıyor. İsteği REDDETMİYORUZ — bizim altyapı
+     * sorunumuz kullanıcının uygulamayı kullanamamasına dönüşmemeli. Yerel
+     * kovaya düşüyoruz: zayıf, ama sınırsız değil.
+     */
+    return rateLimit(key, opts);
   }
-  b.tokens -= 1;
-  buckets.set(key, b);
-  return { ok: true, retryAfter: 0 };
 }

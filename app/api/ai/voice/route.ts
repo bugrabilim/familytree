@@ -3,7 +3,7 @@ import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 import { audioMimeOf, buildVoicePrompt, buildVoiceSystem, parseVoiceJson, pendingFacts } from "@/lib/voice";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
-  const rl = rateLimit(`ai:voice:${ctx.accountId}`, { capacity: 6, refillPerSec: 0.05 });
+  const rl = await rateLimitShared(`ai:voice:${ctx.accountId}`, { capacity: 6, refillPerSec: 0.05 });
   if (!rl.ok)
     return NextResponse.json(
       { error: "Çok fazla istek. Lütfen biraz bekleyin." },

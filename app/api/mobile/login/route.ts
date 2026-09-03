@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLogin } from "@/lib/credentials";
 import { signMobileToken } from "@/lib/mobile-token";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   // Kaba-kuvvet koruması: IP başına.
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
-  const rl = rateLimit(`mobile:login:${ip}`, { capacity: 10, refillPerSec: 0.1 });
+  const rl = await rateLimitShared(`mobile:login:${ip}`, { capacity: 10, refillPerSec: 0.1 });
   if (!rl.ok)
     return NextResponse.json(
       { error: "Çok fazla deneme. Lütfen biraz bekleyin." },

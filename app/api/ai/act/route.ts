@@ -3,7 +3,7 @@ import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts } from "@/lib/gemini";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 import { buildActPrompt, buildActSystem, parseActResponse } from "@/lib/ai-act";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
-  const rl = rateLimit(`ai:act:${ctx.accountId}`, { capacity: 10, refillPerSec: 0.1 });
+  const rl = await rateLimitShared(`ai:act:${ctx.accountId}`, { capacity: 10, refillPerSec: 0.1 });
   if (!rl.ok)
     return NextResponse.json(
       { error: "Çok fazla istek. Lütfen biraz bekleyin." },
