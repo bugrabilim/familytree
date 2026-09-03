@@ -243,6 +243,30 @@ export function parseJson(text: string): Person[] {
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
+  /*
+   * KİMLİKLER YENİDEN ÜRETİLİR — kaynaktaki `id` korunmaz.
+   *
+   * Bu, üç içe aktarıcıdan kimlik taşıyan TEK dosyaydı ve sonucu şuydu:
+   * kullanıcı uygulamanın kendi JSON dışa aktarımını "ekle" kipinde geri
+   * yüklediğinde her kimlik ağaçta İKİ KEZ oluyordu. Sonrası sessiz:
+   * `findRefIssues` onarılamaz `duplicateId` bildiriyor, Postgres aynası
+   * "ON CONFLICT ... cannot affect row a second time" ile düşüyor ve o hata
+   * `lib/blob.ts`te yutuluyordu — kullanıcı "içe aktarıldı" görüyordu.
+   *
+   * CSV içe aktarıcısı bu işi zaten doğru yapıyor (`idMap`). Aynı kural
+   * burada da: kaynak kimlik yalnız DOSYA İÇİ bağları çözmek için kullanılır,
+   * ağaca yeni bir kimlikle girer. Dosya içi bağ kaybı yok, çakışma da yok.
+   */
+  const idMap = new Map<string, string>();
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const kaynak = str((item as Record<string, unknown>).id).trim();
+    if (kaynak && !idMap.has(kaynak)) idMap.set(kaynak, nanoid());
+  }
+  // Dosya içinde tanımlı olmayan kimliğe bakan bağ atılır (sarkan bağ üretme).
+  const cevir = (ids: string[]): string[] =>
+    ids.map((x) => idMap.get(x.trim())).filter((x): x is string => !!x);
+
   const people: Person[] = [];
   for (const item of arr) {
     if (!item || typeof item !== "object") continue;
@@ -250,20 +274,21 @@ export function parseJson(text: string): Person[] {
     const firstName = str(o.firstName ?? o.first ?? o.name).trim();
     const lastName = str(o.lastName ?? o.last ?? o.surname).trim();
     if (!firstName && !lastName) continue;
+    const kaynakId = str(o.id).trim();
     const p: Person = {
-      id: str(o.id).trim() || nanoid(),
+      id: (kaynakId && idMap.get(kaynakId)) || nanoid(),
       firstName,
       lastName,
       gender: parseGender(str(o.gender)),
-      parentIds: strArr(o.parentIds),
-      spouseIds: strArr(o.spouseIds),
+      parentIds: cevir(strArr(o.parentIds)),
+      spouseIds: cevir(strArr(o.spouseIds)),
     };
     if (str(o.birthDate)) p.birthDate = str(o.birthDate);
     if (str(o.deathDate)) p.deathDate = str(o.deathDate);
     for (const k of ["birthPlace", "occupation", "nickname", "patronymic", "bio", "photo"] as const) {
       setText(p, k, str(o[k]));
     }
-    if (Array.isArray(o.formerSpouseIds)) p.formerSpouseIds = strArr(o.formerSpouseIds);
+    if (Array.isArray(o.formerSpouseIds)) p.formerSpouseIds = cevir(strArr(o.formerSpouseIds));
     people.push(p);
   }
   return people;

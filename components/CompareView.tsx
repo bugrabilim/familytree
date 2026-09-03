@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useT } from "@/lib/i18n";
+import { mutationHeaders } from "@/lib/actions";
 
 export interface MatchRow {
   reason: "yearMatch" | "sharedParent" | "sharedSpouse";
@@ -43,7 +44,7 @@ export default function CompareView({
     try {
       const res = await fetch("/api/tree/merge-tree", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(),
         body: JSON.stringify({ peerTreeId }),
       });
       const data = await res.json();
@@ -62,7 +63,7 @@ export default function CompareView({
     try {
       const res = await fetch("/api/tree/graft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(),
         body: JSON.stringify({ peerTreeId, rootPeerId: peerRootId }),
       });
       const data = await res.json();

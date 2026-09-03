@@ -249,6 +249,19 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
     mergedKeep.bio = mergedKeep.bio ? `${mergedKeep.bio}\n\n${note}` : note;
   }
 
+  /*
+   * Birleşen kaydın KENDİ çevre bağları da `dropId`ye bakıyor olabilir — iki
+   * kayıt "birbirinin komşusu" diye işaretlenmişse birleşme sonrası kişi
+   * kendi kendisinin komşusu olurdu. Kendine dönen bağ atılır.
+   */
+  if (mergedKeep.associations?.length) {
+    const bags = mergedKeep.associations
+      .map((a) => (a.personId === dropId ? { ...a, personId: keepId } : a))
+      .filter((a) => a.personId !== keepId);
+    if (bags.length) mergedKeep.associations = bags;
+    else delete mergedKeep.associations;
+  }
+
   // Boş dizileri temizle (isteğe bağlı alanlar undefined kalsın)
   if (mergedKeep.formerSpouseIds && mergedKeep.formerSpouseIds.length === 0) delete mergedKeep.formerSpouseIds;
   if (mergedKeep.photos && mergedKeep.photos.length === 0) delete mergedKeep.photos;
@@ -276,6 +289,19 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
       const { [dropId]: moved, ...rest } = p.parentLinks;
       next.parentLinks = { ...rest, [keepId]: rest[keepId] ?? moved };
     }
+    /*
+     * `associations[].personId` DE bir kişi kimliği ve burada çevrilmiyordu:
+     * birleştirmeden sonra "Ali'nin arkadaşı" bağı artık var olmayan
+     * `dropId`ye işaret ediyor, `findRefIssues` bunu `error` düzeyinde sarkan
+     * bağ diye bildiriyordu — kullanıcının kendi eliyle yaptığı temiz bir
+     * işlem, tutarlılık listesini kirletiyordu.
+     */
+    if (p.associations?.some((a) => a.personId === dropId))
+      next.associations = p.associations
+        .map((a) => (a.personId === dropId ? { ...a, personId: keepId } : a))
+        // Kişi kendi kendisiyle çevre bağı kuramaz — birleşme sonrası
+        // kendine dönen bağ atılır.
+        .filter((a) => a.personId !== p.id);
     result.push(next);
   }
   return result;

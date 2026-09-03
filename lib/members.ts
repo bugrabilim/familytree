@@ -62,13 +62,27 @@ export async function getTreeAccess(
   }
 }
 
-async function saveTreeAccess(treeId: string, data: TreeAccess): Promise<void> {
+/**
+ * Erişim kaydını yazar.
+ *
+ * `mirror: false` yalnız ÜYE/DAVET DIŞI bir alan değiştiğinde kullanılır
+ * (bugün: ziyaret sayacı). Ayna `dbReplaceMembers`/`dbReplaceInvites` ile
+ * çalışıyor, yani "sil ve yeniden yaz": üyelerle ilgisi olmayan bir yazımda
+ * onu çağırmak, her anonim sayfa görüntülemesinde bütün üye ve davet
+ * satırlarını silip yeniden kurmak demekti.
+ */
+async function saveTreeAccess(
+  treeId: string,
+  data: TreeAccess,
+  opts: { mirror?: boolean } = {}
+): Promise<void> {
   await put(accessPathname(treeId), JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json",
   });
+  if (opts.mirror === false) return;
   // Faz 2c — çift-yazma (best-effort): üye/davetleri Postgres'e de yaz.
   // Blob kaynaktır; hata kullanıcının işlemini etkilemez. Ayna YANIT VERMEZSE
   // (duraklatılmış/yavaş Supabase) istek asılı kalmasın diye süre sınırı var —
@@ -375,7 +389,14 @@ export async function recordShareVisit(
   visit: { country?: string; city?: string; device?: string }
 ): Promise<void> {
   try {
-    const data = await getTreeAccess(treeId);
+    /*
+     * `strict`: okuma BAŞARISIZ olduğunda `getTreeAccess` sessizce BOŞ bir
+     * kayıt döndürüyor. Buradan yazmaya devam etmek, geçici bir okuma
+     * hatasında üyeleri ve davetleri boş bir kayıtla ezmek olurdu — hem de
+     * oturumsuz, anonim bir sayfa görüntülemesinin tetiklediği yazımda.
+     * Sayaç kaybetmek, erişim kaydı kaybetmekten iyidir.
+     */
+    const data = await getTreeAccess(treeId, { strict: true });
     const shares = normalizeShares(data);
     const s = shares.find((x) => x.id === id);
     if (!s) return;
@@ -384,7 +405,14 @@ export async function recordShareVisit(
     s.visits = [entry, ...(s.visits ?? [])].slice(0, MAX_VISITS);
     data.shares = shares;
     data.share = undefined;
-    await saveTreeAccess(treeId, data);
+    /*
+     * AYNA YOK. Değişen tek şey ziyaret sayacı; üyeler ve davetler bu yazımda
+     * hiç değişmiyor. Aynayı çağırmak, her anonim `/g/` ve `/embed/`
+     * görüntülemesinde Postgres'teki bütün üye ve davet satırlarını silip
+     * yeniden yazmak demekti — ziyaretçi sayısıyla ölçeklenen, işi olmayan
+     * bir yazma yükü.
+     */
+    await saveTreeAccess(treeId, data, { mirror: false });
   } catch {
     /* istatistik yazımı görüntülemeyi engellemez */
   }

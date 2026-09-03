@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canDo } from "@/lib/guest";
 import { canEdit } from "@/lib/roles";
@@ -144,10 +144,22 @@ export async function POST(req: NextRequest) {
   const srcName = (file.name || "").slice(0, 60);
   const stamped = imported.map((p) => ({ ...p, entrySource: srcName ? `ai: ${srcName}` : "ai" }));
 
+  /*
+   * İYİMSER KİLİT. "Değiştir" kipi ağacın TAMAMINI siliyor; başkasının aynı
+   * anda eklediği kişilerin üstüne yazmanın geri dönüşü yok. Başlık gelmezse
+   * denetim atlanır (mobil ve betikler etkilenmez).
+   */
+  const mevcutVeri = await getFamilyData(ctx.treeId, { skipCache: true });
+  if (versionMismatch(req, mevcutVeri.updatedAt))
+    return NextResponse.json(
+      { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
+
   if (mode === "replace") {
     await saveFamilyData(ctx.treeId, { people: ensureCodes(stamped), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   } else {
-    const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
+    const existing = mevcutVeri.people;
     await saveFamilyData(ctx.treeId, {
       people: ensureCodes([...existing, ...stamped]),
       updatedAt: new Date().toISOString(),

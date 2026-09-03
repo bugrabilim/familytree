@@ -221,5 +221,66 @@ check("zincirde tüketilen çift atlanır", chained.merged === 1 && chained.peop
   }
 }
 
+/* --- ÇEVRE BAĞLARI DA ÇEVRİLİR ---------------------------------------- */
+/*
+ * `associations[].personId` bir kişi kimliğidir ve birleştirmede
+ * çevrilmiyordu: işlemden sonra bağ artık var olmayan `dropId`ye bakıyor,
+ * `findRefIssues` bunu `error` düzeyinde sarkan bağ diye bildiriyordu.
+ * Kullanıcının kendi eliyle yaptığı temiz bir işlem, tutarlılık listesini
+ * kirletiyordu.
+ */
+{
+  const D = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "X", lastName: "Y", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+  const kisiler = [
+    D({ id: "keep", firstName: "Ali" }),
+    D({ id: "drop", firstName: "Ali" }),
+    D({ id: "dost", associations: [{ id: "a1", personId: "drop", type: "arkadas" }] }),
+  ];
+  const sonuc = mergePeople(kisiler, "keep", "drop");
+  const dost = sonuc.find((x) => x.id === "dost")!;
+  check("çevre bağı korunan kimliğe çevrildi", dost.associations?.[0]?.personId === "keep");
+  check("bırakılan kimliğe bakan bağ kalmadı",
+    !sonuc.some((x) => x.associations?.some((a) => a.personId === "drop")));
+}
+{
+  // İki kayıt birbirine bağlıysa: birleşme sonrası kişi kendi kendisinin
+  // komşusu olamaz.
+  const D = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "X", lastName: "Y", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+  const kisiler = [
+    D({ id: "keep", firstName: "Ali", associations: [{ id: "a1", personId: "drop", type: "komsu" }] }),
+    D({ id: "drop", firstName: "Ali" }),
+  ];
+  const keep = mergePeople(kisiler, "keep", "drop").find((x) => x.id === "keep")!;
+  check("kendine dönen çevre bağı atıldı",
+    !keep.associations?.some((a) => a.personId === "keep"));
+  /*
+   * ASIL İDDİA. "kendine dönmüyor" tek başına yetmez: bağ hiç çevrilmezse de
+   * kendine dönmez — çünkü artık var OLMAYAN `drop`a bakar. Sarkan bağ, aynı
+   * hatanın öbür yüzü.
+   */
+  check("bırakılan kimliğe sarkan bağ da kalmadı",
+    !keep.associations?.some((a) => a.personId === "drop"));
+}
+{
+  // Üçüncü kişinin BAŞKA bağları bozulmadan duruyor.
+  const D = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "X", lastName: "Y", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+  const kisiler = [
+    D({ id: "keep", firstName: "Ali" }),
+    D({ id: "drop", firstName: "Ali" }),
+    D({ id: "baska" }),
+    D({ id: "dost", associations: [
+      { id: "a1", personId: "drop", type: "arkadas" },
+      { id: "a2", personId: "baska", type: "komsu" },
+    ] }),
+  ];
+  const dost = mergePeople(kisiler, "keep", "drop").find((x) => x.id === "dost")!;
+  check("ilgisiz çevre bağı bozulmadı",
+    dost.associations?.some((a) => a.personId === "baska") === true);
+  check("iki bağ da duruyor", dost.associations?.length === 2);
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

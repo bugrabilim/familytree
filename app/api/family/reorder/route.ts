@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 
@@ -23,6 +23,16 @@ export async function POST(req: NextRequest) {
 
   const userId = ctx.treeId;
   const data = await getFamilyData(userId, { skipCache: true });
+  /*
+   * İYİMSER KİLİT. Başlık gelmezse `versionMismatch` `false` döner, yani
+   * başlığı göndermeyen çağıranlar (mobil, betikler) etkilenmez.
+   */
+  if (versionMismatch(req, data.updatedAt))
+    return NextResponse.json(
+      { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
+
   const order = new Map<string, number>((ids as string[]).map((id, i) => [id, i]));
 
   let changed = false;
