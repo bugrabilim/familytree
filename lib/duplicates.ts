@@ -1,4 +1,5 @@
 import { foldKey } from "./turkish.ts";
+import { PERSON_FIELDS } from "./person-fields.ts";
 import type { Person } from "@/types/family";
 
 /**
@@ -126,44 +127,77 @@ export function mergePeople(people: Person[], keepId: string, dropId: string): P
   const drop = people.find((p) => p.id === dropId);
   if (!keep || !drop) return people;
 
-  const scalar = <K extends keyof Person>(k: K): Person[K] =>
-    (keep[k] ?? drop[k]) as Person[K];
-
   const cleanRefs = (ids: string[]): string[] =>
     uniq(ids.map((id) => (id === dropId ? keepId : id))).filter((id) => id !== keepId);
 
-  const mergedKeep: Person = {
-    ...keep,
-    firstName: keep.firstName || drop.firstName,
-    lastName: keep.lastName || drop.lastName,
-    gender: keep.gender !== "unknown" ? keep.gender : drop.gender,
-    nickname: scalar("nickname"),
-    patronymic: scalar("patronymic"),
-    orientation: scalar("orientation"),
-    birthDate: scalar("birthDate"),
-    deathDate: scalar("deathDate"),
-    birthPlace: scalar("birthPlace"),
-    photo: keep.photo || drop.photo,
-    bio: scalar("bio"),
-    religion: scalar("religion"),
-    denomination: scalar("denomination"),
-    language: scalar("language"),
-    ethnicity: scalar("ethnicity"),
-    nationality: scalar("nationality"),
-    occupation: scalar("occupation"),
-    education: scalar("education"),
-    congenitalCondition: scalar("congenitalCondition"),
-    healthCondition: scalar("healthCondition"),
-    deathCause: scalar("deathCause"),
-    parentIds: cleanRefs([...(keep.parentIds ?? []), ...(drop.parentIds ?? [])]),
-    spouseIds: cleanRefs([...(keep.spouseIds ?? []), ...(drop.spouseIds ?? [])]),
-    formerSpouseIds: cleanRefs([...(keep.formerSpouseIds ?? []), ...(drop.formerSpouseIds ?? [])]),
-    photos: uniq([...(keep.photos ?? []), ...(drop.photos ?? [])]),
-    events: [...(keep.events ?? []), ...(drop.events ?? [])],
-    sources: [...(keep.sources ?? []), ...(drop.sources ?? [])],
-    memories: [...(keep.memories ?? []), ...(drop.memories ?? [])],
-    parentLinks: { ...(drop.parentLinks ?? {}), ...(keep.parentLinks ?? {}) },
-  };
+  /*
+   * BİRLEŞTİRME KAYIT DEFTERİNDEN SÜRÜLÜR.
+   *
+   * Burada eskiden elle yazılmış bir alan listesi vardı ve sonradan eklenen
+   * alanlar o listeye hiç girmedi. Sonuç: fonksiyonun kendi başlığı
+   * "kayıpsız" derken `lineage`, `burialPlace`, `officialBirthDate`,
+   * `videos`, `documents`, `healthNote`, `associations` ve `birthCoords`
+   * bırakılan kayıtla birlikte siliniyordu. `burialPlace` en keskini:
+   * aşağıdaki `CONFLICT_FIELDS` listesinde ADI GEÇİYOR — yani korunması
+   * amaçlanmıştı — ama çakışma notu yalnız İKİ kayıtta da doluysa yazıldığı
+   * için, sadece bırakılanda varken hiç iz bırakmadan yok oluyordu.
+   *
+   * Çözüm listeyi uzatmak değil: `lib/person-fields.ts` kayıt defteri tam da
+   * bu iş için var. Artık yeni bir alan eklendiğinde birleştirme onu
+   * kendiliğinden taşıyor.
+   */
+  const mergedKeep: Person = { ...keep };
+  // Kayıt defteri anahtarla yazdığı için indeksli bir görünüm gerekiyor.
+  const yaz = mergedKeep as unknown as Record<string, unknown>;
+
+  for (const spec of PERSON_FIELDS) {
+    const k = spec.key as keyof Person;
+    const a = keep[k];
+    const b = drop[k];
+    if (b === undefined) continue;
+
+    switch (spec.merge) {
+      case "array": {
+        // Diziler BİRLEŞİM. Metin dizilerinde tekilleştir; nesne dizilerinde
+        // (anı, kaynak, olay, çevre bağı) kimlikler farklı olduğu için
+        // birleştirmek yeterli — kopya elemek kayıp riski doğururdu.
+        const ea = Array.isArray(a) ? (a as unknown[]) : [];
+        const eb = Array.isArray(b) ? (b as unknown[]) : [];
+        const hepsi = [...ea, ...eb];
+        const metin = hepsi.every((x) => typeof x === "string");
+        yaz[k as string] = metin ? uniq(hepsi as string[]) : hepsi;
+        break;
+      }
+      case "bool":
+        /*
+         * Mantıksal alanda GÜVENLİ taraf kazanır: bugün tek mantıksal alan
+         * `confidential` ve iki kayıttan biri "gizli kayıt" işaretliyse
+         * birleşim de gizli olmalı. Tersini seçmek, birleştirme yoluyla bir
+         * gizlilik ayarının sessizce kalkması demekti.
+         */
+        yaz[k as string] = !!a || !!b;
+        break;
+      default:
+        // Tek değerli alanlar: tutulan kaydınki öncelikli, boşsa bırakılanınki.
+        yaz[k as string] = a ?? b;
+    }
+  }
+
+  // Ad/soyad/cinsiyet: boş ya da "unknown" olan yerine öbürü geçsin.
+  mergedKeep.firstName = keep.firstName || drop.firstName;
+  mergedKeep.lastName = keep.lastName || drop.lastName;
+  mergedKeep.gender = keep.gender !== "unknown" ? keep.gender : drop.gender;
+  mergedKeep.photo = keep.photo || drop.photo;
+
+  // İlişki grafiği kayıt defterinin DIŞINDA (`EXCLUDED_FIELDS`): bırakılan
+  // kimliğe yapılan başvurular tutulana çevrilir ve kendine bağ temizlenir.
+  mergedKeep.parentIds = cleanRefs([...(keep.parentIds ?? []), ...(drop.parentIds ?? [])]);
+  mergedKeep.spouseIds = cleanRefs([...(keep.spouseIds ?? []), ...(drop.spouseIds ?? [])]);
+  mergedKeep.formerSpouseIds = cleanRefs([
+    ...(keep.formerSpouseIds ?? []),
+    ...(drop.formerSpouseIds ?? []),
+  ]);
+  mergedKeep.parentLinks = { ...(drop.parentLinks ?? {}), ...(keep.parentLinks ?? {}) };
   // İki kayıtta da DOLU olan ve FARKLI olan tek-değerli alanlar birleştirmede
   // sessizce kaybolmasın: bırakılan kaydın farklı değerleri biyografiye not
   // olarak eklenir. (Eş/çocuk/ebeveyn gibi bağlar zaten birleşim olarak korunur.)

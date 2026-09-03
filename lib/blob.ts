@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import { diffPeople } from "@/lib/people-diff";
 import { pushHistorySnapshot } from "@/lib/history";
+import { shouldKeepCover } from "@/lib/tree-meta";
 
 function blobPathname(userId: string) {
   return `family-data-${userId}.json`;
@@ -176,6 +177,30 @@ export async function saveFamilyData(
       await pushHistorySnapshot(userId, prevPeople, opts.by);
     }
   } catch { /* günlük başarısız olursa kaydı ETKİLEMEZ */ }
+
+  /*
+   * KAPAK FOTOĞRAFINI KORU.
+   *
+   * `coverPhoto` ağaç düzeyinde bir ayar, kişi verisi değil. Ama yedi rota
+   * kaydederken `{ people, updatedAt }` diye YENİ bir nesne kuruyor (kişi
+   * birleştirme, toplu silme, aşılama, ağaç birleştirme, içe aktarma, YZ
+   * çıkarımı); o nesnede kapak olmadığı için sessizce siliniyordu. Yani
+   * hata bir rotada değil, DESENDE — sekizinci rota da aynı şekilde
+   * yazılırdı.
+   *
+   * O yüzden düzeltme burada, tek yerde. Kural `keepCoverPhoto`da ve
+   * birim testli: alan nesnede HİÇ YOKSA eskisi korunur ("bu konuda bir
+   * şey söylemiyorum"), VARSA (değeri boş olsa bile) söylenen uygulanır
+   * ("kaldır" da bir karardır).
+   */
+  if (shouldKeepCover(data)) {
+    try {
+      const onceki = freshOldJson
+        ? (JSON.parse(freshOldJson) as FamilyData)
+        : await readRawFromBlob(userId);
+      if (onceki?.coverPhoto) data.coverPhoto = onceki.coverPhoto;
+    } catch { /* okunamazsa kapak korunamaz; kayıt yine de geçerli */ }
+  }
 
   data.updatedAt = new Date().toISOString();
   const json = JSON.stringify(data);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { scrubDeleted } from "@/lib/scrub";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
@@ -27,14 +28,8 @@ export async function POST(req: NextRequest) {
   const del = new Set(ids);
   const data = await getFamilyData(ctx.treeId, { skipCache: true });
 
-  data.people = data.people
-    .filter((p) => !del.has(p.id))
-    .map((p) => ({
-      ...p,
-      parentIds: p.parentIds.filter((id) => !del.has(id)),
-      spouseIds: p.spouseIds.filter((id) => !del.has(id)),
-      formerSpouseIds: p.formerSpouseIds?.filter((id) => !del.has(id)),
-    }));
+  // Tekli DELETE ile AYNI işlev (`lib/scrub.ts`) — iki kopya ayrı düşmesin.
+  data.people = scrubDeleted(data.people, del);
 
   await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() }, { by: ctx.accountId });
   return NextResponse.json({ ok: true, deleted: ids.length, count: data.people.length });

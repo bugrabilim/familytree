@@ -457,10 +457,10 @@ export default function PersonForm({
     const payload: PersonPayload = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
-      nickname: form.nickname.trim() || undefined,
-      patronymic: form.patronymic.trim() || undefined,
+      nickname: form.nickname.trim(),
+      patronymic: form.patronymic.trim(),
       lineage: form.lineage.trim(),
-      orientation: form.orientation.trim() || undefined,
+      orientation: form.orientation.trim(),
       gender: form.gender as Person["gender"],
       /*
        * TEMİZLEME AÇIKÇA GÖNDERİLİR — `undefined` DEĞİL.
@@ -470,8 +470,17 @@ export default function PersonForm({
        * yanlış girilmiş bir doğum tarihini siliyor, kaydediyor ve tarih geri
        * geliyordu. (Öbür yarısı PUT rotasındaydı: `body.x || mevcut`.)
        *
-       * `burialPlace` ve `burialCoords` zaten böyle davranıyordu; şimdi kural
-       * bütün alanlarda aynı.
+       * `burialPlace` ve `burialCoords` zaten böyle davranıyordu.
+       *
+       * O turda YALNIZ bu dört alan düzeltilmişti; yorum ise "şimdi kural
+       * bütün alanlarda aynı" diyordu. Değildi: lakap, biyografi, meslek,
+       * din, fotoğraf, anı, kaynak, çevre bağı ve `confidential`in hepsi
+       * boşaltılınca hâlâ `undefined` gidiyordu — yani hiç temizlenemiyordu.
+       * En kötüsü `confidential`di: "gizli kayıt" işareti, onu koyan tek
+       * arayüzden GERİ ALINAMIYORDU.
+       *
+       * Şimdi kural gerçekten bütün alanlarda aynı: metin → `""`,
+       * dizi → `[]`, mantıksal → `false`, nesne → `null`.
        */
       birthDate: form.birthDate ? displayToStored(form.birthDate) : "",
       officialBirthDate: form.officialBirthDate ? displayToStored(form.officialBirthDate) : "",
@@ -480,38 +489,38 @@ export default function PersonForm({
       // Doğum yeri koordinatı yalnız bir doğum yeri metni varsa anlamlı; yer
       // metni boşsa koordinatı da temizle. `null` = temizle (PUT'ta korunmaz).
       birthCoords: form.birthPlace.trim() ? form.birthCoords : null,
-      religion: form.religion.trim() || undefined,
-      denomination: form.denomination.trim() || undefined,
-      language: form.language.trim() || undefined,
-      ethnicity: form.ethnicity.trim() || undefined,
-      nationality: form.nationality.trim() || undefined,
+      religion: form.religion.trim(),
+      denomination: form.denomination.trim(),
+      language: form.language.trim(),
+      ethnicity: form.ethnicity.trim(),
+      nationality: form.nationality.trim(),
       occupation: form.occupation.trim()
         ? occupationCanon.get(normalizeTr(form.occupation)) ?? form.occupation.trim()
-        : undefined,
-      education: form.education.trim() || undefined,
-      congenitalCondition: form.congenitalCondition.trim() || undefined,
-      healthCondition: form.healthCondition.trim() || undefined,
-      deathCause: form.deathCause.trim() || undefined,
+        : "",
+      education: form.education.trim(),
+      congenitalCondition: form.congenitalCondition.trim(),
+      healthCondition: form.healthCondition.trim(),
+      deathCause: form.deathCause.trim(),
       // Defin yeri yalnız vefat edenlerde saklanır. Temizlemenin de kaydedilmesi
       // için açıkça boş dize / null gönderilir (undefined "değiştirme" demek olur).
       burialPlace: form.deathDate.trim() ? form.burialPlace.trim() : "",
       burialCoords: form.deathDate.trim() ? form.burialCoords : null,
-      bio: form.bio.trim() || undefined,
-      photo: form.photo || undefined,
-      photos: form.photos.length ? form.photos : undefined,
-      videos: form.videos.length ? form.videos : undefined,
-      documents: form.documents.length ? form.documents : undefined,
+      bio: form.bio.trim(),
+      photo: form.photo,
+      photos: form.photos,
+      videos: form.videos,
+      documents: form.documents,
       events: builtEvents,
-      sources: builtSources.length ? builtSources : undefined,
-      memories: builtMemories.length ? builtMemories : undefined,
+      sources: builtSources,
+      memories: builtMemories,
       kind,
-      associations: associations.filter((a) => a.personId).length
-        ? associations.filter((a) => a.personId).map((a) => ({ id: a.id, personId: a.personId, type: (a.type || "diger").trim(), note: a.note?.trim() || undefined }))
-        : undefined,
-      confidential: confidential || undefined,
+      associations: associations
+        .filter((a) => a.personId)
+        .map((a) => ({ id: a.id, personId: a.personId, type: (a.type || "diger").trim(), note: a.note?.trim() || undefined })),
+      confidential,
       // Boş dize "kısıt yok" demek; API için de temizleme anlamına gelir.
       publicVisibility,
-      privateFields: privateFields.length ? privateFields : undefined,
+      privateFields,
     };
 
     if (relation) {

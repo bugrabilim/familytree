@@ -53,7 +53,13 @@ export function matchesQuery(p: Person, query: string): boolean {
     norm(p.nickname ?? "").includes(q) ||
     norm(p.patronymic ?? "").includes(q) ||
     norm(p.lineage ?? "").includes(q) ||
-    (p.code ?? "").includes(q) ||
+    // Kod ve tarih de KATLANMIŞ hâlleriyle karşılaştırılır.
+    //
+    // `norm` `foldKey` olunca sorgu "1985-04-23" → "1985 04 23"e dönüşüyor,
+    // ama bu iki satır alanın HAM hâline bakıyordu; dolayısıyla tam tarih
+    // yazan hiçbir şey bulamıyordu. Sorguyu bir tarafta dönüştürüp öbür
+    // tarafta dönüştürmemek, karşılaştırmayı asimetrik yapıyordu.
+    norm(p.code ?? "").includes(q) ||
     norm(p.birthPlace ?? "").includes(q) ||
     norm(p.bio ?? "").includes(q) ||
     norm(p.occupation ?? "").includes(q) ||
@@ -61,7 +67,7 @@ export function matchesQuery(p: Person, query: string): boolean {
     norm(p.congenitalCondition ?? "").includes(q) ||
     norm(p.healthCondition ?? "").includes(q) ||
     norm(p.deathCause ?? "").includes(q) ||
-    (p.birthDate ?? "").includes(q)
+    norm(p.birthDate ?? "").includes(q)
   );
 }
 

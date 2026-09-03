@@ -37,7 +37,15 @@ export async function DELETE() {
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const data = await getFamilyData(ctx.treeId, { skipCache: true });
-  delete data.coverPhoto;
+  /*
+   * `delete` DEĞİL, açıkça `undefined`.
+   *
+   * `saveFamilyData` artık "alan yoksa eskisini koru" diyor (kapağı sessizce
+   * silen rotalara karşı). `delete` alanı nesneden kaldırırdı ve bu kaldırma
+   * isteği "bir şey söylemedim" diye okunup kapak geri gelirdi. Alanın VAR
+   * ama boş olması, "kaldır" demenin yolu.
+   */
+  data.coverPhoto = undefined;
   await saveFamilyData(ctx.treeId, data);
   return NextResponse.json({ coverPhoto: null });
 }

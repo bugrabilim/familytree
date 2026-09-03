@@ -4,6 +4,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { mergePersonFields } from "@/lib/person-fields";
 import { canEdit } from "@/lib/roles";
 import { deleteBondsOfPerson } from "@/lib/bond-store";
+import { scrubDeleted } from "@/lib/scrub";
 
 const conflict = () =>
   NextResponse.json(
@@ -120,13 +121,14 @@ export async function DELETE(
   const person = data.people.find((p) => p.id === id);
   if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  data.people = data.people
-    .filter((p) => p.id !== id)
-    .map((p) => ({
-      ...p,
-      parentIds: p.parentIds.filter((pid) => pid !== id),
-      spouseIds: p.spouseIds.filter((sid) => sid !== id),
-    }));
+  /*
+   * Başvuru temizliği `lib/scrub.ts`te — toplu silme rotasıyla AYNI işlev.
+   * Eskiden ikisi ayrı yazılmıştı ve ayrı düşmüştü: burası `formerSpouseIds`i
+   * hiç temizlemiyor, ikisi de `associations`/`parentLinks`e dokunmuyordu.
+   * Sonuç, uygulamanın kendi bütünlük tarayıcısının `error` diye bildirdiği
+   * kalıcı sorunlardı.
+   */
+  data.people = scrubDeleted(data.people, [id]);
 
   await saveFamilyData(userId, data, { by: ctx.accountId });
 
