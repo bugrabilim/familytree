@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import { useT } from "@/lib/i18n";
+import { mutationHeaders } from "@/lib/actions";
 
 interface Entry {
   id: string;
@@ -62,7 +63,7 @@ export default function HistoryDialog({
     try {
       const res = await fetch("/api/family/history/restore", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(),
         body: JSON.stringify({ id }),
       });
       const data = await res.json();

@@ -76,10 +76,15 @@ check("mergeTree: babanın dedesi mevcut m1'e bağlandı", babaM.parentIds.inclu
   const k = (o: Partial<Person> & { id: string }): Person =>
     ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
 
+  /*
+   * VEFAT tarihleri bilerek var: bu blok kimlik ÇEVİRMEYİ sınıyor ve
+   * yaşayan bir komşu kişi maskeleneceği için (aşağıdaki blok) çevrilecek
+   * bir `associations` kalmazdı. İki kural ayrı ayrı sınanıyor.
+   */
   const komsu = [
-    k({ id: "p-baba", firstName: "PeerBaba" }),
-    k({ id: "p-dost", firstName: "Dost", kind: "cevre" }),
-    k({ id: "p-cocuk", firstName: "PeerCocuk", parentIds: ["p-baba"],
+    k({ id: "p-baba", firstName: "PeerBaba", deathDate: "1980" }),
+    k({ id: "p-dost", firstName: "Dost", kind: "cevre", deathDate: "1990" }),
+    k({ id: "p-cocuk", firstName: "PeerCocuk", parentIds: ["p-baba"], deathDate: "2000",
         parentLinks: { "p-baba": { kind: "adoptive" } },
         associations: [
           { id: "a1", personId: "p-dost", type: "arkadas" },   // kapanış DIŞINDA
@@ -101,6 +106,92 @@ check("mergeTree: babanın dedesi mevcut m1'e bağlandı", babaM.parentIds.inclu
   check("komşunun kodu taşınmadı (çakışma yok)", cocuk.code === undefined);
   const kodlar = people.map((x) => x.code).filter(Boolean);
   check("ağaçta yinelenen kod yok", new Set(kodlar).size === kodlar.length);
+}
+
+/* --- KOMŞU AĞAÇTAN KOPYALANAN VERİ MASKELİ --------------------------- */
+/*
+ * Karşılaştırma ekranı karşı ağacın yaşayan ve `confidential` kişilerini
+ * maskeleyerek gösteriyor; aşılama ise ham kaydı kopyalıyordu. Kullanıcının
+ * EKRANDA göremediği doğum tarihi, hikâye, sağlık notu, yönelim, fotoğraf
+ * kendi ağacına kalıcı olarak geçiyordu — bakılan veri kaybolur, kopyalanan
+ * veri kalır ve oradan dışa aktarılır.
+ */
+{
+  const k = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+
+  const hassas = {
+    birthDate: "1975-05-05",
+    birthPlace: "Sivas",
+    bio: "özel hikâye",
+    healthNote: "sağlık notu",
+    orientation: "gay",
+    photo: "https://x/y.jpg",
+    religion: "din",
+  };
+  const komsu = [
+    k({ id: "p1", firstName: "Yasayan", ...hassas }),                       // yaşayan
+    k({ id: "p2", firstName: "Gizli", confidential: true, deathDate: "1990", ...hassas }),
+    k({ id: "p3", firstName: "Cocuk", parentIds: ["p1", "p2"], deathDate: "2000" }),
+  ];
+  const { people } = graftFromPeer([], komsu, "p3");
+  const alan = (ad: string, f: keyof Person) =>
+    (people.find((x) => x.firstName === ad) as Record<string, unknown> | undefined)?.[f];
+
+  for (const [ad, aciklama] of [["Yasayan", "yaşayan"], ["Gizli", "gizli kayıt"]] as const) {
+    check(`${aciklama}: doğum tarihi kopyalanmadı`, alan(ad, "birthDate") === undefined);
+    check(`${aciklama}: doğum yeri kopyalanmadı`, alan(ad, "birthPlace") === undefined);
+    check(`${aciklama}: hikâye kopyalanmadı`, alan(ad, "bio") === undefined);
+    check(`${aciklama}: sağlık notu kopyalanmadı`, alan(ad, "healthNote") === undefined);
+    check(`${aciklama}: yönelim kopyalanmadı`, alan(ad, "orientation") === undefined);
+    check(`${aciklama}: fotoğraf kopyalanmadı`, alan(ad, "photo") === undefined);
+    check(`${aciklama}: din kopyalanmadı`, alan(ad, "religion") === undefined);
+    check(`${aciklama}: ad taşındı (ağaç bozulmasın)`, people.some((x) => x.firstName === ad));
+  }
+  // Vefat etmiş, gizli olmayan kişi tam kopyalanır — kural gizlilik, sansür değil.
+  check("vefat etmiş kişide ölüm tarihi korunuyor", alan("Cocuk", "deathDate") === "2000");
+  // Ağaç yapısı bozulmadı: çocuğun iki ebeveyni de yerinde.
+  check("maskeli ebeveynlerin bağı duruyor",
+    (people.find((x) => x.firstName === "Cocuk")?.parentIds ?? []).length === 2);
+}
+{
+  // EŞLEŞTİRME hâlâ HAM veriyle: yaşayan bir kişi yerelde bulunabilmeli,
+  // yoksa kesişim bulma özelliğinin bütün anlamı kaybolurdu.
+  const k = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+  const benim = [k({ id: "m1", firstName: "Ali", lastName: "Yilmaz", birthDate: "1950" })];
+  const komsu = [
+    k({ id: "p1", firstName: "Ali", lastName: "Yilmaz", birthDate: "1950" }),
+    k({ id: "p2", firstName: "Dede", lastName: "Yilmaz", birthDate: "1920" }),
+  ];
+  komsu[0].parentIds = ["p2"];
+  const r = graftFromPeer(benim, komsu, "p1");
+  check("yaşayan kişi hâlâ eşleşiyor (linked)", r.linked === 1);
+  check("yalnız eksik ata eklendi", r.added === 1);
+  check("kendi kaydımın doğum tarihi duruyor",
+    r.people.find((x) => x.id === "m1")?.birthDate === "1950");
+}
+
+/* --- ESKİ EŞLER eşleşen kişide de birleşiyor -------------------------- */
+/*
+ * `formers` hesaplanıyor ama "yeniden kullanılan" dalda hiç yazılmıyordu:
+ * aynı kişi için boşanma bağı, yerelde eşleşip eşleşmemesine göre kâh
+ * taşınıyor kâh sessizce düşüyordu.
+ */
+{
+  const k = (o: Partial<Person> & { id: string }): Person =>
+    ({ firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [], ...o }) as Person;
+  const benim = [
+    k({ id: "m1", firstName: "Ali", birthDate: "1950", deathDate: "2010" }),
+    k({ id: "m2", firstName: "Ayse", birthDate: "1955", deathDate: "2015" }),
+  ];
+  const komsu = [
+    k({ id: "p1", firstName: "Ali", birthDate: "1950", deathDate: "2010", formerSpouseIds: ["p2"] }),
+    k({ id: "p2", firstName: "Ayse", birthDate: "1955", deathDate: "2015", parentIds: [] }),
+  ];
+  const { people } = mergeTree(benim, komsu);
+  const ali = people.find((x) => x.id === "m1")!;
+  check("eşleşen kişide eski eş bağı korundu", (ali.formerSpouseIds ?? []).includes("m2"));
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

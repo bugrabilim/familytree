@@ -267,7 +267,8 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       const fd = new FormData();
       fd.append("file", new Blob([csv], { type: "text/csv" }), "toplu-yukleme.csv");
       fd.append("mode", "merge");
-      const res = await fetch("/api/family/import", { method: "POST", body: fd });
+      // `false`: FormData kendi Content-Type sınırını üretir, elle yazılırsa bozulur.
+      const res = await fetch("/api/family/import", { method: "POST", headers: mutationHeaders(false), body: fd });
       const d = await res.json().catch(() => null);
       if (!res.ok) throw new Error(d?.error ?? t("table.tpl.importFailed"));
       setImpMsg(t("table.tpl.imported", { count: d?.count ?? 0 }));

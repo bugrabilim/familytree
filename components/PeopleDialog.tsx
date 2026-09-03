@@ -11,6 +11,7 @@ import { findIssues } from "@/lib/consistency";
 import { indexPeople } from "@/lib/relations";
 import { fullName } from "@/lib/name";
 import { useT } from "@/lib/i18n";
+import { mutationHeaders } from "@/lib/actions";
 
 interface Props {
   onClose: () => void;
@@ -62,7 +63,7 @@ export default function PeopleDialog({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/family/clear", { method: "POST" });
+      const res = await fetch("/api/family/clear", { method: "POST", headers: mutationHeaders(false) });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? t("gedcom.clearFailed"));
       onCleared();

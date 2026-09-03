@@ -1,5 +1,6 @@
 import type { ParentLink, Person } from "@/types/family";
 import { nanoid } from "nanoid";
+import { viewAll } from "./privacy.ts";
 
 /**
  * Dal aşılama (P3) — bağlı bir ağaçtan seçilen kişinin ATA soyunu kendi ağacına
@@ -87,7 +88,27 @@ export function mergeTree(minePeople: Person[], peerPeople: Person[]): GraftResu
  * kişiler arası bağlar korunur, dışarı sarkanlar atılır.
  */
 function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<string>): GraftResult {
+  /*
+   * KOMŞU AĞAÇTAN KOPYALANAN VERİ MASKELENİR.
+   *
+   * Karşılaştırma ekranı (`app/pair/compare/[treeId]/page.tsx`) karşı ağacın
+   * yaşayan ve `confidential` kişilerini maskeleyerek gösteriyor. Aşılama ise
+   * `{ ...peer }` ile HAM kaydı kopyalıyordu: kullanıcının ekranda göremediği
+   * doğum tarihi, sağlık notu, hikâye, yönelim, fotoğraf — hepsi kendi ağacına
+   * KALICI olarak geçiyordu. Görüntülemekten ağır bir sızıntı: bakılan veri
+   * kaybolur, kopyalanan veri kalır ve oradan dışa aktarılır.
+   *
+   * EŞLEŞTİRME ise HAM veriyle sürüyor (`peerIdx`). İkisi bilerek ayrı:
+   *
+   *  · Eşleştirme zaten sunucuda ve ham veriyle yapılıyor (`findCrossMatches`,
+   *    karşılaştırma sayfası); kullanıcı yalnız SONUCU görüyor. Maskeli veriyle
+   *    eşleştirmek doğum yılını silip her yaşayan kişiyi eşleşmez kılardı —
+   *    özelliğin bütün anlamı olan kesişim bulma çalışmazdı.
+   *  · Kopyalama ise kullanıcının kendi ağacına kalıcı veri yazıyor; oraya
+   *    ancak GÖREBİLECEĞİ şey girmeli.
+   */
   const peerIdx = new Map(peerPeople.map((p) => [p.id, p]));
+  const gorunurIdx = new Map(viewAll(peerPeople, true).map((p) => [p.id, p]));
 
   // peer id → yerel id (eşleşen) ya da yeni id (klon)
   const idMap = new Map<string, string>();
@@ -134,10 +155,21 @@ function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<s
       if (L) {
         L.parentIds = [...new Set([...(L.parentIds ?? []), ...parents])];
         L.spouseIds = [...new Set([...(L.spouseIds ?? []), ...spouses])];
+        /*
+         * ESKİ EŞLER de birleşiyor. `formers` yukarıda hesaplanıyordu ama bu
+         * dalda hiç kullanılmıyordu: eşleşen bir kişi için komşu ağaçtaki
+         * boşanma bağı sessizce düşüyordu. Klon dalında taşınıp burada
+         * düşmesi, aynı kişinin eşleşip eşleşmemesine göre farklı sonuç
+         * vermek demekti.
+         */
+        if (formers.length)
+          L.formerSpouseIds = [...new Set([...(L.formerSpouseIds ?? []), ...formers])];
         linked++;
       }
     } else {
-      const clone: Person = { ...peer, id: localId, parentIds: parents, spouseIds: spouses };
+      // Klon MASKELİ kayıttan; eşleştirme yukarıda ham veriyle yapıldı.
+      const gorunur = gorunurIdx.get(pid)!;
+      const clone: Person = { ...gorunur, id: localId, parentIds: parents, spouseIds: spouses };
       if (formers.length) clone.formerSpouseIds = formers;
       else delete clone.formerSpouseIds;
 
@@ -151,9 +183,9 @@ function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<s
        *    KAN BAĞINA dönüyor. Sarkan bir kimlikten kötü — görünmeyen bir
        *    veri bozulması.
        */
-      if (peer.parentLinks) {
+      if (gorunur.parentLinks) {
         const links: Record<string, ParentLink> = {};
-        for (const [ppid, link] of Object.entries(peer.parentLinks)) {
+        for (const [ppid, link] of Object.entries(gorunur.parentLinks)) {
           const hedef = mapIn(ppid, localId);
           if (hedef) links[hedef] = link;
         }
@@ -166,8 +198,8 @@ function graftClosure(minePeople: Person[], peerPeople: Person[], closure: Set<s
        *    bakan bağlar atılır; yoksa kendi ağacımızda var olmayan kişilere
        *    işaret eden `error` düzeyinde kayıtlar oluşuyor (`findRefIssues`).
        */
-      if (peer.associations?.length) {
-        const bags = peer.associations
+      if (gorunur.associations?.length) {
+        const bags = gorunur.associations
           .map((a) => {
             const hedef = mapIn(a.personId, localId);
             return hedef ? { ...a, personId: hedef } : null;

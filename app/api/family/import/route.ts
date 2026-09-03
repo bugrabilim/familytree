@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFamilyData, saveFamilyData } from "@/lib/blob";
+import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { importGedcom } from "@/lib/gedcom";
@@ -81,10 +81,23 @@ export async function POST(req: NextRequest) {
   // #6 — Köken/iz: içe aktarılan kartlara hangi biçimden geldiğini işle.
   imported = imported.map((p) => ({ ...p, entrySource: p.entrySource ?? `içe aktarma: ${format}` }));
 
+  /*
+   * İYİMSER KİLİT — içe aktarma en çok veri yazan işlem, en az korunanıydı.
+   * "Değiştir" kipi ağacın TAMAMINI siliyor; başkasının aynı anda eklediği
+   * kişilerin üstüne yazmanın geri dönüşü yok. Başlık gelmezse denetim
+   * atlanır (mobil ve betikler etkilenmez).
+   */
+  const mevcutVeri = await getFamilyData(ctx.treeId, { skipCache: true });
+  if (versionMismatch(req, mevcutVeri.updatedAt))
+    return NextResponse.json(
+      { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
+      { status: 409 }
+    );
+
   if (mode === "replace") {
     await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   } else {
-    const { people: existing } = await getFamilyData(ctx.treeId, { skipCache: true });
+    const existing = mevcutVeri.people;
     await saveFamilyData(ctx.treeId, {
       people: ensureCodes([...existing, ...imported]),
       updatedAt: new Date().toISOString(),

@@ -72,7 +72,17 @@ export async function PUT(
       : data.people[index].formerSpouseIds ?? [],
   };
 
+  /*
+   * ESKİ DEĞERLER YAZMADAN ÖNCE OKUNUR.
+   *
+   * `oldEx` aşağıda okunuyordu — yani `data.people[index] = updated`
+   * satırından SONRA. O noktada dizi zaten yeni değerdi, `oldEx` ile `newEx`
+   * her zaman aynı çıkıyor ve iki döngü de boş kümede dönüyordu: eski eş
+   * bağının karşılıklılığı hiç kurulmuyordu. Bir tarafta boşanma görünüyor,
+   * öbür tarafta görünmüyordu.
+   */
   const oldSpouseIds = data.people[index].spouseIds;
+  const oldEx: string[] = data.people[index].formerSpouseIds ?? [];
   data.people[index] = updated;
 
   const removed: string[] = oldSpouseIds.filter((sid: string) => !updated.spouseIds.includes(sid));
@@ -87,8 +97,7 @@ export async function PUT(
     if (s && !s.spouseIds.includes(id)) s.spouseIds.push(id);
   }
 
-  // Eski eş bağlarını da çift yönlü tut
-  const oldEx: string[] = data.people[index].formerSpouseIds ?? [];
+  // Eski eş bağlarını da çift yönlü tut (`oldEx` yukarıda, yazmadan önce alındı)
   const newEx: string[] = updated.formerSpouseIds ?? [];
   for (const sid of oldEx.filter((x) => !newEx.includes(x))) {
     const s = data.people.find((p) => p.id === sid);

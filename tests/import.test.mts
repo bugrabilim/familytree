@@ -41,7 +41,45 @@ check("csv: cinsiyet", ahmet.gender === "male" && ayse.gender === "female");
 const jp = parseJson('[{"firstName":"Zeynep","lastName":"Kaya","gender":"female"}]');
 check("json: düz dizi", jp.length === 1 && jp[0].firstName === "Zeynep");
 const jp2 = parseJson('{"people":[{"firstName":"Ali","gender":"male","parentIds":["x"],"spouseIds":[]}]}');
-check("json: people sarmalı", jp2.length === 1 && jp2[0].parentIds[0] === "x");
+check("json: people sarmalı", jp2.length === 1 && jp2[0].firstName === "Ali");
+/*
+ * Dosyada TANIMLI OLMAYAN kimliğe bakan bağ atılıyor. Eskiden olduğu gibi
+ * geçirilirse ağaca doğduğu anda `error` düzeyinde sarkan bir bağ giriyordu.
+ */
+check("json: dosya dışına sarkan ebeveyn bağı atıldı", jp2[0].parentIds.length === 0);
+
+/* --- JSON İÇE AKTARIMDA KİMLİKLER YENİDEN ÜRETİLİR -------------------- */
+/*
+ * Bu, kimlik taşıyan TEK içe aktarıcıydı. Sonucu: kullanıcı uygulamanın kendi
+ * JSON dışa aktarımını "ekle" kipinde geri yüklediğinde her kimlik ağaçta İKİ
+ * KEZ oluyordu — `findRefIssues` onarılamaz `duplicateId` bildiriyor,
+ * Postgres aynası çakışmayla düşüyor ve o hata yutuluyordu: kullanıcı
+ * "içe aktarıldı" görüyordu.
+ */
+{
+  const kaynak = JSON.stringify({
+    people: [
+      { id: "abc", firstName: "Dede", lastName: "Y", gender: "male" },
+      { id: "def", firstName: "Torun", lastName: "Y", gender: "male", parentIds: ["abc"], formerSpouseIds: ["ghi"] },
+      { id: "ghi", firstName: "Eski", lastName: "Y", gender: "female", spouseIds: [] },
+    ],
+  });
+  const g = parseJson(kaynak);
+  check("json: üç kişi geldi", g.length === 3);
+  check("json: kaynak kimlikler KORUNMADI",
+    !g.some((p) => ["abc", "def", "ghi"].includes(p.id)));
+  check("json: kimlikler benzersiz", new Set(g.map((p) => p.id)).size === 3);
+  const torun = g.find((p) => p.firstName === "Torun")!;
+  const dede = g.find((p) => p.firstName === "Dede")!;
+  const eski = g.find((p) => p.firstName === "Eski")!;
+  check("json: dosya içi ebeveyn bağı YENİ kimlikle korundu", torun.parentIds[0] === dede.id);
+  check("json: eski eş bağı da çevrildi", torun.formerSpouseIds?.[0] === eski.id);
+  // İki kez içe aktarınca kimlikler yine çakışmıyor — asıl kural.
+  const ikinci = parseJson(kaynak);
+  const hepsi = [...g, ...ikinci];
+  check("json: iki kez içe aktarımda kimlik çakışması yok",
+    new Set(hepsi.map((p) => p.id)).size === hepsi.length);
+}
 
 // parseNonGedcom yönlendirme
 check("parseNonGedcom csv", parseNonGedcom("csv", csv).length === 3);
