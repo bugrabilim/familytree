@@ -90,7 +90,14 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
       onClose={onClose}
     >
       <div className="space-y-6">
-        {/* Dışa aktar */}
+        {/*
+          BOŞ AĞAÇTA DIŞA AKTARMA YOK (madde 40).
+
+          Sıfır kişiyi dışa aktarmak anlamsız; üstelik e-Devlet belgesiyle
+          gelen yeni kullanıcı ilk temasta önce bir "dışa aktar" bloğuyla
+          karşılaşıyordu. İçe aktarma zaten aşağıda ve tek anlamlı eylem o.
+        */}
+        {peopleCount > 0 && (
         <section>
           <h3 className="text-sm font-semibold text-text mb-1">{t("gedcom.exportTitle")}</h3>
           <p className="text-xs text-text-muted leading-relaxed mb-3">
@@ -122,8 +129,9 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
             {busy === "export" ? t("gedcom.preparing") : t("gedcom.export")}
           </Button>
         </section>
+        )}
 
-        <div className="h-px bg-border" />
+        {peopleCount > 0 && <div className="h-px bg-border" />}
 
         {/* İçe aktar */}
         <section>
