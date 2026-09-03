@@ -78,9 +78,44 @@ verilir; bu adrese e-posta gönderilmez (Faz 3e'de gerçek e-postayla değişir)
   e-postasıyla değiştirip hesabını kalıcılaştırır (doğrulama + parola sıfırlama
   Supabase'in yerleşik akışlarıyla).
 
+## Kayma denetimi (K4/43) — Faz 4'ün ön koşulu
+
+Faz 4'ün geri dönüşü yok: okuma yolu Postgres'e döndükten ve `users.json`
+emekliye ayrıldıktan sonra Blob'a geri düşmek yok. Bu yüzden ondan önce
+"iki kaynak hâlâ aynı" cümlesini KANITLAYABİLİYOR olmak gerekiyor.
+
+`/api/admin/migrate` GET'teki `inSync` bunu kanıtlamıyordu: kişi
+**sayısını** karşılaştırıyordu. Sayı eşitliği eşitlik değildir — bir kişi
+eklenip başkası silindiğinde sayı aynı kalır; bir kaydın ölüm tarihi ya da
+ebeveyn bağı Postgres'te eski kalırsa sayıya hiç yansımaz.
+
+**`/admin/drift`** (uç: `/api/admin/drift`, çekirdek: `lib/drift.ts`) iki
+ayrı kayma türüne ayrı ayrı bakar:
+
+| Tür | Ne | Neden önemli |
+|---|---|---|
+| `eksik` | Blob'da var, Postgres'te yok | DB geride; okuma dönünce kişi kaybolur |
+| `fazla` | Postgres'te var, Blob'da yok | **Silme yayılmamış**; okuma dönünce silinen kişi geri gelir |
+| `farkli` | İkisinde de var, alanlar ayrışmış | Sessiz; sayıya hiç yansımaz |
+| sütun kayması | Satırın `first_name`/`birth_date`… sütunları kendi `data`sıyla çelişiyor | Faz 4 sorguları bu sütunlardan süzüp sıralar; `data` doğru olsa bile okuma yanlış olur |
+
+- **GET** denetler, hiçbir şey yazmaz (`?full=1` tam liste).
+- **POST** onarır: Blob **kaynak**, yalnız Postgres hizaya getirilir
+  (`dbUpsertPeople` / `dbDeletePeople` ile hedefli — göçün "hepsini sil,
+  hepsini yaz" davranışı değil). Blob'a dokunulmaz. Postgres'te hiç olmayan
+  ağaç onarılmaz, "önce göç edin" denir — göç ile denetim ayrı işler.
+- Rapor içerik sızdırmaz: gizli gruptaki alanlar ve `confidential` kayıtlar
+  için yalnız hangi alanın ayrıştığı ve değerin uzunluğu döner.
+- Göç edilmemiş ağaç **temiz sayılmaz**; okunamayan ağaç da temiz sayılmaz.
+
+Faz 4'e geçmeden önce beklenen durum: **her ağaç için `clean: true`.**
+
+---
+
 ## Faz 4 — Eski yolu kaldırma (temizlik)
 
-Faz 3c–3e oturduktan ve tüm hesaplar Supabase Auth'a taşındıktan sonra:
+Faz 3c–3e oturduktan, tüm hesaplar Supabase Auth'a taşındıktan **ve kayma
+denetimi her ağaç için temiz döndükten** sonra:
 
 - NextAuth Credentials bcrypt yedeği kaldırılır (giriş tümüyle Supabase Auth).
 - Blob tabanlı `users.json` kimlik deposu emekliye ayrılır (veri zaten
