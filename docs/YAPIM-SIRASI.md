@@ -143,7 +143,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 | # | İş | Bant | Koşma yeri | Durum |
 |---|---|:-:|---|---|
 | **65** | **Burç (güneş burcu)** — `lib/zodiac.ts` | K1 | — | ✅ **yapıldı** |
-| **66** | **`birthTime` alanı + yükselen burç** | K3 | 26'dan (alan kayıt defteri) **sonra** | ⛔ alan yok |
+| **66** | **`birthTime` alanı + yükselen burç** | K3 | 26'dan (alan kayıt defteri) **sonra** | ✅ **yapıldı** |
 | **67** | **Burç karakteristik özellikleri** | K1 | 65'in yanına | ✅ **yapıldı** |
 
 ### 65 — Burç ✅
@@ -165,7 +165,7 @@ aralığını ele verdiği için bu bilinçli — `PersonDrawer` burcu `view()`'
 kişiden hesaplıyor, maskeli kişide `birthDate` taşınmadığından kendiliğinden boş
 kalıyor. Testi var.
 
-### 66 — `birthTime` + yükselen ⛔
+### 66 — `birthTime` + yükselen ✅
 
 Yükselen burç, doğum **anının** ve **yerinin** ikisini birden ister:
 
@@ -181,6 +181,26 @@ Yükselen burç, doğum **anının** ve **yerinin** ikisini birden ister:
 
 `birthTime` ayrıca burç dışında da işe yarar: nüfus kayıtlarında doğum saati
 geçer ve bazı aileler bunu tutar.
+
+**Yapıldı (2026-09-03).** İki parça: alan (#239) ve hesap.
+
+*Çıpalar.* "Çıpa bulunmadan yazılmamalı" notu karşılandı; beşi de testte:
+(1) yayımlanmış GMST(J2000) = 18s 41d 50,5sn; (2) yayımlanmış yıldız günü
+farkı 3d 56,6sn; (3) ekvatorda matematiğin zorladığı dört değer; (3b) θ=0'da
+kapalı biçim `tan(ASC−90°) = tan φ · sin ε` — enlemi ve eğimi zorunlu kılan
+tek çıpa bu, çünkü öbürlerinin hepsi φ=0'da duruyor ve enlemi hiç kullanmayan
+bir hesabı da onaylıyordu (mutasyonla görüldü); (4) bir yıldız gününde on iki
+burcun hepsinden geçme ve geri gitmeme.
+
+*Saat dilimi.* `birthTime` dilim taşımıyor, ama yükselen dilime duyarlı:
+1 saat ≈ 15° yıldız zamanı ≈ yarım burç. Türkiye 2016'ya kadar UTC+2
+(yazın çoğu yıl +3), sonra sürekli +3 kullandı. Tek bir varsayım seçmek
+yerine makul adayların hepsi hesaplanıyor: hepsi aynı burca düşüyorsa burç
+yazılıyor, düşmüyorsa "kesin değil" denip adaylar gösteriliyor.
+
+*Eksik veri.* Tam tarih + saat + koordinat şart; biri eksikse hiç
+hesaplanmıyor. Maskeli kişide üçü de taşınmadığı için yükselen kendiliğinden
+görünmüyor (burcun kendisi gibi) — testi var.
 
 ### 67 — Burç karakteristik özellikleri ✅
 

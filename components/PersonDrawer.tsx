@@ -16,6 +16,7 @@ import { googleMapsUrl, projectEquirectangular } from "@/lib/places";
 import { COUNTRIES, WORLD_VIEWBOX } from "@/lib/world-map";
 import { calcAge, formatLong, lifeSpan } from "@/lib/date";
 import { zodiacSign, zodiacKey, elementKey, traitsOf, traitKey } from "@/lib/zodiac";
+import { ascendant } from "@/lib/ascendant";
 import {
   describeRelation,
   genitive,
@@ -138,6 +139,13 @@ export default function PersonDrawer({
    * kişide `birthDate` taşınmadığından burç kendiliğinden boş kalır.
    */
   const zodiac = zodiacSign(person.birthDate);
+  /*
+   * Yükselen, güneş burcundan farklı olarak TAM tarih + saat + koordinat
+   * ister; üçünden biri eksikse `null` döner ve hiç çizilmez. Maskeli
+   * kişide `birthTime` ve `birthCoords` zaten taşınmadığı için (beyaz
+   * liste) kendiliğinden boş kalıyor — burcun kendisi gibi.
+   */
+  const yukselen = ascendant(person.birthDate, person.birthTime, person.birthCoords);
   const years = lifeSpan(person.birthDate, person.deathDate);
 
   // Zaman çizelgesi: doğum + yaşam olayları + vefat tek bir dikey akışta.
@@ -365,6 +373,37 @@ export default function PersonDrawer({
                       ))}
                     </div>
                     <p className="mt-1 text-[10px] text-text-subtle">{t("zodiac.traitsNote")}</p>
+                  </div>
+                </div>
+              )}
+              {/*
+                YÜKSELEN. Kesin değilse burç YAZILMIYOR: kaydedilen saatin
+                hangi dilime ait olduğunu bilmiyoruz ve 1 saatlik fark yarım
+                burca varabiliyor. Adayları gösterip "kesin değil" demek,
+                ikisinden birini seçip kesinmiş gibi sunmaktan dürüst.
+              */}
+              {yukselen && (
+                <div className="flex items-start gap-2.5">
+                  <span className="text-sm w-5 text-center shrink-0" aria-hidden>🌅</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] text-text-subtle">{t("asc.label")}</span>
+                    {yukselen.certain && yukselen.sign ? (
+                      <p className="text-sm text-text leading-tight">
+                        {t(zodiacKey(yukselen.sign))}
+                        <span className="text-text-subtle">
+                          {" "}· {t("asc.degree", { deg: Math.floor(yukselen.candidates[0].degreeInSign) })}
+                        </span>
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-text leading-tight">
+                          {yukselen.candidates.map((c) => t(zodiacKey(c.sign))).join(" / ")}
+                        </p>
+                        <p className="mt-1 text-[10px] text-text-subtle leading-snug">
+                          {t("asc.uncertain")}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
