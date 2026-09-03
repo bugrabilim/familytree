@@ -9,6 +9,7 @@ import type { TreeMeta } from "@/lib/trees";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
+import GatheringsDialog from "@/components/GatheringsDialog";
 import PersonDrawer from "@/components/PersonDrawer";
 import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
@@ -158,6 +159,7 @@ function WorkspaceInner({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [shareHubOpen, setShareHubOpen] = useState(false);
+  const [gatheringsOpen, setGatheringsOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
   const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
@@ -832,6 +834,20 @@ function WorkspaceInner({
           onShare={role === "admin" && !publicView ? () => { setShareHubOpen(false); setShareOpen(true); } : undefined}
           onManageMembers={role === "admin" && !publicView ? () => { setShareHubOpen(false); setMembersOpen(true); } : undefined}
           onPair={role === "admin" && !publicView ? () => { setShareHubOpen(false); setPairOpen(true); } : undefined}
+          /*
+           * Etkinlikleri GÖRMEK için düzenleyici olmak gerekmiyor (katılım
+           * listesi ailenin bilgisi); DEĞİŞTİRMEK için gerekiyor. Diyalog
+           * `editable` ile o ayrımı kendi içinde yapıyor.
+           */
+          onGatherings={!publicView ? () => { setShareHubOpen(false); setGatheringsOpen(true); } : undefined}
+        />
+      )}
+
+      {gatheringsOpen && (
+        <GatheringsDialog
+          treeId={activeTreeId ?? ""}
+          editable={!readOnly}
+          onClose={() => setGatheringsOpen(false)}
         />
       )}
 
