@@ -154,7 +154,15 @@ export async function PATCH(req: NextRequest) {
       hideLiving: body.hideLiving,
       label: body.label,
       expiresDays: body.expiresDays,
-      personId: personId ?? undefined,
+      /*
+       * `?? undefined` DEĞİL.
+       *
+       * Yukarıdaki satır `null`ı bilerek koruyor ("daraltmayı kaldır") ve
+       * `updateShare` da `null`ı tam olarak öyle okuyor. Araya `?? undefined`
+       * koymak o kararı "bu alana dokunma"ya çeviriyordu; yani tek kişilik
+       * bir paylaşım bağlantısı bir daha ASLA ağacın tamamına açılamıyordu.
+       */
+      personId,
     });
     if (!shares) return NextResponse.json({ error: "Bağlantı bulunamadı" }, { status: 404 });
     return NextResponse.json(await payloadFrom(req.nextUrl.origin, shares));

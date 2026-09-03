@@ -11,19 +11,46 @@ export const ACTIVE_TREE_HEADER = "x-tree-id";
 
 export type TreeContext =
   | { ok: false; status: number }
-  | { ok: true; accountId: string; treeId: string; role: TreeRole; isFounder: boolean };
+  | {
+      ok: true;
+      accountId: string;
+      treeId: string;
+      role: TreeRole;
+      isFounder: boolean;
+      /**
+       * Bu değişikliği YAPAN kişinin kimliği — katkı akışı için.
+       *
+       * Davetli üyede kendi üye kimliği, kurucuda ağacın kimliği.
+       * `accountId`den ayrı olması şart: o "hangi ağaç" sorusunun yanıtı ve
+       * bir ağaçtaki HERKES için aynı. Kaydetmeleri onunla imzaladığımız
+       * sürece katkı akışı kimseyi adlandıramıyor, iki farklı üyenin
+       * düzenlemesi veride de ayırt edilemiyordu.
+       */
+      authorId: string;
+    };
 
 /**
  * Oturumu iki kaynaktan çözer: önce `Authorization: Bearer` (native mobil jeton),
  * yoksa NextAuth çerez oturumu (web). Böylece tüm API rotaları hem web hem mobil
  * için çalışır — rota başına değişiklik gerekmez.
  */
-async function resolveSessionUser(): Promise<{ id: string; isFounder: boolean; role: TreeRole } | null> {
+async function resolveSessionUser(): Promise<{
+  id: string;
+  isFounder: boolean;
+  role: TreeRole;
+  memberId?: string;
+} | null> {
   const h = await headers();
   const authz = h.get("authorization");
   if (authz?.startsWith("Bearer ")) {
     const claims = await verifyMobileToken(authz.slice(7).trim());
-    if (claims) return { id: claims.sub, isFounder: claims.isFounder, role: claims.role };
+    if (claims)
+      return {
+        id: claims.sub,
+        isFounder: claims.isFounder,
+        role: claims.role,
+        memberId: claims.memberId,
+      };
     return null; // geçersiz jeton → doğrudan reddet (çerezle karışmasın)
   }
   const session = await auth();
@@ -32,6 +59,7 @@ async function resolveSessionUser(): Promise<{ id: string; isFounder: boolean; r
       id: session.user.id,
       isFounder: session.user.isFounder ?? true,
       role: (session.user.role as TreeRole | undefined) ?? "admin",
+      memberId: session.user.memberId,
     };
   }
   return null;
@@ -50,9 +78,11 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   const accountId = sessionUser.id;
   const isFounder = sessionUser.isFounder;
   const homeRole = sessionUser.role;
+  // Kurucuda üye kimliği yok; ağacın kimliği onu temsil eder.
+  const authorId = sessionUser.memberId ?? accountId;
 
   if (!isFounder) {
-    return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: false };
+    return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: false, authorId };
   }
 
   // Aktif ağaç seçimi: mobil `x-tree-id` başlığı, yoksa web çerezi.
@@ -61,8 +91,8 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   if (cookieVal && cookieVal !== accountId) {
     const owned = await accessibleTreeIds(accountId);
     if (hasTreeAccess(accountId, cookieVal, owned)) {
-      return { ok: true, accountId, treeId: cookieVal, role: "admin", isFounder: true };
+      return { ok: true, accountId, treeId: cookieVal, role: "admin", isFounder: true, authorId };
     }
   }
-  return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true };
+  return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true, authorId };
 }

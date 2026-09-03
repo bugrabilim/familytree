@@ -3,6 +3,7 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { getFamilyData } from "@/lib/blob";
 import { readSnapshotsForActivity } from "@/lib/history";
 import { getTreeAccess } from "@/lib/members";
+import { findUserById } from "@/lib/users";
 import { buildActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
@@ -33,14 +34,27 @@ export async function GET() {
 
   const items = buildActivity(snapshots, people, LIMIT);
 
-  // Hesap kimliği → görünen ad. Kurucunun kimliği ağacın kimliğidir ve üye
-  // listesinde tutulmaz (bkz. `lib/members.ts`), o yüzden ayrıca eklenir.
+  /*
+   * Yazar kimliği → görünen ad.
+   *
+   * Bu yorum "kurucu ayrıca eklenir" diyordu ama o satır hiç yazılmamıştı;
+   * üstelik davetli üyeler de kendi kimlikleriyle imzalanmıyordu (oturum
+   * herkese ağacın kimliğini veriyordu). Sonuç: akıştaki HER giriş "biri"
+   * görünüyordu — özellik ölüydü. Oturum artık `authorId` taşıyor; burada
+   * da kurucunun adı gerçekten ekleniyor.
+   */
   const names: Record<string, string> = {};
   try {
     const access = await getTreeAccess(ctx.treeId);
     for (const m of access.members) names[m.id] = m.displayName;
   } catch {
     /* ad çözülemezse akış yine döner */
+  }
+  try {
+    const founder = await findUserById(ctx.treeId);
+    if (founder) names[ctx.treeId] = founder.familyName;
+  } catch {
+    /* kurucu adı çözülemezse yalnız o giriş "biri" kalır */
   }
 
   return NextResponse.json({ items, names });

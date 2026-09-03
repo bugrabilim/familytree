@@ -12,6 +12,14 @@ export interface MobileClaims {
   role: TreeRole;
   isFounder: boolean;
   treeName?: string;
+  /**
+   * Davetli ÜYENİN kendi kimliği — katkı akışının yazarı.
+   *
+   * `sub` "hangi ağaç" sorusunun yanıtı ve bir ağaçtaki herkes için aynı;
+   * bu alan "kim". Web oturumundaki `memberId` ile aynı iş. Mobilde de
+   * taşınmazsa telefondan yapılan her düzenleme akışta "biri" kalırdı.
+   */
+  memberId?: string;
 }
 
 const AUD = "soyagaci-mobile";
@@ -20,7 +28,7 @@ function secret(): Uint8Array {
 }
 
 export async function signMobileToken(c: MobileClaims): Promise<string> {
-  return new SignJWT({ name: c.name, role: c.role, isFounder: c.isFounder, treeName: c.treeName })
+  return new SignJWT({ name: c.name, role: c.role, isFounder: c.isFounder, treeName: c.treeName, memberId: c.memberId })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(c.sub)
     .setAudience(AUD)
@@ -39,6 +47,7 @@ export async function verifyMobileToken(token: string): Promise<MobileClaims | n
       role: (payload.role as TreeRole) ?? "admin",
       isFounder: payload.isFounder !== false,
       treeName: typeof payload.treeName === "string" ? payload.treeName : undefined,
+      memberId: typeof payload.memberId === "string" ? payload.memberId : undefined,
     };
   } catch {
     return null;

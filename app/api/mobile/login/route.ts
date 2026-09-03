@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     role: user.role,
     isFounder: user.isFounder,
     treeName: user.treeName,
+    memberId: user.memberId,
   });
 
   return NextResponse.json({

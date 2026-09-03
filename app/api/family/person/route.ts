@@ -135,6 +135,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await saveFamilyData(userId, data, { by: ctx.accountId });
+  await saveFamilyData(userId, data, { by: ctx.authorId });
   return NextResponse.json(person, { status: 201 });
 }

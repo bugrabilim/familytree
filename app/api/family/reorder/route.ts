@@ -34,6 +34,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (changed) await saveFamilyData(userId, data, { by: ctx.accountId });
+  if (changed) await saveFamilyData(userId, data, { by: ctx.authorId });
   return NextResponse.json({ success: true });
 }
