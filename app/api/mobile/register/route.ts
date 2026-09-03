@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
 import { signMobileToken } from "@/lib/mobile-token";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ function generateRecoveryCode(): string {
  */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
-  const rl = rateLimit(`mobile:register:${ip}`, { capacity: 5, refillPerSec: 0.02 });
+  const rl = await rateLimitShared(`mobile:register:${ip}`, { capacity: 5, refillPerSec: 0.02 });
   if (!rl.ok)
     return NextResponse.json(
       { error: "Çok fazla deneme. Lütfen biraz bekleyin." },

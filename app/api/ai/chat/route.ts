@@ -3,7 +3,7 @@ import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts } from "@/lib/gemini";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit";
 import { buildChatPrompt } from "@/lib/ai-chat";
 
 /** 429 yanıtı — hız sınırı aşıldığında. */
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
-  const rl = rateLimit(`ai:chat:${ctx.accountId}`, { capacity: 8, refillPerSec: 0.12 });
+  const rl = await rateLimitShared(`ai:chat:${ctx.accountId}`, { capacity: 8, refillPerSec: 0.12 });
   if (!rl.ok) return tooMany(rl.retryAfter);
   if (!isGeminiConfigured())
     return NextResponse.json({ error: "AI yapılandırılmamış (GEMINI_API_KEY)." }, { status: 503 });
