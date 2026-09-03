@@ -1,6 +1,6 @@
 import { put, list, get } from "@vercel/blob";
 import type { User, UsersData } from "@/types/user";
-import { dbUpdateAccountPassword, dbUpsertAccount } from "@/lib/db";
+import { dbRenameTree, dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 
 const USERS_PATHNAME = "users.json";
@@ -66,6 +66,31 @@ export async function createUser(
   } catch (e) {
     console.warn(`[cift-yazma] account→postgres (${user.id}):`, (e as Error).message);
   }
+  /*
+   * EV AĞACININ SATIRI DA BURADA AÇILIYOR — yoksa ayna o hesap için TAMAMEN
+   * ölü kalıyordu.
+   *
+   * `people.tree_id` → `trees(id)` yabancı anahtarı var. Ev ağacının satırını
+   * kimse oluşturmuyordu: `lib/trees.ts` `createTree` yalnız EK ağaçlar için
+   * (`isHome: false`) ve tek diğer yer yönetim göç ucu. Yani yeni kaydolan bir
+   * kullanıcının eklediği her kişi FK'ya takılıyor, hata da "best-effort"
+   * aynanın `console.warn`ında kayboluyordu: Blob'da 300 kişi, Postgres'te
+   * sıfır — ve hiçbir yerde hata görünmüyor.
+   *
+   * Ev ağacı hesapla BİRLİKTE var oluyor (treeId === accountId), o yüzden
+   * satırı da burada, hesabın yanında açılmalı.
+   */
+  try {
+    await dbUpsertTree({
+      treeId: user.id,
+      ownerAccount: user.id,
+      name: user.familyName,
+      isHome: true,
+      createdAt: user.createdAt,
+    });
+  } catch (e) {
+    console.warn(`[cift-yazma] ev agaci→postgres (${user.id}):`, (e as Error).message);
+  }
   // Faz 3c — yeni founder'ı Supabase Auth'a da aktar (mevcut bcrypt hash'iyle),
   // böylece bayrak açıkken Supabase üzerinden giriş yapabilir. Yalnız gerçek
   // (UUID) hesaplar; demo (UUID değil) dışlanır. Best-effort — kaydı bozmaz.
@@ -128,6 +153,17 @@ export async function claimGuestUser(
     await dbUpsertAccount(user);
   } catch (e) {
     console.warn(`[cift-yazma] sahiplenme→postgres (${user.id}):`, (e as Error).message);
+  }
+  /*
+   * Ev ağacının ADI da soyadı takip etmeli. Misafir ağacı "Misafir ağacı"
+   * adıyla açıldı; sahiplenme onu gerçek bir soyada çeviriyor ve ağaç satırı
+   * eski adla kalırsa yönetim/kayma ekranlarında hesap bir adla, ağacı başka
+   * bir adla görünürdü.
+   */
+  try {
+    await dbRenameTree(user.id, user.familyName);
+  } catch (e) {
+    console.warn(`[cift-yazma] sahiplenme agac adi (${user.id}):`, (e as Error).message);
   }
   return user;
 }

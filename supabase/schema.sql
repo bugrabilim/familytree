@@ -107,6 +107,13 @@ create or replace function public.consume_rate_limit(
   p_now_ms     bigint
 ) returns table (allowed boolean, retry_after integer)
 language plpgsql
+-- `search_path` SABİTLENİYOR. Boş bırakılırsa arama yolu ÇAĞIRANIN elinde olur
+-- ve gövdedeki nitelenmemiş her ad (tip adları dâhil) çağıranın yoluna göre
+-- çözülür; kendi şemasında nesne yaratabilen biri işlevi kendi tablosuna
+-- bakmaya ikna edebilir. Gövde zaten `public.rate_limits` diye tam nitelenmiş,
+-- yerleşik işlevler de `pg_catalog`ta örtük olarak bulunuyor — bu yüzden boş
+-- yol güvenli ve en dar olanı. (Supabase denetleyicisi: 0011.)
+set search_path = ''
 as $$
 declare
   v_cap      double precision := greatest(1, p_capacity);
