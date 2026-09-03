@@ -470,6 +470,10 @@ export const tr: Dict = {
   "login.demoButton": "Demo ağacını şifresiz incele",
   "login.demoNote":
     "Örnek bir aile ağacı. Herkese açık ve ortak — her girişte baştan yüklenir, dilediğin gibi kurcalayabilirsin.",
+  "login.guestButton": "Hesap açmadan dene",
+  "login.guestLoading": "Misafir ağacı hazırlanıyor…",
+  "login.guestFailed": "Misafir ağacı açılamadı.",
+  "login.guestNote": "Size özel, geçici bir ağaç açılır. Yapay zekâ, dosya yükleme, davet ve paylaşım kapalıdır; istediğinizde ad ve şifre verip ağacı sahiplenebilirsiniz.",
   "login.demoFailed": "Demo açılamadı. Lütfen tekrar deneyin.",
 
   "register.title": "Ailenin ağacını kur",
@@ -2398,6 +2402,10 @@ export const en: Dict = {
   "login.demoButton": "Explore the demo tree without a password",
   "login.demoNote":
     "A sample family tree. Public and shared — reloaded fresh on every visit, so tinker with it however you like.",
+  "login.guestButton": "Try without an account",
+  "login.guestLoading": "Preparing your guest tree…",
+  "login.guestFailed": "Could not open a guest tree.",
+  "login.guestNote": "Opens a private, temporary tree. AI, file upload, invites and sharing are off; give it a name and password any time to claim it.",
   "login.demoFailed": "Couldn’t open the demo. Please try again.",
 
   "register.title": "Build your family tree",

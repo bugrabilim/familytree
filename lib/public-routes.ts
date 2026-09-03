@@ -19,7 +19,21 @@ export const PUBLIC_ASSET_EXT =
   /\.(?:webp|webm|mp4|png|jpe?g|gif|svg|ico|avif|woff2?|txt|xml|webmanifest)$/i;
 
 /** Yalnız TAM eşleşme herkese açık. */
-export const PUBLIC_EXACT: readonly string[] = ["/", "/favicon.ico"];
+export const PUBLIC_EXACT: readonly string[] = [
+  "/",
+  "/favicon.ico",
+  /*
+   * Misafir hesap açma (Faz 3d). Oturumu OLMAYAN biri için hesap açıyor;
+   * oturum duvarının arkasında hiç çalışamaz — `/api/register` ile aynı
+   * konumda.
+   *
+   * TAM eşleşme listesinde, önek listesinde DEĞİL: önek olsaydı
+   * `/api/guest/claim` de açılırdı ve sahiplenme oturum ister (kimin ağacı
+   * sahiplenildiğini ancak oturum söyler). Korumaları kendi içinde: sert
+   * oran sınırı ve "zaten oturum varsa açma".
+   */
+  "/api/guest",
+];
 
 /**
  * Kendisi ve ALTINDAKİ her yol herkese açık. Eşleşme `p === önek` ya da

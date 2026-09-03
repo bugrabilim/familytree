@@ -92,7 +92,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 | 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
 | 39 | Storyworth için ayrı giriş kapısı | E | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor |
 | 40 | **e-Devlet PDF'ini birincil onboarding yapmak** | E | Ayrıştırıcı zaten çalışıyor → bu yeni yetenek değil, **canlı ilk-temas akışının yeniden yazımı**. "Bozarsan herkes görür" katsayısı en yüksek iş |
-| 41 | Supabase Faz 3d — misafir giriş | E | Kimliksiz hesap türü `isFounder`/`treeId` çözümünün her dalını etkiler |
+| 41 | Supabase Faz 3d — misafir giriş | E | Kimliksiz hesap türü `isFounder`/`treeId` çözümünün her dalını etkiler | ✅
 | 42 | Supabase Faz 3e — e-posta ile kalıcılaştırma | E | Çalışan hesapların kimlik anahtarını yerinde değiştirmek | ✅
 | 43 | Blob ↔ Supabase kayma denetimi | E | İki kaynağın ayrışmadığını gösteren araç yok. **45'in gerçek ön koşulu** | ✅
 | 44 | Çevrimdışı yakalama + senkron | E | **Yalnız mobilde.** İyimser kilitle (`x-base-version`) çakışıyor. 29'a bağlı |

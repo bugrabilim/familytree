@@ -11,6 +11,8 @@ export interface MobileClaims {
   name?: string;
   role: TreeRole;
   isFounder: boolean;
+  /** Misafir oturumu (Faz 3d). Yokluğu 'gerçek hesap' demek. */
+  isGuest?: boolean;
   treeName?: string;
   /**
    * Davetli ÜYENİN kendi kimliği — katkı akışının yazarı.
@@ -28,7 +30,7 @@ function secret(): Uint8Array {
 }
 
 export async function signMobileToken(c: MobileClaims): Promise<string> {
-  return new SignJWT({ name: c.name, role: c.role, isFounder: c.isFounder, treeName: c.treeName, memberId: c.memberId })
+  return new SignJWT({ name: c.name, role: c.role, isFounder: c.isFounder, treeName: c.treeName, memberId: c.memberId, isGuest: c.isGuest === true })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(c.sub)
     .setAudience(AUD)
@@ -46,6 +48,8 @@ export async function verifyMobileToken(token: string): Promise<MobileClaims | n
       name: typeof payload.name === "string" ? payload.name : undefined,
       role: (payload.role as TreeRole) ?? "admin",
       isFounder: payload.isFounder !== false,
+      // `=== true`: eski jetonda alan yok ve orada misafir olmamak doğru.
+      isGuest: payload.isGuest === true,
       treeName: typeof payload.treeName === "string" ? payload.treeName : undefined,
       memberId: typeof payload.memberId === "string" ? payload.memberId : undefined,
     };

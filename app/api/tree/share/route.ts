@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { auth } from "@/auth";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { canDo } from "@/lib/guest";
 import { getFamilyData } from "@/lib/blob";
 import { canManage } from "@/lib/roles";
 import { listTrees } from "@/lib/trees";
@@ -30,6 +31,13 @@ export const maxDuration = 30;
 async function guard() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
+  /*
+   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir hesabı
+   * sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen ya da kendi
+   * ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
+   */
+  if (!canDo(ctx.isGuest, "share"))
+    return { error: NextResponse.json({ error: "Misafir hesapta paylaşım bağlantısı kapalı. Ağacınızı sahiplenin." }, { status: 403 }) };
   if (!canManage(ctx.role))
     return { error: NextResponse.json({ error: "Yalnız ağaç yöneticisi paylaşabilir." }, { status: 403 }) };
 
