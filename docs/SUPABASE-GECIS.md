@@ -74,9 +74,22 @@ verilir; bu adrese e-posta gönderilmez (Faz 3e'de gerçek e-postayla değişir)
     Providers → **Email açık**; (2) `NEXT_PUBLIC_SUPABASE_ANON_KEY` mevcut;
     (3) hesaplar göç aracıyla Auth'a aktarılmış (3b).
 - **Faz 3d — hesapsız (misafir) giriş:** Supabase Anonymous sign-in.
-- **Faz 3e — gerçek e-posta ile bağlama:** kullanıcı sentetik e-postayı kendi
-  e-postasıyla değiştirip hesabını kalıcılaştırır (doğrulama + parola sıfırlama
-  Supabase'in yerleşik akışlarıyla).
+- **Faz 3e — gerçek e-posta ile bağlama (bitti):** hesaba KİMLİK e-postası
+  bağlanır (`lib/account-email.ts`, `/api/account/email`). `notifyEmail`den
+  AYRI bir alan — o bildirim adresi, bu hesabı geri almanın yolu; güven
+  eşikleri aynı olmadığı için birleştirilmedi.
+  - **İki kural.** (1) Doğrulanmamış adres asla kurtarma yolu değildir
+    (`canRecoverByEmail` — madde 51 bunu tek kapı olarak kullanacak).
+    (2) Adres değişince doğrulama sıfırlanır; yoksa kullanıcı kendi adresini
+    doğrulayıp başkasınınkiyle değiştirerek doğrulanmış bir yabancı adres
+    elde ederdi.
+  - **Tekillik doğrulamada zorlanır**, bağlamada değil: birinin yazım hatası
+    gerçek sahibin adresini kilitlememeli.
+  - **Supabase tarafı:** adres yazma `email_confirm` GÖNDERMEZ; onay ayrı bir
+    işlevde (`confirmAccountAuthEmail`), yalnız doğrulama tamamlanınca.
+  - **Teslimat 54'e bağlı.** Jeton üretilip saklanıyor ama e-posta sağlayıcısı
+    olmadan gönderilemiyor; uç `deliverable: false` döndürüyor ve arayüz
+    "gönderildi" demiyor. Sağlayıcı gelince hiçbir kod değişmeden çalışır.
 
 ## Kayma denetimi (K4/43) — Faz 4'ün ön koşulu
 

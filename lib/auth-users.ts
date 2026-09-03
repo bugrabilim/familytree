@@ -161,3 +161,37 @@ export async function updateAccountAuthPassword(accountId: string, newPassword: 
   const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, { password: newPassword });
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Supabase Auth kullanıcısının e-postasını günceller (Faz 3e).
+ *
+ * `email_confirm` BİLEREK verilmiyor: adres bizim tarafımızda henüz
+ * doğrulanmadı ve Supabase'e "doğrulandı" demek, kendi kurduğumuz kuralı
+ * (doğrulanmamış adres kurtarma yolu değildir) Supabase üzerinden delmek
+ * olurdu. Doğrulama bizde tamamlanınca `confirmAccountAuthEmail` çağrılır.
+ *
+ * Adres BOŞSA hesap sentetik iç adresine geri döner — Auth kullanıcısı
+ * e-postasız kalamaz.
+ */
+export async function updateAccountAuthEmail(accountId: string, email: string): Promise<void> {
+  if (!isSupabaseConfigured() || !isUuid(accountId)) return;
+  const hedef = email.trim() || authEmailForAccount(accountId);
+  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, { email: hedef });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Doğrulama bizde tamamlandığında Supabase tarafını da doğrulanmış işaretler.
+ *
+ * Ayrı bir işlev olması şart: "adresi yaz" ile "adresi doğrulanmış say" iki
+ * farklı yetki. Tek çağrıda birleştirilseydi her yazma sessizce bir doğrulama
+ * olurdu.
+ */
+export async function confirmAccountAuthEmail(accountId: string, email: string): Promise<void> {
+  if (!isSupabaseConfigured() || !isUuid(accountId) || !email.trim()) return;
+  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, {
+    email: email.trim(),
+    email_confirm: true,
+  });
+  if (error) throw new Error(error.message);
+}
