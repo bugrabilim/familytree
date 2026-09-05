@@ -190,6 +190,26 @@ export async function updateUserAuthEmail(
   return true;
 }
 
+/**
+ * Bekleyen ŞİFRE SIFIRLAMA jetonunu yazar/temizler (madde 51).
+ *
+ * `updateUserAuthEmail`den ayrı bir işlev: o ADRES doğrulama jetonunu
+ * yönetiyor, bu HESABIN KENDİSİNİ veren jetonu. İkisini tek işlevde
+ * toplamak, bir çağıranın yanlışlıkla ötekini ezmesini kolaylaştırırdı.
+ */
+export async function updateUserResetToken(
+  id: string,
+  patch: { resetTokenHash: string | null; resetTokenExpires: string | null }
+): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user) return false;
+  user.resetTokenHash = patch.resetTokenHash || undefined;
+  user.resetTokenExpires = patch.resetTokenExpires || undefined;
+  await saveUsersData(data);
+  return true;
+}
+
 export async function updateUserPassword(
   familyName: string,
   newPasswordHash: string
@@ -200,6 +220,17 @@ export async function updateUserPassword(
   );
   if (!user) return false;
   user.passwordHash = newPasswordHash;
+  /*
+   * ŞİFRE DEĞİŞTİ → BEKLEYEN SIFIRLAMA JETONU DÜŞER.
+   *
+   * Yoksa şu açık kalırdı: kullanıcı e-postayla sıfırlama bağlantısı ister,
+   * sonra kurtarma koduyla şifresini kendi değiştirir — ama postadaki
+   * bağlantı bir saat daha geçerli kalır. O postayı ele geçiren biri
+   * kullanıcının YENİ şifresini de sıfırlayabilirdi. Şifre değiştiği anda
+   * bekleyen jeton anlamını yitirmeli, hangi yoldan değişmiş olursa olsun.
+   */
+  user.resetTokenHash = undefined;
+  user.resetTokenExpires = undefined;
   await saveUsersData(data);
   // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
   try {

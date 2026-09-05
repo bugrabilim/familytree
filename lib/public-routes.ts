@@ -58,6 +58,13 @@ export const PUBLIC_PREFIXES: readonly string[] = [
    */
   "/verify-email",
   "/api/account/email/verify",
+  /*
+   * Şifre sıfırlama sayfası (madde 51). Aynı gerekçe: bağlantı POSTADAN
+   * geliyor ve şifresini unutmuş kullanıcının tanımı gereği oturumu YOK.
+   * Oturum duvarına takılsaydı sıfırlama hiçbir zaman tamamlanamazdı.
+   * Kimlik jetonun kendisinde ve jeton tek kullanımlık.
+   */
+  "/reset-password",
   "/api/auth",
   "/api/register",
   "/api/reset-password",

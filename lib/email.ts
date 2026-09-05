@@ -15,6 +15,16 @@ export interface SendEmailInput {
   subject: string;
   html?: string;
   text?: string;
+  /**
+   * Yanıtların gideceği adres. Verilmezse `EMAIL_REPLY_TO` kullanılır.
+   *
+   * Bu alan olmadan yanıtlar `EMAIL_FROM` adresine gidiyordu ve o adresin bir
+   * POSTA KUTUSU OLMAK ZORUNDA DEĞİL: gönderen alan adını doğrulamak yalnız
+   * göndermeye yetki verir, gelen postayı kimse almaz. Yani aile üyesi
+   * hatırlatmaya "annemin doğum tarihi yanlış" diye yanıt verdiğinde o posta
+   * hiçbir yere ulaşmıyordu — sessizce kaybolan bir geri bildirim kanalı.
+   */
+  replyTo?: string;
 }
 
 export type SendResult =
@@ -24,6 +34,16 @@ export type SendResult =
 /** E-posta gönderimi yapılandırılmış mı? (anahtar + gönderen adresi var mı) */
 export function isEmailConfigured(): boolean {
   return !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+}
+
+/**
+ * Yanıtların okunacağı adres var mı?
+ *
+ * Yoksa gönderim yine çalışır ama yanıtlar kaybolur; arayüz/belge bunu
+ * söyleyebilsin diye ayrı sorulabiliyor.
+ */
+export function replyAddress(): string | null {
+  return process.env.EMAIL_REPLY_TO?.trim() || null;
 }
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
@@ -44,6 +64,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
       body: JSON.stringify({
         from,
         to: Array.isArray(input.to) ? input.to : [input.to],
+        // Yanıt adresi: çağıran belirtmediyse ortam değişkeninden.
+        ...(() => {
+          const r = input.replyTo?.trim() || replyAddress();
+          return r ? { reply_to: r } : {};
+        })(),
         subject: input.subject,
         ...(input.html ? { html: input.html } : {}),
         ...(input.text ? { text: input.text } : {}),
