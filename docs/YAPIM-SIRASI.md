@@ -105,11 +105,11 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 | # | İş | Ben teslim ederim | Senden gereken |
 |---|---|---|---|
 | 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar | ✅ **çalışıyor** (#249, #251, #252) — harici hedef kararı hâlâ sende |
-| 47 | Otomatik aile bülteni | cron + şablon (`reminders` kalıbı hazır) | **e-posta anahtarı (54)** |
-| 48 | Anma Takvimi bildirimi | mevcut cron rotasına ek | **e-posta anahtarı (54)** |
-| 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | **e-posta anahtarı (54)** |
-| 50 | Hikâye talebi | 49'un ikinci yüzü, aynı boru hattı | **e-posta anahtarı (54)** |
-| 51 | E-posta ile şifre sıfırlama | akış + jeton + test | **e-posta anahtarı (54)** |
+| 47 | Otomatik aile bülteni | cron + şablon | ✅ **çalışıyor** — günlük işin içinde, ayın ilk günü |
+| 48 | Anma Takvimi bildirimi | mevcut cron rotasına ek | ✅ **çalışıyor** — ayrıca ağaçtaki kişilere çift onaylı gönderim (#260, #261) |
+| 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | 🔸 çekirdek hazır (#258); talep deposu, yanıt ucu ve onay ekranı kaldı |
+| 50 | Hikâye talebi | 49'un ikinci yüzü, aynı boru hattı | 🔸 49 ile birlikte |
+| 51 | E-posta ile şifre sıfırlama | akış + jeton + test | ✅ **çalışıyor** — elle test edildi; kurtarma kodu yolu da artık ağaç adı istemiyor (#262) |
 | 52 | Fotoğraf zenginleştirme | yalnız deterministik dönüşüm (`e_improve`/`e_sharpen`/`e_upscale`) | Cloudinary eklenti/kota kararı |
 | 53 | Toplu fotoğraf tarama/restorasyon | toplu yükleme hattı | kota/maliyet onayı |
 
