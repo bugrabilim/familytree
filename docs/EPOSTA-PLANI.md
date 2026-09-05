@@ -42,6 +42,38 @@ Aşağıdakiler **kodlandı ve no-op-güvenli** (anahtar yoksa hiçbir şey gitm
 Bunlar eklenince hatırlatmalar kendiliğinden çalışmaya başlar; kod değişikliği
 gerekmez.
 
+## ✅ Anahtar geldi — altyapı CANLIDA (2026-09-05, madde 54)
+
+Resend hesabı açıldı, `soylus.com` doğrulandı (DKIM + SPF, DNS kayıtları Vercel
+üzerinden otomatik), `RESEND_API_KEY` (yalnız *sending* yetkili) ve
+`EMAIL_FROM` production'a eklendi.
+
+**Uçtan uca test edildi** — kimlik e-postası akışıyla (madde 42):
+gönderim → teslim (spam'e düşmedi) → jetonlu bağlantı → doğrulama → kayıt.
+
+### Buradan açılan işler
+
+| # | İş | Durum |
+|---|---|---|
+| 47 | Otomatik aile bülteni | açıldı, bende |
+| 48 | Anma Takvimi bildirimi | açıldı, bende |
+| 49 | Dışa dönük soru/istem motoru | açıldı, bende (**onay kuyruğu kararı** gerekiyor) |
+| 50 | Hikâye talebi | açıldı, bende (49'un ikinci yüzü) |
+| 51 | E-postayla şifre sıfırlama | açıldı, bende — bugün yalnız kurtarma kodu var |
+
+### Dikkat: Hobby planında cron sınırı
+
+`vercel.json` bugün iki iş taşıyor (`reminders`, `backup`) ve plan Hobby.
+47 ve 48 yeni birer cron olarak eklenmek yerine **mevcut günlük rotanın
+içine** katılmalı; yoksa sınıra takılırız.
+
+### Dikkat: kimlik e-postası ≠ bildirim e-postası
+
+`authEmail` (kimlik/kurtarma) ile `notifyEmail` (hatırlatma) **ayrı alanlar**
+ve bu bilinçli (`lib/account-email.ts` başında gerekçesi var). Kimlik
+e-postasını doğrulamak, kullanıcıyı hatırlatmalara ABONE ETMEZ; onun için
+Ayarlar'dan bildirim adresi + onay ayrıca verilmeli.
+
 ## Kullanıcının istediği e-posta yetenekleri (2026-08 notu)
 
 > "Eposta işleri yapılacaklar notlarında tut, sonra sorunca söylersin."
