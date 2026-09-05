@@ -66,6 +66,26 @@ check(/if \(s === null\) continue;/.test(lib), "tanınmayan damga silinmiyor");
 check(/Number\.isFinite\(keep\)/.test(lib), "sayı olmayan `keep` hepsini silmeye dönüşmüyor");
 check(/export const BACKUP_PREFIX = "backups\/";/.test(lib), "yedekler tek bir kökte");
 
+/* --- SONUÇ GÜNLÜĞE YAZILIYOR ------------------------------------------- */
+/*
+ * Bu işi cron tetikliyor; yanıt gövdesini okuyan bir insan ya da istemci YOK.
+ * Sağlayıcı günlüğünde yalnız durum kodu göründüğü için "200 döndü ama sıfır
+ * dosya kopyaladı" hâli tamamen görünmezdi: hata yok, uyarı yok, yedek de
+ * yok. Bu depoda aynı sessizlik türü bir kez Postgres aynasını aylarca ölü
+ * tuttu — orada da her şey "başarılı" görünüyordu.
+ */
+check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
+check(/if \(copied === 0\) console\.warn\(/.test(rota),
+  "sıfır kopya UYARI seviyesinde (200 içinde saklı başarısızlık)");
+check(/console\.error\(`\[yedek\]/.test(rota), "sert hata da günlüğe düşüyor");
+{
+  // Özet, kararı verdiren sayıları taşımalı — yoksa günlük yine okunamaz.
+  const iOzet = rota.indexOf("const satir =");
+  const ozet = rota.slice(iOzet, rota.indexOf("return NextResponse.json({ ok: true", iOzet));
+  for (const alan of ["copied", "failed", "removed", "bytes"])
+    check(ozet.includes(`${alan}`), `günlük satırı ${alan} taşıyor`);
+}
+
 /* --- Zamanlama tanımlı mı ----------------------------------------------- */
 /*
  * Rota yazılıp cron'a bağlanmazsa hiç koşmaz; "yedek var" sanmak, yedek
