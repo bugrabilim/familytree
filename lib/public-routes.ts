@@ -92,6 +92,16 @@ export const PUBLIC_PREFIXES: readonly string[] = [
    */
   "/hikaye",
   "/api/hikaye",
+  /*
+   * GELEN POSTA webhook'u. Oturumsuz olmak ZORUNDA: posta sunucusu bize
+   * oturum açamaz. Kimlik isteğin İMZASINDA (`lib/webhook-signature.ts`) ve
+   * sır yoksa uç kapalı düşüyor.
+   *
+   * Yalnız `/api/inbound` altı açık; gelen kutusunu OKUYAN uç
+   * (`/api/admin/inbox`) ve ekranı (`/admin/posta`) bu listede DEĞİL —
+   * ikisi de oturum ve işletmeci yetkisi istiyor.
+   */
+  "/api/inbound",
   "/_next",
   // Vercel Analytics / Speed Insights betikleri.
   "/_vercel",

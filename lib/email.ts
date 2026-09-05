@@ -25,6 +25,14 @@ export interface SendEmailInput {
    * hiçbir yere ulaşmıyordu — sessizce kaybolan bir geri bildirim kanalı.
    */
   replyTo?: string;
+  /**
+   * Ek başlıklar — yanıt zinciri için (`In-Reply-To`, `References`).
+   *
+   * Bunlar olmadan bir yanıt, posta istemcisinde AYRI bir konu gibi düşer ve
+   * karşı taraf neyin yanıtı olduğunu anlamaz. Serbest bırakılması bilinçli
+   * ama dar: çağıranlar `lib/inbox.ts`teki `threadHeaders`ı kullanıyor.
+   */
+  headers?: Record<string, string>;
 }
 
 export type SendResult =
@@ -69,6 +77,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
           const r = input.replyTo?.trim() || replyAddress();
           return r ? { reply_to: r } : {};
         })(),
+        ...(input.headers && Object.keys(input.headers).length ? { headers: input.headers } : {}),
         subject: input.subject,
         ...(input.html ? { html: input.html } : {}),
         ...(input.text ? { text: input.text } : {}),
