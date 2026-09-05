@@ -121,8 +121,29 @@ export async function GET(req: NextRequest) {
       removed,
       keptSnapshots: plan.keep.length,
     };
+
+    /*
+     * ÖZET GÜNLÜĞE YAZILIYOR — yanıt gövdesi kimsenin görmediği yere gidiyor.
+     *
+     * Bu işi bir cron tetikliyor; yanıtı okuyan bir insan ya da istemci yok.
+     * Sağlayıcı günlüğünde yalnız durum kodu görünüyordu ve bir yedek işi için
+     * asıl tehlikeli hâl "200 döndü ama SIFIR dosya kopyaladı": hata yok,
+     * uyarı yok, yedek de yok. Aynı sessizlik türü bu depoda bir kez
+     * Postgres aynasını aylarca ölü tuttu.
+     *
+     * `copied === 0` ayrıca `warn` seviyesinde: 200 yanıtı içinde saklı bir
+     * başarısızlık, günlükte de başarısızlık gibi görünmeli.
+     */
+    const satir =
+      `[yedek] ${stamp} — kopyalanan ${copied}, atlanan ${failed}, ` +
+      `silinen ${removed}, saklanan görüntü ${plan.keep.length}, ${bytes} bayt`;
+    if (copied === 0) console.warn(`${satir} — HİÇBİR ŞEY KOPYALANMADI`);
+    else console.log(satir);
+
     return NextResponse.json({ ok: true, ...summary });
   } catch (e) {
+    // Aynı gerekçe: yanıtı okuyan kimse yok, hata günlüğe düşmeli.
+    console.error(`[yedek] ${stamp} — BAŞARISIZ:`, (e as Error).message);
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
