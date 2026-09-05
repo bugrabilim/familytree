@@ -23,6 +23,17 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_... node scripts/backup.mjs
 **her şeyi** `backups/<YYYY-AA-GG>/…` altına kopyalıyor. Varsayılan 14 günlük
 görüntü saklanır.
 
+**Canlıda doğrulandı (2026-09-05):** ilk koşu 10 dosya / 2.735.267 bayt
+kopyaladı; bayt sayısı Blob panelinin bildirdiği depo boyutuyla (2,74 MB)
+birebir örtüşüyor — yani yalnız dosya sayısı değil içerikleri de tam.
+
+> **Özel depo tuzağı.** Bu depo `private`. Blob URL'ine düz `fetch` atılmaz;
+> `get(pathname, { access: "private" })` gerekir. İlk sürüm bunu yanlış
+> yapıyordu ve iş **200 dönerken sıfır dosya kopyalıyordu** (#252). Aynı hata
+> `scripts/backup.mjs`te de vardı, yani aşağıdaki elle yedek komutu da hiçbir
+> şey indirmiyordu. İkisi de düzeltildi ve `tests/backup-gate.test.mts` bu
+> kuralı her iki dosya için kilitliyor.
+
 **Neden ağaç verisinden fazlası.** `family-history-<treeId>.json` her ağacın
 kişi listesinin geçmişini zaten tutuyor. Geçmişi **olmayan** blob'lar ise
 şunlar ve en kritikleri onlar:
