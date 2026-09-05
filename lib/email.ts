@@ -56,12 +56,17 @@ export function replyAddress(): string | null {
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
-export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    return { sent: false, reason: "not-configured" };
-  }
+/**
+ * Tek bir gönderim denemesi. `httpRed` alanı ÖNEMLİ: isteğin sunucuya
+ * ulaşıp REDDEDİLDİĞİNİ (yani kesinlikle gönderilmediğini) söylüyor.
+ * Fırlatılan hatada bu bilinemez — istek gitmiş de olabilir.
+ */
+async function denemeGonder(
+  input: SendEmailInput,
+  apiKey: string,
+  from: string,
+  basliklarla: boolean
+): Promise<SendResult & { httpRed?: boolean }> {
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: "POST",
@@ -77,7 +82,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
           const r = input.replyTo?.trim() || replyAddress();
           return r ? { reply_to: r } : {};
         })(),
-        ...(input.headers && Object.keys(input.headers).length ? { headers: input.headers } : {}),
+        ...(basliklarla && input.headers && Object.keys(input.headers).length
+          ? { headers: input.headers }
+          : {}),
         subject: input.subject,
         ...(input.html ? { html: input.html } : {}),
         ...(input.text ? { text: input.text } : {}),
@@ -85,7 +92,12 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      return { sent: false, reason: "error", error: `${res.status} ${detail}`.slice(0, 300) };
+      return {
+        sent: false,
+        reason: "error",
+        error: `${res.status} ${detail}`.slice(0, 300),
+        httpRed: true,
+      };
     }
     const data = (await res.json().catch(() => null)) as { id?: string } | null;
     return { sent: true, id: data?.id };
@@ -93,3 +105,42 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     return { sent: false, reason: "error", error: (e as Error).message };
   }
 }
+
+/**
+ * Postayı gönderir.
+ *
+ * ## Özel başlık reddedilirse posta YİNE DE gidiyor
+ *
+ * Yanıtlarda `In-Reply-To`/`References` gönderiliyor ki yanıt, alıcının
+ * posta istemcisinde özgün iletinin altına düşsün. Ama bazı sağlayıcılar
+ * bu "ayrılmış" başlıkların özel başlık alanından ayarlanmasını reddediyor
+ * ve o durumda İSTEĞİN TAMAMI hata döner — yani zincirleme uğruna yanıtın
+ * kendisi hiç gitmez.
+ *
+ * Zincirleme bir incelik, teslim ise işin kendisi. HTTP reddi alınırsa
+ * başlıksız BİR KEZ daha deneniyor.
+ *
+ * Yeniden deneme YALNIZ HTTP reddinde: fırlatılan hatada (ağ kopması,
+ * zaman aşımı) isteğin gidip gitmediği bilinemez ve körlemesine tekrar
+ * denemek alıcıya AYNI postayı iki kez göndermek olabilirdi.
+ */
+export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    return { sent: false, reason: "not-configured" };
+  }
+
+  const ilk = await denemeGonder(input, apiKey, from, true);
+  if (ilk.sent) return { sent: true, id: ilk.id };
+
+  const ozelBaslikVar = !!input.headers && Object.keys(input.headers).length > 0;
+  if (ozelBaslikVar && ilk.httpRed) {
+    console.warn(`[eposta] özel başlıklı gönderim reddedildi (${ilk.error}); başlıksız deneniyor`);
+    const ikinci = await denemeGonder(input, apiKey, from, false);
+    if (ikinci.sent) return { sent: true, id: ikinci.id };
+    return { sent: false, reason: "error", error: ikinci.error };
+  }
+  return { sent: false, reason: ilk.reason ?? "error", error: ilk.error };
+}
+
