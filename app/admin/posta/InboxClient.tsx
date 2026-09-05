@@ -27,7 +27,27 @@ interface Mail {
   read?: boolean;
   repliedAt?: string;
   attachments?: Attachment[];
+  providerId?: string;
+  /** Gövde çekilemediyse nedeni. Yokluğu "gövde elimizde" demek. */
+  bodyFetch?: "bekliyor" | "yetki" | "bulunamadi" | "hata" | "yapilandirilmamis";
 }
+
+/**
+ * Gövde neden yok? Her durum için NE YAPILACAĞI yazıyor.
+ *
+ * "Gövde alınamadı" demek yetmez: kullanıcı ne yapacağını bilemez ve
+ * bekler. Oysa en olası sebebin (anahtar izni) beklemekle geçmeyeceği
+ * belli — çözüm adımı burada.
+ */
+const GOVDE_MESAJI: Record<string, string> = {
+  yetki:
+    "Gövde alınamadı: API anahtarının izni yetmiyor. Resend → API keys'ten “Full access” izinli yeni bir anahtar üret, Vercel'deki RESEND_API_KEY değerini onunla değiştir ve yeniden dağıt. Sonra bu postayı yeniden aç — gövde kendiliğinden gelir.",
+  yapilandirilmamis: "Gövde alınamadı: RESEND_API_KEY tanımlı değil.",
+  bulunamadi:
+    "Gövde sağlayıcıda bulunamadı — saklama süresi dolmuş olabilir. Bu posta için geri getirilemez.",
+  hata: "Gövde şu an alınamadı. Postayı kapatıp yeniden açtığında tekrar denenir.",
+  bekliyor: "Gövde henüz alınmadı. Postayı kapatıp yeniden açtığında denenir.",
+};
 
 export default function InboxClient() {
   const [mails, setMails] = useState<Mail[] | null>(null);
@@ -68,17 +88,23 @@ export default function InboxClient() {
   };
 
   const ac = async (m: Mail) => {
-    setSecili(m.id === secili ? "" : m.id);
+    const acilan = m.id === secili ? "" : m.id;
+    setSecili(acilan);
     setYanit("");
     setBilgi("");
-    if (!m.read) {
-      await fetch("/api/admin/inbox", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: m.id, read: true }),
-      });
-      await tazele();
-    }
+    if (!acilan) return;
+    /*
+     * Açılışta HER ZAMAN çağrılıyor, yalnız okunmamışlarda değil: bu çağrı
+     * aynı zamanda eksik gövdeyi yeniden deniyor. Yalnız okunmamışlara
+     * bağlasaydık, bir kez açılmış ve gövdesi alınamamış posta bir daha
+     * asla tamamlanmazdı.
+     */
+    await fetch("/api/admin/inbox", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: m.id, read: true }),
+    });
+    await tazele();
   };
 
   const gonder = async (id: string) => {
@@ -164,15 +190,19 @@ export default function InboxClient() {
               {/* Düz metin — bilerek. Bkz. dosya başındaki not. */}
               {m.text.trim() ? (
                 <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{m.text}</p>
-              ) : (
+              ) : m.bodyFetch ? (
                 /*
-                 * BOŞ GÖVDE AÇIKÇA SÖYLENİYOR. Boş bir alan göstermek,
-                 * "kişi boş posta atmış" izlenimi verirdi; oysa sebep
-                 * sağlayıcının bildiriminde gövdenin hiç bulunmaması.
-                 * Yanlış izlenim, eksik bilgiden kötüdür.
+                 * GÖVDE YOKSA NEDENİ VE ÇÖZÜMÜ yazılıyor. Boş bir alan
+                 * göstermek "kişi boş posta atmış" izlenimi verirdi; yalnız
+                 * "alınamadı" demek de kullanıcıyı beklemeye iterdi. Yanlış
+                 * izlenim, eksik bilgiden kötüdür.
                  */
+                <p className="text-[11px] text-text-subtle leading-relaxed border border-border rounded-xl px-3 py-2.5">
+                  {GOVDE_MESAJI[m.bodyFetch] ?? GOVDE_MESAJI.hata}
+                </p>
+              ) : (
                 <p className="text-[11px] text-text-subtle leading-relaxed italic">
-                  Bu bildirimde gövde metni gelmedi (yalnız üstbilgi ve konu).
+                  Bu posta boş — gönderen metin yazmamış.
                 </p>
               )}
 
