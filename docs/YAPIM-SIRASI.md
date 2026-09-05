@@ -121,6 +121,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 | # | İş | Neden bende değil |
 |---|---|---|
 | 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** | ✅ **yapıldı** (2026-09-05) — Resend + `soylus.com` doğrulandı, uçtan uca test edildi |
+| 65 | Gelen posta kutusu (`bilgi@soylus.com` → `/admin/posta`) | webhook + imza + depo + ekran + yanıt | ✅ **çalışıyor** (2026-09-05) — MX + `RESEND_WEBHOOK_SECRET` + `ADMIN_ACCOUNT_IDS`; gövde için anahtarın okuma yetkisi gerekiyor |
 | 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
 | 58 | **Index Anatolicus lisans görüşmesi** | 🔹 **isteğe bağlı** — artık hiçbir işi kilitlemiyor. 37 ve 38 açık kaynaklarla yapıldı; lisans gelirse üstüne zenginleştirme katmanı olur |
 | 59 | Karar: aile meclisi / fon kapsamı | Para hareketi = finansal düzenleme. Öneri: **hayır** |
