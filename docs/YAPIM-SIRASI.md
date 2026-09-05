@@ -120,7 +120,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 
 | # | İş | Neden bende değil |
 |---|---|---|
-| 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** |
+| 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** | ✅ **yapıldı** (2026-09-05) — Resend + `soylus.com` doğrulandı, uçtan uca test edildi |
 | 55 | **Elle test: üyeler ve davetler** (`/join`, roller) | Gerçek hesap, gerçek davet, iki tarayıcı. **35'ten önce olmalı** |
 | 56 | **Elle test: bağlı ağaçlar** (pairing, `/pair`) | İki gerçek hesap gerekiyor. En karmaşık yazma yolu, hiç elle koşulmamış |
 | 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
