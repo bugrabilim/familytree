@@ -1,6 +1,7 @@
 import {
   MAX_MAILS, MAX_SUBJECT, MAX_TEXT,
-  displayName, htmlToText, normalizeAddress, parseInbound, parseInboundResult, payloadShape,
+  MAX_REPLIES, displayName, htmlToText, normalizeAddress, parseInbound, parseInboundResult,
+  payloadShape, planReply,
   planStore, quoteForReply, replySubject, threadHeaders,
   type Mail,
 } from "../lib/inbox.ts";
@@ -367,6 +368,29 @@ for (const t of ["email.sent", "email.delivered", "email.bounced", "email.opened
   /* Uzun ve kötü biçimli girdide de çöküyor olmamalı. */
   check(typeof htmlToText("<p".repeat(5000)) === "string", "kapanmamış etiket yığını çökmüyor");
   check(typeof htmlToText("<<<>>>") === "string", "bozuk işaretleme çökmüyor");
+}
+
+/* ── Gönderilen yanıtlar saklanıyor ─────────────────────────────────────── */
+/*
+ * Yalnız "yanıtlandı" damgası yetmiyordu: kullanıcı NE yazdığını
+ * göremiyordu. Bir gelen kutusunda yazışmanın yarısını gizlemek, üç gün
+ * sonraki "ben buna ne demiştim?" sorusunu yanıtsız bırakmak demek.
+ */
+{
+  const y = (t: string) => ({ text: t, at: SIMDI.toISOString() });
+  check(planReply(undefined, y("ilk")).length === 1, "ilk yanıt ekleniyor");
+  check(planReply([y("a")], y("b"))[1].text === "b", "yeni yanıt SONA ekleniyor (zaman sırası)");
+  check(planReply([y("a")], y("b"))[0].text === "a", "eski yanıt korunuyor");
+
+  /*
+   * Tavan aşılınca EN ESKİSİ düşüyor — `planStore` ile aynı yön: yeni olanı
+   * reddetmek, tam da az önce yazılanı kaybetmek olurdu.
+   */
+  const dolu = Array.from({ length: MAX_REPLIES }, (_, i) => y(`y${i}`));
+  const sonra = planReply(dolu, y("taze"));
+  check(sonra.length === MAX_REPLIES, "tavan korunuyor");
+  check(sonra[sonra.length - 1].text === "taze", "yeni yanıt listede");
+  check(!sonra.some((r) => r.text === "y0"), "en eski yanıt düştü");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

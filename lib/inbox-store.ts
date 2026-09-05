@@ -1,6 +1,6 @@
 import "server-only";
 import { put, list, get } from "@vercel/blob";
-import { MAX_MAILS, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
+import { MAX_MAILS, MAX_TEXT, planReply, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
 
 /**
  * GELEN KUTUSU DEPOSU — `inbox.json`.
@@ -87,13 +87,23 @@ export async function markRead(id: string, read: boolean): Promise<boolean> {
   return true;
 }
 
-/** Yanıt gönderildikten SONRA çağrılır — "yanıtlandı" damgası. */
-export async function markReplied(id: string, at: string): Promise<boolean> {
+/**
+ * Yanıt gönderildikten SONRA çağrılır: damga + yanıtın METNİ.
+ *
+ * Metnin saklanması sonradan eklendi çünkü damga tek başına yetmiyordu —
+ * kullanıcı yanıtladığını görüyor ama NE yazdığını göremiyordu.
+ *
+ * Yalnız GÖNDERİM BAŞARILIYSA çağrılıyor (çağıran rotada denetleniyor):
+ * gönderilmemiş bir metni "yanıtım" diye saklamak, olmayan bir yazışmayı
+ * kayda geçirmek olurdu.
+ */
+export async function markReplied(id: string, at: string, text = ""): Promise<boolean> {
   const box = await getBox();
   const m = box.mails.find((x) => x.id === id);
   if (!m) return false;
   m.repliedAt = at;
   m.read = true;
+  if (text.trim()) m.replies = planReply(m.replies, { text: text.slice(0, MAX_TEXT), at });
   await saveBox(box);
   return true;
 }

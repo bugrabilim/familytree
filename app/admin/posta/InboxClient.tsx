@@ -15,6 +15,7 @@ import Button from "@/components/ui/Button";
  */
 
 interface Attachment { name: string; size?: number }
+interface Reply { text: string; at: string }
 
 interface Mail {
   id: string;
@@ -26,6 +27,7 @@ interface Mail {
   at: string;
   read?: boolean;
   repliedAt?: string;
+  replies?: Reply[];
   attachments?: Attachment[];
   providerId?: string;
   /** Gövde çekilemediyse nedeni. Yokluğu "gövde elimizde" demek. */
@@ -213,9 +215,29 @@ export default function InboxClient() {
                 </p>
               )}
 
+              {/*
+                GÖNDERİLMİŞ YANITLAR. Yalnız "yanıtlandı" damgası göstermek,
+                üç gün sonraki "ben buna ne demiştim?" sorusunu yanıtsız
+                bırakmak olurdu.
+              */}
+              {m.replies && m.replies.length > 0 && (
+                <div className="space-y-2 border-l-2 border-border pl-3">
+                  {m.replies.map((y, i) => (
+                    <div key={`${m.id}-y-${i}`}>
+                      <p className="text-[11px] text-text-subtle">
+                        Yanıtın · {y.at.slice(0, 16).replace("T", " ")}
+                      </p>
+                      <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
+                        {y.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-medium block mb-1" htmlFor={`y-${m.id}`}>
-                  Yanıt
+                  {m.replies && m.replies.length > 0 ? "Yeni yanıt" : "Yanıt"}
                 </label>
                 <textarea
                   id={`y-${m.id}`}

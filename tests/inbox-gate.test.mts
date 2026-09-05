@@ -197,5 +197,19 @@ check(/mail\.bodyFetch && mail\.bodyFetch !== "bulunamadi"/.test(api),
 check(/GOVDE_MESAJI/.test(ekran), "ekran gövdenin neden yok olduğunu söylüyor");
 check(/Full access/.test(ekran), "yetki hatasında ne yapılacağı yazıyor");
 
+/* --- Yanıt YALNIZ gönderim başarılıysa saklanıyor ----------------------- */
+/*
+ * Gönderilmemiş bir metni "yanıtım" diye kaydetmek, olmayan bir yazışmayı
+ * kayda geçirmek olurdu — ve kullanıcı karşı tarafın onu okuduğunu sanırdı.
+ */
+{
+  const iSent = api.indexOf("if (!r.sent)");
+  const iKaydet = api.indexOf("await markReplied(");
+  check(iSent > -1 && iKaydet > iSent, "yanıt metni gönderim denetiminden SONRA saklanıyor");
+  check(/markReplied\(id, new Date\(\)\.toISOString\(\), metin\)/.test(api),
+    "gönderilen metnin kendisi saklanıyor");
+  check(/m\.replies\.map/.test(ekran), "ekran eski yanıtları gösteriyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
