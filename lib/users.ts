@@ -1,7 +1,9 @@
 import { put, list, get } from "@vercel/blob";
+import { hash as bcryptHash } from "bcryptjs";
 import type { User, UsersData } from "@/types/user";
 import { dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
+import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
 
 const USERS_PATHNAME = "users.json";
 
@@ -41,11 +43,67 @@ export async function findUserByFamilyName(familyName: string): Promise<User | n
   return users.find((u) => u.familyName.toLowerCase() === familyName.toLowerCase()) ?? null;
 }
 
+/**
+ * Hesabı KURTARMA KODUNUN İNDEKSİNDEN bulur — ağaç adı sormadan.
+ *
+ * Kod benzersiz olduğu için hesabı tek başına gösterebiliyor; ağaç adı
+ * sormanın tek sebebi bcrypt'in aranamamasıydı (`lib/recovery-code.ts`).
+ * Burada bulunan satır DOĞRULANMIŞ sayılmaz: çağıran ayrıca bcrypt
+ * karşılaştırmasını yapmak zorunda.
+ *
+ * Karşılaştırma sabit süreli ve eşleşme bulununca döngü KIRILMIYOR: erken
+ * çıkış, yanıt süresinden indeksin listede nerede durduğunu sızdırırdı.
+ */
+export async function findUserByRecoveryIndex(index: string): Promise<User | null> {
+  if (!index) return null;
+  const { users } = await getUsersData();
+  let bulunan: User | null = null;
+  for (const u of users) {
+    if (u.recoveryCodeIndex && timingSafeEqualHex(u.recoveryCodeIndex, index)) bulunan = u;
+  }
+  return bulunan;
+}
+
+/**
+ * Yeni bir kurtarma kodu üretir: düz kod (kullanıcıya bir kez gösterilir),
+ * bcrypt hash'i ve arama indeksi.
+ *
+ * Üretim TEK YERDE: web kaydı, mobil kayıt ve sıfırlama sonrası yenileme aynı
+ * işlevi çağırıyor. Kopyalanmış olsaydı benzersizlik denetiminin bir kopyada
+ * unutulması sessizce iki hesaba aynı kodu verirdi.
+ *
+ * Benzersizlik depodaki indekslere bakılarak denetleniyor. İki kayıt aynı anda
+ * yarışırsa denetim boşa düşebilir; ayrı bir kilit YOK, çünkü çakışma ihtimali
+ * 2^80'de bir mertebesinde ve kilidin bedeli her kayıtta fazladan bir yazma
+ * turu olurdu.
+ */
+export async function issueRecoveryCode(): Promise<{ code: string; hash: string; index: string }> {
+  let kullanilan: ReadonlySet<string>;
+  try {
+    const { users } = await getUsersData();
+    kullanilan = new Set(users.map((u) => u.recoveryCodeIndex).filter((x): x is string => !!x));
+  } catch {
+    /*
+     * Depo okunamadı. Boş kümeyle devam etmek "benzersizlik denetimi
+     * yapılmadı" demek olurdu; çağıran bunu bilsin diye hata yükseliyor.
+     */
+    throw new Error("Kurtarma kodu üretilemedi: hesap listesi okunamadı.");
+  }
+  const { code, index } = pickUniqueRecoveryCode(kullanilan);
+  return { code, index, hash: await bcryptHash(code, 10) };
+}
+
+/**
+ * Hesabı açar. `recoveryCodeIndex` isteğe bağlı: demo hesabının kurtarma kodu
+ * kimsede olmadığı için indekslenmesinin anlamı yok; gerçek hesaplarda
+ * `issueRecoveryCode` ile birlikte gelir.
+ */
 export async function createUser(
   id: string,
   familyName: string,
   passwordHash: string,
-  recoveryCodeHash: string
+  recoveryCodeHash: string,
+  recoveryCodeIndex?: string
 ): Promise<User> {
   const data = await getUsersData();
   const user: User = {
@@ -53,6 +111,7 @@ export async function createUser(
     familyName,
     passwordHash,
     recoveryCodeHash,
+    ...(recoveryCodeIndex ? { recoveryCodeIndex } : {}),
     createdAt: new Date().toISOString(),
   };
   data.users.push(user);
@@ -213,6 +272,42 @@ export async function updateUserPassword(
   // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
   try {
     await dbUpdateAccountPassword(user.familyName, newPasswordHash);
+  } catch (e) {
+    console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
+  }
+  return true;
+}
+
+/**
+ * KURTARMA KODUYLA sıfırlamanın tek yazması: yeni şifre ve (verildiyse)
+ * yenilenen kurtarma kodu birlikte uygulanır.
+ *
+ * ## Neden ayrı bir işlev
+ *
+ * `updateUserPassword` hesabı AĞAÇ ADINDAN buluyor; kod artık tek başına
+ * yettiği için elimizde ad değil kimlik var. Ayrıca kod yenileme ile şifre
+ * yazma ayrı çağrılar olsaydı araya düşen bir hata hesabı "yeni şifre + eski
+ * kod" (ya da tersi) gibi yarım bir hâlde bırakabilirdi.
+ *
+ * Bekleyen sıfırlama jetonu burada da düşüyor — `updateUserPassword`taki
+ * gerekçenin aynısı: şifre hangi yoldan değişirse değişsin, postadaki
+ * bağlantı o anda anlamını yitirir.
+ */
+export async function applyRecoveryReset(
+  id: string,
+  patch: { passwordHash: string; recoveryCodeHash?: string; recoveryCodeIndex?: string }
+): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user) return false;
+  user.passwordHash = patch.passwordHash;
+  if (patch.recoveryCodeHash) user.recoveryCodeHash = patch.recoveryCodeHash;
+  if (patch.recoveryCodeIndex) user.recoveryCodeIndex = patch.recoveryCodeIndex;
+  user.resetTokenHash = undefined;
+  user.resetTokenExpires = undefined;
+  await saveUsersData(data);
+  try {
+    await dbUpdateAccountPassword(user.familyName, patch.passwordHash);
   } catch (e) {
     console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
   }

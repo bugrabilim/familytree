@@ -605,8 +605,12 @@ export const tr: Dict = {
   "forgot.codeNoteLost": "Kodu kaybettiysen üstten E-posta yolunu dene.",
   "forgot.emailNote": "Hesabına doğrulanmış bir e-posta adresi bağladıysan, sıfırlama bağlantısını oraya göndeririz. Bağlantı 1 saat geçerli ve yalnız bir kez kullanılabilir.",
   "forgot.emailNoteNone": "Adres bağlamadıysan ya da doğrulamadıysan bu yol çalışmaz; o zaman kurtarma kodunu kullan.",
-  "forgot.bothNeedName": "İki yolda da ağaç adın gerekiyor — giriş ekranında kullandığın ad.",
+  "forgot.emailNeedsName": "E-posta yolunda ağaç adın gerekiyor — giriş ekranında kullandığın ad.",
   "forgot.needName": "Önce ağaç adını yaz.",
+  "forgot.treeNameOptional": "Ağaç adı (isteğe bağlı)",
+  "forgot.nameOptionalNote": "Kurtarma kodu tek başına yeterli. Yalnızca eski bir hesapta kod tanınmazsa ağaç adını da yaz.",
+  "forgot.newCodeTitle": "Yeni kurtarma kodun",
+  "forgot.newCodeNote": "Kullandığın kod geçersiz oldu; yerine bunu kaydet. Bu sayfayı kapatınca bir daha gösterilmez.",
 
   /* --- Boş durum --- */
   "empty.title": "Ailenin hikâyesi burada başlıyor",
@@ -2612,8 +2616,12 @@ export const en: Dict = {
   "forgot.codeNoteLost": "Lost the code? Try the Email route above.",
   "forgot.emailNote": "If you linked a verified email address to your account, we will send the reset link there. The link is valid for 1 hour and can be used only once.",
   "forgot.emailNoteNone": "If you never linked or verified an address, this route will not work — use the recovery code instead.",
-  "forgot.bothNeedName": "Both routes need your tree name — the one you use to sign in.",
+  "forgot.emailNeedsName": "The email route needs your tree name — the one you use to sign in.",
   "forgot.needName": "Enter your tree name first.",
+  "forgot.treeNameOptional": "Tree name (optional)",
+  "forgot.nameOptionalNote": "The recovery code is enough on its own. Add your tree name only if an older account’s code isn’t recognised.",
+  "forgot.newCodeTitle": "Your new recovery code",
+  "forgot.newCodeNote": "The code you just used is no longer valid; save this one instead. It won’t be shown again once you close this page.",
 
   /* --- Empty state --- */
   "empty.title": "Your family’s story starts here",
