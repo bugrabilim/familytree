@@ -251,6 +251,40 @@ export interface Person {
    */
   privateFields?: string[];
 
+  /**
+   * ÜÇÜNCÜ KİŞİNİN E-POSTA ADRESİ — çift onaylı (madde 47/48 uzantısı).
+   *
+   * Hesabın kendi adresleri (`User.authEmail`, `User.notifyEmail`) değil:
+   * burada bir kullanıcı BAŞKASININ adresini giriyor — teyzesinin,
+   * kuzeninin. O kişi uygulamayı hiç görmemiş olabilir. Bu yüzden adresin
+   * girilmesi izin sayılmaz; izin, adresin sahibinin kendi tıklamasıdır.
+   * Kurallar ve tek gönderim kapısı `lib/contact-consent.ts`te.
+   *
+   * ## Bu alanlar görüntü katmanına ÇIKMAZ
+   *
+   * `lib/privacy.ts`teki `viewPerson` dördünü de koşulsuz siliyor: ağaç yükü
+   * her üyeye ve paylaşım bağlantısını açan herkese gidiyor, adres oraya
+   * binseydi bir aile ağacı bağlantısı içindeki herkesin e-posta adresini
+   * sızdırırdı. Düzenleyici adresi ayrı bir uçtan okur.
+   *
+   * `lib/person-fields.ts` kayıt defterine de girmiyorlar (gerekçe orada):
+   * adres değişince onayın SIFIRLANMASI gerekiyor ve bu, düz metin
+   * birleştirmesinin ifade edemeyeceği bir kural.
+   */
+  contactEmail?: string;
+  /**
+   * Onay durumu. Yokluğu "hiç sorulmadı" demek.
+   *
+   * Birlik burada TEKRAR yazılıyor, `lib/contact-consent.ts`ten içe
+   * aktarılmıyor: `types/` katmanı `lib/`e bağımlı değil ve öyle kalmalı.
+   * İkisi yapısal olarak aynı olduğu için derleyici uyumsuzluğu yakalar.
+   */
+  contactConsent?: "bekliyor" | "onayli" | "red";
+  /** Bekleyen onay jetonunun ÖZETİ. Ham jeton yalnız bağlantıda durur. */
+  contactTokenHash?: string;
+  /** Onay isteğinin gönderildiği an (ISO) — sık sık yeniden sormamak için. */
+  contactAskedAt?: string;
+
   parentIds: string[];
   /**
    * Kardeşler arası görüntü sırası (manuel). Aynı ebeveyn kümesini paylaşan

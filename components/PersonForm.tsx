@@ -38,6 +38,7 @@ import {
   type RelationType,
 } from "@/lib/actions";
 import { useT } from "@/lib/i18n";
+import ContactSection from "./ContactSection";
 import { fullName } from "@/lib/name";
 
 interface Props {
@@ -1542,6 +1543,25 @@ export default function PersonForm({
           <p className="text-[11px] text-text-subtle -mt-1">{t("private.note")}</p>
         </div>
       </details>
+
+      {/*
+        E-POSTA İLE ULAŞMA — yalnız KAYITLI kişide.
+       
+        Yeni kişide gösterilmiyor çünkü henüz bir kimlik yok: adres kendi
+        ucuna, kişinin kimliğiyle yazılıyor. Formun "Kaydet"iyle birlikte
+        gitmemesi de bilinçli — bkz. `components/ContactSection.tsx`.
+      */}
+      {initial?.id && (
+        <details className="rounded-xl border border-border overflow-hidden group">
+          <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
+            <span className="text-xs font-medium text-text">{t("contact.section")}</span>
+            <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          </summary>
+          <div className="p-3 bg-surface">
+            <ContactSection personId={initial.id} />
+          </div>
+        </details>
+      )}
 
       {/* Notlar */}
       <div>
