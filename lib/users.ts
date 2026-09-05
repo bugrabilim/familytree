@@ -107,7 +107,12 @@ export async function createUser(
 /** Bildirim e-posta tercihini günceller (opt-in). id ile bulunur. */
 export async function updateUserNotify(
   id: string,
-  patch: { notifyEmail?: string | null; notifyReminders?: boolean }
+  patch: {
+    notifyEmail?: string | null;
+    notifyReminders?: boolean;
+    notifyMemorials?: boolean;
+    notifyNewsletter?: boolean;
+  }
 ): Promise<boolean> {
   const data = await getUsersData();
   const user = data.users.find((u) => u.id === id);
@@ -115,8 +120,22 @@ export async function updateUserNotify(
   if (patch.notifyEmail !== undefined) {
     const e = (patch.notifyEmail ?? "").trim();
     user.notifyEmail = e || undefined;
+    /*
+     * Adres SİLİNİRSE bütün onaylar da düşer. Bayraklar açık kalsaydı,
+     * kullanıcı sonradan yeni bir adres yazdığında hiç onaylamadığı postaları
+     * almaya başlardı — onay adrese değil kişiye ait gibi davranmak olurdu.
+     */
+    if (!user.notifyEmail) {
+      user.notifyReminders = undefined;
+      user.notifyMemorials = undefined;
+      user.notifyNewsletter = undefined;
+      await saveUsersData(data);
+      return true;
+    }
   }
   if (patch.notifyReminders !== undefined) user.notifyReminders = patch.notifyReminders;
+  if (patch.notifyMemorials !== undefined) user.notifyMemorials = patch.notifyMemorials;
+  if (patch.notifyNewsletter !== undefined) user.notifyNewsletter = patch.notifyNewsletter;
   await saveUsersData(data);
   return true;
 }
