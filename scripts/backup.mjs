@@ -9,7 +9,7 @@
  * `backups/<zaman-damgası>/` altına indirir. Salt-okunur; hiçbir şeyi silmez.
  * Supabase ayrıca kendi otomatik yedeklerini tutar (bkz. docs/YEDEKLEME.md).
  */
-import { list } from "@vercel/blob";
+import { get, list } from "@vercel/blob";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -30,9 +30,21 @@ async function main() {
   do {
     const res = await list({ token, cursor, limit: 1000 });
     for (const b of res.blobs) {
-      const r = await fetch(b.downloadUrl ?? b.url);
-      if (!r.ok) { console.warn(`atlandı (${r.status}): ${b.pathname}`); continue; }
-      const buf = Buffer.from(await r.arrayBuffer());
+      /*
+       * ÖZEL DEPO: blob URL'ine düz `fetch` ATILMAZ.
+       *
+       * Bu betik `fetch(b.downloadUrl ?? b.url)` kullanıyordu ve depo
+       * `private` olduğu için her istek yetkisiz dönüyordu — yani belgede
+       * "günlük yedek" diye önerilen komut hiçbir dosya indirmiyordu.
+       * Uygulamanın kendisi (`lib/blob.ts`, `lib/members.ts`) baştan beri
+       * doğru yolu kullanıyor.
+       */
+      const okunan = await get(b.pathname, { token, access: "private", useCache: false });
+      if (!okunan || okunan.statusCode !== 200) {
+        console.warn(`atlandı (${okunan?.statusCode ?? "okunamadı"}): ${b.pathname}`);
+        continue;
+      }
+      const buf = Buffer.from(await new Response(okunan.stream).arrayBuffer());
       // pathname içindeki olası alt yolları koru.
       const dest = join(outDir, b.pathname);
       await mkdir(join(dest, ".."), { recursive: true });
