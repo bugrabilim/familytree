@@ -1,4 +1,5 @@
 import type { Person } from "@/types/family";
+import { modernName } from "./historic-places.ts";
 
 /**
  * Doğum yerleri haritası için saf, test edilebilir yardımcılar.
@@ -237,13 +238,43 @@ export function resolvePlace(birthPlace: string): LatLng | null {
     .split(/[,/]|\s[–-]\s/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (parts.length <= 1) return null;
 
   // Eğik çizgi = hiyerarşik (özel sonda) → tersten; değilse baştan.
   const order = raw.includes("/") ? [...parts].reverse() : parts;
-  for (const c of order) {
-    const hit = NORMALIZED[normalize(c)];
-    if (hit) return hit;
+  if (parts.length > 1) {
+    for (const c of order) {
+      const hit = NORMALIZED[normalize(c)];
+      if (hit) return hit;
+    }
+  }
+
+  /*
+   * TARİHÎ KATMAN (madde 37) — EN SONDA, ve yalnız modern yol tükendikten
+   * sonra.
+   *
+   * Sıra pazarlık konusu değil: bu maddenin tek gerçek riski, ortak çözüm
+   * yoluna yapılan bir eklemenin bugün DOĞRU yere oturan pinleri
+   * kaydırmasıydı. Tarihî katman en sonda olduğu için, bugün bir yere oturan
+   * hiçbir metin buraya hiç uğramıyor — değişen tek şey, eskiden `null`
+   * dönen metinlerin artık bir yer bulabilmesi.
+   *
+   * Eşleme ADA yapılıyor, koordinata değil: modern karşılık yine
+   * `GAZETTEER`den okunuyor, yani tek doğruluk kaynağı orası kalıyor.
+   * Karşılık sözlükte yoksa sonuç "bulunamadı" olur — yanlış bir yer değil.
+   */
+  const tarihi = (metin: string): LatLng | null => {
+    const m = modernName(metin);
+    return m ? NORMALIZED[normalize(m)] ?? null : null;
+  };
+
+  const butunEski = tarihi(raw);
+  if (butunEski) return butunEski;
+
+  if (parts.length > 1) {
+    for (const c of order) {
+      const hit = tarihi(c);
+      if (hit) return hit;
+    }
   }
   return null;
 }

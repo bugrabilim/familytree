@@ -88,7 +88,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 | 34 | Herkese açık okuma API'si `/api/v1/public/tree` | C | 10 ve 33 olmadan yapılmaz. Sürümleme baştan `/v1` | ✅
 | 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. Elle test (eski 55) ürün sahibi tarafından listeden çıkarıldı; şart artık **her yetki kapısının otomatik kapı testiyle örtülmesi** |
 | 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor | ✅
-| 37 | Osmanlı ↔ modern yer adı sözlüğü | C | `resolvePlace` **ortak çözüm yolunu** değiştiriyor → mevcut pinleri kaydırabilir. **58'e (lisans) bağlı** |
+| 37 | Osmanlı ↔ modern yer adı sözlüğü | C | ✅ **çalışıyor** — açık kaynak yolu seçildi, lisans beklenmedi. Tarihî katman `resolvePlace`in EN SONUNDA: mevcut pinler kaymıyor |
 | 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
 | 39 | Storyworth için ayrı giriş kapısı | E | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor |
 | 40 | **e-Devlet PDF'ini birincil onboarding yapmak** | E | Ayrıştırıcı zaten çalışıyor → bu yeni yetenek değil, **canlı ilk-temas akışının yeniden yazımı**. "Bozarsan herkes görür" katsayısı en yüksek iş | ✅
