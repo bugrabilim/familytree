@@ -39,6 +39,7 @@ import {
 } from "@/lib/actions";
 import { useT } from "@/lib/i18n";
 import ContactSection from "./ContactSection";
+import PlaceInput from "./PlaceInput";
 import { fullName } from "@/lib/name";
 
 interface Props {
@@ -974,11 +975,11 @@ export default function PersonForm({
       {form.deathDate.trim() && (
         <div>
           <label className={label} htmlFor="pf-defin">{t("burial.label")}</label>
-          <input
+          <PlaceInput
             id="pf-defin"
             className={field}
             value={form.burialPlace}
-            onChange={(e) => set("burialPlace", e.target.value)}
+            onChange={(v) => set("burialPlace", v)}
             placeholder={t("burial.placeholder")}
           />
           <div className="mt-2">
@@ -994,11 +995,15 @@ export default function PersonForm({
       {/* Doğum yeri */}
       <div>
         <label className={label} htmlFor="pf-yer">Doğum yeri</label>
-        <input
+        {/*
+          Öneri listesi modern VE tarihî adlarda arıyor (madde 38). Alan
+          serbest metin olarak kalıyor: yazılan eski ad kayıtta durabilmeli.
+        */}
+        <PlaceInput
           id="pf-yer"
           className={field}
           value={form.birthPlace}
-          onChange={(e) => set("birthPlace", e.target.value)}
+          onChange={(v) => set("birthPlace", v)}
           placeholder="Trabzon, Türkiye"
         />
         {/* Haritada konum — aynı adlı köy/mahalle karışıklığında doğru noktayı
