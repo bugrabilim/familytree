@@ -11,6 +11,7 @@ import {
 } from "@/lib/account-email";
 import { updateAccountAuthEmail } from "@/lib/auth-users";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
+import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -182,10 +183,20 @@ export async function POST(req: NextRequest) {
   const link = `${SITE_URL}/verify-email/${encodeURIComponent(token)}`;
   let sent = false;
   if (isEmailConfigured()) {
+    // Ortak markalı şablon (`lib/email-template.ts`) — düz metin karşılığını
+    // da o üretiyor, HTML göstermeyen istemci boşluğa bakmasın.
+    const { html, text } = renderEmail({
+      title: "E-posta adresinizi doğrulayın",
+      intro: "Bu adresi hesabınıza bağlamak için aşağıdaki düğmeye basın.",
+      button: { label: "Adresi doğrula", url: link },
+      note: `Bağlantı ${TTL_SAAT} saat geçerlidir.`,
+      footer: "Bu isteği siz yapmadıysanız yok sayın; hesabınızda hiçbir şey değişmez.",
+    });
     const r = await sendEmail({
       to: sonraki.authEmail,
       subject: "Soy Ağacı — e-posta adresinizi doğrulayın",
-      text: `Hesabınıza bu adresi bağlamak için bağlantıya tıklayın:\n\n${link}\n\nBağlantı ${TTL_SAAT} saat geçerlidir. Bu isteği siz yapmadıysanız yok sayın.`,
+      html,
+      text,
     });
     sent = r.sent;
   }

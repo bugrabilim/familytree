@@ -3,6 +3,7 @@ import { getUsersData } from "@/lib/users";
 import { getFamilyData } from "@/lib/blob";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { todaysReminders, remindersToText } from "@/lib/reminders";
+import { renderEmail } from "@/lib/email-template";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -47,18 +48,22 @@ export async function GET(req: NextRequest) {
         const { people } = await getFamilyData(u.id);
         const items = todaysReminders(people, today);
         if (items.length === 0) continue;
-        const text = remindersToText(items, "tr");
-        const html = `<div style="font-family:system-ui,Arial,sans-serif;font-size:15px;line-height:1.6">
-<h2 style="margin:0 0 8px">Bugünün aile hatırlatmaları</h2>
-<ul style="padding-left:18px;margin:0">${items
-          .map((i) => `<li>${remindersToText([i], "tr").replace(/</g, "&lt;")}</li>`)
-          .join("")}</ul>
-<p style="color:#888;font-size:12px;margin-top:16px">Bu e-postayı, hatırlatmaları açtığın için alıyorsun. Ayarlar'dan kapatabilirsin.</p>
-</div>`;
+        /*
+         * Ortak markalı şablon. Buradaki HTML elle örülüydü ve kaçış da elle
+         * yapılıyordu (`.replace(/</g, "&lt;")`) — yalnız `<` kaçıyordu, `&`
+         * ve `"` kaçmıyordu. Kişi adından gelen bir `&` bozuk görünüm, bir
+         * `"` ise öznitelik sınırını taşırma riski demekti. Şablon kaçışı tek
+         * yerde ve tam yapıyor.
+         */
+        const { html, text } = renderEmail({
+          title: "Bugünün aile hatırlatmaları",
+          items: items.map((i) => remindersToText([i], "tr")),
+          footer: "Bu e-postayı, hatırlatmaları açtığın için alıyorsun. Ayarlar'dan kapatabilirsin.",
+        });
         const r = await sendEmail({
           to: u.notifyEmail,
           subject: `🌳 Bugünün aile hatırlatmaları (${items.length})`,
-          text: `Bugünün aile hatırlatmaları:\n\n${text}\n\nAyarlar'dan kapatabilirsin.`,
+          text,
           html,
         });
         if (r.sent) sent++;

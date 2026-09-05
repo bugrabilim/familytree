@@ -33,6 +33,18 @@ export interface User {
   emailTokenHash?: string;
   /** Bekleyen doğrulamanın son kullanma anı (ISO). */
   emailTokenExpires?: string;
+  /**
+   * Bekleyen ŞİFRE SIFIRLAMA jetonunun özeti (madde 51).
+   *
+   * `emailTokenHash`ten AYRI ve bu ayrım güvenlik gereği: o alan bir ADRESİ
+   * doğruluyor, bu alan HESABIN KENDİSİNİ veriyor. Tek alanda toplansaydı,
+   * adres doğrulama postasını ele geçiren biri şifreyi de değiştirebilirdi.
+   * Ömrü de kısa (1 saat, `lib/password-reset.ts`) — yetkisi büyük olanın
+   * penceresi dar olmalı.
+   */
+  resetTokenHash?: string;
+  /** Bekleyen sıfırlamanın son kullanma anı (ISO). */
+  resetTokenExpires?: string;
 }
 
 export interface UsersData {

@@ -16,7 +16,38 @@ export default function ForgotPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Madde 51 — ikinci kurtarma yolu: e-postayla bağlantı.
+  const [mailBusy, setMailBusy] = useState(false);
+  const [mailInfo, setMailInfo] = useState("");
   const router = useRouter();
+
+  /*
+   * E-postayla sıfırlama isteği. Uç HER DURUMDA aynı yanıtı veriyor (hesap
+   * var/yok, adres bağlı/değil) — bu yüzden arayüz de tek bir cümle
+   * gösteriyor. Farklı mesajlar göstermek, sunucudaki numaralandırma
+   * korumasını arayüzden delmek olurdu.
+   */
+  const eMailIste = async () => {
+    setError("");
+    setMailInfo("");
+    if (!familyName.trim()) {
+      setError(t("forgot.treeNamePlaceholder"));
+      return;
+    }
+    setMailBusy(true);
+    try {
+      await fetch("/api/reset-password/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ familyName: familyName.trim() }),
+      });
+      setMailInfo(t("forgot.emailSent"));
+    } catch {
+      setError(t("forgot.connError"));
+    } finally {
+      setMailBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,10 +154,42 @@ export default function ForgotPasswordPage() {
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
-        <Button type="submit" size="lg" full disabled={loading}>
+        <Button type="submit" size="lg" full disabled={loading || mailBusy}>
           {loading ? t("forgot.updating") : t("forgot.reset")}
         </Button>
       </form>
+
+      {/*
+        İKİNCİ KURTARMA YOLU. Kurtarma kodu kayıt sırasında BİR KEZ gösteriliyor;
+        kaybedildiğinde hesap kalıcı olarak gidiyordu. Doğrulanmış e-posta adresi
+        bağlamış hesaplar artık bu yoldan da girebiliyor.
+      */}
+      <div className="mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-[11px] text-text-subtle">{t("forgot.orEmail")}</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <p className="text-[11px] text-text-subtle leading-relaxed mb-3">
+          {t("forgot.emailHint")}
+        </p>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          full
+          disabled={loading || mailBusy}
+          onClick={eMailIste}
+        >
+          {mailBusy ? t("forgot.emailSending") : t("forgot.emailSend")}
+        </Button>
+
+        {mailInfo && (
+          <p className="text-[11px] text-text-subtle leading-relaxed mt-2.5">{mailInfo}</p>
+        )}
+      </div>
     </AuthShell>
   );
 }
