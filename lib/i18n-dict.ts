@@ -556,6 +556,16 @@ export const tr: Dict = {
   "notify.saving": "Kaydediliyor…",
   "notify.saved": "Bildirim tercihlerin kaydedildi.",
   "notify.failed": "Kaydedilemedi. Lütfen tekrar deneyin.",
+  // Şifremi unuttum — yöntem seçimi ve bilgi notları.
+  "forgot.method": "Nasıl sıfırlamak istersin?",
+  "forgot.methodCode": "Kurtarma kodu",
+  "forgot.methodEmail": "E-posta",
+  "forgot.codeNote": "Kayıt olurken sana bir kez gösterilen 16 karakterlik kod. Kaydettiysen en hızlı yol bu — şifreni hemen burada değiştirirsin.",
+  "forgot.codeNoteLost": "Kodu kaybettiysen üstten E-posta yolunu dene.",
+  "forgot.emailNote": "Hesabına doğrulanmış bir e-posta adresi bağladıysan, sıfırlama bağlantısını oraya göndeririz. Bağlantı 1 saat geçerli ve yalnız bir kez kullanılabilir.",
+  "forgot.emailNoteNone": "Adres bağlamadıysan ya da doğrulamadıysan bu yol çalışmaz; o zaman kurtarma kodunu kullan.",
+  "forgot.bothNeedName": "İki yolda da ağaç adın gerekiyor — giriş ekranında kullandığın ad.",
+  "forgot.needName": "Önce ağaç adını yaz.",
 
   /* --- Boş durum --- */
   "empty.title": "Ailenin hikâyesi burada başlıyor",
@@ -2521,6 +2531,16 @@ export const en: Dict = {
   "notify.saving": "Saving…",
   "notify.saved": "Your notification preferences are saved.",
   "notify.failed": "Could not save. Please try again.",
+  // Forgot password — method picker and explanatory notes.
+  "forgot.method": "How would you like to reset?",
+  "forgot.methodCode": "Recovery code",
+  "forgot.methodEmail": "Email",
+  "forgot.codeNote": "The 16-character code shown to you once when you signed up. If you kept it, this is the fastest route — you change your password right here.",
+  "forgot.codeNoteLost": "Lost the code? Try the Email route above.",
+  "forgot.emailNote": "If you linked a verified email address to your account, we will send the reset link there. The link is valid for 1 hour and can be used only once.",
+  "forgot.emailNoteNone": "If you never linked or verified an address, this route will not work — use the recovery code instead.",
+  "forgot.bothNeedName": "Both routes need your tree name — the one you use to sign in.",
+  "forgot.needName": "Enter your tree name first.",
 
   /* --- Empty state --- */
   "empty.title": "Your family’s story starts here",
