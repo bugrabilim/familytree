@@ -104,7 +104,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 
 | # | İş | Ben teslim ederim | Senden gereken |
 |---|---|---|---|
-| 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar | ✅ **kod teslim** (#249) — `CRON_SECRET` bekliyor |
+| 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar | ✅ **çalışıyor** (#249, #251, #252) — harici hedef kararı hâlâ sende |
 | 47 | Otomatik aile bülteni | cron + şablon (`reminders` kalıbı hazır) | **e-posta anahtarı (54)** |
 | 48 | Anma Takvimi bildirimi | mevcut cron rotasına ek | **e-posta anahtarı (54)** |
 | 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | **e-posta anahtarı (54)** |
