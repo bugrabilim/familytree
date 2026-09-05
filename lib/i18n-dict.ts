@@ -599,6 +599,14 @@ export const tr: Dict = {
   "contactUnsub.failed": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
 
   /*
+   * YER ADI ÖNERİSİ (madde 38). Metinler bilerek "değiştir" demiyor: yazılan
+   * eski ad kayıtta kalabilmeli, söylenen tek şey haritada nereye oturduğu.
+   */
+  "place.historicHint": "“{old}” eski ad — haritada {modern} olarak işaretlenir. Yazdığın hâliyle kalabilir.",
+  "place.matchedAs": "eski adı: {old}",
+  "place.alsoKnown": "eski adları: {names}",
+
+  /*
    * HİKÂYE TALEBİ — yanıtlayanın hesabı yok, ağacı hiç görmedi. Metinler
    * yanıtın DOĞRUDAN yayımlanmadığını açıkça söylüyor: kişi ne yazacağına
    * buna göre karar veriyor.
@@ -2653,6 +2661,10 @@ export const en: Dict = {
   "contactUnsub.doneTitle": "Stopped",
   "contactUnsub.done": "Nothing more will be sent to this address.",
   "contactUnsub.failed": "That didn't go through. Please try again.",
+
+  "place.historicHint": "“{old}” is a historical name — it maps to {modern} on the map. You can leave it as you wrote it.",
+  "place.matchedAs": "formerly: {old}",
+  "place.alsoKnown": "formerly: {names}",
 
   "story.title": "A question about a memory",
   "story.about": "This is about {name}.",

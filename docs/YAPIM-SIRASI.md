@@ -89,7 +89,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 | 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. Elle test (eski 55) ürün sahibi tarafından listeden çıkarıldı; şart artık **her yetki kapısının otomatik kapı testiyle örtülmesi** |
 | 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor | ✅
 | 37 | Osmanlı ↔ modern yer adı sözlüğü | C | ✅ **çalışıyor** — açık kaynak yolu seçildi, lisans beklenmedi. Tarihî katman `resolvePlace`in EN SONUNDA: mevcut pinler kaymıyor |
-| 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
+| 38 | Yerleşim arama: modern + tarihî | C | ✅ **çalışıyor** — doğum/defin yeri alanında öneri; yazılan eski ad DEĞİŞTİRİLMİYOR |
 | 39 | Storyworth için ayrı giriş kapısı | E | "Ağaçsız hesap", `accountId === treeId` **değişmezini** kırıyor |
 | 40 | **e-Devlet PDF'ini birincil onboarding yapmak** | E | Ayrıştırıcı zaten çalışıyor → bu yeni yetenek değil, **canlı ilk-temas akışının yeniden yazımı**. "Bozarsan herkes görür" katsayısı en yüksek iş | ✅
 | 41 | Supabase Faz 3d — misafir giriş | E | Kimliksiz hesap türü `isFounder`/`treeId` çözümünün her dalını etkiler | ❌ kaldırıldı — ürün sahibi istemedi
@@ -122,7 +122,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 |---|---|---|
 | 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** | ✅ **yapıldı** (2026-09-05) — Resend + `soylus.com` doğrulandı, uçtan uca test edildi |
 | 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
-| 58 | **Index Anatolicus lisans görüşmesi** | Kurumsal görüşme; **aylar sürebilir**. 37 ve 38'i açıyor |
+| 58 | **Index Anatolicus lisans görüşmesi** | 🔹 **isteğe bağlı** — artık hiçbir işi kilitlemiyor. 37 ve 38 açık kaynaklarla yapıldı; lisans gelirse üstüne zenginleştirme katmanı olur |
 | 59 | Karar: aile meclisi / fon kapsamı | Para hareketi = finansal düzenleme. Öneri: **hayır** |
 | 60 | Karar: telefonla hikâye kaydı (BTK/operatör) | Numara tahsisi araştırması. Öneri: **hayır** — 30 aynı ihtiyacı karşılıyor |
 | 61 | Karar: kuşak adı/rütbesi terminolojisi | Türkçede karşılığı var mı? Öneri: **yok, alan eklenmesin** — 27'ye erir |
@@ -247,7 +247,6 @@ blokaj.** Sonda bırakılırlarsa arkalarındaki işler askıda kalır:
 | Madde | Kilitlediği işler |
 |---|---|
 | **54 — e-posta anahtarı** | 47, 48, 49, 50, 51 · dolaylı olarak 45 |
-| **58 — Index Anatolicus lisansı** | 37, 38 |
 
 **Güncel durum:** 54 yapıldı (Resend + `soylus.com`). Geriye tek gerçek blokaj olarak
 **58** kaldı ve o da mecburi değil — bkz. aşağıdaki not.
