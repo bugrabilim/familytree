@@ -104,7 +104,7 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 
 | # | İş | Ben teslim ederim | Senden gereken |
 |---|---|---|---|
-| 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar |
+| 46 | Otomatik zamanlanmış yedek | cron rotası + yedek hedefi | `CRON_SECRET`, hedef karar | ✅ **kod teslim** (#249) — `CRON_SECRET` bekliyor |
 | 47 | Otomatik aile bülteni | cron + şablon (`reminders` kalıbı hazır) | **e-posta anahtarı (54)** |
 | 48 | Anma Takvimi bildirimi | mevcut cron rotasına ek | **e-posta anahtarı (54)** |
 | 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | **e-posta anahtarı (54)** |
@@ -197,6 +197,28 @@ burcun hepsinden geçme ve geri gitmeme.
 (yazın çoğu yıl +3), sonra sürekli +3 kullandı. Tek bir varsayım seçmek
 yerine makul adayların hepsi hesaplanıyor: hepsi aynı burca düşüyorsa burç
 yazılıyor, düşmüyorsa "kesin değil" denip adaylar gösteriliyor.
+
+**Düzeltme (2026-09-03, PR #246).** Yukarıdaki paragraf yalnız Türkiye için
+doğruydu; yurt dışında kod **tek** aday üretiyordu (boylamdan `Math.round(lng
+/ 15)`) ve tek aday olunca "hepsi aynı burca düşüyor" koşulu kaçınılmaz
+olarak sağlanıyordu. Yani yurt dışı kayıtlarında yanıt hem yanlış hem
+"kesin" damgalıydı — kullanıcının denetleyemeyeceği türden bir hata.
+Boylamdan çıkan fark **güneş** saatidir; resmî saat ondan farklıdır ve
+genelde farklı olur: Köln (boylam ~7°) güneş farkı 0 verir, oysa Almanya
+kışın +1 yazın +2 kullanır — bir tam burç sapma.
+
+Artık güneş farkı çevresinde bir **aralık** deneniyor ve aralık bilerek
+asimetrik: resmî dilim güneş saatinin bir saat sağında ya da solunda
+olabilir, ama yaz saati her zaman ileri alır, o yüzden üst uç 1916 sonrası
+bir saat daha geniş. Sonuç, yurt dışı kayıtlarında `certain`in ancak doğum
+anı burcun ortasındaysa çıkması — doğrusu da bu. Hâlâ kapsanmayan:
+resmî saati güneş saatinden bir saatten fazla sapan yerler (İspanya'nın
+batısı, Çin'in tamamı, Hindistan'ın yarım saati); onlar için doğru yanıt bir
+dilim tarihi veritabanıdır ve o gelene kadar uydurulmuyor.
+
+Aynı PR'da `parseFullDate` de düzeltildi: "31'e kadar her gün olur" diyordu,
+yani `"1900-02-30"` kabul ediliyor ve `julianDay` onu sessizce 2 Mart'a
+kaydırıp var olmayan bir gün için yükselen hesaplıyordu.
 
 *Eksik veri.* Tam tarih + saat + koordinat şart; biri eksikse hiç
 hesaplanmıyor. Maskeli kişide üçü de taşınmadığı için yükselen kendiliğinden
