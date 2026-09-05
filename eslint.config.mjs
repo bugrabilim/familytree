@@ -14,6 +14,13 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Native mobil uygulama kendi araç zincirine sahip (Expo/RN); web lint'i dışında.
     "apps/**",
+    /*
+     * Geçici git worktree'leri. İçlerinde deponun bir KOPYASI duruyor ve o
+     * kopyadaki `apps/mobile` yukarıdaki desene uymuyor (kök göreli değil),
+     * yani mobil dosyalar web lint'ine sızıp `npm run lint`i kırıyordu.
+     * Kopyayı lint etmenin bir anlamı da yok: asıl dosyalar zaten taranıyor.
+     */
+    ".claude/**",
   ]),
 ]);
 

@@ -142,6 +142,12 @@ export const EXCLUDED_FIELDS: Readonly<Record<string, string>> = {
   parentLinks: "İlişki grafiği; `parentIds` ile birlikte yürür.",
   spouseIds: "İlişki grafiği — karşı tarafı da güncellenir.",
   formerSpouseIds: "İlişki grafiği; `spouseIds` ile birlikte yürür.",
+  contactEmail:
+    "Üçüncü kişinin adresi; adres değişince ONAY SIFIRLANMALI (`lib/contact-consent.ts`) ve bunu düz metin birleştirmesi ifade edemez. Kendi ucundan yazılır.",
+  contactConsent:
+    "Onayı kişinin KENDİ tıklaması verir; düzenleyicinin gövdesinden yazılabilseydi çift onay anlamsız olurdu.",
+  contactTokenHash: "Sunucu sırrı; istemciden hiç kabul edilmez.",
+  contactAskedAt: "Sunucu üretir; gönderim anını istemci belirleyemez.",
 };
 
 /** Anahtara göre alan tanımı. */

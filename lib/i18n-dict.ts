@@ -552,6 +552,24 @@ export const tr: Dict = {
   "notify.saving": "Kaydediliyor…",
   "notify.saved": "Bildirim tercihlerin kaydedildi.",
   "notify.failed": "Kaydedilemedi. Lütfen tekrar deneyin.",
+
+  /*
+   * AĞAÇTAKİ KİŞİNİN ADRESİ — çift onay. Metinler bilerek "gidecek" değil
+   * "gidebilir" diyor: kaydeden kişi onay veremez, onayı adresin sahibi verir.
+   */
+  "contact.section": "E-posta ile ulaşma",
+  "contact.label": "Bu kişinin e-posta adresi",
+  "contact.hint": "Ona hatırlatma göndermek istersen. Girişte kullanılmaz ve ağacı görenlere gösterilmez.",
+  "contact.consentNote": "Kaydedince bu adrese tek bir soru postası gider: “onaylıyor musun?” Yanıt gelmezse hiçbir şey gönderilmez ve bir daha sorulmaz.",
+  "contact.stateApproved": "✓ Onayladı — bildirim gönderilebilir.",
+  "contact.statePending": "Soruldu, yanıt bekleniyor. Yanıt gelene kadar posta gönderilmez.",
+  "contact.stateDeclined": "İstemedi. Bu adrese posta gönderilmiyor.",
+  "contact.declinedNote": "Bu kişi istemediğini söyledi; kararına saygı gösteriyoruz ve bir daha sorulmuyor. Başka bir adres yazarsan ona bir kez sorulur.",
+  "contact.save": "Adresi kaydet",
+  "contact.saving": "Kaydediliyor…",
+  "contact.saved": "Adres kaydedildi. Onay postası gönderilecek.",
+  "contact.cleared": "Adres kaldırıldı.",
+  "contact.failed": "Kaydedilemedi. Lütfen tekrar deneyin.",
   // Şifremi unuttum — yöntem seçimi ve bilgi notları.
   "forgot.method": "Nasıl sıfırlamak istersin?",
   "forgot.methodCode": "Kurtarma kodu",
@@ -2523,6 +2541,20 @@ export const en: Dict = {
   "notify.saving": "Saving…",
   "notify.saved": "Your notification preferences are saved.",
   "notify.failed": "Could not save. Please try again.",
+
+  "contact.section": "Reaching them by email",
+  "contact.label": "This person's email address",
+  "contact.hint": "If you'd like to send them reminders. Never used to sign in, and never shown to people viewing the tree.",
+  "contact.consentNote": "Saving sends this address a single question: “is this okay?” If there's no answer, nothing is ever sent and they are not asked again.",
+  "contact.stateApproved": "✓ They agreed — notifications can be sent.",
+  "contact.statePending": "Asked, waiting for an answer. Nothing is sent until they reply.",
+  "contact.stateDeclined": "They declined. No mail is sent to this address.",
+  "contact.declinedNote": "They said no, and that stands — they won't be asked again. Entering a different address asks that person once.",
+  "contact.save": "Save address",
+  "contact.saving": "Saving…",
+  "contact.saved": "Address saved. A consent request will be sent.",
+  "contact.cleared": "Address removed.",
+  "contact.failed": "Could not save. Please try again.",
   // Forgot password — method picker and explanatory notes.
   "forgot.method": "How would you like to reset?",
   "forgot.methodCode": "Recovery code",

@@ -107,6 +107,43 @@ export function maskPerson(p: Person): Person {
 }
 
 /**
+ * ÜÇÜNCÜ KİŞİNİN E-POSTA ADRESİ — görüntü katmanında KOŞULSUZ düşer.
+ *
+ * Öbür gizlilik kuralları koşullu: kişi maskeliyse, alan `privateFields`
+ * içindeyse. Bu değil. Sebebi, kime gittiği: ağaç yükü ağacın BÜTÜN üyelerine
+ * ve paylaşım bağlantısını açan herkese gidiyor. Adres oraya binseydi tek bir
+ * paylaşım bağlantısı, ağaçtaki herkesin e-posta adresini dışarı taşırdı — ve
+ * o adresler kullanıcının kendi adresi bile değil, akrabalarının.
+ *
+ * Ekranda gösterilecek bir değeri de yok: adres bir gönderim ayarı, bir künye
+ * bilgisi değil. Düzenleyici onu kendi ucundan (`/api/family/person/[id]/
+ * contact`) okur — yani adres yalnız onu yazabilen kişiye, yalnız istendiğinde
+ * gider.
+ *
+ * `maskPerson` beyaz liste olduğu için maskeli kopyada zaten yok; buradaki
+ * koşulsuz silme, MASKESİZ yolun (vefat etmiş kişi, gizleme kapalı) açıkta
+ * kalmasını engelliyor.
+ */
+const CONTACT_FIELDS = [
+  "contactEmail",
+  "contactConsent",
+  "contactTokenHash",
+  "contactAskedAt",
+] as const;
+
+/** İletişim alanları çıkarılmış kopya. Alan yoksa aynı nesne döner. */
+export function stripContact(p: Person): Person {
+  const kaynak = p as unknown as Record<string, unknown>;
+  let copy: Record<string, unknown> | null = null;
+  for (const f of CONTACT_FIELDS) {
+    if (kaynak[f] === undefined) continue;
+    copy ??= { ...kaynak };
+    delete copy[f];
+  }
+  return (copy ?? p) as unknown as Person;
+}
+
+/**
  * Görüntü katmanının TEK kaynağı: tümüyle maskeliyse beyaz listeli kopya,
  * değilse alan-bazlı gizli grupları çıkarılmış kopya.
  *
@@ -116,7 +153,13 @@ export function maskPerson(p: Person): Person {
  * ham veriyi zaten göndermiş olmak demektir.
  */
 export function viewPerson(p: Person, hideLiving: boolean): Person {
-  return isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p);
+  /*
+   * `stripContact` EN DIŞTA ve her iki dalın üstünde: iki daldan birine
+   * yazılsaydı, öbür dal sessizce adresi taşırdı. Görüntü katmanının tek
+   * kapısı burası olduğu için tek satırlık bu sarmalama, adresin hiçbir
+   * çizim yolundan çıkamamasını garanti ediyor.
+   */
+  return stripContact(isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p));
 }
 
 /** `viewPerson`'ın liste hâli. */
