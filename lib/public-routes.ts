@@ -54,6 +54,19 @@ export const PUBLIC_PREFIXES: readonly string[] = [
    * Kimlik jetonun kendisinde ve jeton tek kullanımlık.
    */
   "/reset-password",
+  /*
+   * Ağaçtaki kişiye giden onay / abonelikten çıkma bağlantıları (madde
+   * 47/48). Bu sayfaları açan kişinin uygulamada HESABI YOK ve olması da
+   * beklenemez: adresini bir akrabası girdi, kendisi uygulamayı hiç görmemiş
+   * olabilir. Oturum duvarına takılsaydı ne onay verilebilir ne de çıkılabilir
+   * olurdu — yani çift onay kâğıt üstünde kalır, çıkış da hiç çalışmazdı.
+   *
+   * Kimlik jetonun kendisinde: onay jetonu tek kullanımlık ve özeti kayıtta,
+   * çıkış jetonu sunucu sırrıyla imzalı. `/api/contact` altındaki iki uç da
+   * yalnız o jetonlarla iş yapıyor.
+   */
+  "/contact",
+  "/api/contact",
   "/api/auth",
   "/api/register",
   "/api/reset-password",
