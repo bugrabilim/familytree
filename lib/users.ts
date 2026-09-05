@@ -1,6 +1,6 @@
 import { put, list, get } from "@vercel/blob";
 import type { User, UsersData } from "@/types/user";
-import { dbRenameTree, dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
+import { dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 
 const USERS_PATHNAME = "users.json";
@@ -45,8 +45,7 @@ export async function createUser(
   id: string,
   familyName: string,
   passwordHash: string,
-  recoveryCodeHash: string,
-  opts?: { guest?: boolean }
+  recoveryCodeHash: string
 ): Promise<User> {
   const data = await getUsersData();
   const user: User = {
@@ -55,7 +54,6 @@ export async function createUser(
     passwordHash,
     recoveryCodeHash,
     createdAt: new Date().toISOString(),
-    ...(opts?.guest ? { guest: true } : {}),
   };
   data.users.push(user);
   await saveUsersData(data);
@@ -148,45 +146,6 @@ export async function updateUserNotify(
  * jetonun geçerli kalması, artık bağlı olmayan bir adresin doğrulanmasına
  * izin vermek olurdu.
  */
-/**
- * Misafir ağacını gerçek hesaba çevirir (Faz 3d — sahiplenme).
- *
- * `guest` bayrağı KALDIRILIYOR, bırakılıp `false` yapılmıyor: bayrağın
- * yokluğu "gerçek hesap" demek ve tek bir doğruluk biçimi olsun.
- */
-export async function claimGuestUser(
-  id: string,
-  familyName: string,
-  passwordHash: string,
-  recoveryCodeHash: string
-): Promise<User | null> {
-  const data = await getUsersData();
-  const user = data.users.find((u) => u.id === id);
-  if (!user || !user.guest) return null;
-  user.familyName = familyName;
-  user.passwordHash = passwordHash;
-  user.recoveryCodeHash = recoveryCodeHash;
-  delete user.guest;
-  await saveUsersData(data);
-  try {
-    await dbUpsertAccount(user);
-  } catch (e) {
-    console.warn(`[cift-yazma] sahiplenme→postgres (${user.id}):`, (e as Error).message);
-  }
-  /*
-   * Ev ağacının ADI da soyadı takip etmeli. Misafir ağacı "Misafir ağacı"
-   * adıyla açıldı; sahiplenme onu gerçek bir soyada çeviriyor ve ağaç satırı
-   * eski adla kalırsa yönetim/kayma ekranlarında hesap bir adla, ağacı başka
-   * bir adla görünürdü.
-   */
-  try {
-    await dbRenameTree(user.id, user.familyName);
-  } catch (e) {
-    console.warn(`[cift-yazma] sahiplenme agac adi (${user.id}):`, (e as Error).message);
-  }
-  return user;
-}
-
 export async function updateUserAuthEmail(
   id: string,
   patch: {

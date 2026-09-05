@@ -14,8 +14,6 @@ declare module "next-auth" {
       treeName?: string;
       /** Ağacı kuran hesap mı? (üye değilse) — çoklu ağaç sahipliği için. */
       isFounder?: boolean;
-      /** Misafir oturumu (Faz 3d) — kısıtlar `lib/guest.ts`te. */
-      isGuest?: boolean;
       /**
        * Davetli ÜYENİN kendi kimliği (`lib/members.ts`). Kurucuda yoktur:
        * onun kimliği ağacın kimliğidir. `id` ağacı, bu alan kişiyi söyler.
@@ -28,12 +26,6 @@ declare module "next-auth" {
     role?: TreeRole;
     treeName?: string;
     isFounder?: boolean;
-    /**
-     * Misafir oturumu (Faz 3d). BURADA olması şart: User → JWT sıçraması
-     * `auth.ts`te elle bir `as` dönüşümüyle yapılıyor ve alan bu arayüzde
-     * yoksa derleyici o sıçramada bayrağın düşmesini fark etmez.
-     */
-    isGuest?: boolean;
     memberId?: string;
   }
 }

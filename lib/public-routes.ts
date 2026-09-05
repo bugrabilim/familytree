@@ -22,17 +22,6 @@ export const PUBLIC_ASSET_EXT =
 export const PUBLIC_EXACT: readonly string[] = [
   "/",
   "/favicon.ico",
-  /*
-   * Misafir hesap açma (Faz 3d). Oturumu OLMAYAN biri için hesap açıyor;
-   * oturum duvarının arkasında hiç çalışamaz — `/api/register` ile aynı
-   * konumda.
-   *
-   * TAM eşleşme listesinde, önek listesinde DEĞİL: önek olsaydı
-   * `/api/guest/claim` de açılırdı ve sahiplenme oturum ister (kimin ağacı
-   * sahiplenildiğini ancak oturum söyler). Korumaları kendi içinde: sert
-   * oran sınırı ve "zaten oturum varsa açma".
-   */
-  "/api/guest",
 ];
 
 /**

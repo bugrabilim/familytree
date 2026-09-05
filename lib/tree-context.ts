@@ -17,8 +17,6 @@ export type TreeContext =
       treeId: string;
       role: TreeRole;
       isFounder: boolean;
-      /** Misafir oturumu (Faz 3d) — kısıtlar `lib/guest.ts`te. */
-      isGuest: boolean;
       /**
        * Bu değişikliği YAPAN kişinin kimliği — katkı akışı için.
        *
@@ -39,7 +37,6 @@ export type TreeContext =
 async function resolveSessionUser(): Promise<{
   id: string;
   isFounder: boolean;
-  isGuest: boolean;
   role: TreeRole;
   memberId?: string;
 } | null> {
@@ -51,7 +48,6 @@ async function resolveSessionUser(): Promise<{
       return {
         id: claims.sub,
         isFounder: claims.isFounder,
-        isGuest: claims.isGuest === true,
         role: claims.role,
         memberId: claims.memberId,
       };
@@ -62,8 +58,6 @@ async function resolveSessionUser(): Promise<{
     return {
       id: session.user.id,
       isFounder: session.user.isFounder ?? true,
-      // `=== true`: bayrağın YOKLUĞU gerçek hesap demek (mevcut oturumlar).
-      isGuest: session.user.isGuest === true,
       role: (session.user.role as TreeRole | undefined) ?? "admin",
       memberId: session.user.memberId,
     };
@@ -83,13 +77,12 @@ export async function resolveActiveTree(): Promise<TreeContext> {
 
   const accountId = sessionUser.id;
   const isFounder = sessionUser.isFounder;
-  const isGuest = sessionUser.isGuest;
   const homeRole = sessionUser.role;
   // Kurucuda üye kimliği yok; ağacın kimliği onu temsil eder.
   const authorId = sessionUser.memberId ?? accountId;
 
   if (!isFounder) {
-    return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: false, isGuest, authorId };
+    return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: false, authorId };
   }
 
   // Aktif ağaç seçimi: mobil `x-tree-id` başlığı, yoksa web çerezi.
@@ -98,8 +91,8 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   if (cookieVal && cookieVal !== accountId) {
     const owned = await accessibleTreeIds(accountId);
     if (hasTreeAccess(accountId, cookieVal, owned)) {
-      return { ok: true, accountId, treeId: cookieVal, role: "admin", isFounder: true, isGuest, authorId };
+      return { ok: true, accountId, treeId: cookieVal, role: "admin", isFounder: true, authorId };
     }
   }
-  return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true, isGuest, authorId };
+  return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true, authorId };
 }

@@ -195,8 +195,9 @@ tam klinik genogram sembolojisi · risk skoru · mobilde web'i aynalamak.
 3b+3c PR #48'de. Bayrak (`SUPABASE_AUTH_LOGIN`) kullanıcı hazır olunca açılacak.
 Sonraki adımlar (ayrı PR'lar):
 
-- **Faz 3d — hesapsız (misafir) giriş:** Supabase Anonymous sign-in. Özellikle
-  mobil için; kullanıcı kaydolmadan ağaç oluşturup gezebilir.
+- ~~**Faz 3d — hesapsız (misafir) giriş**~~ — İPTAL: Blob-tabanlı bir sürümü
+  kuruldu (`lib/guest.ts`) ama ürün sahibi istemedi, tamamen kaldırıldı. Bu
+  Supabase Anonymous sign-in alternatifi de artık gündemde değil.
 - **Faz 3e — gerçek e-posta ile bağlama:** sentetik iç e-postayı kullanıcının
   gerçek e-postasıyla değiştirip hesabı kalıcılaştırma (doğrulama + parola
   sıfırlama Supabase akışlarıyla).

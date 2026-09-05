@@ -27,12 +27,9 @@ function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; cons
 const src = readFileSync(new URL("../lib/users.ts", import.meta.url), "utf8");
 
 const iCreate = src.indexOf("export async function createUser");
-const iClaim = src.indexOf("export async function claimGuestUser");
 check(iCreate > 0, "createUser bulundu");
-check(iClaim > 0, "claimGuestUser bulundu");
 
 const govdeCreate = src.slice(iCreate, src.indexOf("\nexport ", iCreate + 10));
-const govdeClaim = src.slice(iClaim, src.indexOf("\nexport ", iClaim + 10));
 
 /* --- Hesap açılırken ev ağacı da açılıyor ------------------------------- */
 check(/await dbUpsertTree\(/.test(govdeCreate), "createUser ev ağacı satırını açıyor");
@@ -57,11 +54,6 @@ check(iHesap > 0 && iAgac > iHesap, "ağaç satırı hesap satırından sonra ya
  */
 check(/catch \(e\) \{\s*console\.warn\(`\[cift-yazma\] ev agaci/.test(govdeCreate),
   "ev ağacı yazımı best-effort (kayıt akışını bozmuyor)");
-
-/* --- Sahiplenmede ağacın adı da güncelleniyor --------------------------- */
-check(/await dbRenameTree\(/.test(govdeClaim), "sahiplenme ağaç adını güncelliyor");
-check(/dbRenameTree\(user\.id, user\.familyName\)/.test(govdeClaim),
-  "ağaç adı yeni soyadı alıyor");
 
 /* --- Yabancı anahtar gerçekten var mı ----------------------------------- */
 /*

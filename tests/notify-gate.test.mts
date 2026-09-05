@@ -86,7 +86,6 @@ check(/if \(!user\.notifyEmail\) \{/.test(uK), "adres boşsa özel dal var");
 
 /* --- YETKİ --------------------------------------------------------------- */
 check(/if \(!ctx\.isFounder\)/.test(aK), "yalnız hesap sahibi");
-check(/canDo\(ctx\.isGuest, "email"\)/.test(aK), "misafir kapısı yerinde");
 check(!isPublicPath("/api/account/notify"), "bildirim ayarı ucu oturumsuz açık DEĞİL");
 
 /* --- ARAYÜZ GERÇEKTEN BAĞLI ---------------------------------------------- */

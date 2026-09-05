@@ -23,11 +23,10 @@ function generateRecoveryCode(): string {
 
 export async function POST(req: NextRequest) {
   /*
-   * SINIRLI. `lib/guest.ts`teki gerekçenin aynısı burada da geçerli ve daha
-   * ağır: hesap sınırsız açılabiliyorsa hesap başına ölçülen her şey (AI,
-   * yükleme, e-posta) ölçüsüz hale gelir — ve buradan açılan hesaplar
-   * misafir değil, o yüzden hiçbir kısıtları yok. Mobil ikizi
-   * (`/api/mobile/register`) zaten sınırlıydı; web ucu atlanmıştı.
+   * SINIRLI. Hesap sınırsız açılabiliyorsa hesap başına ölçülen her şey (AI,
+   * yükleme, e-posta) ölçüsüz hale gelir — ve buradan açılan hesaplar hiçbir
+   * kısıtı olmayan tam yetkili hesaplar. Mobil ikizi (`/api/mobile/register`)
+   * zaten sınırlıydı; web ucu atlanmıştı.
    */
   const rl = await rateLimitShared(`register:${ipOf(req)}`, { capacity: 5, refillPerSec: 0.02 });
   if (!rl.ok)
