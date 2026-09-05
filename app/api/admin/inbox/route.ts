@@ -126,8 +126,14 @@ export async function POST(req: NextRequest) {
   });
   if (!r.sent) return NextResponse.json({ error: "Gönderilemedi." }, { status: 502 });
 
-  await markReplied(id, new Date().toISOString());
-  return NextResponse.json({ ok: true });
+  /*
+   * Yanıt YALNIZ gönderim başarılıysa saklanıyor — yukarıdaki `r.sent`
+   * denetiminden sonra. Gönderilmemiş bir metni "yanıtım" diye kaydetmek,
+   * olmayan bir yazışmayı kayda geçirmek olurdu ve kullanıcı karşı tarafın
+   * onu okuduğunu sanırdı.
+   */
+  await markReplied(id, new Date().toISOString(), metin);
+  return NextResponse.json({ ok: true, mail: await findMail(id) });
 }
 
 export async function DELETE(req: NextRequest) {

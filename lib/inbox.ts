@@ -71,6 +71,16 @@ export type BodyFetchState =
   /** API anahtarı hiç tanımlı değil. */
   | "yapilandirilmamis";
 
+/** Gönderilmiş bir yanıt. */
+export interface Reply {
+  text: string;
+  /** Gönderim anı (ISO). */
+  at: string;
+}
+
+/** Bir postaya saklanan yanıt sayısı. */
+export const MAX_REPLIES = 20;
+
 export interface Mail {
   id: string;
   /** Gönderen adresi (normalleştirilmiş). */
@@ -86,6 +96,15 @@ export interface Mail {
   at: string;
   read?: boolean;
   repliedAt?: string;
+  /**
+   * Gönderilmiş yanıtlar.
+   *
+   * Yalnız "yanıtlandı" damgası yetmiyordu: kullanıcı NE yazdığını
+   * göremiyordu. Bir gelen kutusunda yazışmanın yarısını gizlemek, üç gün
+   * sonra "ben buna ne demiştim?" sorusunu yanıtsız bırakmak demek — ve o
+   * soru gerçekten soruluyor.
+   */
+  replies?: Reply[];
   /** Postanın kendi `Message-ID`'si — yanıtta zincir kurmak için. */
   messageId?: string;
   /**
@@ -360,6 +379,18 @@ export function planStore(mevcut: Mail[], yeni: Mail): Mail[] {
 }
 
 /* ── Yanıt ────────────────────────────────────────────────────────────────── */
+
+/**
+ * Yeni yanıtı listeye ekler; tavan aşılırsa EN ESKİSİ düşer.
+ *
+ * `planStore` ile aynı yön: dolduğunda yeni olanı reddetmek, tam da az önce
+ * yazılanı kaybetmek olurdu.
+ */
+export function planReply(mevcut: Reply[] | undefined, yeni: Reply): Reply[] {
+  const liste = [...(mevcut ?? []), yeni];
+  return liste.length > MAX_REPLIES ? liste.slice(liste.length - MAX_REPLIES) : liste;
+}
+
 
 /** `"Merhaba"` → `"Re: Merhaba"`; zaten `Re:` varsa İKİNCİSİ eklenmiyor. */
 export function replySubject(subject: string): string {
