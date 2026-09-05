@@ -5,13 +5,26 @@
  * yazan kişi bir aile üyesi, bir soru soran, bazen de sadece bir bot. Bu
  * dosya, o postaların uygulamanın içinde okunabilir hâle gelmesini sağlıyor.
  *
- * ## HTML SAKLANMIYOR — bu dosyanın tek en önemli kararı
+ * ## HTML SAKLANMIYOR, ÇİZİLMİYOR — bu dosyanın tek en önemli kararı
  *
  * Gelen postanın gövdesi TAMAMEN yabancı bir kaynaktan geliyor ve içeriğini
  * gönderen belirliyor. O HTML'i saklayıp yönetici ekranında çizmek, sayfaya
  * saldırganın seçtiği işaretlemeyi koymak demek: betik, izleme pikseli,
- * sahte form. Dolayısıyla yalnız DÜZ METİN saklanıyor ve yalnız düz metin
- * gösteriliyor. Postanın "güzel" görünmemesi kabul edilen bedel.
+ * sahte form. Dolayısıyla HTML ne saklanıyor ne de çiziliyor; yalnız DÜZ
+ * METİN saklanıyor ve yalnız düz metin gösteriliyor. Postanın "güzel"
+ * görünmemesi kabul edilen bedel.
+ *
+ * ## Ama HTML'den METİN ÇIKARILIYOR — ve bu bir çelişki değil
+ *
+ * Bu dosya önce "html'e hiç bakılmaz" diyordu ve o kural YANLIŞTI: iki ayrı
+ * şeyi birbirine karıştırıyordu. Tehlikeli olan, işaretlemenin TARAYICIDA
+ * YORUMLANMASI; karakterlerin kendisi değil. `htmlToText` çıktısı düz metin
+ * olarak saklanıp düz metin olarak çiziliyor, yani hiçbir etiket
+ * yorumlanmıyor.
+ *
+ * Kuralın bedeli somuttu: bugünün postalarının çoğu yalnız HTML gövdeli.
+ * "Bakmayız" demek, gelen postaların çoğunu BOŞ göstermek demekti — güvenlik
+ * kazancı olmadan, yalnızca kullanılmaz bir gelen kutusu.
  *
  * ## Ekler saklanmıyor
  *
@@ -45,6 +58,19 @@ export interface Attachment {
   size?: number;
 }
 
+/** Gövde çekme durumu — `undefined` "gövde var" demek. */
+export type BodyFetchState =
+  /** Henüz denenmedi ya da yeniden denenebilir. */
+  | "bekliyor"
+  /** API anahtarının izni yetmiyor (yalnız gönderim yetkisi). */
+  | "yetki"
+  /** Sağlayıcıda kayıt yok — büyük ihtimalle saklama süresi doldu. */
+  | "bulunamadi"
+  /** Ağ/sunucu hatası; yeniden denenebilir. */
+  | "hata"
+  /** API anahtarı hiç tanımlı değil. */
+  | "yapilandirilmamis";
+
 export interface Mail {
   id: string;
   /** Gönderen adresi (normalleştirilmiş). */
@@ -71,6 +97,16 @@ export interface Mail {
    * kalmazdı.
    */
   providerId?: string;
+  /**
+   * Gövdeyi ÇEKME denemesinin sonucu. Yokluğu "gövde elimizde" demek.
+   *
+   * Sağlayıcının bildirimi gövdeyi taşımıyor (bilerek: sunucusuz ortamların
+   * istek boyutu sınırları var). Gövde ayrı bir çağrıyla alınıyor ve o çağrı
+   * başarısız olabiliyor — en olası sebebi API anahtarının izninin
+   * yetmemesi. Sebebi SAKLAMAK şart: yoksa ekranda boş bir gövde görünür ve
+   * "kişi boş posta atmış" ile "biz alamadık" ayırt edilemez.
+   */
+  bodyFetch?: BodyFetchState;
   attachments?: Attachment[];
 }
 
@@ -98,6 +134,52 @@ export function displayName(raw: unknown): string {
   const i = raw.indexOf("<");
   if (i <= 0) return "";
   return raw.slice(0, i).trim().replace(/^"|"$/g, "").slice(0, 120);
+}
+
+/* ── HTML → düz metin ─────────────────────────────────────────────────────── */
+
+/**
+ * HTML gövdeden okunabilir düz metin çıkarır.
+ *
+ * Saf dize işlemi: DOM yok, değerlendirme yok, çıktı düz metin. Tehlike
+ * işaretlemenin YORUMLANMASINDA; burada yorumlanan hiçbir şey yok.
+ *
+ * `script` ve `style` blokları İÇERİKLERİYLE birlikte atılıyor — yalnız
+ * etiketleri atmak, betik kaynağını metin diye göstermek olurdu (zararsız
+ * ama okunmaz). `head` de öyle.
+ *
+ * Blok geçişleri satır sonuna çevriliyor, yoksa bütün posta tek bir upuzun
+ * satır olurdu ve okunamazdı.
+ */
+export function htmlToText(html: string): string {
+  if (!html) return "";
+  return html
+    // Görünmeyen bloklar: içerikleriyle birlikte.
+    .replace(/<(script|style|head|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    // Yapıyı koruyan geçişler.
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6]|blockquote|table|section|article)>/gi, "\n")
+    .replace(/<\/(td|th)>/gi, "\t")
+    // Kalan bütün etiketler.
+    .replace(/<[^>]+>/g, "")
+    // Yaygın varlıklar. Sayısal olanlar da çözülüyor ki "&#39;" gibi
+    // diziler ekranda ham kalmasın.
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => {
+      const kod = Number(n);
+      return Number.isFinite(kod) && kod > 0 && kod < 0x110000 ? String.fromCodePoint(kod) : "";
+    })
+    // Boşluk temizliği: satır yapısı korunur, fazlalık gider.
+    .replace(/[ \t\u00a0]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /* ── Ayrıştırma ───────────────────────────────────────────────────────────── */
@@ -221,11 +303,14 @@ export function parseInboundResult(
   if (!to) return { fail: "alici-yok" };
 
   /*
-   * HTML'e HİÇ BAKILMIYOR — metin yoksa boş bırakılıyor. HTML'den metin
-   * türetmek cazip ama o dönüşüm, saklamamaya karar verdiğimiz içeriği
-   * dolambaçlı yoldan içeri almak olurdu.
+   * Önce düz metin; yoksa HTML'den ÇIKARILIYOR (bkz. dosya başındaki not —
+   * saklanan ve çizilen şey her hâlükârda düz metin).
    */
-  const govde = metin(d.text) || metin(d.plain) || metin((d as Json).body as string);
+  const govde =
+    metin(d.text) ||
+    metin(d.plain) ||
+    metin((d as Json).body as string) ||
+    htmlToText(metin(d.html));
 
   const ekler: Attachment[] = Array.isArray(d.attachments)
     ? (d.attachments as Json[])
@@ -247,6 +332,12 @@ export function parseInboundResult(
       at: now.toISOString(),
       messageId: metin(d.message_id ?? d.messageId) || undefined,
       providerId: metin(d.email_id ?? d.emailId) || undefined,
+      /*
+       * Gövde bildirimde yoksa "bekliyor" işaretleniyor — ayrı çağrıyla
+       * alınacak. İşaret konmasaydı, gövdesiz posta ile gerçekten boş posta
+       * birbirinden ayırt edilemezdi.
+       */
+      ...(govde ? {} : { bodyFetch: "bekliyor" as const }),
       ...(ekler.length ? { attachments: ekler } : {}),
     },
   };

@@ -3,7 +3,8 @@ import { auth } from "@/auth";
 import { isAdminAccount, isAdminConfigured } from "@/lib/admin";
 import { isEmailConfigured, replyAddress, sendEmail } from "@/lib/email";
 import { quoteForReply, replySubject, threadHeaders } from "@/lib/inbox";
-import { deleteMail, findMail, markRead, markReplied, readInbox } from "@/lib/inbox-store";
+import { deleteMail, findMail, markRead, markReplied, readInbox, setBody } from "@/lib/inbox-store";
+import { fetchInboundBody } from "@/lib/resend-inbound";
 import { renderEmail } from "@/lib/email-template";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,17 @@ export async function GET() {
   return NextResponse.json({ mails: await readInbox(), emailReady: isEmailConfigured() });
 }
 
-/** Okundu/okunmadı. */
+/**
+ * Okundu/okunmadı — ve gerekiyorsa GÖVDEYİ ÇEKME.
+ *
+ * İkisi aynı yerde çünkü aynı anda oluyor: kullanıcı postayı AÇIYOR. Ayrı
+ * bir "gövdeyi çek" düğmesi koymak, kullanıcıya bizim iç sorunumuzu iş
+ * olarak devretmek olurdu.
+ *
+ * Yeniden deneme burada olduğu için, API anahtarının izni sonradan
+ * düzeltildiğinde eski postalar da açıldıkça tamamlanıyor — yeniden posta
+ * göndermeye gerek yok.
+ */
 export async function PATCH(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
@@ -52,7 +63,25 @@ export async function PATCH(req: NextRequest) {
   const id = typeof body.id === "string" ? body.id : "";
   if (!id) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   const ok = await markRead(id, body.read !== false);
-  return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
+  if (!ok) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
+
+  const mail = await findMail(id);
+  /*
+   * "bulunamadi" YENİDEN DENENMİYOR: sağlayıcıda kayıt yok (saklama süresi
+   * doldu) ve tekrar sormak her açılışta boşuna bir dış çağrı demek olurdu.
+   * Öbür durumların hepsi düzeltilebilir, o yüzden denenmeye değer.
+   */
+  if (mail?.providerId && mail.bodyFetch && mail.bodyFetch !== "bulunamadi") {
+    try {
+      const r = await fetchInboundBody(mail.providerId);
+      if (r.ok) await setBody(id, { text: r.text });
+      else await setBody(id, { state: r.state });
+    } catch {
+      await setBody(id, { state: "hata" });
+    }
+  }
+
+  return NextResponse.json({ ok: true, mail: await findMail(id) });
 }
 
 /** Yanıt gönder. */

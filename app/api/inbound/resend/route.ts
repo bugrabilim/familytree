@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readHeaders, verifyWebhook } from "@/lib/webhook-signature";
 import { parseInboundResult, payloadShape } from "@/lib/inbox";
-import { storeMail } from "@/lib/inbox-store";
+import { setBody, storeMail } from "@/lib/inbox-store";
+import { fetchInboundBody } from "@/lib/resend-inbound";
 
 export const dynamic = "force-dynamic";
 
@@ -77,5 +78,31 @@ export async function POST(req: NextRequest) {
     console.error("[gelen-posta] saklanamadı:", (e as Error).message);
     return NextResponse.json({ error: "Saklanamadı" }, { status: 500 });
   }
+
+  /*
+   * GÖVDEYİ ÇEKMEK EN İYİ ÇABA — başarısızlığı webhook'u DÜŞÜRMÜYOR.
+   *
+   * Sıra bilinçli: önce posta saklandı, sonra gövde deneniyor. Ters olsaydı
+   * ve çekme başarısız olsaydı (ki en olası sebep API anahtarının izninin
+   * yetmemesi — beklemekle geçmeyen bir durum), 500 döner, sağlayıcı
+   * yeniden dener ve posta hiçbir zaman kutuya düşmezdi. Şimdi posta her
+   * hâlükârda kutuda; eksik olan yalnız gövde ve nedeni kayıtlı.
+   *
+   * Gövde ekranda açılırken de yeniden deneniyor: anahtar sonradan
+   * düzeltilince posta kendiliğinden tamamlanıyor.
+   */
+  if (mail.providerId) {
+    try {
+      const g = await fetchInboundBody(mail.providerId);
+      if (g.ok) await setBody(mail.id, { text: g.text });
+      else {
+        await setBody(mail.id, { state: g.state });
+        console.warn(`[gelen-posta] gövde alınamadı (${g.state}) — ${mail.id}`);
+      }
+    } catch (e) {
+      console.warn("[gelen-posta] gövde çağrısı hata verdi:", (e as Error).message);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

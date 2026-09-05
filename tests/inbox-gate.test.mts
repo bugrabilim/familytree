@@ -114,7 +114,34 @@ check(/to: mail\.from,/.test(api), "alıcı kayıttaki gönderenden");
 check(!/to: body\./.test(api), "alıcı gövdeden OKUNMUYOR");
 
 /* --- 3. HTML HİÇ SAKLANMIYOR, HİÇ ÇİZİLMİYOR ---------------------------- */
-check(!/html/i.test(inbox.replace(/htmlden/gi, "")), "saf katman html'e hiç dokunmuyor");
+/*
+ * KURAL DEĞİŞTİ ve nedeni yazılmalı: eskiden "saf katman html'e hiç
+ * dokunmasın" deniyordu ve bu YANLIŞTI — iki ayrı şeyi karıştırıyordu.
+ * Tehlikeli olan işaretlemenin TARAYICIDA YORUMLANMASI, karakterlerin
+ * kendisi değil. Kuralın bedeli de somuttu: bugünün postalarının çoğu yalnız
+ * HTML gövdeli, "bakmayız" demek gelen kutusunu kullanılmaz kılıyordu.
+ *
+ * Yeni kural daha dar ve doğru yerde: HTML SAKLANMIYOR ve ÇİZİLMİYOR.
+ * Çıkarılan düz metin saklanıyor.
+ */
+check(/export function htmlToText\(/.test(inbox), "html'den düz metin çıkarılıyor");
+{
+  /*
+   * Desen `Mail` arayüzünün İÇİNE bakıyor. Dosya genelinde "html:" aramak
+   * `htmlToText(html: string)` imzasıyla eşleşip iddiayı sahte kırmızıya
+   * düşürüyordu — aranan şey saklanan ALAN, geçen her kelime değil.
+   */
+  const i = inbox.indexOf("export interface Mail {");
+  const govde = inbox.slice(i, inbox.indexOf("\n}", i));
+  check(i > -1 && !/\bhtml\b/.test(govde), "`Mail` kaydında html alanı YOK");
+}
+{
+  /* Depoya yazılan alanlar arasında html yok. */
+  check(!/\bhtml\b/.test(store), "depo html'e hiç dokunmuyor");
+  /* Çıkarma saf dize işlemi: DOM ya da değerlendirme yok. */
+  for (const tehlike of ["innerHTML", "eval(", "new Function", "document."])
+    check(!inbox.includes(tehlike), `çıkarma ${tehlike} kullanmıyor`);
+}
 check(!/dangerouslySetInnerHTML/.test(ekran), "ekranda dangerouslySetInnerHTML YOK");
 check(/whitespace-pre-wrap/.test(ekran), "gövde düz metin olarak çiziliyor");
 check(!/m\.html/.test(ekran), "ekran html alanı okumuyor");
@@ -135,6 +162,40 @@ check(/name: metin\(a\?\.filename \?\? a\?\.name\)/.test(inbox), "ekten yalnız 
  */
 check(!/getFamilyData|saveFamilyData/.test(store), "gelen kutusu deposu ağaç verisine erişmiyor");
 check(/const PATHNAME = "inbox\.json"/.test(store), "kutu kendi dosyasında");
+
+/* --- GÖVDE ÇEKME postayı riske ATMIYOR ---------------------------------- */
+/*
+ * Sıra bilinçli: önce posta saklanıyor, sonra gövde deneniyor. Ters olsaydı
+ * ve çekme başarısız olsaydı (en olası sebep API anahtarının izninin
+ * yetmemesi — beklemekle geçmeyen bir durum), 500 döner, sağlayıcı yeniden
+ * dener ve posta HİÇ kutuya düşmezdi.
+ */
+{
+  const iSakla = webhook.indexOf("await storeMail(mail)");
+  const iGovde = webhook.indexOf("fetchInboundBody(");
+  check(iSakla > -1 && iGovde > iSakla, "gövde çekme saklamadan SONRA");
+  /*
+   * Çekmeden SONRA hiçbir 500 yolu kalmamalı. Pencereye bakmak yerine
+   * dosyanın kalanına bakılıyor: ilk hâlinde 200 karakterlik pencere,
+   * saklamanın kendi 500'ünü içine alıp iddiayı sahte kırmızıya
+   * düşürüyordu.
+   */
+  check(!webhook.slice(iGovde).includes("status: 500"), "çekmeden sonra 500 yolu yok");
+  check(/if \(g\.ok\) await setBody/.test(webhook), "başarıda gövde yazılıyor");
+  check(/else \{\s*await setBody\(mail\.id, \{ state: g\.state \}\)/.test(webhook),
+    "başarısızlıkta NEDEN yazılıyor");
+}
+
+/* --- Gövde yeniden DENENEBİLİYOR ---------------------------------------- */
+/*
+ * En olası arıza (anahtar izni) sonradan düzeltilebilir. Yeniden deneme
+ * olmasaydı, düzeltmeden önce gelen bütün postalar kalıcı olarak gövdesiz
+ * kalırdı ve tek çare gönderenden postayı tekrar istemek olurdu.
+ */
+check(/mail\.bodyFetch && mail\.bodyFetch !== "bulunamadi"/.test(api),
+  "açılışta gövde yeniden deneniyor (kalıcı olmayan hatalarda)");
+check(/GOVDE_MESAJI/.test(ekran), "ekran gövdenin neden yok olduğunu söylüyor");
+check(/Full access/.test(ekran), "yetki hatasında ne yapılacağı yazıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

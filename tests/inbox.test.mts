@@ -1,6 +1,6 @@
 import {
   MAX_MAILS, MAX_SUBJECT, MAX_TEXT,
-  displayName, normalizeAddress, parseInbound, parseInboundResult, payloadShape,
+  displayName, htmlToText, normalizeAddress, parseInbound, parseInboundResult, payloadShape,
   planStore, quoteForReply, replySubject, threadHeaders,
   type Mail,
 } from "../lib/inbox.ts";
@@ -9,6 +9,12 @@ let ok = 0, fail = 0;
 function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); } }
 
 const SIMDI = new Date("2026-09-05T22:00:00Z");
+
+/** Gövdesiz gerçek bildirim (aşağıdaki `RESEND_YUKU` ile aynı biçim). */
+const RESEND_YUKU_ERKEN = {
+  type: "email.received",
+  data: { from: "a@b.co", to: ["bilgi@soylus.com"], subject: "konu", email_id: "e1" },
+};
 
 /* ── Adres ───────────────────────────────────────────────────────────────── */
 {
@@ -76,13 +82,30 @@ const YUK = {
 }
 {
   /*
-   * Metin YOKKEN html'den metin TÜRETİLMİYOR. Türetmek cazip ama o dönüşüm,
-   * saklamamaya karar verdiğimiz içeriği dolambaçlı yoldan içeri almak olurdu.
+   * Metin yoksa HTML'den ÇIKARILIYOR — ve bu, "html saklanmaz" kuralıyla
+   * çelişmiyor.
+   *
+   * Burada eskiden tersi yazılıydı ("türetilmiyor") ve o kural yanlıştı: iki
+   * ayrı şeyi karıştırıyordu. Tehlikeli olan işaretlemenin TARAYICIDA
+   * YORUMLANMASI; karakterlerin kendisi değil. Çıkarılan şey düz metin olarak
+   * saklanıp düz metin olarak çiziliyor, hiçbir etiket yorumlanmıyor.
+   *
+   * Kuralın bedeli de somuttu: bugünün postalarının çoğu yalnız HTML gövdeli,
+   * dolayısıyla "bakmayız" demek gelen kutusunu kullanılmaz kılıyordu.
    */
-  const y = { data: { ...YUK.data, text: undefined, html: "<p>Gizli metin</p>" } };
+  const y = { data: { ...YUK.data, text: undefined, html: "<p>Merhaba</p><script>alert(1)</script>" } };
   const m = parseInbound(y, "m2", SIMDI)!;
-  check(!!m, "metinsiz posta yine de kabul ediliyor");
-  check(m.text === "", "html'den metin TÜRETİLMİYOR");
+  check(!!m, "metinsiz posta kabul ediliyor");
+  check(m.text === "Merhaba", "html'den düz metin çıkarılıyor");
+  check(!m.text.includes("alert"), "betik İÇERİĞİ metne girmiyor");
+  check(!JSON.stringify(m).includes("<p>"), "işaretleme hiçbir alana sızmıyor");
+  check(m.bodyFetch === undefined, "gövde bulunduğu için çekme işareti yok");
+}
+{
+  /* Gövde HİÇ yoksa işaret konuyor — ayrı çağrıyla alınacak. */
+  const m = parseInbound(RESEND_YUKU_ERKEN, "m2b", SIMDI)!;
+  check(m.text === "", "gövdesiz bildirimde metin boş");
+  check(m.bodyFetch === "bekliyor", "gövde çekilmeyi bekliyor olarak işaretli");
 }
 
 /* --- Biçim TOLERANSI ---------------------------------------------------- */
@@ -293,6 +316,57 @@ for (const t of ["email.sent", "email.delivered", "email.bounced", "email.opened
   check(a?.from === "a@b.co" && a?.to === "c@d.co", "`email` alanlı nesne biçimi");
   const b = parseInbound({ data: { sender: "a@b.co", recipient: "c@d.co" } }, "x", SIMDI);
   check(b?.from === "a@b.co" && b?.to === "c@d.co", "`sender`/`recipient` biçimi");
+}
+
+/* ── HTML → düz metin ───────────────────────────────────────────────────── */
+/*
+ * Çıktı DÜZ METİN olarak saklanıp düz metin olarak çiziliyor; hiçbir etiket
+ * yorumlanmıyor. Tehlike işaretlemenin tarayıcıda yorumlanmasında, dizenin
+ * kendisinde değil.
+ */
+{
+  check(htmlToText("") === "", "boş girdi boş çıktı");
+  check(htmlToText("<p>Merhaba</p>") === "Merhaba", "etiketler atılıyor");
+  check(htmlToText("bir<br>iki") === "bir\niki", "<br> satır sonu");
+  check(htmlToText("<p>bir</p><p>iki</p>") === "bir\niki", "blok sonu satır sonu");
+  check(htmlToText("<div>a</div><div>b</div>") === "a\nb", "div geçişi");
+  check(htmlToText("<ul><li>a</li><li>b</li></ul>") === "a\nb", "liste öğeleri ayrı satır");
+}
+{
+  /* GÖRÜNMEYEN bloklar İÇERİKLERİYLE atılıyor — yalnız etiketi atmak betik
+     kaynağını metin diye gösterirdi. */
+  check(htmlToText("<script>alert(1)</script>Merhaba") === "Merhaba", "script içeriği atılıyor");
+  check(htmlToText("<style>b{color:red}</style>Merhaba") === "Merhaba", "style içeriği atılıyor");
+  check(htmlToText("<head><title>x</title></head>Merhaba") === "Merhaba", "head atılıyor");
+  check(htmlToText("<!-- gizli -->Merhaba") === "Merhaba", "yorum atılıyor");
+  check(!htmlToText("<SCRIPT>alert(1)</SCRIPT>x").includes("alert"), "büyük harfli etiket de atılıyor");
+}
+{
+  check(htmlToText("A &amp; B") === "A & B", "&amp;");
+  check(htmlToText("&lt;etiket&gt;") === "<etiket>", "&lt; &gt;");
+  check(htmlToText("&quot;x&quot;") === '"x"', "&quot;");
+  check(htmlToText("&#39;x&#39;") === "'x'", "sayısal kesme işareti");
+  check(htmlToText("a&nbsp;b") === "a b", "&nbsp; boşluğa dönüyor");
+  check(htmlToText("&#231;&#246;p") === "çöp", "sayısal varlıklar çözülüyor");
+  check(htmlToText("&#99999999999;x") === "x", "geçersiz kod noktası düşürülüyor");
+}
+{
+  /* Boşluk temizliği: satır YAPISI korunuyor, fazlalık gidiyor. */
+  /*
+   * Kaynakta boş satır varsa BİR tanesi korunuyor, fazlası atılıyor.
+   * Beklentim önce "hepsi silinsin"di ve yanlıştı: paragraflar arası boşluk
+   * okunabilirliğin kendisi, gürültü değil. Silinen şey yalnız üst üste
+   * yığılmış fazlalık.
+   */
+  check(htmlToText("<p>a</p>\n\n\n\n<p>b</p>") === "a\n\nb", "fazla boş satır tek boş satıra iniyor");
+  check(htmlToText("<p>a</p><p>b</p>") === "a\nb", "boşluksuz paragraflar bitişik kalıyor");
+  check(htmlToText("   <p>  a  </p>   ") === "a", "kenar boşlukları kırpılıyor");
+  check(htmlToText("<p>a<br><br><br>b</p>") === "a\n\nb", "üç ve fazlası iki satıra iniyor");
+}
+{
+  /* Uzun ve kötü biçimli girdide de çöküyor olmamalı. */
+  check(typeof htmlToText("<p".repeat(5000)) === "string", "kapanmamış etiket yığını çökmüyor");
+  check(typeof htmlToText("<<<>>>") === "string", "bozuk işaretleme çökmüyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

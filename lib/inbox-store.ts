@@ -1,6 +1,6 @@
 import "server-only";
 import { put, list, get } from "@vercel/blob";
-import { MAX_MAILS, planStore, type Mail } from "@/lib/inbox";
+import { MAX_MAILS, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
 
 /**
  * GELEN KUTUSU DEPOSU — `inbox.json`.
@@ -94,6 +94,30 @@ export async function markReplied(id: string, at: string): Promise<boolean> {
   if (!m) return false;
   m.repliedAt = at;
   m.read = true;
+  await saveBox(box);
+  return true;
+}
+
+/**
+ * Gövdeyi yazar (ya da neden alınamadığını).
+ *
+ * Başarıda `bodyFetch` DÜŞÜYOR: alanın yokluğu "gövde elimizde" demek ve tek
+ * bir doğruluk biçimi olsun. Bırakılıp "tamam" yazılsaydı, iki ayrı değer
+ * aynı şeyi anlatır ve biri gün gelip unutulurdu.
+ */
+export async function setBody(
+  id: string,
+  sonuc: { text: string } | { state: BodyFetchState }
+): Promise<boolean> {
+  const box = await getBox();
+  const m = box.mails.find((x) => x.id === id);
+  if (!m) return false;
+  if ("text" in sonuc) {
+    m.text = sonuc.text;
+    m.bodyFetch = undefined;
+  } else {
+    m.bodyFetch = sonuc.state;
+  }
   await saveBox(box);
   return true;
 }
