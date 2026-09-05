@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
+import { createHash } from "node:crypto";
 import { acceptInvite, findValidInvite } from "@/lib/members";
 import { getUsersData } from "@/lib/users";
+import { rateLimitShared } from "@/lib/rate-limit";
 
 /**
  * Davetle katılma (herkese açık — oturum gerektirmez, jeton yetkiyi taşır).
@@ -9,13 +11,42 @@ import { getUsersData } from "@/lib/users";
  * GET  ?token=… → davet geçerli mi + ağaç adı + rol (katılım sayfası için).
  * POST { token, displayName, password } → üye oluşturur, ağaç adını döner
  *       (istemci ardından ağaç adı + şifre ile giriş yapar).
+ *
+ * ## Neden oran sınırlı — jeton tek başına yetmiyor
+ *
+ * Jeton 192 bit, yani tahmin edilemez. Sınırın sebebi o değil: aşağıdaki
+ * POST, şifre bu ağaçta ZATEN KULLANILIYORSA 409 dönüyor. Bu yanıt bir
+ * bilgi sızdırıyor — geçerli bir davetiyesi olan biri, aday şifreleri
+ * deneyerek öbür üyelerin şifresini yoklayabilir; bulursa ağaç adı + o
+ * şifreyle o üyenin (belki yöneticinin) kimliğiyle giriş yapar.
+ *
+ * Sınır bunu ortadan kaldırmıyor, PAHALI kılıyor: jeton başına birkaç
+ * deneme, dürüst kullanıcıya yeter, yoklamaya yetmez. Kalıcı çözüm 409'un
+ * var olma sebebini kaldırmak, yani üye girişinin kimliği ŞİFREDEN
+ * çözmemesi — bu bir kimlik modeli değişikliği ve ürün sahibinin kararı.
  */
 async function treeNameOf(treeId: string): Promise<string | null> {
   const { users } = await getUsersData();
   return users.find((u) => u.id === treeId)?.familyName ?? null;
 }
 
+function ipOf(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "bilinmiyor"
+  );
+}
+
+const cokFazla = (retryAfter: number) =>
+  NextResponse.json(
+    { error: "Çok fazla deneme. Lütfen biraz bekleyin." },
+    { status: 429, headers: { "Retry-After": String(retryAfter) } }
+  );
+
 export async function GET(req: NextRequest) {
+  const rl = await rateLimitShared(`join:oku:${ipOf(req)}`, { capacity: 20, refillPerSec: 0.1 });
+  if (!rl.ok) return cokFazla(rl.retryAfter);
   const token = req.nextUrl.searchParams.get("token") ?? "";
   const valid = await findValidInvite(token);
   if (!valid) return NextResponse.json({ valid: false }, { status: 404 });
@@ -27,6 +58,21 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const token = typeof body.token === "string" ? body.token : "";
+
+  /*
+   * İKİ KATMAN. IP sınırı kaba kuvveti dağıtmayı, JETON sınırı ise asıl
+   * riski (şifre yoklaması) kapatıyor: yoklama tanımı gereği TEK bir
+   * davetiyeyle yapılıyor, dolayısıyla sınırın jetona bağlı olması şart.
+   * Anahtar jetonun özeti; ham jeton günlüğe/anahtara girmesin.
+   */
+  const rlIp = await rateLimitShared(`join:yaz:${ipOf(req)}`, { capacity: 10, refillPerSec: 0.02 });
+  if (!rlIp.ok) return cokFazla(rlIp.retryAfter);
+  if (token) {
+    const anahtar = createHash("sha256").update(token).digest("hex").slice(0, 32);
+    const rlJeton = await rateLimitShared(`join:jeton:${anahtar}`, { capacity: 5, refillPerSec: 0.005 });
+    if (!rlJeton.ok) return cokFazla(rlJeton.retryAfter);
+  }
+
   const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
