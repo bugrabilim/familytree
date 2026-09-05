@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canDo } from "@/lib/guest";
 import { canEdit } from "@/lib/roles";
 import { arePaired } from "@/lib/members";
 import { mergeTree } from "@/lib/graft";
@@ -26,13 +25,6 @@ function ensureCodes(people: Person[]): Person[] {
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  /*
-   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir
-   * hesabı sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen
-   * ya da kendi ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
-   */
-  if (!canDo(ctx.isGuest, "pair"))
-    return NextResponse.json({ error: "Misafir hesapta ağaç eşleştirme kapalı. Ağacınızı sahiplenin." }, { status: 403 });
   if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 

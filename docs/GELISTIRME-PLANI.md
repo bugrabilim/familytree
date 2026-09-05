@@ -336,14 +336,18 @@ dönüştürür; üçüncüsü çok kullanıcılı olgunluğu getirir. Sırayla 
 - Rakip mobil-native ve "tek dokunuşla ekleme/sadeleştirme" hissi güçlü; mobil
   sürümde bu akıcılık hedeflenmeli.
 
-### 🚪 Hesapsız giriş + e-posta ile bağlama (onboarding)
-- **Hesapsız başlama:** ziyaretçi kayıt olmadan hemen kendi ağacını kurabilsin
-  (yalnızca ortak/sıfırlanan demo değil — kişiye özel geçici/yerel ağaç).
-- **E-posta ile kendine bağlama:** isterse veriyi kaybetmemek için ağacı bir
-  e-postaya bağlayıp kalıcılaştırabilsin (guest → hesap dönüşümü).
+### 🚪 Hesapsız giriş + e-posta ile bağlama (onboarding) — İPTAL
+> Bu bölümdeki "hesapsız başlama" fikri `lib/guest.ts` + `/api/guest` olarak
+> uygulanmıştı (Supabase Faz 3d, `docs/YAPIM-SIRASI.md` madde 41). Ürün sahibi
+> özelliği istemedi ve tamamen kaldırıldı — burada yalnız tarihçe olarak kalsın
+> diye siliniyor, yeniden yapılmasın diye bırakılıyor.
+- ~~**Hesapsız başlama:** ziyaretçi kayıt olmadan hemen kendi ağacını kurabilsin
+  (yalnızca ortak/sıfırlanan demo değil — kişiye özel geçici/yerel ağaç).~~
+- ~~**E-posta ile kendine bağlama:** isterse veriyi kaybetmemek için ağacı bir
+  e-postaya bağlayıp kalıcılaştırabilsin (guest → hesap dönüşümü).~~
 - **Sonraki girişler hesaplı olsun.** Hesaplı giriş (ağaç adı + şifre + roller/
-  davet) **zaten var ve DEĞİŞMEYECEK**; bu akış yalnızca onun önüne bir
-  "sürtünmesiz başlangıç + isteğe bağlı kalıcılaştırma" katmanı ekler.
+  davet) **zaten var ve DEĞİŞMEYECEK**; yukarıdaki hesapsız-başlangıç katmanı
+  olmadan da geçerliliğini koruyor.
 
 ### 🌿 Rakipten çıkan diğer farklar (bizde eksik / kısıtlı)
 - **Manuel kardeş sıralaması** — kardeşlerin görüntü sırasını sürükle-bırak ile

@@ -73,26 +73,16 @@ verilir; bu adrese e-posta gönderilmez (Faz 3e'de gerçek e-postayla değişir)
   - **Ön koşullar (bayrağı açmadan önce):** (1) Supabase → Authentication →
     Providers → **Email açık**; (2) `NEXT_PUBLIC_SUPABASE_ANON_KEY` mevcut;
     (3) hesaplar göç aracıyla Auth'a aktarılmış (3b).
-- **Faz 3d — hesapsız (misafir) giriş (bitti):** kayıt olmadan denemek için
-  kişiye özel, geçici, SAHİPLENİLEBİLİR bir ağaç (`lib/guest.ts`).
-  - **Demo değil.** Demo herkese açık ve PAYLAŞIMLI tek bir ağaç; misafir
-    ağacı kişiye özel. Karıştırmak birinin denediği veriyi başkasına
-    göstermek olurdu.
-  - **Asıl tehlike ölçülen yüzeyler.** Misafir hesabı sınırsız üretilebiliyor
-    ve bu depodaki sınırların çoğu HESAP BAŞINA. AI ya da yükleme misafire
-    açık bırakılsaydı kota diye bir şey kalmazdı — saldırgan her çağrı için
-    yeni hesap açardı. Kapalı liste bu yüzden iki başlıkta: **ölçülen**
-    (AI, yükleme) ve **kendi ağacının dışına uzanan** (davet, paylaşım,
-    eşleştirme, etkinlik/RSVP, e-posta bağlama). Açık kalanlar: kendi
-    ağacında ekle/düzenle/görüntüle/dışa aktar.
-  - **Bayrak zinciri.** `isGuest` altı duraktan geçiyor: User → SessionUser →
-    JWT → session → TreeContext → rota. Herhangi birinde düşerse misafir
-    sessizce tam yetki kazanır ve hiçbir hata vermez; `tests/guest-gate.test.mts`
-    her durağı ayrı denetliyor. Okuma her yerde `=== true` — bayrağın yokluğu
-    "gerçek hesap" demek.
-  - **Sahiplenme** (`/api/guest/claim`) kayıt kurallarının aynısını uygular
-    (ad ≥ 2 ve benzersiz, şifre ≥ 6): "arka kapıdan kayıt" olduğu için ondan
-    gevşek olamaz.
+- **Faz 3d — hesapsız (misafir) giriş (KALDIRILDI):** kayıt olmadan denemek
+  için kişiye özel, geçici, sahiplenilebilir bir ağaç kurulmuştu (`lib/guest.ts`,
+  `/api/guest`, `/api/guest/claim`, `isGuest` bayrak zinciri: User → SessionUser
+  → JWT → session → TreeContext → rota). Ürün sahibi özelliği istemedi ve
+  tamamen kaldırıldı — kod, rotalar, testler, i18n anahtarları ve giriş
+  sayfasındaki düğme silindi; `canDo(ctx.isGuest, …)` kapılarının kaldırıldığı
+  rotalarda diğer yetki denetimleri (`canEdit`/`canManage`/`isFounder`) aynen
+  kaldı. Canlıda `users.json`da kalmış olabilecek eski `guest: true` alanı
+  `User` tipinden çıkarıldığı için artık okunmuyor — o hesap sessizce normal
+  hesap gibi davranır (veri göçü yapılmadı, kasıtlı).
 - **Faz 3e — gerçek e-posta ile bağlama (bitti):** hesaba KİMLİK e-postası
   bağlanır (`lib/account-email.ts`, `/api/account/email`). `notifyEmail`den
   AYRI bir alan — o bildirim adresi, bu hesabı geri almanın yolu; güven

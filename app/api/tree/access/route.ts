@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canDo } from "@/lib/guest";
 import { createInvite, getTreeAccess, removeMember, revokeInvite } from "@/lib/members";
 import type { TreeRole } from "@/types/user";
 
@@ -12,13 +11,6 @@ const ROLES: TreeRole[] = ["viewer", "editor", "admin"];
 async function requireAdmin() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
-  /*
-   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir hesabı
-   * sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen ya da kendi
-   * ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
-   */
-  if (!canDo(ctx.isGuest, "invite"))
-    return { error: NextResponse.json({ error: "Misafir hesapta üye daveti kapalı. Ağacınızı sahiplenin." }, { status: 403 }) };
   if (!canManage(ctx.role))
     return { error: NextResponse.json({ error: "Bu işlem için yönetici olmalısınız." }, { status: 403 }) };
   const session = await auth();

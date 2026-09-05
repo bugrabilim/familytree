@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canDo } from "@/lib/guest";
 import { getUsersData, updateUserAuthEmail } from "@/lib/users";
 import {
   applyEmailChange,
@@ -55,13 +54,6 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 export async function GET() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  /*
-   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir
-   * hesabı sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen
-   * ya da kendi ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
-   */
-  if (!canDo(ctx.isGuest, "email"))
-    return NextResponse.json({ error: "Önce ağacınızı sahiplenin; e-posta bağlama ondan sonra." }, { status: 403 });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
 
@@ -87,15 +79,6 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
-  /*
-   * MİSAFİR KAPISI — GET'te vardı ama BURADA YOKTU, yani asıl iş yapan
-   * yöntemde kısıt hiç uygulanmıyordu. Misafir (ve şifresiz demo hesabı)
-   * istediği adrese doğrulama postası tetikleyebiliyordu. Kapı testi de
-   * dosyada `canDo` geçtiğini görüp yeterli saymıştı; artık YÖNTEM BAŞINA
-   * denetleniyor.
-   */
-  if (!canDo(ctx.isGuest, "email"))
-    return NextResponse.json({ error: "Önce ağacınızı sahiplenin; e-posta bağlama ondan sonra." }, { status: 403 });
 
   /*
    * Sınırlı: her istek bir doğrulama postası tetikleyebiliyor, yani sınırsız

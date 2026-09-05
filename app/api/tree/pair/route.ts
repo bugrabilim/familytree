@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { auth } from "@/auth";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canDo } from "@/lib/guest";
 import { canManage } from "@/lib/roles";
 import { listTrees } from "@/lib/trees";
 import { createPairInvite, listPairings, removePairing } from "@/lib/members";
@@ -29,13 +28,6 @@ async function activeTreeName(accountId: string, treeId: string): Promise<string
 async function guard() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
-  /*
-   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir hesabı
-   * sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen ya da kendi
-   * ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
-   */
-  if (!canDo(ctx.isGuest, "pair"))
-    return { error: NextResponse.json({ error: "Misafir hesapta ağaç eşleştirme kapalı. Ağacınızı sahiplenin." }, { status: 403 }) };
   if (!canManage(ctx.role))
     return { error: NextResponse.json({ error: "Yalnız ağaç yöneticisi eşleştirebilir." }, { status: 403 }) };
   return { ctx };

@@ -21,14 +21,6 @@ export interface SessionUser {
    * kimliğiyle imzalanıyordu.
    */
   memberId?: string;
-  /**
-   * Misafir oturumu mu (Faz 3d)? `lib/guest.ts` kısıtları buna bakıyor.
-   *
-   * Bayrak User → SessionUser → JWT → session → TreeContext → rota zincirinin
-   * ALTI durağından geçiyor ve herhangi birinde düşerse misafir sessizce tam
-   * yetki kazanır. `tests/guest-gate.test.mts` her durağı ayrı denetliyor.
-   */
-  isGuest?: boolean;
 }
 
 /**

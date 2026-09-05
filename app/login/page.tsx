@@ -7,7 +7,7 @@ import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
 import { useT } from "@/lib/i18n";
-import { demoGirisi, misafirGirisi } from "./actions";
+import { demoGirisi } from "./actions";
 
 function LoginForm() {
   const t = useT();
@@ -16,7 +16,6 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/tree";
@@ -88,7 +87,7 @@ function LoginForm() {
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
-        <Button type="submit" size="lg" full disabled={loading || demoLoading || guestLoading}>
+        <Button type="submit" size="lg" full disabled={loading || demoLoading}>
           {loading ? t("login.signingIn") : t("login.signIn")}
         </Button>
       </form>
@@ -106,7 +105,7 @@ function LoginForm() {
           variant="secondary"
           size="lg"
           full
-          disabled={loading || demoLoading || guestLoading}
+          disabled={loading || demoLoading}
           onClick={() => {
             setDemoLoading(true);
             setError("");
@@ -121,34 +120,6 @@ function LoginForm() {
 
         <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
           {t("login.demoNote")}
-        </p>
-
-        {/*
-          MİSAFİR — demodan farkı açıkça yazılıyor: demo herkesin ortak oyun
-          alanı, misafir ağacı size özel. Kısıtları da (AI, yükleme, davet,
-          paylaşım kapalı) baştan söylüyoruz; sonradan duvara toslamak kötü.
-        */}
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          full
-          disabled={loading || demoLoading || guestLoading}
-          onClick={() => {
-            setGuestLoading(true);
-            setError("");
-            misafirGirisi().catch((e) => {
-              setGuestLoading(false);
-              setError((e as Error).message || t("login.guestFailed"));
-            });
-          }}
-          className="mt-3"
-        >
-          {guestLoading ? t("login.guestLoading") : t("login.guestButton")}
-        </Button>
-
-        <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
-          {t("login.guestNote")}
         </p>
       </div>
     </AuthShell>

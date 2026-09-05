@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canDo } from "@/lib/guest";
 import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { buildSuggestPrompt, isSuggestMode } from "@/lib/ai-suggest";
@@ -19,13 +18,6 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  /*
-   * MİSAFİR KAPISI (Faz 3d). Gerekçe `lib/guest.ts` başında: misafir
-   * hesabı sınırsız üretilebiliyor, dolayısıyla hesap başına ölçülen
-   * ya da kendi ağacının dışına uzanan hiçbir yüzey ona açık olamaz.
-   */
-  if (!canDo(ctx.isGuest, "ai"))
-    return NextResponse.json({ error: "Misafir hesapta yapay zekâ özellikleri kapalı. Ağacınızı sahiplenin." }, { status: 403 });
   const rl = await rateLimitShared(`ai:suggest:${ctx.accountId}`, { capacity: 12, refillPerSec: 0.2 });
   if (!rl.ok)
     return NextResponse.json(
