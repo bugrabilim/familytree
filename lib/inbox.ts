@@ -62,6 +62,15 @@ export interface Mail {
   repliedAt?: string;
   /** Postanın kendi `Message-ID`'si — yanıtta zincir kurmak için. */
   messageId?: string;
+  /**
+   * Sağlayıcıdaki kayıt kimliği (`email_id`).
+   *
+   * Saklanmasının sebebi somut: gelen webhook yükü postanın GÖVDESİNİ
+   * taşımıyor (yalnız üstbilgi ve konu). Gövdeye sonradan ulaşmak
+   * gerekirse tek tutamak bu kimlik — atılsaydı, geriye dönüp almanın yolu
+   * kalmazdı.
+   */
+  providerId?: string;
   attachments?: Attachment[];
 }
 
@@ -101,12 +110,16 @@ const metin = (v: unknown): string => (typeof v === "string" ? v : "");
 function ilkAdres(v: unknown): string {
   if (Array.isArray(v)) {
     for (const x of v) {
-      const a = normalizeAddress(typeof x === "string" ? x : (x as Json)?.address);
+      const a = normalizeAddress(
+        typeof x === "string" ? x : (x as Json)?.address ?? (x as Json)?.email
+      );
       if (a) return a;
     }
     return "";
   }
-  return normalizeAddress(typeof v === "string" ? v : (v as Json)?.address);
+  return normalizeAddress(
+    typeof v === "string" ? v : (v as Json)?.address ?? (v as Json)?.email
+  );
 }
 
 /**
@@ -118,17 +131,94 @@ function ilkAdres(v: unknown): string {
  * SESSİZCE kaybolması, katı bir ayrıştırıcının en kötü sonucu olurdu —
  * kimse fark etmez, yalnız gelen kutusu boş kalır.
  */
-export function parseInbound(payload: unknown, id: string, now: Date): Mail | null {
-  if (!payload || typeof payload !== "object") return null;
+/**
+ * GÖNDERİM olayları — bunlar gelen posta DEĞİL.
+ *
+ * Webhook aboneliğinde yanlışlıkla gönderim olayları da seçilirse, bizim
+ * GÖNDERDİĞİMİZ her posta gelen kutusuna "gelmiş" gibi düşerdi: kendi
+ * hatırlatmalarımız, kendi onay sorularımız. Kutu kendi yankımızla dolardı
+ * ve bunu fark etmek zor olurdu — kayıtlar gerçek postaya benziyor.
+ *
+ * Liste OLUMSUZ tanımlı, olumlu değil: gelen olayın adını tahmin edip
+ * "yalnız buna izin ver" demek, sağlayıcı adı değiştirdiğinde bütün postayı
+ * sessizce elemek olurdu. Bilinen gönderim olayları dışlanıyor, gerisi
+ * geçiyor.
+ */
+const GONDERIM_OLAYLARI = new Set([
+  "email.sent",
+  "email.delivered",
+  "email.delivery_delayed",
+  "email.complained",
+  "email.bounced",
+  "email.opened",
+  "email.clicked",
+  "email.failed",
+]);
+
+/** Ayrıştırma neden başarısız oldu — günlüğe yazmak için. */
+export type ParseFail =
+  | "yuk-nesne-degil"
+  | "gonderim-olayi"
+  | "gonderen-yok"
+  | "alici-yok";
+
+/**
+ * Yükün ALAN ADLARINI döndürür — değerlerini DEĞİL.
+ *
+ * Ayrıştırma başarısız olduğunda günlüğe bu yazılıyor: sağlayıcının hangi
+ * biçimi gönderdiğini görmek için ad listesi yeter ve kişisel veri
+ * taşımıyor. Yükün kendisini loglamak, yabancının yazdığı postayı
+ * günlüklere kopyalamak olurdu.
+ */
+export function payloadShape(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return typeof payload;
   const kok = payload as Json;
+  const ust = Object.keys(kok).join(",");
+  const d = kok.data;
+  if (d && typeof d === "object") return `${ust} | data: ${Object.keys(d as Json).join(",")}`;
+  return ust;
+}
+
+export function parseInbound(payload: unknown, id: string, now: Date): Mail | null {
+  const r = parseInboundResult(payload, id, now);
+  return "mail" in r ? r.mail : null;
+}
+
+/**
+ * `parseInbound`ın NEDEN döndüren hâli.
+ *
+ * Ayrı olması şart: başarısızlık sessiz kalmamalı. Rota bu nedeni günlüğe
+ * yazıyor — "gelen kutusu boş" ile "posta hiç gelmedi" arasındaki farkı
+ * ancak böyle görebiliyoruz. Bu ayrımı yapamamak, ilk gerçek denemede tam
+ * olarak yaşandı.
+ */
+export function parseInboundResult(
+  payload: unknown,
+  id: string,
+  now: Date
+): { mail: Mail } | { fail: ParseFail } {
+  if (!payload || typeof payload !== "object") return { fail: "yuk-nesne-degil" };
+  const kok = payload as Json;
+
+  const tur = metin(kok.type);
+  if (tur && GONDERIM_OLAYLARI.has(tur)) return { fail: "gonderim-olayi" };
+
   const d = (typeof kok.data === "object" && kok.data ? kok.data : kok) as Json;
 
-  const fromRaw = typeof d.from === "string" ? d.from : metin((d.from as Json)?.address);
-  const from = normalizeAddress(fromRaw);
-  if (!from) return null;
+  /*
+   * `from` üç biçimde gelebiliyor: düz metin, `{ address }` ya da
+   * `{ email }`. Üçü de deneniyor — sağlayıcının alan adı değiştiğinde
+   * postanın SESSİZCE kaybolması, katı bir ayrıştırıcının en kötü sonucu.
+   */
+  const fromRaw =
+    typeof d.from === "string"
+      ? d.from
+      : metin((d.from as Json)?.address) || metin((d.from as Json)?.email);
+  const from = normalizeAddress(fromRaw) || normalizeAddress(metin(d.sender));
+  if (!from) return { fail: "gonderen-yok" };
 
-  const to = ilkAdres(d.to);
-  if (!to) return null;
+  const to = ilkAdres(d.to) || ilkAdres(d.recipient) || ilkAdres(d.recipients);
+  if (!to) return { fail: "alici-yok" };
 
   /*
    * HTML'e HİÇ BAKILMIYOR — metin yoksa boş bırakılıyor. HTML'den metin
@@ -147,15 +237,18 @@ export function parseInbound(payload: unknown, id: string, now: Date): Mail | nu
     : [];
 
   return {
-    id,
-    from,
-    fromName: displayName(fromRaw) || undefined,
-    to,
-    subject: metin(d.subject).trim().slice(0, MAX_SUBJECT) || "(konusuz)",
-    text: govde.slice(0, MAX_TEXT),
-    at: now.toISOString(),
-    messageId: metin(d.message_id ?? d.messageId) || undefined,
-    ...(ekler.length ? { attachments: ekler } : {}),
+    mail: {
+      id,
+      from,
+      fromName: displayName(fromRaw) || undefined,
+      to,
+      subject: metin(d.subject).trim().slice(0, MAX_SUBJECT) || "(konusuz)",
+      text: govde.slice(0, MAX_TEXT),
+      at: now.toISOString(),
+      messageId: metin(d.message_id ?? d.messageId) || undefined,
+      providerId: metin(d.email_id ?? d.emailId) || undefined,
+      ...(ekler.length ? { attachments: ekler } : {}),
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import {
   TOLERANCE_SECONDS,
   expectedSignature,
+  readHeaders,
   secretKey,
   verifyWebhook,
 } from "../lib/webhook-signature.ts";
@@ -136,6 +137,43 @@ for (const bos of [undefined, "", "   "] as const) {
     .update(`${ID}.${TS}.${GOVDE}`)
     .digest("base64");
   check(expectedSignature(SIR, ID, TS, GOVDE) === elle, "imza `${id}.${ts}.${gövde}` üstünden HMAC-SHA256");
+}
+
+/* ── BAŞLIK ADLARI: iki yazım da okunmalı ───────────────────────────────── */
+/*
+ * Bu iddia GERÇEK BİR ARIZADAN doğdu. Yalnız `svix-*` okunuyordu; Resend ise
+ * standartlaşmış `webhook-*` adlarını gönderiyor. Üç başlık da `null`
+ * okunuyor, doğrulama "başlık eksik" deyip 401 dönüyor ve gelen kutusu
+ * sessizce boş kalıyordu. Dışarıdan görünen tek şey "kutu boş"tu.
+ */
+{
+  const sahte = (h: Record<string, string>) => ({ get: (n: string) => h[n] ?? null });
+
+  const eski = readHeaders(sahte({ "svix-id": "a", "svix-timestamp": "1", "svix-signature": "v1,x" }));
+  check(eski.id === "a" && eski.timestamp === "1" && eski.signature === "v1,x", "svix-* okunuyor");
+
+  const standart = readHeaders(
+    sahte({ "webhook-id": "b", "webhook-timestamp": "2", "webhook-signature": "v1,y" })
+  );
+  check(standart.id === "b" && standart.timestamp === "2" && standart.signature === "v1,y",
+    "webhook-* okunuyor (Resend bunu gönderiyor)");
+
+  /* İkisi birden gelirse eski ad kazanıyor — kararlı davranış. */
+  const ikisi = readHeaders(
+    sahte({ "svix-id": "a", "webhook-id": "b", "svix-timestamp": "1", "webhook-timestamp": "2",
+            "svix-signature": "v1,x", "webhook-signature": "v1,y" })
+  );
+  check(ikisi.id === "a" && ikisi.signature === "v1,x", "ikisi birden gelirse svix-* kazanıyor");
+
+  const yok = readHeaders(sahte({}));
+  check(yok.id === null && yok.timestamp === null && yok.signature === null, "hiçbiri yoksa null");
+
+  /* Uçtan uca: yalnız webhook-* taşıyan bir istek DOĞRULANMALI. */
+  const b = readHeaders(sahte({
+    "webhook-id": ID, "webhook-timestamp": TS, "webhook-signature": imzala(ID, TS, GOVDE),
+  }));
+  const r = verifyWebhook(SIR, b, GOVDE, SIMDI);
+  check(r.ok, "yalnız webhook-* taşıyan istek doğrulanıyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

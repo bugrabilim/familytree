@@ -63,7 +63,19 @@ check(/const body = await req\.text\(\);/.test(webhook), "ham gövde okunuyor");
 }
 
 /* --- Yeniden denemede posta ÇOĞALMIYOR ---------------------------------- */
-check(/req\.headers\.get\("svix-id"\) \?\? ""/.test(webhook), "kimlik sağlayıcının id'sinden");
+/*
+ * Kimlik, İMZASI DOĞRULANAN başlıktan geliyor — ayrıca okunan bir başlıktan
+ * değil. İkisi ayrışsaydı, imza bir kimlikle doğrulanıp kayıt başka bir
+ * kimlikle yazılabilirdi.
+ *
+ * `readHeaders` iki yazımı da (`svix-*` ve `webhook-*`) kabul ediyor;
+ * yalnız `svix-*` okumak gerçek bir arızaya yol açtı: Resend `webhook-*`
+ * gönderiyor, doğrulama 401 dönüyor ve gelen kutusu sessizce boş kalıyordu.
+ */
+check(/const basliklar = readHeaders\(req\.headers\)/.test(webhook), "başlıklar tek yerden okunuyor");
+check(/verifyWebhook\(process\.env\.RESEND_WEBHOOK_SECRET, basliklar,/.test(webhook),
+  "doğrulama o başlıklarla yapılıyor");
+check(/const id = basliklar\.id \?\? ""/.test(webhook), "kimlik AYNI başlıklardan alınıyor");
 check(/if \(mevcut\.some\(\(m\) => m\.id === yeni\.id\)\) return mevcut;/.test(inbox),
   "aynı kimlikli posta çoğaltılmıyor");
 check(/status: 500/.test(webhook), "saklanamazsa sağlayıcı yeniden denesin diye 500");

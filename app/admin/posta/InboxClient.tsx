@@ -162,7 +162,19 @@ export default function InboxClient() {
           {secili === m.id && (
             <div className="p-3.5 bg-surface space-y-3">
               {/* Düz metin — bilerek. Bkz. dosya başındaki not. */}
-              <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{m.text}</p>
+              {m.text.trim() ? (
+                <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{m.text}</p>
+              ) : (
+                /*
+                 * BOŞ GÖVDE AÇIKÇA SÖYLENİYOR. Boş bir alan göstermek,
+                 * "kişi boş posta atmış" izlenimi verirdi; oysa sebep
+                 * sağlayıcının bildiriminde gövdenin hiç bulunmaması.
+                 * Yanlış izlenim, eksik bilgiden kötüdür.
+                 */
+                <p className="text-[11px] text-text-subtle leading-relaxed italic">
+                  Bu bildirimde gövde metni gelmedi (yalnız üstbilgi ve konu).
+                </p>
+              )}
 
               {m.attachments && m.attachments.length > 0 && (
                 <p className="text-[11px] text-text-subtle">

@@ -19,6 +19,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * birden gönderiyor; hepsi denenmeli, yoksa döndürme anında sessizce her şey
  * reddedilirdi.
  *
+ * ## Başlık adları İKİ yazımda
+ *
+ * Bu şemanın eski adı `svix-id` / `svix-timestamp` / `svix-signature`;
+ * standartlaşmış hâli (Standard Webhooks) ise `webhook-id` /
+ * `webhook-timestamp` / `webhook-signature`. Sağlayıcıya göre biri, öbürü
+ * ya da ikisi birden geliyor.
+ *
+ * Yalnız `svix-*` okumak GERÇEK bir hataya yol açtı: Resend `webhook-*`
+ * gönderiyor, üç başlık da `null` okunuyordu, doğrulama "başlık eksik" deyip
+ * 401 dönüyordu ve gelen kutusu sessizce boş kalıyordu. İkisi de kabul
+ * ediliyor; `readHeaders` bu yüzden var.
+ *
  * ## Zaman penceresi
  *
  * Eski bir isteğin TEKRAR oynatılmasını engelliyor: imza sonsuza dek geçerli
@@ -37,6 +49,21 @@ export type VerifyFail =
   | "zaman-gecersiz"
   | "zaman-disi"
   | "imza-uymuyor";
+
+/**
+ * İsteğin başlıklarından imza üçlüsünü okur — iki yazımı da deneyerek.
+ *
+ * `svix-*` önce çünkü ikisi birden gelen kurulumlarda o eski ad hep dolu
+ * oluyor; boşsa standart ada düşülüyor.
+ */
+export function readHeaders(h: { get(name: string): string | null }): SignatureHeaders {
+  const al = (a: string, b: string) => h.get(a) ?? h.get(b);
+  return {
+    id: al("svix-id", "webhook-id"),
+    timestamp: al("svix-timestamp", "webhook-timestamp"),
+    signature: al("svix-signature", "webhook-signature"),
+  };
+}
 
 export interface SignatureHeaders {
   id?: string | null;
