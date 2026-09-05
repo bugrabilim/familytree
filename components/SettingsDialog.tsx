@@ -3,6 +3,7 @@
 import Modal from "./ui/Modal";
 import ThemeToggle from "./ThemeToggle";
 import AccountEmailSection from "./AccountEmailSection";
+import NotifySection from "./NotifySection";
 import LanguageSwitch from "./LanguageSwitch";
 import { usePrivacy } from "./PrivacyContext";
 import { useT } from "@/lib/i18n";
@@ -91,6 +92,7 @@ export default function SettingsDialog({
           denetimi yok.
         */}
         <AccountEmailSection />
+        <NotifySection />
       </div>
     </Modal>
   );

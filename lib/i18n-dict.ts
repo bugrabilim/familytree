@@ -542,6 +542,20 @@ export const tr: Dict = {
   "reset.doneTitle": "Şifren güncellendi",
   "reset.doneSubtitle": "Yeni şifrenle giriş yapabilirsin.",
   "reset.invalid": "Bağlantı geçersiz ya da süresi dolmuş. Yeniden sıfırlama isteyin.",
+  // Bildirim ayarları (madde 47/48 — arayüz eksikti, uç aylardır atıl duruyordu).
+  "notify.label": "Bildirim e-postası",
+  "notify.hint": "Ağacınla ilgili postaları alacağın adres. Girişte kullanılmaz; yalnız bildirim için saklanır.",
+  "notify.reminders": "Doğum günü ve yıl dönümleri",
+  "notify.remindersHint": "O gün doğum günü ya da evlilik yıl dönümü olanları günlük olarak bildirir.",
+  "notify.memorials": "Anma günleri",
+  "notify.memorialsHint": "Vefat edenlerin üçüncü, yedinci, kırkıncı, elli ikinci gecesi ve sene-i devriyesi.",
+  "notify.newsletter": "Aylık aile bülteni",
+  "notify.newsletterHint": "Ay içinde ağaca eklenenler, yaklaşan günler ve büyüme özeti.",
+  "notify.needsAddress": "Bildirim almak için önce bir e-posta adresi girin.",
+  "notify.save": "Kaydet",
+  "notify.saving": "Kaydediliyor…",
+  "notify.saved": "Bildirim tercihlerin kaydedildi.",
+  "notify.failed": "Kaydedilemedi. Lütfen tekrar deneyin.",
 
   /* --- Boş durum --- */
   "empty.title": "Ailenin hikâyesi burada başlıyor",
@@ -2493,6 +2507,20 @@ export const en: Dict = {
   "reset.doneTitle": "Your password is updated",
   "reset.doneSubtitle": "You can sign in with your new password.",
   "reset.invalid": "This link is invalid or has expired. Please request a new reset.",
+  // Notification settings (items 47/48 — the UI was missing, the endpoint sat idle).
+  "notify.label": "Notification email",
+  "notify.hint": "Where messages about your tree are sent. Never used to sign in; stored only for notifications.",
+  "notify.reminders": "Birthdays and anniversaries",
+  "notify.remindersHint": "A daily note about birthdays and wedding anniversaries falling that day.",
+  "notify.memorials": "Memorial days",
+  "notify.memorialsHint": "The 3rd, 7th, 40th and 52nd night after a passing, and the yearly remembrance.",
+  "notify.newsletter": "Monthly family newsletter",
+  "notify.newsletterHint": "Who was added this month, what is coming up, and how the tree grew.",
+  "notify.needsAddress": "Enter an email address first to receive notifications.",
+  "notify.save": "Save",
+  "notify.saving": "Saving…",
+  "notify.saved": "Your notification preferences are saved.",
+  "notify.failed": "Could not save. Please try again.",
 
   /* --- Empty state --- */
   "empty.title": "Your family’s story starts here",

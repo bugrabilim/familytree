@@ -8,8 +8,12 @@ export const dynamic = "force-dynamic";
 /**
  * Kurucu hesabın bildirim e-posta tercihi (#3). Giriş surname+şifre olduğundan
  * e-posta yalnız burada, açık onayla saklanır. Yalnız founder hesap.
- *  GET  → { notifyEmail, notifyReminders }
- *  POST → body { notifyEmail?, notifyReminders? }
+ *  GET  → { notifyEmail, notifyReminders, notifyMemorials, notifyNewsletter }
+ *  POST → body { notifyEmail?, notifyReminders?, notifyMemorials?, notifyNewsletter? }
+ *
+ * Onaylar AYRI: doğum günü hatırlatması, vefat anması ve aylık bülten farklı
+ * şeyler. Biri kutlama, öbürü yas, üçüncüsü özet — tek onaya bağlamak,
+ * istemediği türde posta almak demekti.
  */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,6 +27,8 @@ export async function GET() {
   return NextResponse.json({
     notifyEmail: u?.notifyEmail ?? "",
     notifyReminders: !!u?.notifyReminders,
+    notifyMemorials: !!u?.notifyMemorials,
+    notifyNewsletter: !!u?.notifyNewsletter,
   });
 }
 
@@ -39,7 +45,12 @@ export async function POST(req: NextRequest) {
   if (!canDo(ctx.isGuest, "email"))
     return NextResponse.json({ error: "Misafir hesapta bildirim adresi ayarlanamaz. Ağacınızı sahiplenin." }, { status: 403 });
 
-  let body: { notifyEmail?: string; notifyReminders?: boolean };
+  let body: {
+    notifyEmail?: string;
+    notifyReminders?: boolean;
+    notifyMemorials?: boolean;
+    notifyNewsletter?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -49,9 +60,12 @@ export async function POST(req: NextRequest) {
   if (email && !EMAIL_RE.test(email))
     return NextResponse.json({ error: "Geçerli bir e-posta girin." }, { status: 400 });
 
+  const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
   const ok = await updateUserNotify(ctx.accountId, {
     notifyEmail: email,
-    notifyReminders: typeof body.notifyReminders === "boolean" ? body.notifyReminders : undefined,
+    notifyReminders: bool(body.notifyReminders),
+    notifyMemorials: bool(body.notifyMemorials),
+    notifyNewsletter: bool(body.notifyNewsletter),
   });
   if (!ok) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });
   return NextResponse.json({ ok: true });

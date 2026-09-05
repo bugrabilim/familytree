@@ -29,6 +29,17 @@ export interface User {
    * değildir ve adres her değiştiğinde bu bayrak sıfırlanır.
    */
   authEmailVerified?: boolean;
+  /**
+   * ANMA bildirimleri (madde 48) — hatırlatmalardan AYRI onay.
+   *
+   * Doğum günü hatırlatmasıyla vefat anması aynı şey değil: biri kutlama,
+   * öbürü yas. Kullanıcı birini isteyip öbürünü istemeyebilir ve bunu tek
+   * onaya bağlamak, yas gününü hatırlatan bir postayı istememiş birine
+   * göndermek demekti.
+   */
+  notifyMemorials?: boolean;
+  /** Aylık aile bülteni (madde 47) — ayrı onay; farklı içerik, farklı sıklık. */
+  notifyNewsletter?: boolean;
   /** Bekleyen doğrulamanın jeton ÖZETİ (ham jeton yalnız bağlantıda). */
   emailTokenHash?: string;
   /** Bekleyen doğrulamanın son kullanma anı (ISO). */
