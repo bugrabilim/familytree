@@ -70,6 +70,12 @@ export interface StoryRequest {
   id: string;
   personId: string;
   question: string;
+  /**
+   * Jetonun SHA-256 özeti. Ham jeton yalnız bağlantıda durur ve bir daha
+   * gösterilemez — deponun okunması, açık duran bütün yazma bağlantılarını
+   * ele geçirmeye yetmesin.
+   */
+  tokenHash: string;
   /** Kime gönderildi (bilgi amaçlı; doğrulama değil). */
   sentTo?: string;
   createdAt: string;

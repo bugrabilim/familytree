@@ -10,6 +10,7 @@ import TopBar, { type ViewKey } from "@/components/TopBar";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
 import GatheringsDialog from "@/components/GatheringsDialog";
+import StoriesDialog from "@/components/StoriesDialog";
 import PersonDrawer from "@/components/PersonDrawer";
 import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
@@ -160,6 +161,7 @@ function WorkspaceInner({
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [shareHubOpen, setShareHubOpen] = useState(false);
   const [gatheringsOpen, setGatheringsOpen] = useState(false);
+  const [storiesOpen, setStoriesOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
   const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
@@ -840,6 +842,11 @@ function WorkspaceInner({
            * `editable` ile o ayrımı kendi içinde yapıyor.
            */
           onGatherings={!publicView ? () => { setShareHubOpen(false); setGatheringsOpen(true); } : undefined}
+          /*
+           * Hikâye talebi de bir paylaşım biçimi: dışarıdaki bir akrabaya
+           * yazma bağlantısı göndermek. Etkinlik davetiyesiyle aynı yerde.
+           */
+          onStories={!publicView ? () => { setShareHubOpen(false); setStoriesOpen(true); } : undefined}
         />
       )}
 
@@ -848,6 +855,19 @@ function WorkspaceInner({
           treeId={activeTreeId ?? ""}
           editable={!readOnly}
           onClose={() => setGatheringsOpen(false)}
+        />
+      )}
+
+      {storiesOpen && (
+        <StoriesDialog
+          /*
+           * Ad listesi HAM kayıttan değil, görüntü katmanından geliyor:
+           * gizli kayıtların adı bu seçim kutusuna düşmemeli.
+           */
+          people={people.map(maskView).map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() }))}
+          editable={!readOnly}
+          onClose={() => setStoriesOpen(false)}
+          onApplied={() => router.refresh()}
         />
       )}
 

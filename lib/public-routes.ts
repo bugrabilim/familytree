@@ -84,6 +84,14 @@ export const PUBLIC_PREFIXES: readonly string[] = [
   // Anonim katılım bildirimi (RSVP) — davet jetonuyla, oturumsuz.
   "/api/rsvp",
   "/rsvp",
+  /*
+   * Hikâye talebi yanıt sayfası (madde 49/50). RSVP ile aynı gerekçe:
+   * bağlantıyı alan akrabanın hesabı YOK ve olması da beklenmiyor. Kimlik
+   * jetonda ve jetonun ÖZETİ depoda; girişsiz yazma kayda doğrudan değil,
+   * ağaç sahibinin ONAY KUYRUĞUNA düşüyor.
+   */
+  "/hikaye",
+  "/api/hikaye",
   "/_next",
   // Vercel Analytics / Speed Insights betikleri.
   "/_vercel",
