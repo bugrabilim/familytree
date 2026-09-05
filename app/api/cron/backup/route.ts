@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { del, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import {
   backupSources,
   planRetention,
@@ -53,26 +53,37 @@ export async function GET(req: NextRequest) {
 
   try {
     // 1) Depodaki her şeyi listele (sayfalı).
-    const hepsi: Array<{ pathname: string; url: string; downloadUrl?: string }> = [];
+    const hepsi: string[] = [];
     let cursor: string | undefined;
     do {
       const res = await list({ cursor, limit: 1000 });
-      for (const b of res.blobs)
-        hepsi.push({ pathname: b.pathname, url: b.url, downloadUrl: b.downloadUrl });
+      for (const b of res.blobs) hepsi.push(b.pathname);
       cursor = res.hasMore ? res.cursor : undefined;
     } while (cursor);
 
     // 2) Kaynakları seç — yedeğin yedeği ALINMAZ (`lib/backup.ts`).
-    const kaynakYollari = new Set(backupSources(hepsi.map((b) => b.pathname)));
-    const kaynaklar = hepsi.filter((b) => kaynakYollari.has(b.pathname));
+    const kaynaklar = backupSources(hepsi);
 
     let copied = 0, bytes = 0, failed = 0;
-    for (const b of kaynaklar) {
+    for (const yol of kaynaklar) {
       try {
-        const r = await fetch(b.downloadUrl ?? b.url);
-        if (!r.ok) { failed++; continue; }
-        const buf = Buffer.from(await r.arrayBuffer());
-        await put(snapshotPath(stamp, b.pathname), buf, {
+        /*
+         * ÖZEL DEPO: blob URL'ine düz `fetch` ATILMAZ.
+         *
+         * İlk sürüm `fetch(b.downloadUrl ?? b.url)` kullanıyordu ve bu depo
+         * `private` olduğu için her istek yetkisiz dönüyordu: `failed`
+         * artıyor, `copied` sıfırda kalıyor, iş yine de 200 dönüyordu. Yani
+         * yedek hiç alınmıyordu ve dışarıdan bakınca çalışıyor görünüyordu.
+         *
+         * Deponun geri kalanı (`lib/blob.ts`, `lib/members.ts`,
+         * `lib/trees.ts`) baştan beri doğru yolu kullanıyor; bu dosya deseni
+         * `scripts/backup.mjs`ten kopyalamıştı ve O BETİK DE aynı sebeple
+         * bozuktu — belgelenmiş elle yedek de çalışmıyormuş.
+         */
+        const okunan = await get(yol, { access: "private", useCache: false });
+        if (!okunan || okunan.statusCode !== 200) { failed++; continue; }
+        const buf = Buffer.from(await new Response(okunan.stream).arrayBuffer());
+        await put(snapshotPath(stamp, yol), buf, {
           access: "private",
           addRandomSuffix: false,
           // Aynı gün ikinci kez koşarsa görüntü tazelenir, ikizlenmez.
@@ -99,8 +110,8 @@ export async function GET(req: NextRequest) {
     let plan = { keep: [] as string[], remove: [] as string[] };
     if (copied > 0) {
       const sonrakiListe = [
-        ...hepsi.map((b) => b.pathname),
-        ...kaynaklar.map((b) => snapshotPath(stamp, b.pathname)),
+        ...hepsi,
+        ...kaynaklar.map((yol) => snapshotPath(stamp, yol)),
       ];
       plan = planRetention(sonrakiListe, keep);
       for (const p of plan.remove) {

@@ -66,6 +66,36 @@ check(/if \(s === null\) continue;/.test(lib), "tanınmayan damga silinmiyor");
 check(/Number\.isFinite\(keep\)/.test(lib), "sayı olmayan `keep` hepsini silmeye dönüşmüyor");
 check(/export const BACKUP_PREFIX = "backups\/";/.test(lib), "yedekler tek bir kökte");
 
+/* --- ÖZEL DEPO: blob URL'ine düz `fetch` ATILMAZ ----------------------- */
+/*
+ * Bu depo `private`. İlk sürüm `fetch(b.downloadUrl ?? b.url)` kullanıyordu
+ * ve her istek yetkisiz dönüyordu: `failed` artıyor, `copied` sıfırda
+ * kalıyor, iş yine de 200 dönüyordu. Yedek hiç alınmıyordu ve dışarıdan
+ * bakınca çalışıyor görünüyordu — canlıda Blob deposunda `backups/`
+ * klasörünün hiç oluşmamasıyla anlaşıldı.
+ *
+ * Doğru yol `get(pathname, { access: "private" })` ve deponun geri kalanı
+ * (`lib/blob.ts`, `lib/members.ts`, `lib/trees.ts`) baştan beri onu
+ * kullanıyor. Aynı kural ELLE yedek betiği için de geçerli: o da aynı hatayı
+ * taşıyordu, yani belgelenen yedek komutu da çalışmıyordu.
+ */
+const betik = readFileSync(new URL("../scripts/backup.mjs", import.meta.url), "utf8");
+/*
+ * YORUMLAR AYIKLANIYOR. İlk yazdığımda olumsuz iddia, yasakladığı kalıbı
+ * ANLATAN yorum metnine takılıp boşuna kırmızı yanıyordu — bu depoda daha
+ * önce de olan bir tuzak (import satırına eşleşen kapı testleri). Bir kuralın
+ * varlığını kanıtlarken koda bakmalı, kodun anlatımına değil.
+ */
+const kodu = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+for (const [ad, kaynak] of [["rota", kodu(rota)], ["betik", kodu(betik)]] as const) {
+  check(/await get\(/.test(kaynak), `${ad}: özel depo okuyucusu (get) kullanılıyor`);
+  check(/access: "private"/.test(kaynak), `${ad}: access "private" veriliyor`);
+  check(!/fetch\((?:b\.)?(?:downloadUrl|url)/.test(kaynak),
+    `${ad}: blob URL'ine düz fetch YOK`);
+}
+
 /* --- SONUÇ GÜNLÜĞE YAZILIYOR ------------------------------------------- */
 /*
  * Bu işi cron tetikliyor; yanıt gövdesini okuyan bir insan ya da istemci YOK.
