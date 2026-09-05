@@ -30,6 +30,20 @@ const MUAF: Record<string, string> = {
   "family/starter":
     "İskelet YALNIZ ağaç boşken çalışıyor (kendi denetimi var); dolu ağaçta " +
     "hiç yazmıyor, dolayısıyla ezecek bir şey yok.",
+  /*
+   * Zamanlanmış iş: bir İSTEK yok, dolayısıyla `x-base-version` başlığı da
+   * yok — `versionMismatch` burada uygulanamaz. Yerine aynı işi yapan bir
+   * korumaya bağlandı: yazmadan hemen önce ağaç YENİDEN okunuyor ve üstüne
+   * yalnız bu işin ürettiği alanlar konuyor. Tehlike gerçekti: iş dakikalarca
+   * posta gönderiyor ve başta okunan kopyayı olduğu gibi geri yazsaydı, o
+   * sırada ağacına kişi ekleyen kullanıcının işi sessizce silinirdi.
+   *
+   * Aşağıda ayrıca o korumanın VARLIĞI denetleniyor — muafiyet, korumasızlık
+   * anlamına gelmesin.
+   */
+  "cron/reminders":
+    "Zamanlanmış iş; isteği ve sürüm başlığı yok. Yazmadan önce yeniden " +
+    "okuyup yalnız kendi alanlarını uyguluyor.",
 };
 
 function rotalar(dir: string, base = ""): string[] {
@@ -88,6 +102,24 @@ for (const dosya of readdirSync(bilesenler)) {
     check(src.includes("mutationHeaders"),
       `${dosya}: ${uc} çağırıyor ama sürüm başlığını göndermiyor`);
   }
+}
+
+/* --- Muaf zamanlanmış iş kendi korumasını taşıyor ----------------------- */
+{
+  const cron = readFileSync(`${kok}/cron/reminders/route.ts`, "utf8");
+  /*
+   * Ölçüt "bir yerde okuyor" DEĞİL, "POSTALARDAN SONRA okuyor". Yalnız
+   * `saveFamilyData`dan önce bir okuma aramak yetmiyordu: döngünün başındaki
+   * ilk okuma da o koşulu sağlıyor ve yeniden-okuma silinse bile kapı yeşil
+   * kalıyordu. Korumanın bütün değeri, okumanın dakikalarca süren gönderim
+   * döngüsünden SONRA olmasında.
+   */
+  const iSon = cron.lastIndexOf("await sendEmail(");
+  const iOku = cron.lastIndexOf("await getFamilyData(");
+  const iYaz = cron.lastIndexOf("await saveFamilyData(");
+  check(iSon > -1 && iOku > iSon, "cron/reminders: postalardan SONRA yeniden okuyor");
+  check(iYaz > iOku, "cron/reminders: yazma o taze okumadan sonra");
+  check(/taze\.people\[j\] = \{/.test(cron), "cron/reminders: taze kopyanın üstüne yazıyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

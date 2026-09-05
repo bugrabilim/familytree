@@ -570,6 +570,33 @@ export const tr: Dict = {
   "contact.saved": "Adres kaydedildi. Onay postası gönderilecek.",
   "contact.cleared": "Adres kaldırıldı.",
   "contact.failed": "Kaydedilemedi. Lütfen tekrar deneyin.",
+
+  /*
+   * ONAY SORUSU — bunu okuyan kişinin uygulamada hesabı yok ve ağacı hiç
+   * görmedi. Metinler o yüzden hiçbir şey varsaymıyor: kim eklemiş, ne
+   * gelecek, yanıt vermezse ne olur — üçü de açıkça yazıyor.
+   */
+  "contactAsk.title": "Sana bir soru var",
+  "contactAsk.intro": "{family} ailesinin soy ağacında {name} olarak yer alıyorsun. Ağacı tutan kişi, aile içindeki günleri sana e-postayla hatırlatmak istiyor.",
+  "contactAsk.what": "Gelecek postalar: o gün olan doğum günleri, evlilik yıl dönümleri ve anma günleri. Başka bir şey gönderilmez, adresin kimseyle paylaşılmaz.",
+  "contactAsk.silence": "Yanıt vermezsen hiçbir posta gönderilmez ve bir daha sorulmaz. Hiçbir şey yapmamak da geçerli bir yanıt.",
+  "contactAsk.approve": "Evet, gönderin",
+  "contactAsk.decline": "Hayır, istemiyorum",
+  "contactAsk.approvedTitle": "Teşekkürler",
+  "contactAsk.approved": "Bundan sonra aile günlerini hatırlatacağız. Her postanın altında tek tıkla çıkış bağlantısı olacak.",
+  "contactAsk.declinedTitle": "Anlaşıldı",
+  "contactAsk.declined": "Bu adrese posta göndermeyeceğiz ve bir daha sormayacağız.",
+  "contactAsk.invalidTitle": "Bağlantı geçersiz",
+  "contactAsk.invalid": "Bu bağlantı artık geçerli değil. Yanıtın zaten alınmış ya da bağlantının süresi geçmiş olabilir.",
+  "contactAsk.failed": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+
+  "contactUnsub.title": "Postaları durdur",
+  "contactUnsub.intro": "Bu adrese aile hatırlatmaları göndermeyi bırakalım mı? Onaylarsan bir daha posta gelmez.",
+  "contactUnsub.action": "Evet, durdurun",
+  "contactUnsub.working": "Durduruluyor…",
+  "contactUnsub.doneTitle": "Durduruldu",
+  "contactUnsub.done": "Bu adrese bir daha posta gönderilmeyecek.",
+  "contactUnsub.failed": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
   // Şifremi unuttum — yöntem seçimi ve bilgi notları.
   "forgot.method": "Nasıl sıfırlamak istersin?",
   "forgot.methodCode": "Kurtarma kodu",
@@ -2555,6 +2582,28 @@ export const en: Dict = {
   "contact.saved": "Address saved. A consent request will be sent.",
   "contact.cleared": "Address removed.",
   "contact.failed": "Could not save. Please try again.",
+
+  "contactAsk.title": "A question for you",
+  "contactAsk.intro": "You appear as {name} in the {family} family tree. The person keeping the tree would like to email you reminders about family dates.",
+  "contactAsk.what": "What would arrive: birthdays, wedding anniversaries and days of remembrance falling that day. Nothing else, and your address is never shared.",
+  "contactAsk.silence": "If you don't answer, nothing is ever sent and you won't be asked again. Doing nothing is a valid answer.",
+  "contactAsk.approve": "Yes, send them",
+  "contactAsk.decline": "No, thank you",
+  "contactAsk.approvedTitle": "Thank you",
+  "contactAsk.approved": "We'll let you know about family dates from now on. Every message carries a one-click unsubscribe link.",
+  "contactAsk.declinedTitle": "Understood",
+  "contactAsk.declined": "We won't email this address, and we won't ask again.",
+  "contactAsk.invalidTitle": "Link no longer valid",
+  "contactAsk.invalid": "This link is no longer valid. Your answer may already have been recorded, or the link may have expired.",
+  "contactAsk.failed": "That didn't go through. Please try again.",
+
+  "contactUnsub.title": "Stop these emails",
+  "contactUnsub.intro": "Shall we stop sending family reminders to this address? Confirm and nothing more will arrive.",
+  "contactUnsub.action": "Yes, stop them",
+  "contactUnsub.working": "Stopping…",
+  "contactUnsub.doneTitle": "Stopped",
+  "contactUnsub.done": "Nothing more will be sent to this address.",
+  "contactUnsub.failed": "That didn't go through. Please try again.",
   // Forgot password — method picker and explanatory notes.
   "forgot.method": "How would you like to reset?",
   "forgot.methodCode": "Recovery code",
