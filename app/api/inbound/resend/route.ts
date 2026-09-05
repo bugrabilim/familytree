@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhook } from "@/lib/webhook-signature";
-import { parseInbound } from "@/lib/inbox";
+import { readHeaders, verifyWebhook } from "@/lib/webhook-signature";
+import { parseInboundResult, payloadShape } from "@/lib/inbox";
 import { storeMail } from "@/lib/inbox-store";
 
 export const dynamic = "force-dynamic";
@@ -36,16 +36,8 @@ export async function POST(req: NextRequest) {
    */
   const body = await req.text();
 
-  const r = verifyWebhook(
-    process.env.RESEND_WEBHOOK_SECRET,
-    {
-      id: req.headers.get("svix-id"),
-      timestamp: req.headers.get("svix-timestamp"),
-      signature: req.headers.get("svix-signature"),
-    },
-    body,
-    new Date()
-  );
+  const basliklar = readHeaders(req.headers);
+  const r = verifyWebhook(process.env.RESEND_WEBHOOK_SECRET, basliklar, body, new Date());
   if (!r.ok) {
     console.warn(`[gelen-posta] imza reddedildi: ${r.error}`);
     return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
@@ -64,9 +56,20 @@ export async function POST(req: NextRequest) {
    * çoğaltmıyor. Kendi ürettiğimiz bir kimlik her denemede farklı olur ve
    * kutuda aynı posta üç kez görünürdü.
    */
-  const id = req.headers.get("svix-id") ?? "";
-  const mail = parseInbound(payload, id, new Date());
-  if (!mail) return NextResponse.json({ ok: true, skipped: "ayristirilamadi" });
+  const id = basliklar.id ?? "";
+  const sonuc = parseInboundResult(payload, id, new Date());
+  if ("fail" in sonuc) {
+    /*
+     * SESSİZ ELEME YOK. Eskiden burada yalnız 200 dönülüyordu ve ayrıştırma
+     * başarısız olduğunda hiçbir iz kalmıyordu — "posta hiç gelmedi" ile
+     * "geldi ama elendi" ayırt edilemiyordu. Yükün ALAN ADLARI yazılıyor,
+     * değerleri değil: biçimi görmeye ad listesi yeter ve yabancının yazdığı
+     * posta günlüklere kopyalanmamalı.
+     */
+    console.warn(`[gelen-posta] ayrıştırılamadı (${sonuc.fail}); biçim: ${payloadShape(payload)}`);
+    return NextResponse.json({ ok: true, skipped: sonuc.fail });
+  }
+  const mail = sonuc.mail;
 
   try {
     await storeMail(mail);

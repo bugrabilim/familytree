@@ -1,7 +1,7 @@
 import {
   MAX_MAILS, MAX_SUBJECT, MAX_TEXT,
-  displayName, normalizeAddress, parseInbound, planStore,
-  quoteForReply, replySubject, threadHeaders,
+  displayName, normalizeAddress, parseInbound, parseInboundResult, payloadShape,
+  planStore, quoteForReply, replySubject, threadHeaders,
   type Mail,
 } from "../lib/inbox.ts";
 
@@ -195,6 +195,104 @@ const mail = (id: string): Mail => ({
   check(h["In-Reply-To"] === "<abc@mail>", "In-Reply-To kuruluyor");
   check(h.References === "<abc@mail>", "References kuruluyor");
   check(Object.keys(threadHeaders({})).length === 0, "Message-ID yoksa başlık üretilmiyor");
+}
+
+/* ── GERÇEK Resend yükü ─────────────────────────────────────────────────── */
+/*
+ * Bu yük uydurma DEĞİL: canlıda `bilgi@soylus.com`a atılan ilk test
+ * postasının webhook kaydından birebir alındı. Ayrıştırıcı önce bu biçimi
+ * hiç görmeden yazılmıştı; artık gerçek biçime karşı kilitli.
+ *
+ * Dikkat çeken şey burada NE OLMADIĞI: yükte `text` ya da `html` YOK. Gelen
+ * bildirim postanın gövdesini taşımıyor, yalnız üstbilgi ve konu. Bu bir
+ * hata değil, sağlayıcının davranışı — ve arayüz boş gövdeyi açıkça
+ * söylüyor, boş bir alan gösterip "kişi boş posta atmış" izlenimi vermiyor.
+ */
+const RESEND_YUKU = {
+  created_at: "2026-09-05T23:01:52.000Z",
+  data: {
+    attachments: [],
+    bcc: [],
+    cc: [],
+    created_at: "2026-09-05T23:02:00.429Z",
+    email_id: "f2cc5cbd-6bb1-4c1d-ab51-f76e9a97913f",
+    from: "bugrabilim@yahoo.com",
+    message_id: "<1136478454.1118889.1788649312714@mail.yahoo.com>",
+    received_for: ["bilgi@soylus.com"],
+    subject: "test",
+    to: ["bilgi@soylus.com"],
+  },
+  type: "email.received",
+};
+
+{
+  const m = parseInbound(RESEND_YUKU, "msg_3Ive9wxO8Waz7cs5WLDbBUug4HX", SIMDI)!;
+  check(!!m, "gerçek Resend yükü ayrıştırılıyor");
+  check(m.from === "bugrabilim@yahoo.com", "gönderen");
+  check(m.to === "bilgi@soylus.com", "alıcı dizinin ilk elemanından");
+  check(m.subject === "test", "konu");
+  check(m.messageId === "<1136478454.1118889.1788649312714@mail.yahoo.com>", "Message-ID");
+  check(m.providerId === "f2cc5cbd-6bb1-4c1d-ab51-f76e9a97913f", "sağlayıcı kimliği saklanıyor");
+  check(m.text === "", "gövde yok — yük onu taşımıyor");
+  check(m.attachments === undefined, "boş ek dizisi alan üretmiyor");
+}
+
+/* ── GÖNDERİM olayları gelen kutusuna DÜŞMEZ ────────────────────────────── */
+/*
+ * Abonelikte yanlışlıkla gönderim olayları da seçilirse, bizim gönderdiğimiz
+ * her posta "gelmiş" gibi kutuya düşerdi: kendi hatırlatmalarımız, kendi
+ * onay sorularımız. Kutu kendi yankımızla dolar ve fark etmek zor olurdu.
+ */
+for (const t of ["email.sent", "email.delivered", "email.bounced", "email.opened", "email.clicked"]) {
+  const y = { ...RESEND_YUKU, type: t };
+  const r = parseInboundResult(y, "x", SIMDI);
+  check("fail" in r && r.fail === "gonderim-olayi", `"${t}" gelen kutusuna düşmüyor`);
+}
+/* Liste OLUMSUZ tanımlı: bilinmeyen tür GEÇMELİ, yoksa ad değişince her şey elenir. */
+{
+  const r = parseInboundResult({ ...RESEND_YUKU, type: "inbound.email.new" }, "x", SIMDI);
+  check("mail" in r, "bilinmeyen olay adı elenmiyor (olumsuz liste)");
+}
+
+/* ── Başarısızlık NEDENİ dönüyor — sessiz eleme yok ─────────────────────── */
+/*
+ * Eskiden yalnız `null` dönüyordu ve rota sessizce 200 veriyordu: "posta hiç
+ * gelmedi" ile "geldi ama elendi" ayırt edilemiyordu. İlk gerçek denemede
+ * tam olarak bu belirsizlik yaşandı.
+ */
+{
+  const neden = (y: unknown) => {
+    const r = parseInboundResult(y, "x", SIMDI);
+    return "fail" in r ? r.fail : "ok";
+  };
+  check(neden(null) === "yuk-nesne-degil", "nesne olmayan yük");
+  check(neden("merhaba") === "yuk-nesne-degil", "metin yük");
+  check(neden({ data: { to: ["a@b.co"] } }) === "gonderen-yok", "gönderensiz");
+  check(neden({ data: { from: "a@b.co" } }) === "alici-yok", "alıcısız");
+  check(neden(RESEND_YUKU) === "ok", "gerçek yük geçiyor");
+}
+
+/* --- Biçim günlüğe ALAN ADLARIYLA yazılıyor, değerlerle değil ------------ */
+/*
+ * Yükün kendisini loglamak, yabancının yazdığı postayı günlüklere
+ * kopyalamak olurdu. Biçimi görmeye ad listesi yeter.
+ */
+{
+  const b = payloadShape(RESEND_YUKU);
+  check(b.includes("type") && b.includes("data:"), "üst ve data alanları listeleniyor");
+  check(b.includes("from") && b.includes("subject"), "data alan adları listeleniyor");
+  check(!b.includes("bugrabilim@yahoo.com"), "gönderen ADRESİ günlüğe girmiyor");
+  check(!b.includes("test"), "konu METNİ günlüğe girmiyor");
+  check(payloadShape(null) === "object", "null için tür adı");
+  check(payloadShape("x") === "string", "metin için tür adı");
+}
+
+/* --- Alternatif alan adları da kabul ediliyor ---------------------------- */
+{
+  const a = parseInbound({ data: { from: { email: "a@b.co" }, to: [{ email: "c@d.co" }] } }, "x", SIMDI);
+  check(a?.from === "a@b.co" && a?.to === "c@d.co", "`email` alanlı nesne biçimi");
+  const b = parseInbound({ data: { sender: "a@b.co", recipient: "c@d.co" } }, "x", SIMDI);
+  check(b?.from === "a@b.co" && b?.to === "c@d.co", "`sender`/`recipient` biçimi");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
