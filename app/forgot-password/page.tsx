@@ -17,8 +17,12 @@ import { useT } from "@/lib/i18n";
  * iki yolu birden gösterip "hangisi bende var?" diye düşündürmek yerine ÖNCE
  * yolu seçtiriyoruz, sonra yalnız o yolun alanlarını gösteriyoruz.
  *
- * Ağaç adı iki yolda da gerekiyor, o yüzden ortak alan olarak yukarıda
- * duruyor — seçim değişince kaybolup yeniden yazılması gerekmiyor.
+ * Ağaç adı iki yolda da duruyor (yazılan değer sekme değişince kaybolmuyor)
+ * ama artık YALNIZ e-posta yolunda ZORUNLU ve orada ilk alan. Kurtarma kodu
+ * benzersiz olduğu için hesabı tek başına gösteriyor; şifresini unutmuş
+ * birinden ayrıca ağacının tam yazımını istemek gereksiz sürtünmeydi. Kod
+ * yolunda alan yine de var, ama kodun ALTINDA ve isteğe bağlı: indeksi olmayan
+ * ESKİ hesapların tek bulunma yolu o (bkz. `lib/recovery-code.ts`).
  *
  * ## Notlar neden var
  *
@@ -44,6 +48,9 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [mailBusy, setMailBusy] = useState(false);
   const [mailInfo, setMailInfo] = useState("");
+  /** Sıfırlamadan sonra üretilen YENİ kurtarma kodu (bir kez gösterilir). */
+  const [yeniKod, setYeniKod] = useState("");
+  const [kopyalandi, setKopyalandi] = useState(false);
 
   const yolDegistir = (y: Yol) => {
     setYol(y);
@@ -62,11 +69,17 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ familyName, recoveryCode, newPassword }),
+        // Ağaç adı boş olabilir — uç onu yalnız eski hesaplar için kullanıyor.
+        body: JSON.stringify({ familyName: familyName.trim(), recoveryCode, newPassword }),
       });
       const data = await res.json();
       if (!res.ok) setError(data.error ?? t("forgot.genericError"));
-      else setStep("done");
+      else {
+        // Uç kodu yenileyemediyse (nadiren) `recoveryCode` boş gelir; o zaman
+        // kutu hiç gösterilmiyor — olmayan bir kodu kaydettirmeyelim.
+        setYeniKod(typeof data.recoveryCode === "string" ? data.recoveryCode : "");
+        setStep("done");
+      }
     } catch {
       setError(t("forgot.connError"));
     } finally {
@@ -111,9 +124,38 @@ export default function ForgotPasswordPage() {
     void (yol === "kod" ? kodIleSifirla() : eMailIste());
   };
 
+  const koduKopyala = () => {
+    navigator.clipboard.writeText(yeniKod);
+    setKopyalandi(true);
+    setTimeout(() => setKopyalandi(false), 2000);
+  };
+
   if (step === "done") {
     return (
       <AuthShell icon="✅" title={t("forgot.doneTitle")} subtitle={t("forgot.doneSubtitle")}>
+        {/*
+          Kullanılan kod düştü, yerine yenisi geldi. Kutu kayıt ekranındakiyle
+          aynı biçimde: kullanıcı kodu kâğıda yazmayı orada öğrendi, burada da
+          aynı şeyi görsün.
+        */}
+        {yeniKod && (
+          <>
+            <div className="rounded-2xl border-2 border-accent/40 bg-accent-soft p-4 mb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-2.5">
+                {t("forgot.newCodeTitle")}
+              </p>
+              <p className="font-mono text-lg font-semibold text-center text-text tracking-[0.15em] break-all">
+                {yeniKod}
+              </p>
+            </div>
+            <Button variant="secondary" full onClick={koduKopyala} className="mb-2.5">
+              {kopyalandi ? t("register.copied") : t("register.copyCode")}
+            </Button>
+            <p className="text-[11px] text-text-subtle leading-relaxed mb-3.5">
+              {t("forgot.newCodeNote")}
+            </p>
+          </>
+        )}
         <Button size="lg" full onClick={() => router.push("/login")}>
           {t("forgot.signIn")}
         </Button>
@@ -136,6 +178,27 @@ export default function ForgotPasswordPage() {
       </button>
     );
   };
+
+  const adAlani = (
+    <div>
+      <label className={authLabel} htmlFor="f-soyisim">
+        {yol === "kod" ? t("forgot.treeNameOptional") : t("forgot.treeName")}
+      </label>
+      <input
+        id="f-soyisim"
+        type="text"
+        className={authField}
+        value={familyName}
+        onChange={(e) => setFamilyName(e.target.value)}
+        placeholder={t("forgot.treeNamePlaceholder")}
+        autoComplete="username"
+        required={yol === "eposta"}
+      />
+      <p className="text-[11px] text-text-subtle mt-1.5 leading-relaxed">
+        {yol === "kod" ? t("forgot.nameOptionalNote") : t("forgot.emailNeedsName")}
+      </p>
+    </div>
+  );
 
   return (
     <AuthShell
@@ -162,23 +225,14 @@ export default function ForgotPasswordPage() {
       </p>
 
       <form onSubmit={gonder} className="space-y-4">
-        {/* Ağaç adı iki yolda da gerekiyor; seçim değişince kaybolmuyor. */}
-        <div>
-          <label className={authLabel} htmlFor="f-soyisim">{t("forgot.treeName")}</label>
-          <input
-            id="f-soyisim"
-            type="text"
-            className={authField}
-            value={familyName}
-            onChange={(e) => setFamilyName(e.target.value)}
-            placeholder={t("forgot.treeNamePlaceholder")}
-            autoComplete="username"
-            required
-          />
-          <p className="text-[11px] text-text-subtle mt-1.5 leading-relaxed">
-            {t("forgot.bothNeedName")}
-          </p>
-        </div>
+        {/*
+          Ağaç adı: e-posta yolunda ZORUNLU ve İLK alan (orada hesabı bulmanın
+          başka yolu yok), kod yolunda İSTEĞE BAĞLI ve kodun ALTINDA — kod
+          hesabı tek başına buluyor, ad yalnız indeksi olmayan eski hesaplar
+          için bir yedek. Zorunlu olmayan bir alanı formun başına koymak,
+          kaldırdığımız sürtünmeyi görsel olarak geri getirirdi.
+        */}
+        {yol === "eposta" && adAlani}
 
         {yol === "kod" && (
           <>
@@ -195,6 +249,8 @@ export default function ForgotPasswordPage() {
                 required
               />
             </div>
+
+            {adAlani}
 
             <div>
               <label className={authLabel} htmlFor="f-sifre">{t("forgot.newPassword")}</label>

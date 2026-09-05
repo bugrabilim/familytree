@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { findUserByFamilyName, createUser } from "@/lib/users";
+import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 function ipOf(req: NextRequest): string {
@@ -11,15 +11,12 @@ function ipOf(req: NextRequest): string {
   );
 }
 
-function generateRecoveryCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 16; i++) {
-    if (i > 0 && i % 4 === 0) code += "-";
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code; // e.g. ABCD-EFGH-IJKL-MNOP
-}
+/*
+ * Kurtarma kodu üretimi burada DEĞİL, `lib/users.ts` → `issueRecoveryCode`
+ * içinde: web ve mobil kayıt aynı kodu kopyalıyordu ve kopyaların ikisi de
+ * benzersizlik denetimi yapmıyordu (üstelik `Math.random()` ile — bir kimlik
+ * doğrulama sırrı için).
+ */
 
 export async function POST(req: NextRequest) {
   /*
@@ -53,15 +50,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const recoveryCode = generateRecoveryCode();
-    const [passwordHash, recoveryCodeHash] = await Promise.all([
-      hash(password, 12),
-      hash(recoveryCode, 10),
-    ]);
+    const [passwordHash, kurtarma] = await Promise.all([hash(password, 12), issueRecoveryCode()]);
 
-    await createUser(crypto.randomUUID(), familyName.trim(), passwordHash, recoveryCodeHash);
+    await createUser(
+      crypto.randomUUID(),
+      familyName.trim(),
+      passwordHash,
+      kurtarma.hash,
+      kurtarma.index
+    );
 
-    return NextResponse.json({ success: true, recoveryCode }, { status: 201 });
+    // Düz kod YALNIZ burada, bir kez dönüyor; depoda yalnız hash'i ve indeksi var.
+    return NextResponse.json({ success: true, recoveryCode: kurtarma.code }, { status: 201 });
   } catch (err) {
     console.error("Register error:", err);
     const message = err instanceof Error ? err.message : String(err);

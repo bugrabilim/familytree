@@ -3,6 +3,20 @@ export interface User {
   familyName: string;
   passwordHash: string;
   recoveryCodeHash: string;
+  /**
+   * Kurtarma kodunun ARANABİLİR indeksi — normalleştirilmiş kodun SHA-256'sı
+   * (`lib/recovery-code.ts`). TUZSUZ ve bu bilinçli: bcrypt hash'iyle satır
+   * ARANAMIYOR (her hash yeni tuz üretir), oysa şifresini unutmuş birinden
+   * ayrıca ağacının tam yazımını istemek kurtarmanın kendisini zorlaştırıyor.
+   * Tuzsuz özetin klasik riski sözlük saldırısıdır; kod 32 harfli alfabeden
+   * 16 karakter (≈ 80 bit) ve insan seçmiyor, o yüzden sözlüğü de yok.
+   *
+   * Doğrulama katmanı DEĞİL: indeks yalnız satırı bulur, kodu `recoveryCodeHash`
+   * doğrular. Eski hesaplarda YOK — kodun düz hâli kimsede olmadığı için
+   * geriye dönük doldurulamaz; onlar ağaç adıyla bulunmaya devam eder ve ilk
+   * başarılı sıfırlamada kod yenilenerek indeksleri açılır.
+   */
+  recoveryCodeIndex?: string;
   createdAt: string;
   /** Bildirim e-posta adresi (opt-in). Giriş surname+şifre olduğundan e-posta
    *  yalnız hatırlatma/bildirim için, kullanıcının açık onayıyla saklanır. */

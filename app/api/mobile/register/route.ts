@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { findUserByFamilyName, createUser } from "@/lib/users";
+import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
 import { isMobileTokenConfigured, signMobileToken } from "@/lib/mobile-token";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-function generateRecoveryCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 16; i++) {
-    if (i > 0 && i % 4 === 0) code += "-";
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
+/*
+ * Kod üretimi web kaydıyla ORTAK (`lib/users.ts` → `issueRecoveryCode`).
+ * Buradaki kopya, benzersizlik denetimini iki yerde ayrı ayrı hatırlamayı
+ * gerektiriyordu — ve zaten ikisinde de yoktu.
+ */
 
 /**
  * Native mobil kayıt — hesap oluşturur, kurtarma kodunu döner ve doğrudan
@@ -52,10 +48,10 @@ export async function POST(req: NextRequest) {
   if (await findUserByFamilyName(familyName))
     return NextResponse.json({ error: "Bu adla zaten bir hesap var." }, { status: 409 });
 
-  const recoveryCode = generateRecoveryCode();
-  const [passwordHash, recoveryCodeHash] = await Promise.all([hash(password, 12), hash(recoveryCode, 10)]);
+  const [passwordHash, kurtarma] = await Promise.all([hash(password, 12), issueRecoveryCode()]);
+  const recoveryCode = kurtarma.code;
   const id = crypto.randomUUID();
-  await createUser(id, familyName, passwordHash, recoveryCodeHash);
+  await createUser(id, familyName, passwordHash, kurtarma.hash, kurtarma.index);
 
   const token = await signMobileToken({ sub: id, name: familyName, role: "admin", isFounder: true, treeName: familyName });
 
