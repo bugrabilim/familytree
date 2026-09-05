@@ -86,7 +86,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 |---|---|:-:|---|
 | 33 | Paylaşımlı oran sınırı | C | `rate-limit.ts` örnek-içi bellekte — sunucusuzda gerçek sınır değil. Supabase tablosuyla yapılır (yeni hesap gerekmez). 34 ve 36'dan önce | ✅
 | 34 | Herkese açık okuma API'si `/api/v1/public/tree` | C | 10 ve 33 olmadan yapılmaz. Sürümleme baştan `/v1` | ✅
-| 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. **55'e bağlı** |
+| 35 | Katkı verici rolü | E | `ORDER = ["viewer","editor","admin"]` dizisine kademe sokmak = **her yetki kapısını** yeniden değerlendirmek. Elle test (eski 55) ürün sahibi tarafından listeden çıkarıldı; şart artık **her yetki kapısının otomatik kapı testiyle örtülmesi** |
 | 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor | ✅
 | 37 | Osmanlı ↔ modern yer adı sözlüğü | C | `resolvePlace` **ortak çözüm yolunu** değiştiriyor → mevcut pinleri kaydırabilir. **58'e (lisans) bağlı** |
 | 38 | Yerleşim arama: modern + tarihî | C | 37'nin verisini tüketir |
@@ -121,8 +121,6 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 | # | İş | Neden bende değil |
 |---|---|---|
 | 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** | ✅ **yapıldı** (2026-09-05) — Resend + `soylus.com` doğrulandı, uçtan uca test edildi |
-| 55 | **Elle test: üyeler ve davetler** (`/join`, roller) | Gerçek hesap, gerçek davet, iki tarayıcı. **35'ten önce olmalı** |
-| 56 | **Elle test: bağlı ağaçlar** (pairing, `/pair`) | İki gerçek hesap gerekiyor. En karmaşık yazma yolu, hiç elle koşulmamış |
 | 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
 | 58 | **Index Anatolicus lisans görüşmesi** | Kurumsal görüşme; **aylar sürebilir**. 37 ve 38'i açıyor |
 | 59 | Karar: aile meclisi / fon kapsamı | Para hareketi = finansal düzenleme. Öneri: **hayır** |
@@ -243,19 +241,23 @@ ayrım kullanıcıya da görünür.
 
 ## ⚠️ Bu sıralamanın tek kusuru
 
-Sen "senin işler sonda olsun" dedin ve liste öyle kuruldu — ama **K6'daki iki madde
-blokaj.** Sonda bırakılırsa 10 iş askıda kalır:
+Sen "senin işler sonda olsun" dedin ve liste öyle kuruldu — ama **K6'daki bazı maddeler
+blokaj.** Sonda bırakılırlarsa arkalarındaki işler askıda kalır:
 
 | Madde | Kilitlediği işler |
 |---|---|
 | **54 — e-posta anahtarı** | 47, 48, 49, 50, 51 · dolaylı olarak 45 |
 | **58 — Index Anatolicus lisansı** | 37, 38 |
-| **55 — üyeler/davet elle testi** | 35 |
 
-**Öneri:** 54, 58 ve 55 sırada sonda dursun ama **takvimde bugün başlasın.** Üçü de
-oturup yapılacak iş değil — biri hesap açma, biri e-posta yazıp beklemek, biri yarım
-saatlik test. Ben 1'den başlayıp 32'ye kadar sana hiç ihtiyaç duymadan ilerlerim; o
-sırada bu üçü tamamlanmış olur ve K4/K5 açık bulunur.
+**Güncel durum:** 54 yapıldı (Resend + `soylus.com`). Geriye tek gerçek blokaj olarak
+**58** kaldı ve o da mecburi değil — bkz. aşağıdaki not.
+
+**Elle testler (eski 55 ve 56) listeden çıkarıldı** — ürün sahibinin kararı. Sonucu
+açıkça yazalım: üyeler/davet ve bağlı ağaç akışları **hiç elle koşulmadan** kalıyor.
+Bunlar deponun en karmaşık yazma yolları ve otomatik kapı testleri niyeti değil
+mekanizmayı denetliyor: "yetki denetimi doğru katmanda mı" sorusuna yanıt veriyorlar,
+"davet edilen kişi gerçekten girebiliyor mu" sorusuna değil. Kalan risk bilinerek
+kabul edildi.
 
 ## Şimdi
 
