@@ -2,6 +2,7 @@ import { put, get, list } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
 import type { Invite, Member, Pairing, PairInvite, ShareLink, TreeAccess, TreeRole } from "@/types/user";
+import type { ShareScope } from "@/lib/share-scope";
 import { dbReplaceInvites, dbReplaceMembers } from "@/lib/db";
 import { withTimeout, MIRROR_TIMEOUT_MS } from "@/lib/with-timeout";
 import { findUserById } from "@/lib/users";
@@ -335,7 +336,11 @@ export async function listShares(treeId: string): Promise<ShareLink[]> {
 export async function createShare(
   treeId: string,
   treeName: string,
-  opts: { hideLiving: boolean; label?: string; expiresDays?: number | null; personId?: string }
+  opts: {
+    hideLiving: boolean; label?: string; expiresDays?: number | null; personId?: string;
+    /** Açılacak görünümler; verilmezse kısıt yok (`lib/share-scope.ts`). */
+    scope?: ShareScope[];
+  }
 ): Promise<{ share: ShareLink; shares: ShareLink[] }> {
   const secret = randomBytes(18).toString("base64url");
   const share: ShareLink = {
@@ -347,6 +352,7 @@ export async function createShare(
     label: opts.label?.trim() || undefined,
     expiresAt: daysToExpiry(opts.expiresDays),
     personId: opts.personId || undefined,
+    scope: opts.scope,
     views: 0,
     visits: [],
   };
@@ -367,7 +373,11 @@ export async function createShare(
 export async function updateShare(
   treeId: string,
   id: string,
-  opts: { hideLiving?: boolean; label?: string; expiresDays?: number | null; personId?: string | null }
+  opts: {
+    hideLiving?: boolean; label?: string; expiresDays?: number | null; personId?: string | null;
+    /** `null` → kısıtı KALDIR (hepsini aç). `undefined` → bu alana dokunma. */
+    scope?: ShareScope[] | null;
+  }
 ): Promise<ShareLink[] | null> {
   const data = await getTreeAccess(treeId, { strict: true });
   const shares = normalizeShares(data);
@@ -378,6 +388,13 @@ export async function updateShare(
   if (opts.expiresDays !== undefined) s.expiresAt = daysToExpiry(opts.expiresDays);
   // `null` → daraltmayı kaldır (ağacın tümüne dön); "" de aynı anlama gelir.
   if (opts.personId !== undefined) s.personId = opts.personId || undefined;
+  /*
+   * `null` ile `undefined` AYRI şeyler — `personId` ile aynı tuzak. `null`
+   * "kısıtı kaldır" demek; araya bir `?? undefined` koymak o kararı "bu
+   * alana dokunma"ya çevirir ve daraltılmış bir bağlantı bir daha ASLA
+   * tümüne açılamazdı.
+   */
+  if (opts.scope !== undefined) s.scope = opts.scope ?? undefined;
   data.shares = shares;
   data.share = undefined;
   await saveTreeAccess(treeId, data);

@@ -7,6 +7,7 @@ import TreeSwitcher, { type DeletedTreeItem, type TreeItem } from "./TreeSwitche
 import AboutDialog from "./AboutDialog";
 import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
+import { allows } from "@/lib/share-scope";
 
 export type ViewKey =
   | "agac" | "cevre" | "soy" | "yelpaze" | "liste" | "zaman" | "harita"
@@ -52,15 +53,30 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().m
 function ViewTabs({
   view,
   onViewChange,
+  allowedViews,
   t,
 }: {
   view: ViewKey;
   onViewChange: (v: ViewKey) => void;
+  /** Genel paylaşımın açtığı görünümler; verilmezse kısıt yok. */
+  allowedViews?: string[];
   t: TFunction;
 }) {
+  /*
+   * Kapsam dışı sekmeler çizilmiyor. Sunucu tarafı asıl sınır (kapsam dışı
+   * veri RSC yüküne hiç girmemeli); burası yalnız kullanıcıya
+   * açamayacağı bir düğme göstermemek için — sebebi anlaşılmayan boş bir
+   * ekran, görünmeyen bir sekmeden kötüdür.
+   *
+   * Tümü süzülen bir grup HİÇ çizilmiyor: boş bir kabuk, ekranda sebepsiz
+   * bir kutu olurdu.
+   */
+  const gruplar = VIEW_GROUPS
+    .map((g) => g.filter((k) => allows(allowedViews, k)))
+    .filter((g) => g.length > 0);
   return (
     <>
-      {VIEW_GROUPS.map((group, gi) => (
+      {gruplar.map((group, gi) => (
         <div
           key={gi}
           className="flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border shrink-0"
@@ -127,6 +143,8 @@ interface Props {
   isFounder?: boolean;
   /** Herkese açık salt-okunur görünüm: sahip menüsü/çıkış gizlenir, kayıt CTA'sı gösterilir. */
   publicView?: boolean;
+  /** Genel paylaşımın açtığı görünümler (madde 35/G); verilmezse kısıt yok. */
+  allowedViews?: string[];
 }
 
 export default function TopBar({
@@ -147,6 +165,7 @@ export default function TopBar({
   activeTreeId,
   isFounder,
   publicView,
+  allowedViews,
 }: Props) {
   const showSwitcher = !!(isFounder && trees && trees.length > 0 && activeTreeId);
   const router = useRouter();
@@ -223,7 +242,7 @@ export default function TopBar({
           className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
           aria-label={t("topbar.viewAria")}
         >
-          <ViewTabs view={view} onViewChange={onViewChange} t={t} />
+          <ViewTabs view={view} onViewChange={onViewChange} allowedViews={allowedViews} t={t} />
         </nav>
 
         {/* Sağ aksiyonlar */}

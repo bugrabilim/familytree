@@ -12,6 +12,7 @@ import {
   updateShare,
 } from "@/lib/members";
 import type { ShareLink } from "@/types/user";
+import { parseScope, scopeOrAll } from "@/lib/share-scope";
 
 export const dynamic = "force-dynamic";
 // QR üretimi + Blob yazımı için rahat üst sınır; ayna zaten süre sınırlı (#3).
@@ -78,6 +79,12 @@ async function decorate(origin: string, share: ShareLink) {
     label: share.label ?? "",
     hideLiving: share.hideLiving,
     personId: share.personId ?? null,
+    /*
+     * Ekrana HER ZAMAN tam liste gidiyor (`scopeOrAll`): kayıtta yokluk
+     * "hepsi" demek ve arayüz o ayrımı yeniden yorumlamak zorunda kalmasın.
+     * Kutular böylece varsayılan olarak hepsi işaretli açılıyor.
+     */
+    scope: scopeOrAll(share.scope),
     createdAt: share.createdAt,
     expiresAt: share.expiresAt ?? null,
     expired,
@@ -111,13 +118,24 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  let body: { hideLiving?: boolean; label?: string; expiresDays?: number; personId?: string } = {};
+  let body: {
+    hideLiving?: boolean; label?: string; expiresDays?: number; personId?: string; scope?: unknown;
+  } = {};
   try { body = await req.json(); } catch { /* varsayılanlar */ }
   const personId = await resolvePersonId(g.treeId, body.personId);
   if (personId === INVALID)
     return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 400 });
+  /*
+   * BOŞ SEÇİM REDDEDİLİYOR. Sessizce "hepsi"ne çevirmek, kullanıcının
+   * seçtiğinin TAM TERSİNİ yapmak olurdu: her şeyi kapatmak isterken her
+   * şeyi açan bir bağlantı. Bağlantı istemiyorsa oluşturmaz.
+   */
+  const scope = parseScope(body.scope);
+  if (scope && scope.length === 0)
+    return NextResponse.json({ error: "En az bir görünüm seçilmeli." }, { status: 400 });
   try {
     const { shares } = await createShare(g.treeId, g.treeName, {
+      scope,
       hideLiving: body.hideLiving ?? true,
       label: body.label,
       expiresDays: body.expiresDays,
@@ -140,7 +158,7 @@ export async function PATCH(req: NextRequest) {
   if ("error" in g) return g.error;
   let body: {
     id?: string; hideLiving?: boolean; label?: string; expiresDays?: number;
-    personId?: string | null;
+    personId?: string | null; scope?: unknown;
   } = {};
   try { body = await req.json(); } catch { /* boş */ }
   if (!body.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
@@ -149,8 +167,18 @@ export async function PATCH(req: NextRequest) {
     body.personId === null ? null : await resolvePersonId(g.treeId, body.personId);
   if (personId === INVALID)
     return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 400 });
+  const yeniScope = parseScope(body.scope);
+  if (yeniScope && yeniScope.length === 0)
+    return NextResponse.json({ error: "En az bir görünüm seçilmeli." }, { status: 400 });
   try {
     const shares = await updateShare(g.treeId, body.id, {
+      /*
+       * `undefined` → dokunma; `null` → kısıtı kaldır. `parseScope` hepsi
+       * seçiliyken `undefined` döndüğü için burada `null`a çevriliyor:
+       * gövdede `scope` VARSA kullanıcı bir karar vermiştir ve "hepsi" de
+       * bir karardır — dokunmamak, eski daraltmayı sessizce sürdürürdü.
+       */
+      scope: Array.isArray(body.scope) ? (yeniScope ?? null) : undefined,
       hideLiving: body.hideLiving,
       label: body.label,
       expiresDays: body.expiresDays,
