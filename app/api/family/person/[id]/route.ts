@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { mergePersonFields } from "@/lib/person-fields";
-import { canContribute, canEdit, canEditPerson } from "@/lib/roles";
+import { canEdit, canEditPerson } from "@/lib/roles";
 import { deleteBondsOfPerson } from "@/lib/bond-store";
 import { scrubDeleted } from "@/lib/scrub";
 
@@ -32,7 +32,7 @@ export async function PUT(
    * Sıra bu yüzden ters çevrilemez; ama tek aşamalı bırakılsaydı katkı
    * verici HERKESİN kaydını düzenlerdi.
    */
-  if (!canContribute(ctx.role)) return forbidden();
+  if (!canEdit(ctx.role)) return forbidden();
 
   const userId = ctx.treeId;
   const { id } = await params;
@@ -54,7 +54,7 @@ export async function PUT(
    * `undefined === undefined` gibi bir eşleşmeye izin verilseydi, kimliği
    * çözülemeyen bir katkı verici bütün eski ağacı düzenleyebilirdi.
    */
-  if (!canEditPerson(ctx.role, ctx.authorId, data.people[index])) return forbidden();
+  if (!canEditPerson(ctx.role)) return forbidden();
 
   /*
    * Alanlar KAYIT DEFTERİNDEN birleştirilir (`lib/person-fields.ts`).

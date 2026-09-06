@@ -6,15 +6,15 @@ import { createInvite, getTreeAccess, removeMember, revokeInvite } from "@/lib/m
 import type { TreeRole } from "@/types/user";
 
 /*
- * Davet/üye rolü olarak kabul edilen değerler.
+ * DAVET ROLÜ TEK: `uye`.
  *
- * `TreeRole` birliğinden TÜRETİLMİYOR, elle yazılıyor — ve bu bilinçli: bir
- * gün birliğe yetkili bir rol eklendiğinde onun buraya girmesi bir KARAR
- * olmalı, otomatik bir sonuç değil. Türetilseydi, eklenen her rol aynı anda
- * davet edilebilir hâle gelirdi.
+ * Yönetici, ağacı KURAN hesap — davetle verilen bir kademe değil. Liste
+ * burada dursun ki gövdeden gelen değer yine doğrulansın; ama tek elemanlı
+ * olması bilinçli: buraya `yonetici` eklemek, bir bağlantıyla ağacın
+ * kontrolünü devretmek demek olurdu ve bu bir KARAR olmalı, bir satır
+ * değişikliği değil.
  */
-const ROLES: TreeRole[] = ["viewer", "contributor", "editor", "admin"];
-
+const ROLES: TreeRole[] = ["uye"];
 /** Yalnızca yönetici (admin) — AKTİF ağacın üye/davetlerini yönetebilir. */
 async function requireAdmin() {
   const ctx = await resolveActiveTree();

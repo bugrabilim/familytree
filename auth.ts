@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { verifyLogin } from "@/lib/credentials";
 import { prepareDemoAccount } from "@/lib/demo-account";
-import type { TreeRole } from "@/types/user";
+import { normalizeRole, type TreeRole } from "@/types/user";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -33,8 +33,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {},
       async authorize() {
         const user = await prepareDemoAccount();
-        // Demo ortak oyun alanı: ziyaretçiler serbestçe ekler/düzenler → admin.
-        return { id: user.id, name: user.familyName, role: "admin", treeName: user.familyName, isFounder: true };
+        // Demo ortak oyun alanı: ziyaretçiler serbestçe ekler/düzenler → yönetici.
+        return { id: user.id, name: user.familyName, role: "yonetici", treeName: user.familyName, isFounder: true };
       },
     }),
   ],
@@ -52,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = user.name;
         // Girişte rol + ağaç adı + founder bilgisi jetona işlenir.
         const u = user as { role?: TreeRole; treeName?: string; isFounder?: boolean; memberId?: string };
-        token.role = u.role ?? "admin";
+        token.role = u.role ?? "yonetici";
         // Üye girişinde KİM olduğu; kurucuda yok (kimliği ağacın kimliğidir).
         token.memberId = u.memberId;
         token.treeName = u.treeName ?? (user.name as string | undefined);
@@ -63,9 +63,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (token.id) session.user.id = token.id as string;
       if (token.name) session.user.name = token.name as string;
-      // Eski jetonlar (bu değişiklikten önce giriş yapanlar) rol taşımaz;
-      // onlar zaten ağaç şifresiyle giren founder'lardı → admin varsayılır.
-      session.user.role = (token.role as TreeRole | undefined) ?? "admin";
+      /*
+       * Eski jetonlar rol taşımayabilir ya da ESKİ ADLARI taşır
+       * ("admin"/"editor"/…). `normalizeRole` ikisini de bugünkü kademeye
+       * çeviriyor; rolsüz jeton `yonetici` sayılıyor, çünkü o jetonlar ağaç
+       * şifresiyle giren kurucularındı.
+       */
+      session.user.role = token.role === undefined ? "yonetici" : normalizeRole(token.role);
       session.user.treeName = (token.treeName as string | undefined) ?? session.user.name ?? undefined;
       // Eski jetonda yoksa founder varsay (ağaç şifresiyle girenler).
       session.user.isFounder = (token.isFounder as boolean | undefined) ?? true;

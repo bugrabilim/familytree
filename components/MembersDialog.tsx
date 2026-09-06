@@ -33,7 +33,7 @@ export default function MembersDialog({ treeName, onClose }: Props) {
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<TreeRole>("viewer");
+  const [role, setRole] = useState<TreeRole>("uye");
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<string>();
   const [copied, setCopied] = useState(false);
@@ -129,32 +129,28 @@ export default function MembersDialog({ treeName, onClose }: Props) {
               onChange={(e) => setRole(e.target.value as TreeRole)}
               className="h-9 px-2 rounded-lg bg-surface border border-border text-sm text-text focus:outline-none focus:border-primary"
             >
-              <option value="viewer">{t("role.viewer")}</option>
               {/*
-                KATKI VERİCİ (madde 35): ekleyebilir, var olanı değiştiremez —
-                değişiklik önerir. "Biraz katkı versin" demek için editor
-                vermek zorunda kalmanın karşılığı; editor ağacın tamamını
-                silebiliyor.
+                TEK SEÇENEK — ve seçim kutusu bilerek duruyor.
+                Yönetici, ağacı KURAN hesap; davetle verilen bir kademe değil.
+                Kutuyu kaldırmak yerine tek seçenekli bırakmak, ileride yeni
+                bir kademe eklenirse yerinin belli olmasını sağlıyor; ama
+                buraya "yönetici" eklemek bir bağlantıyla ağacın kontrolünü
+                devretmek olurdu ve bu bir KARAR olmalı.
               */}
-              <option value="contributor">{t("role.contributor")}</option>
-              <option value="editor">{t("role.editor")}</option>
-              <option value="admin">{t("role.admin")}</option>
+              <option value="uye">{t("role.uye")}</option>
             </select>
             <Button onClick={createInvite} disabled={creating}>
               {creating ? t("members.creating") : t("members.createInvite")}
             </Button>
           </div>
           {/*
-            Yeni kademe SEÇİLİRKEN ne olduğu yazılıyor. Rol adı tek başına
-            "katkı verici"nin editor'den ne farkı olduğunu anlatmıyor ve
-            fark tam olarak burada önemli: daveti gönderen kişi, karşı tarafa
-            ne kadar yetki verdiğini bilmeli.
+            Davet edilen kişinin NE YAPABİLECEĞİ yazılıyor. Rol adı tek başına
+            bunu anlatmıyor ve daveti gönderen, karşı tarafa ne verdiğini
+            bilmeli — özellikle "her değişikliği onayına gelecek" kısmını.
           */}
-          {role === "contributor" && (
-            <p className="mt-2 text-[11px] text-text-subtle leading-relaxed">
-              {t("role.contributorHint")}
-            </p>
-          )}
+          <p className="mt-2 text-[11px] text-text-subtle leading-relaxed">
+            {t("role.uyeHint")}
+          </p>
           {link && (
             <div className="mt-2.5">
               <p className="text-[11px] text-text-subtle mb-1">{t("members.linkHint")}</p>

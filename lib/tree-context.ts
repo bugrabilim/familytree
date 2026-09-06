@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { verifyMobileToken } from "@/lib/mobile-token";
 import { accessibleTreeIds, hasTreeAccess } from "@/lib/trees";
 import { isAccountDeleted } from "@/lib/users";
-import type { TreeRole } from "@/types/user";
+import { normalizeRole, type TreeRole } from "@/types/user";
 
 /** Aktif ağaç kimliğini taşıyan çerez. */
 export const ACTIVE_TREE_COOKIE = "soyagaci_tree";
@@ -59,7 +59,12 @@ async function resolveSessionUser(): Promise<{
     return {
       id: session.user.id,
       isFounder: session.user.isFounder ?? true,
-      role: (session.user.role as TreeRole | undefined) ?? "admin",
+      /*
+       * Eski oturumlar rol taşımayabilir ya da ESKİ ADI taşır; ikisini de
+       * `normalizeRole` çeviriyor. Rolsüz oturum `yonetici` sayılıyor —
+       * onlar ağaç şifresiyle giren kuruculardı.
+       */
+      role: session.user.role === undefined ? "yonetici" : normalizeRole(session.user.role),
       memberId: session.user.memberId,
     };
   }
@@ -106,7 +111,7 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   if (cookieVal && cookieVal !== accountId) {
     const owned = await accessibleTreeIds(accountId);
     if (hasTreeAccess(accountId, cookieVal, owned)) {
-      return { ok: true, accountId, treeId: cookieVal, role: "admin", isFounder: true, authorId };
+      return { ok: true, accountId, treeId: cookieVal, role: "yonetici", isFounder: true, authorId };
     }
   }
   return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true, authorId };

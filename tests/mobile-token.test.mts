@@ -10,13 +10,13 @@ import { isMobileTokenConfigured, signMobileToken, verifyMobileToken } from "../
 let ok = 0, fail = 0;
 const check = (n: string, c: boolean) => { if (c) ok++; else { fail++; console.log(`✗ ${n}`); } };
 
-const token = await signMobileToken({ sub: "acc-123", name: "Yılmaz", role: "admin", isFounder: true, treeName: "Yılmaz" });
+const token = await signMobileToken({ sub: "acc-123", name: "Yılmaz", role: "yonetici", isFounder: true, treeName: "Yılmaz" });
 check("jeton üretildi (jwt biçimi)", typeof token === "string" && token.split(".").length === 3);
 
 const claims = await verifyMobileToken(token);
 check("doğrulama başarılı", claims !== null);
 check("sub korunur", claims?.sub === "acc-123");
-check("role korunur", claims?.role === "admin");
+check("role korunur", claims?.role === "yonetici");
 check("isFounder korunur", claims?.isFounder === true);
 check("treeName korunur", claims?.treeName === "Yılmaz");
 
@@ -32,7 +32,7 @@ check("kurcalanmış jeton → null", (await verifyMobileToken(token.slice(0, -3
  */
 {
   const jeton = await signMobileToken({
-    sub: "agac-1", name: "Ayşe", role: "editor", isFounder: false,
+    sub: "agac-1", name: "Ayşe", role: "uye", isFounder: false,
     treeName: "Demir", memberId: "uye-42",
   });
   const c = await verifyMobileToken(jeton);
@@ -42,7 +42,7 @@ check("kurcalanmış jeton → null", (await verifyMobileToken(token.slice(0, -3
 }
 {
   // Kurucuda üye kimliği yok; alan eksik olduğunda çözüm patlamamalı.
-  const jeton = await signMobileToken({ sub: "agac-1", role: "admin", isFounder: true });
+  const jeton = await signMobileToken({ sub: "agac-1", role: "yonetici", isFounder: true });
   const c = await verifyMobileToken(jeton);
   check("üye kimliksiz jeton geçerli", c !== null);
   check("kurucuda üye kimliği yok", c?.memberId === undefined);
@@ -63,7 +63,7 @@ check("sır yokken yapılandırılmamış", !isMobileTokenConfigured());
 
 let firladi = false;
 try {
-  await signMobileToken({ sub: "x", role: "admin", isFounder: true });
+  await signMobileToken({ sub: "x", role: "yonetici", isFounder: true });
 } catch {
   firladi = true;
 }
@@ -73,6 +73,33 @@ check("sır yokken jeton DOĞRULANMIYOR", (await verifyMobileToken(token)) === n
 
 process.env.AUTH_SECRET = yedek;
 check("sır geri gelince yeniden doğrulanıyor", (await verifyMobileToken(token)) !== null);
+
+/* ── ESKİ ROL ADLARI çevriliyor ──────────────────────────────────────────── */
+/*
+ * Rol modeli dört kademeden ikiye indi ama TELEFONDAKİ JETONLAR eskiden
+ * kalabilir: kullanıcı uygulamayı güncellemeden haftalarca kullanabilir ve
+ * jetonu "admin"/"editor" taşır. Çeviri olmasaydı `normalizeRole` bilinmeyen
+ * değeri en az yetkili kademeye düşürürdü — yani eski bir jetonla giren
+ * KURUCU, kendi ağacında üye olurdu.
+ *
+ * Yön ÖNEMLİ: `admin` → `yonetici` (yetki korunuyor), geri kalan hepsi
+ * `uye` (kimse yetki KAZANMIYOR).
+ */
+{
+  for (const [eski, beklenen] of [
+    ["admin", "yonetici"],
+    ["editor", "uye"],
+    ["contributor", "uye"],
+    ["viewer", "uye"],
+  ] as const) {
+    const j = await signMobileToken({ sub: "agac-1", role: eski as never, isFounder: true });
+    const c = await verifyMobileToken(j);
+    check(`eski rol "${eski}" → "${beklenen}"`, c?.role === beklenen);
+  }
+  /* Tanınmayan değer en az yetkili kademeye düşer — güvenli yön. */
+  const j = await signMobileToken({ sub: "agac-1", role: "uydurma" as never, isFounder: true });
+  check("tanınmayan rol üyeye düşüyor", (await verifyMobileToken(j))?.role === "uye");
+}
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail) process.exit(1);

@@ -8,20 +8,20 @@ const kodu = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 /**
- * KAPI: katkı verici rolü (madde 35).
+ * KAPI: rol kademeleri (madde 35, ikinci tur).
  *
- * Sıralı bir yetki hiyerarşisine araya kademe sokmanın tehlikesi şu: kademe
- * bir kez eklenince, `canEdit` ile korunan HER uç yeniden değerlendirilmek
- * zorunda ve unutulan bir uç sessizce yanlış tarafta kalıyor. Üstelik yanlış
- * taraf görünmüyor — kimse "katkı verici bunu da yapabiliyormuş" diye
- * fark etmiyor, ta ki biri ağacı silene kadar.
+ * İki kademe var: `yonetici` doğrudan yazar, `uye` yalnız ÖNERİR. Tehlike
+ * şu: `canEdit` ile korunan bir ucun yanlışlıkla `canPropose`a çekilmesi.
+ * `canPropose` ağacın HER üyesine açık, yani o kayma "yalnız yönetici"
+ * dediğimiz bir işi herkese açmak demek — ve görünmez, çünkü ekranda hiçbir
+ * şey değişmez, yalnız sunucu daha fazlasını kabul eder.
  *
- * Bu dosya iki şeyi kilitliyor:
+ * Bu dosya üç şeyi kilitliyor:
  *
- *  1. Katkı vericiye AÇIK uçların TAM listesi. Listeye girmeyen her uç
- *     `canEdit`te kalmak zorunda; yeni bir uç açılırsa bu test kırmızıya
- *     döner ve açılış bir KARAR olur, kazara olmaz.
- *  2. Kişi düzenlemesinin İKİ AŞAMALI kapısı — rol + sahiplik.
+ *  1. `canPropose` ile açılan uçların TAM listesi ve gerekçeleri.
+ *  2. Tehlikeli uçların `canEdit`te kalması.
+ *  3. HİÇ kapısı olmayan rotaların gerekçeli muafiyet listesi — bu boşluktan
+ *     bir kez gerçek bir açık geçti (`ai/suggest` herkese açıktı).
  */
 
 const API = new URL("../app/api/", import.meta.url).pathname;
@@ -43,28 +43,35 @@ function rotalar(dizin = API, onek = ""): string[] {
  * "neden" yazılmadan yapılan genişletme, altı ay sonra kimsenin savunamadığı
  * bir açıklık olur.
  */
+/**
+ * `canPropose` (yani ÜYEYE de) açık uçlar ve GEREKÇELERİ.
+ *
+ * Gerekçe zorunlu: bir ucu bu listeye eklemek, onu ağacın her üyesine açmak
+ * demek ve "neden" yazılmadan yapılan genişletme, altı ay sonra kimsenin
+ * savunamadığı bir açıklık olur.
+ */
 const ACIK: Record<string, string> = {
-  "family/person/route.ts":
-    "Yeni kişi eklemek rolün tek doğrudan yazma işi; bu kapalıysa rol zaten anlamsız.",
-  "family/person/[id]/route.ts":
-    "PUT ikinci aşamada sahiplik istiyor (yalnız kendi eklediği); DELETE hâlâ canEdit.",
-  "upload/route.ts":
-    "Yüklenen dosya hiçbir kaydı değiştirmiyor, yalnız URL üretiyor. Kapalı olsaydı eklediği kişiye fotoğraf koyamazdı.",
-  "family/recipes/route.ts": "POST yeni tarif ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
-  "family/gatherings/route.ts": "POST yeni etkinlik ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
-  "family/letters/route.ts": "POST yeni mektup ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
   "family/proposals/route.ts":
-    "Rolün varlık sebebi: değişiklik ÖNERİSİ açmak. GET/POST katkı verici seviyesinde; KARAR (PATCH) canEdit istiyor — aksi hâlde katkı verici kendi önerisini onaylayıp yazma kapısını dolanırdı.",
+    "Öneri açmak ve kendi önerilerini görmek — rolün varlık sebebi. KARAR (PATCH) canEdit istiyor; aksi hâlde üye kendi önerisini onaylayıp yazma kapısını dolanırdı.",
+  "upload/route.ts":
+    "Üye, önereceği kişiye fotoğraf ekleyebilmeli. Yükleme hiçbir kaydı DEĞİŞTİRMİYOR, yalnız URL üretiyor; bir kayda bağlanması ayrı istek ve orada kendi kapısı var.",
+  "family/recipes/route.ts":
+    "BİLİNÇLİ BOŞLUK: öneri motoru bugün yalnız KİŞİ kayıtlarını taşıyor. Kapatsaydık üye tarif ekleyemez hâle gelir ve yerine koyacak bir yol olmazdı — daraltma bir yeteneği yok ederdi. PUT/DELETE düzenleme seviyesinde kaldı.",
+  "family/gatherings/route.ts":
+    "BİLİNÇLİ BOŞLUK, tariflerle aynı gerekçe: öneri motoru etkinlikleri henüz taşımıyor. PUT/DELETE düzenleme seviyesinde kaldı.",
+  "family/letters/route.ts":
+    "BİLİNÇLİ BOŞLUK, tariflerle aynı gerekçe: öneri motoru mektupları henüz taşımıyor. PUT/DELETE düzenleme seviyesinde kaldı.",
 };
+
 
 /* --- 1. Listeye girmeyen hiçbir uç katkı vericiye açık olmasın ----------- */
 for (const r of rotalar()) {
   const src = kodu(read(`../app/api/${r}`));
-  const acik = /canContribute\(/.test(src);
+  const acik = /canPropose\(/.test(src);
   if (acik)
-    check(r in ACIK, `${r} → katkı vericiye açılmış ama listede yok (gerekçesiz genişletme)`);
+    check(r in ACIK, `${r} → üyeye açılmış ama listede yok (gerekçesiz genişletme)`);
   else
-    check(!(r in ACIK), `${r} → listede ama artık canContribute kullanmıyor (liste ölü)`);
+    check(!(r in ACIK), `${r} → listede ama artık canPropose kullanmıyor (liste ölü)`);
 }
 
 /* --- 1b. KAPISIZ rotalar ------------------------------------------------- */
@@ -118,7 +125,7 @@ for (const r of rotalar()) {
 
   for (const r of rotalar()) {
     const src = kodu(read(`../app/api/${r}`));
-    const kapili = /canEdit\(|canContribute\(|canManage\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
+    const kapili = /canEdit\(|canPropose\(|canManage\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
     if (kapili) continue;
     check(r in KAPISIZ, `${r} → hiçbir rol kapısı yok ve muafiyet listesinde de değil`);
   }
@@ -164,7 +171,7 @@ const ASLA = [
 ];
 for (const r of ASLA) {
   const src = kodu(read(`../app/api/${r}`));
-  check(!/canContribute\(/.test(src), `${r} → katkı vericiye KAPALI kalmalı`);
+  check(!/canPropose\(/.test(src), `${r} → üyeye KAPALI kalmalı`);
   check(/canEdit\(/.test(src), `${r} → hâlâ bir canEdit kapısı var`);
 }
 /* Liste ölü kalmasın: adı geçen her rota gerçekten var olmalı. */
@@ -173,39 +180,31 @@ for (const r of ASLA) {
   for (const r of ASLA) check(hepsi.includes(r), `"${r}" hâlâ var olan bir rota`);
 }
 
-/* --- 3. Kişi düzenlemesi: İKİ AŞAMALI kapı ------------------------------- */
+/* --- 3. Kişi düzenlemesi: TEK kapı, yalnız yönetici ---------------------- */
+/*
+ * Burada İKİ AŞAMALI bir kapı vardı: önce rol, sonra SAHİPLİK (katkı verici
+ * kendi eklediğini düzeltebiliyordu). Yeni modelde üyenin EKLEMESİ de onaydan
+ * geçtiği için "kendi eklediği" diye doğrudan yazılmış bir kayıt zaten
+ * oluşmuyor; istisna, artık var olmayan bir duruma bakan ölü bir kural
+ * olurdu ve imzadan da kaldırıldı.
+ */
 {
   const src = kodu(read("../app/api/family/person/[id]/route.ts"));
 
-  check(/if \(!canContribute\(ctx\.role\)\) return forbidden\(\);/.test(src),
-    "birinci aşama: rol denetimi");
+  check(/if \(!canEditPerson\(ctx\.role\)\) return forbidden\(\);/.test(src),
+    "PUT yalnız yönetici (ortak kural üzerinden)");
   /*
-   * İkinci aşama olmadan birinci aşama TEK BAŞINA felaket: katkı verici
-   * herkesin kaydını düzenlerdi. Karşılaştırmanın kendisi aranıyor.
+   * Sahiplik denetimi KALMAMALI. Kalsaydı üye, öneriden geçmeden yazabildiği
+   * bir kayıt varmış gibi davranan ölü bir dal taşırdık ve o dal bir gün
+   * yeniden canlanabilirdi.
    */
-  /*
-   * Kural TEK YERDE (`canEditPerson`): arayüz de aynı işlevi çağırıyor.
-   * İkiye bölünseydi ayrışırlardı ve ayrışmanın yönü kötü olurdu — arayüz
-   * "kaydet" gösterir, sunucu 403 döner, kullanıcı ne olduğunu anlamaz.
-   */
-  check(/canEditPerson\(ctx\.role, ctx\.authorId, data\.people\[index\]\)/.test(src),
-    "ikinci aşama: editor değilse SAHİPLİK isteniyor");
-  {
-    const iRol = src.indexOf("if (!canContribute(ctx.role)) return forbidden();");
-    const iSahip = src.indexOf("canEditPerson(ctx.role");
-    check(iRol > -1 && iSahip > iRol, "sahiplik denetimi rol denetiminden sonra (kayıt elde olunca)");
-  }
+  check(!/addedBy !== ctx\.authorId/.test(src), "sahiplik istisnası kalmadı");
+  check(!/canPropose/.test(src), "PUT/DELETE üyeye kapalı");
 
-  /*
-   * SİLME açılmamalı. Kendi eklediği kayıt için bile: ekledikten sonra
-   * başkaları onun üstüne bir şey kurmuş olabilir ve silme, düzenlemenin
-   * aksine başkasının emeğini de götürür.
-   */
   const iDelete = src.indexOf("export async function DELETE");
   const silme = src.slice(iDelete);
   check(iDelete > -1 && /if \(!canEdit\(ctx\.role\)\) return forbidden\(\);/.test(silme),
-    "DELETE yalnız canEdit; sahiplik istisnası YOK");
-  check(!/canContribute/.test(silme), "DELETE dalında canContribute geçmiyor");
+    "DELETE yalnız yönetici");
 }
 
 /* --- 4. `addedBy` sunucu alanı ------------------------------------------- */
@@ -226,7 +225,13 @@ for (const r of ASLA) {
 /* --- 5. Rolün kendisi davet edilebilir ----------------------------------- */
 {
   const access = kodu(read("../app/api/tree/access/route.ts"));
-  check(/"contributor"/.test(access), "davet rolü olarak kabul ediliyor");
+  /*
+   * DAVET ROLÜ TEK: `uye`. Yönetici ağacı KURAN hesap, davetle verilen bir
+   * kademe değil — buraya `yonetici` eklemek, bir bağlantıyla ağacın
+   * kontrolünü devretmek olurdu.
+   */
+  check(/const ROLES: TreeRole\[\] = \["uye"\];/.test(access), "davet yalnız üye rolünü kabul ediyor");
+  check(!/"yonetici"/.test(access), "davetle yöneticilik verilemiyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

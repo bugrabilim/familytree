@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canContribute, canEdit } from "@/lib/roles";
+import { canEdit } from "@/lib/roles";
 import { createPerson, type CreateRelation } from "@/lib/person-create";
 
 export type RelationType = "parent" | "child" | "spouse" | "sibling" | "associate";
@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   /*
-   * EKLEME kapısı (madde 35) — `canEdit` değil `canContribute`.
+   * EKLEME kapısı (madde 35) — `canEdit` değil `canEdit`.
    *
    * Katkı vericinin yapabildiği tek doğrudan yazma işi bu: yeni kayıt
    * açmak. Var olana dokunmak (PUT/DELETE) hâlâ `canEdit` istiyor; oraya
    * onun yolu değişiklik önerisinden geçiyor.
    */
-  if (!canContribute(ctx.role))
+  if (!canEdit(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const userId = ctx.treeId;

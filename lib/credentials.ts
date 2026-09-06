@@ -55,7 +55,7 @@ export async function verifyLogin(familyName: string, password: string): Promise
   const founderSession: SessionUser = {
     id: user.id,
     name: user.familyName,
-    role: "admin",
+    role: "yonetici",
     treeName: user.familyName,
     isFounder: true,
   };
