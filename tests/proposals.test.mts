@@ -1,6 +1,7 @@
 import {
   applyProposal, bosMu, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
-  normalizeValue, pendingCount, planProposal, proposableKeys, sameValue, visibleTo, withdraw,
+  invert, markUndone, normalizeValue, pendingCount, planProposal, proposableKeys, sameValue,
+  visibleTo, withdraw,
   MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
   type Proposal,
 } from "../lib/proposals.ts";
@@ -478,6 +479,79 @@ for (const st of ["onaylandi", "reddedildi", "geri-cekildi"] as const) {
     eq(r.list.length, MAX_PROPOSALS, "tavan korunuyor");
     check(r.list.some((x) => x.id === "yeni"), "yeni öneri girdi");
     check(!r.list.some((x) => x.id === "x0"), "en eski geri çekilen düştü");
+  }
+}
+
+/* ── Onayı geri alma (madde 35/F) ─────────────────────────────────────────── */
+
+/* `invert` yalnız from/to'yu takas ediyor; öbür alanlar aynen kalıyor. */
+{
+  const p = oneri({ changes: { birthDate: { from: "1940", to: "1943" }, birthPlace: { from: "", to: "Bursa" } } });
+  const t = invert(p);
+  eq(t.changes.birthDate, { from: "1943", to: "1940" }, "alan takas edildi");
+  eq(t.changes.birthPlace, { from: "Bursa", to: "" }, "boş değer de takas ediliyor");
+  eq(t.id, p.id, "kimlik korunuyor");
+  eq(t.personId, p.personId, "kişi korunuyor");
+  eq(p.changes.birthDate, { from: "1940", to: "1943" }, "özgün öneri DEĞİŞMİYOR");
+  eq(invert(invert(p)).changes, p.changes, "iki kez ters çevirmek başa döndürüyor");
+}
+
+/*
+ * GERİ ALMA, ARADAKİ DEĞİŞİKLİĞİ SİLMEZ — kuralın asıl kazancı.
+ *
+ * Ters öneride `from` artık onaylanan değer, yani `applyProposal`ın bayatlık
+ * denetimi "kayıt hâlâ onaylandığı gibi mi?" sorusuna dönüşüyor. Ayrı bir
+ * "geri uygula" işlevi yazılsaydı bu denetim ikinci kez yazılmak zorunda
+ * kalırdı ve unutulması, birinin onaydan sonra yazdığı bilgiyi sessizce yok
+ * ederdi.
+ */
+{
+  const p = oneri({ changes: { birthDate: { from: "1940", to: "1943" } } });
+
+  /* Kayıt onaylandığı gibi duruyor → geri alma geçiyor. */
+  const aynen = applyProposal(kisi({ birthDate: "1943" }), invert(p));
+  check(aynen.ok, "onaylandığı gibi duran kayıt geri alınabiliyor");
+  if (aynen.ok) eq(aynen.person.birthDate, "1940", "eski değere dönüldü");
+
+  /* Onaydan sonra biri aynı alanı değiştirmiş → geri alma REDDEDİLİYOR. */
+  const arada = applyProposal(kisi({ birthDate: "1945" }), invert(p));
+  check(!arada.ok, "aradaki değişiklik geri almayı engelliyor");
+  if (!arada.ok) eq(arada.stale, ["birthDate"], "hangi alanın değiştiği söyleniyor");
+}
+
+/* Geri alma boş değere de dönebiliyor: alan kayıttan SİLİNİYOR, "" yazılmıyor. */
+{
+  const p = oneri({ changes: { birthDate: { from: "", to: "1943" } } });
+  const r = applyProposal(kisi({ birthDate: "1943" }), invert(p));
+  check(r.ok, "boşa dönüş geçiyor");
+  if (r.ok) check(!("birthDate" in (r.person as unknown as Record<string, unknown>)), "alan siliniyor, boş dizge yazılmıyor");
+}
+
+/* `markUndone`: öneri KUYRUĞA dönüyor ve geri alma kaydı siliniyor. */
+{
+  const onaylı = decide(oneri(), "onaylandi", "y1", "Yönetici", "2026-09-06T11:00:00.000Z");
+  check(onaylı.ok, "önce onaylandı");
+  if (onaylı.ok) {
+    const uygulanmis = { ...onaylı.proposal, undo: { createdId: "x" } };
+    const g = markUndone(uygulanmis, "2026-09-06T12:00:00.000Z", "Yönetici");
+    eq(g.status, "bekliyor", "öneri kuyruğa döndü");
+    eq(g.undoneAt, "2026-09-06T12:00:00.000Z", "geri alma anı yazıldı");
+    eq(g.undoneByName, "Yönetici", "geri alan yazıldı");
+    /*
+     * `undo` SİLİNİYOR: artık uygulanmış bir şey yok ve duran bir kayıt
+     * ikinci bir geri almayı mümkün kılardı — ağaçtan olmayan bir
+     * değişikliği bir kez daha çıkarmayı.
+     */
+    check(g.undo === undefined, "geri alma kaydı silindi");
+    check(!("undo" in g), "anahtar nesnede HİÇ yok (yayılma ile taşınmıyor)");
+    check(g.decidedBy === undefined && g.decidedAt === undefined, "karar damgaları silindi");
+    eq(g.changes, uygulanmis.changes, "önerinin içeriği korunuyor");
+    eq(uygulanmis.status, "onaylandi", "özgün nesne DEĞİŞMİYOR");
+
+    /* Kuyruğa dönen öneri yeniden karara bağlanabiliyor — arafta kalmıyor. */
+    const tekrar = decide(g, "reddedildi", "y1", "Yönetici", "2026-09-06T13:00:00.000Z");
+    check(tekrar.ok, "geri alınan öneri yeniden karara bağlanabiliyor");
+    eq(pendingCount([g]), 1, "kuyruk sayısına geri giriyor");
   }
 }
 

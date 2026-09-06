@@ -20,6 +20,7 @@ const rota = kodu(read("../app/api/family/proposals/route.ts"));
 const store = kodu(read("../lib/proposal-store.ts"));
 const cek = kodu(read("../app/api/family/proposals/withdraw/route.ts"));
 const uygula = kodu(read("../lib/proposal-apply.ts"));
+const geri = kodu(read("../app/api/family/proposals/undo/route.ts"));
 const dialog = kodu(read("../components/ProposalsDialog.tsx")).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 /* --- 1. Kim ne yapabilir ------------------------------------------------- */
@@ -408,6 +409,95 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
   }
   /* Çubuk da öyle: seçecek bir şey yokken yer kaplamamalı. */
   check(/canDecide && bekleyen\.length > 0 && \(/.test(dialog), "toplu çubuk koşullu");
+}
+
+/* --- 12. Onayı geri alma (madde 35/F) ------------------------------------ */
+{
+  /*
+   * YETKİ: karar verende. Öneriyi yazana açık olsaydı, üye onaylanmış bir
+   * değişikliği tek başına ağaçtan çıkarabilirdi — yani yazma kapısının
+   * etrafından dolaşırdı. Kuyruğun ret ucuyla aynı kademe.
+   */
+  check(/if \(!canEdit\(ctx\.role\)\)/.test(geri), "geri alma canEdit istiyor");
+  check(!/canPropose/.test(geri), "geri almada canPropose hiç geçmiyor");
+  check(!isPublicPath("/api/family/proposals/undo"), "geri alma ucu oturumsuz açık DEĞİL");
+
+  /* Yalnız ONAYLANMIŞ öneri geri alınabilir: uygulanmamış bir şey geri alınamaz. */
+  check(/p\.status !== "onaylandi"/.test(geri), "yalnız onaylanmış öneri geri alınıyor");
+
+  /* İyimser kilit, yazmadan ÖNCE — öbür yazan uçlarla aynı kural. */
+  check(/if \(versionMismatch\(req, data\.updatedAt\)\)/.test(geri), "iyimser kilit var");
+  {
+    const iKilit = geri.indexOf("versionMismatch(req");
+    const iYaz = geri.indexOf("await saveFamilyData(");
+    check(iKilit > -1 && iYaz > iKilit, "kilit denetimi yazmadan ÖNCE");
+  }
+  /* Sıra: önce ağaç, sonra öneri damgası. Ters olsaydı ağaç yazımı düştüğünde
+   * öneri "geri alındı" görünür, değişiklik ağaçta durmaya devam ederdi. */
+  {
+    const iYaz = geri.indexOf("await saveFamilyData(");
+    const iDamga = geri.indexOf("await replaceProposal(");
+    check(iYaz > -1 && iDamga > iYaz, "ağaç yazımı, öneri damgasından ÖNCE");
+  }
+
+  /* Mantık ORTAK katmanda; rota kendi tersini yazmıyor. */
+  check(/undoApplied\(data, p\)/.test(geri), "rota ortak geri alıcıyı çağırıyor");
+  check(!/applyProposal\(/.test(geri) && !/data\.people\.filter/.test(geri),
+    "rota kendi geri alma kopyasını yazmıyor");
+  check(/markUndone\(p,/.test(geri), "öneri durumu saf katmanda kuruluyor");
+
+  /*
+   * "alan" geri alması TERS ÖNERİ ile yapılıyor. Ayrı bir "geri uygula"
+   * yazılsaydı bayatlık denetimi ikinci kez yazılmak zorunda kalırdı ve
+   * unutulması, onaydan sonra yazılan bilgiyi sessizce yok ederdi.
+   */
+  check(/applyProposal\(data\.people\[i\], invert\(p\)\)/.test(uygula), "alan geri alması ters öneriyle");
+
+  /*
+   * "silme" onayında KOPARILAN BAĞLAR kaydediliyor. Kaydedilmeseydi geri
+   * alma, kaydı bağsız bir yetim olarak geri getirirdi: çocukları artık onu
+   * ebeveyn olarak listelemiyor ve bu, kaydın kendi `parentIds`inden
+   * türetilemez.
+   */
+  check(/const refs: RemovedRef\[\] = \[\]/.test(uygula), "koparılan bağlar toplanıyor");
+  check(/undo: \{ person: kayit, refs \}/.test(uygula), "silinen kaydın tam hâli saklanıyor");
+  /* Geri koyma EKLEMELİ: dizinin tamamı yazılsaydı, silmeden SONRA eklenen bir bağ kaybolurdu. */
+  {
+    const i = uygula.indexOf("for (const ref of u.refs");
+    const dal = i > -1 ? uygula.slice(i, uygula.indexOf("return { ok: true };", i)) : "";
+    check(i > -1, "bağ geri koyma döngüsü var");
+    check(/!x\.parentIds\.includes\(geri\.id\)/.test(dal), "ebeveyn bağı yalnız yoksa ekleniyor");
+    check(!/x\.parentIds = ref\./.test(dal), "dizinin tamamı geri YAZILMIYOR");
+  }
+  /* "ekleme"de oluşan kaydın kimliği onay anında yazılıyor: sonradan türetilemez. */
+  check(/undo: \{ createdId: kur\.person\.id \}/.test(uygula), "oluşan kaydın kimliği saklanıyor");
+  {
+    const patch = rota.slice(rota.indexOf("export async function PATCH"));
+    check(/undo: uygula\.undo/.test(patch), "onay, geri alma kaydını öneriye yazıyor");
+  }
+  /* Geri alma kaydı yoksa geri alma reddediliyor — "sanki oldu" demiyor. */
+  check(/kod: "kayit-yok"/.test(uygula), "kayıtsız geri alma reddediliyor");
+}
+
+/* --- 13. Ekran: geri al düğmesi ------------------------------------------ */
+{
+  check(/setOnay\(\{ id: p\.id, ne: "geri-al" \}\)/.test(dialog), "geri al düğmesi doğrulama açıyor");
+  {
+    const i = dialog.indexOf('p.status === "onaylandi" ? (');
+    const dal = i > -1 ? dialog.slice(i, dialog.indexOf(") : (", i)) : "";
+    check(i > -1, "onaylanmış kart dalı var");
+    check(/canDecide &&/.test(dal), "geri al yalnız karar verebilende");
+  }
+  {
+    const i = dialog.indexOf("const geriAl");
+    const govde = i > -1 ? dialog.slice(i, dialog.indexOf("\n  };", i)) : "";
+    check(i > -1, "geriAl bulundu");
+    check(/"\/api\/family\/proposals\/undo"/.test(govde), "ayrı uca gidiyor");
+    /* Ağacı DEĞİŞTİRİYOR: geri çekmenin aksine taban sürüm ve görünüm tazeleniyor. */
+    check(/setBaseVersion\(d\.version\)/.test(govde), "taban sürüm güncelleniyor");
+    check(/onApplied\?\.\(\)/.test(govde), "ağaç görünümü tazeleniyor");
+    check(/mutationHeaders\(\)/.test(govde), "taban sürüm başlığı gönderiliyor");
+  }
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

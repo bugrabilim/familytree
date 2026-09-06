@@ -51,6 +51,8 @@ interface Proposal {
   status: "bekliyor" | "onaylandi" | "reddedildi" | "geri-cekildi";
   decidedByName?: string;
   decidedAt?: string;
+  /** Onayın geri alındığı an — kart bunu "bir kez onaylanmıştı" diye gösteriyor. */
+  undoneAt?: string;
 }
 
 /**
@@ -86,7 +88,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
   const [busy, setBusy] = useState("");
   const [stale, setStale] = useState<Record<string, string[]>>({});
   /** Doğrulama bekleyen işlem: hangi kart, hangi eylem. */
-  const [onay, setOnay] = useState<{ id: string; ne: "onaylandi" | "geri-cekildi" } | null>(null);
+  const [onay, setOnay] = useState<{ id: string; ne: "onaylandi" | "geri-cekildi" | "geri-al" } | null>(null);
   /** Toplu işlem için seçilen öneriler. */
   const [secili, setSecili] = useState<Set<string>>(new Set());
   /** Toplu onay doğrulama satırı açık mı. */
@@ -242,6 +244,38 @@ export default function ProposalsDialog({ onClose, onApplied }: {
     }
   };
 
+  /**
+   * Onayı geri al.
+   *
+   * Ağacı DEĞİŞTİRİYOR (onayın tersini uyguluyor), bu yüzden geri çekmenin
+   * aksine taban sürüm güncelleniyor ve çağıran tazeleniyor. Öneri kuyruğa
+   * "bekliyor" olarak dönüyor.
+   */
+  const geriAl = async (id: string) => {
+    setBusy(id);
+    setHata("");
+    setOnay(null);
+    try {
+      const res = await fetch("/api/family/proposals/undo", {
+        method: "POST",
+        headers: mutationHeaders(),
+        body: JSON.stringify({ id }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        if (Array.isArray(d?.stale)) setStale((s) => ({ ...s, [id]: d.stale as string[] }));
+        throw new Error(d?.error ?? "İşlem başarısız.");
+      }
+      if (typeof d?.version === "string") setBaseVersion(d.version);
+      onApplied?.();
+      await yukle();
+    } catch (e) {
+      setHata((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  };
+
   const secimDegistir = (id: string) =>
     setSecili((s) => {
       const y = new Set(s);
@@ -346,6 +380,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
                 {p.byName ? `${p.byName} · ` : ""}
                 {p.at.slice(0, 16).replace("T", " ")}
                 {p.status !== "bekliyor" && ` · ${durumAdi(p.status)}`}
+                {p.status === "bekliyor" && p.undoneAt && ` · ${t("proposal.wasUndone")}`}
               </p>
               </div>
             </div>
@@ -400,14 +435,22 @@ export default function ProposalsDialog({ onClose, onApplied }: {
             {onay?.id === p.id ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-text-muted">
-                  {onay.ne === "onaylandi" ? t("proposal.confirmApprove") : t("proposal.confirmWithdraw")}
+                  {onay.ne === "onaylandi"
+                    ? t("proposal.confirmApprove")
+                    : onay.ne === "geri-al"
+                      ? t("proposal.confirmUndo")
+                      : t("proposal.confirmWithdraw")}
                 </span>
                 <Button
                   size="sm"
                   variant={onay.ne === "onaylandi" ? "primary" : "secondary"}
                   disabled={busy === p.id}
                   onClick={() =>
-                    onay.ne === "onaylandi" ? karar(p.id, "onaylandi") : geriCek(p.id)
+                    onay.ne === "onaylandi"
+                      ? karar(p.id, "onaylandi")
+                      : onay.ne === "geri-al"
+                        ? geriAl(p.id)
+                        : geriCek(p.id)
                   }
                 >
                   {t("proposal.confirmYes")}
@@ -416,6 +459,17 @@ export default function ProposalsDialog({ onClose, onApplied }: {
                   {t("proposal.cancel")}
                 </Button>
               </div>
+            ) : p.status === "onaylandi" ? (
+              /*
+               * ONAYI GERİ AL — yalnız karar verende. Öneriyi yazana açık
+               * olsaydı, üye onaylanmış bir değişikliği tek başına ağaçtan
+               * çıkarabilirdi; yani yazma kapısının etrafından dolaşırdı.
+               */
+              canDecide && (
+                <Button size="sm" variant="ghost" disabled={busy === p.id} onClick={() => setOnay({ id: p.id, ne: "geri-al" })}>
+                  {t("proposal.undo")}
+                </Button>
+              )
             ) : (
               p.status === "bekliyor" && (
                 <div className="flex flex-wrap gap-2">

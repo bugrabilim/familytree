@@ -30,7 +30,7 @@
  */
 
 import { PERSON_FIELDS } from "./person-fields.ts";
-import type { Person } from "../types/family.ts";
+import type { Association, Person } from "../types/family.ts";
 
 /* ── Sınırlar ─────────────────────────────────────────────────────────────── */
 
@@ -51,6 +51,42 @@ export const MAX_VALUE = 4000;
  * diye görürdü: kimsenin vermediği bir kararı birine mal etmek.
  */
 export type ProposalStatus = "bekliyor" | "onaylandi" | "reddedildi" | "geri-cekildi";
+
+/**
+ * ONAYIN GERİ ALINABİLMESİ İÇİN gereken kayıt (madde 35/F).
+ *
+ * Onay ağacı değiştiriyor ve "beğenmedim" demenin yolu yoktu. Geri alma,
+ * yapılanın TERSİNİ uygulamak demek ve iki tür bunu önerinin kendisinden
+ * çıkaramıyor:
+ *
+ * · "ekleme" — oluşan kaydın kimliği önerinin içinde YOK, onay anında
+ *   üretiliyor. Kimlik saklanmazsa hangi kaydın geri alınacağı bilinemez.
+ * · "silme"  — silinen kayıt gitti. Tam hâli ve KOPARILAN BAĞLAR
+ *   saklanmazsa geri alma, kaydı bağsız bir yetim olarak geri getirirdi:
+ *   çocukları artık onu ebeveyn olarak listelemiyor ve bu, kaydın kendi
+ *   `parentIds`inden türetilemez.
+ *
+ * "alan" türünde kayda gerek yok: `changes` zaten `{from, to}` çiftleri
+ * taşıyor, geri alma ikisini yer değiştirmek.
+ */
+export interface RemovedRef {
+  /** Bağı koparılan kaydın kimliği. */
+  id: string;
+  parent?: boolean;
+  spouse?: boolean;
+  former?: boolean;
+  /** Çevre bağı — kendi kimliği ve türüyle, aynen geri konabilsin. */
+  assoc?: Association;
+}
+
+export interface UndoRecord {
+  /** "ekleme" onayında oluşan kaydın kimliği. */
+  createdId?: string;
+  /** "silme" onayında silinen kaydın tam hâli. */
+  person?: Person;
+  /** "silme" onayında bağı koparılan kayıtlar. */
+  refs?: RemovedRef[];
+}
 
 /** Tek bir alan değişikliği: neydi, ne olsun. */
 export interface Change {
@@ -122,6 +158,14 @@ export interface Proposal {
   decidedAt?: string;
   /** Reddeden kişinin gerekçesi. */
   decisionNote?: string;
+  /**
+   * Onayın nasıl geri alınacağı. YALNIZ "onaylandi" durumunda dolu; geri
+   * alındığında siliniyor, çünkü artık uygulanmış bir şey yok.
+   */
+  undo?: UndoRecord;
+  /** Onayın geri alındığı an — kart bunu "bir kez onaylanmıştı" diye gösteriyor. */
+  undoneAt?: string;
+  undoneByName?: string;
 }
 
 /** Önerilebilir alanların anahtar kümesi — kayıt defterinden. */
@@ -422,6 +466,52 @@ export function applyProposal(
     else out[k] = c.to;
   }
   return { ok: true, person: out as unknown as Person };
+}
+
+/* ── Geri alma ────────────────────────────────────────────────────────────── */
+
+/**
+ * "alan" önerisinin TERSİ: her değişikliğin `from` ve `to`su yer değiştirir.
+ *
+ * Geri alma böylece `applyProposal`ın kendisiyle yapılıyor — ayrı bir "geri
+ * uygula" işlevi yazılsaydı bayatlık denetimi iki yere bölünürdü ve tersinin
+ * denetimi unutulurdu. Oysa asıl tehlike orada: kayıt onaydan sonra
+ * değiştiyse geri alma, ARADAKİ değişikliği silerdi. Ters öneride `from`
+ * artık onaylanan değer (`to`), yani denetim "kayıt hâlâ onaylandığı gibi
+ * mi?" sorusuna dönüşüyor — tam olarak sorulması gereken soru.
+ */
+export function invert(p: Proposal): Proposal {
+  const changes: Record<string, Change> = {};
+  for (const [k, c] of Object.entries(p.changes)) changes[k] = { from: c.to, to: c.from };
+  return { ...p, changes };
+}
+
+/**
+ * Onayı geri alınan öneriyi KUYRUĞA döndürür.
+ *
+ * Yeni bir "geri alındı" durumu eklenmedi: geri alma "bu değişikliği
+ * istemiyorum" demek ve bunun doğru yeri kuyruk — yönetici öneriyi orada
+ * usulünce reddedebilir, ya da fikir değiştirip tekrar onaylayabilir.
+ * Terminal bir durum olsaydı, öneri ne uygulanmış ne de karara bağlanmış
+ * bir arafta kalırdı.
+ *
+ * `undoneAt` kalıyor: kart "bir kez onaylanıp geri alındı" diyebilsin.
+ * `undo` kaydı SİLİNİYOR — artık uygulanmış bir şey yok, duran bir kayıt
+ * ikinci bir geri almayı mümkün kılardı.
+ */
+export function markUndone(p: Proposal, at: string, byName = ""): Proposal {
+  const out: Proposal = {
+    ...p,
+    status: "bekliyor",
+    undoneAt: at,
+    ...(byName ? { undoneByName: byName } : {}),
+  };
+  delete out.undo;
+  delete out.decidedBy;
+  delete out.decidedByName;
+  delete out.decidedAt;
+  delete out.decisionNote;
+  return out;
 }
 
 /* ── Liste ────────────────────────────────────────────────────────────────── */
