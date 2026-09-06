@@ -53,6 +53,8 @@ function rotalar(dizin = API, onek = ""): string[] {
 const ACIK: Record<string, string> = {
   "family/proposals/route.ts":
     "Öneri açmak ve kendi önerilerini görmek — rolün varlık sebebi. KARAR (PATCH) canEdit istiyor; aksi hâlde üye kendi önerisini onaylayıp yazma kapısını dolanırdı.",
+  "family/proposals/withdraw/route.ts":
+    "Kendi önerisini geri çekmek — öneri açabilen, açtığından vazgeçebilmeli; vazgeçemeseydi yazdığı her şey kuyrukta kalıcı olurdu. Uç ağacı YAZMIYOR ve yalnız ÖNERENİN kendi kaydına dokunuyor (sahiplik denetimi `withdraw()` içinde).",
   "upload/route.ts":
     "Üye, önereceği kişiye fotoğraf ekleyebilmeli. Yükleme hiçbir kaydı DEĞİŞTİRMİYOR, yalnız URL üretiyor; bir kayda bağlanması ayrı istek ve orada kendi kapısı var.",
   "family/recipes/route.ts":

@@ -18,6 +18,8 @@ const kodu = (src: string) =>
 
 const rota = kodu(read("../app/api/family/proposals/route.ts"));
 const store = kodu(read("../lib/proposal-store.ts"));
+const cek = kodu(read("../app/api/family/proposals/withdraw/route.ts"));
+const dialog = kodu(read("../components/ProposalsDialog.tsx")).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 /* --- 1. Kim ne yapabilir ------------------------------------------------- */
 /*
@@ -213,6 +215,70 @@ check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dön�
   const iEkle = post.indexOf("await addProposal(");
   check(iTutarli > -1 && iEkle > iTutarli, "sınama, depoya yazmadan ÖNCE");
   check(/buildNewPerson\(/.test(post), "ekleme önerisi kayıt defterinden süzülüyor");
+}
+
+/* --- 8. Geri çekme (madde 35/D) ------------------------------------------ */
+/*
+ * Geri çekme AYRI uçta duruyor ve durması gerekiyor: karar ucu `canEdit`
+ * istiyor, bu uç ise `canPropose`. Aynı gövdeye konsaydı orada iki kapı
+ * yan yana dururdu ve hangi dalın hangisinden geçtiği, gövde büyüdükçe
+ * okunması gereken bir şeye dönerdi. Kuyruğun kapı testi de bunu kilitliyor
+ * ("PATCH dalında canPropose hiç geçmiyor").
+ */
+check(/if \(!canPropose\(ctx\.role\)\)/.test(cek), "geri çekme her üyeye açık (canPropose)");
+check(!/canEdit/.test(cek), "geri çekme yöneticilik İSTEMİYOR");
+check(!isPublicPath("/api/family/proposals/withdraw"), "geri çekme ucu oturumsuz açık DEĞİL");
+
+/*
+ * SAHİPLİK DENETİMİ SAF KATMANDA. Rota `withdraw()` çağırıyor ve durumu
+ * kendisi kurmuyor; kurmuş olsaydı "yalnız kendi önerin" kuralı iki yere
+ * bölünür ve biri unutulurdu.
+ */
+check(/withdraw\(p, ctx\.authorId,/.test(cek), "sahiplik saf katmana ctx.authorId ile soruluyor");
+check(!/status: "geri-cekildi"/.test(cek), "rota durumu ELLE kurmuyor");
+check(/replaceProposal\(ctx\.treeId, cekildi\.proposal\)/.test(cek), "sonuç depoya yazılıyor");
+
+/*
+ * AĞACA DOKUNMUYOR. Bekleyen bir öneri ağaca hiç uygulanmadı; buradan bir
+ * yazma çıkması, geri çekmeyi sessizce bir düzenleme yoluna çevirirdi —
+ * üstelik `canEdit` kapısının arkasından geçmeden.
+ */
+check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
+
+/* --- 9. Ekran: iki adımlı onay, tek adımlı ret --------------------------- */
+{
+  /*
+   * Onay ağacı hemen değiştiriyor ve kartlar alt alta; yanlış karta basmak
+   * tek tıklık bir kaza olmamalı. Ret bilerek tek adımlı: geri alınabilir.
+   */
+  check(/onClick=\{\(\) => setOnay\(\{ id: p\.id, ne: "onaylandi" \}\)\}/.test(dialog),
+    "ONAY düğmesi doğrudan onaylamıyor, doğrulama açıyor");
+  check(/onClick=\{\(\) => karar\(p\.id, "reddedildi"\)\}/.test(dialog), "RET tek adımlı");
+  check(/onClick=\{\(\) => setOnay\(\{ id: p\.id, ne: "geri-cekildi" \}\)\}/.test(dialog),
+    "GERİ ÇEK düğmesi de doğrulama açıyor");
+  check(!/window\.confirm/.test(dialog), "tarayıcı confirm'i kullanılmıyor (çevrilemez, engellenebilir)");
+
+  /* Geri çekme düğmesi yalnız ÖNERENDE — sunucu da ayrıca uyguluyor. */
+  check(/p\.by === authorId/.test(dialog), "geri çek düğmesi kendi önerisine bağlı");
+  check(/canDecide && \(/.test(dialog), "onay/ret düğmeleri karar yetkisine bağlı");
+
+  /* Geri çekme AYRI uca gidiyor, karar ucuna değil. */
+  check(/"\/api\/family\/proposals\/withdraw"/.test(dialog), "ekran ayrı ucu çağırıyor");
+  {
+    const i = dialog.indexOf("const geriCek");
+    const govde = dialog.slice(i, dialog.indexOf("\n  };", i));
+    check(i > -1, "geriCek bulundu");
+    check(!/setBaseVersion/.test(govde), "geri çekme taban sürümü değiştirmiyor (ağaç değişmedi)");
+    check(!/onApplied/.test(govde), "geri çekme ağacı tazeletmiyor");
+  }
+
+  /*
+   * "ekleme"/"silme" önerileri de kartta GÖRÜNMELİ. Kart yalnız `changes`i
+   * çiziyordu; o iki türde alan boş olduğu için karar veren, neyi
+   * onayladığını bilmeden onaylıyordu.
+   */
+  check(/p\.kind === "ekleme" \? t\("proposal\.kindAdd"\)/.test(dialog), "ekleme önerisi etiketleniyor");
+  check(/Object\.entries\(p\.person \?\? \{\}\)/.test(dialog), "önerilen yeni kişinin alanları çiziliyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
