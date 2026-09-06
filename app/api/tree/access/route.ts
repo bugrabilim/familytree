@@ -5,7 +5,15 @@ import { resolveActiveTree } from "@/lib/tree-context";
 import { createInvite, getTreeAccess, removeMember, revokeInvite } from "@/lib/members";
 import type { TreeRole } from "@/types/user";
 
-const ROLES: TreeRole[] = ["viewer", "editor", "admin"];
+/*
+ * Davet/üye rolü olarak kabul edilen değerler.
+ *
+ * `TreeRole` birliğinden TÜRETİLMİYOR, elle yazılıyor — ve bu bilinçli: bir
+ * gün birliğe yetkili bir rol eklendiğinde onun buraya girmesi bir KARAR
+ * olmalı, otomatik bir sonuç değil. Türetilseydi, eklenen her rol aynı anda
+ * davet edilebilir hâle gelirdi.
+ */
+const ROLES: TreeRole[] = ["viewer", "contributor", "editor", "admin"];
 
 /** Yalnızca yönetici (admin) — AKTİF ağacın üye/davetlerini yönetebilir. */
 async function requireAdmin() {

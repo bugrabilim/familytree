@@ -69,13 +69,29 @@ export interface UsersData {
 }
 
 /**
- * Ağaç erişim rolleri (Madde 13). Founder (ağacı kuran hesap) her zaman
+ * Ağaç erişim rolleri (Madde 13/35). Founder (ağacı kuran hesap) her zaman
  * "admin" sayılır; üyeler davet bağlantısıyla katılır.
- *  - viewer: yalnızca okur
- *  - editor: kişi ekler/düzenler/siler
- *  - admin : buna ek olarak üyeleri ve davetleri yönetir
+ *  - viewer     : yalnızca okur
+ *  - contributor: EKLER, ama var olan kayda dokunamaz — değişiklik ÖNERİR
+ *  - editor     : kişi ekler/düzenler/siler
+ *  - admin      : buna ek olarak üyeleri ve davetleri yönetir
+ *
+ * ## `contributor` neden var
+ *
+ * Aradaki boşluk gerçekti: bir akrabaya "kendi dalını gir" demek için ona
+ * `editor` vermek gerekiyordu ve `editor` ağacın TAMAMINI silebiliyor,
+ * herkesin kaydını değiştirebiliyor. "Biraz katkı versin" ile "her şeye
+ * dokunabilsin" arasında kademe yoktu; sonuç, ya kimseyi davet etmemek ya da
+ * herkese tam yetki vermekti.
+ *
+ * SIRA ANLAMLIDIR. `lib/roles.ts` yetkiyi bu dizilime göre karşılaştırıyor,
+ * yani buraya bir kademe sokmak her yetki kapısını yeniden değerlendirmek
+ * demek. Varsayılan GÜVENLİ yönde: kapılar `canEdit` (editor ve üstü) ile
+ * korunmaya devam ediyor; katkı vericiye açılan uçlar TEK TEK `canContribute`
+ * ile işaretlendi. Yani bir kapı unutulursa katkı verici DIŞARIDA kalır,
+ * içeride değil.
  */
-export type TreeRole = "viewer" | "editor" | "admin";
+export type TreeRole = "viewer" | "contributor" | "editor" | "admin";
 
 /** Ağaca davetle katılmış üye hesabı (founder dışındaki kişiler). */
 export interface Member {

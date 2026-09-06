@@ -85,9 +85,29 @@ check(!/rsvps/.test(anon), "anonim uç katılımcı listesine hiç dokunmuyor");
 /* --- Aile ucu ayrı ve korumalı ------------------------------------------ */
 check(aile.includes("resolveActiveTree"), "aile ucu oturum istiyor");
 check(aile.includes("canEdit"), "aile ucu düzenleyici yetkisi istiyor");
-for (const yontem of ["POST", "PUT", "DELETE"]) {
-  const i = aile.indexOf(`export async function ${yontem}`);
-  check(i >= 0 && /guard\(true\)/.test(aile.slice(i, aile.indexOf("\n}", i))), `${yontem} düzenleyici istiyor`);
+/*
+ * SEVİYELER (madde 35). Kapı eskiden ikiliydi (`guard(true/false)`) ve bu
+ * test üç yazma yönteminin de `guard(true)` çağırdığına bakıyordu. Katkı
+ * verici kademesi gelince ikili bayrak üçe çıktı; iddia da o ayrımı taşıyor,
+ * yoksa "hepsi aynı seviye" beklentisi sessizce yanlış hâle gelirdi.
+ *
+ * Yeni etkinlik EKLEMEK katkı vericiye açık; var olan etkinliği DEĞİŞTİRMEK
+ * ve SİLMEK düzenleyici yetkisi istiyor — katılımcı listesi ve davetler
+ * onun içinde.
+ */
+{
+  const seviye: Record<string, string> = { POST: "ekle", PUT: "duzenle", DELETE: "duzenle" };
+  for (const [yontem, s] of Object.entries(seviye)) {
+    const i = aile.indexOf(`export async function ${yontem}`);
+    const govde = i >= 0 ? aile.slice(i, aile.indexOf("\n}", i)) : "";
+    check(i >= 0 && govde.includes(`guard("${s}")`), `${yontem} → guard("${s}")`);
+  }
+  /* "oku" hiçbir yazma yönteminde geçmemeli. */
+  for (const yontem of ["POST", "PUT", "DELETE"]) {
+    const i = aile.indexOf(`export async function ${yontem}`);
+    const govde = i >= 0 ? aile.slice(i, aile.indexOf("\n}", i)) : "";
+    check(!govde.includes('guard("oku")'), `${yontem} okuma seviyesinde DEĞİL`);
+  }
 }
 
 /* --- Yol izinleri -------------------------------------------------------- */
