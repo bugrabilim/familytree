@@ -130,6 +130,34 @@ export async function getFamilyData(
   // ettiği için Blob canlı bir yedek olarak güncel kalır.
   try {
     const fromDb = await dbGetFamilyData(userId);
+    /*
+     * AYNASI BOŞALMIŞ AĞAÇ, BOŞ AĞAÇ DEĞİLDİR.
+     *
+     * `dbGetFamilyData` yalnız AĞAÇ SATIRI yoksa `null` dönüyor; kişiler
+     * boşsa `{people: []}` dönüyordu ve yedek hiç devreye girmiyordu. Yani
+     * ayna bir kez bozulursa (çift-yazma en iyi çaba ve 4 sn zaman aşımı
+     * var) kullanıcı ağacını BOŞ görüyor, hiçbir uyarı çıkmıyordu — sessiz
+     * ve en kötü türden bir arıza: veri duruyor ama yokmuş gibi görünüyor.
+     *
+     * Boş gelen ağaçta Blob'a da bakılıyor. Gerçekten boş bir ağaçta (yeni
+     * kurulmuş) bedeli tek bir fazladan okuma; aynası bozuk bir ağaçta ise
+     * bütün verinin geri gelmesi. Blob'da kayıt VARSA bu bir ayna boşluğudur
+     * ve gürültülü şekilde günlüğe yazılıyor — sessiz kalması, sorunu
+     * bulunamaz kılardı.
+     */
+    if (fromDb && fromDb.people.length === 0) {
+      try {
+        const yedek = await readFromBlob(userId);
+        if (yedek.people.length > 0) {
+          console.error(
+            `[ayna-boslugu] ${userId}: Postgres 0 kişi, Blob ${yedek.people.length} kişi — Blob kullanıldı`
+          );
+          return yedek;
+        }
+      } catch {
+        /* Blob da okunamadıysa aşağıdaki boş sonuç dönsün */
+      }
+    }
     if (fromDb) {
       // Blob-only meta'yı (kapak fotoğrafı) birleştir — DB bunu tutmaz.
       try {
