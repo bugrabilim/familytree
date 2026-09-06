@@ -7,6 +7,7 @@ import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
 import type { DeletedTreeItem, TreeItem } from "@/components/TreeSwitcher";
 import TopBar, { type ViewKey } from "@/components/TopBar";
+import { firstAllowed } from "@/lib/share-scope";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
 import GatheringsDialog from "@/components/GatheringsDialog";
@@ -100,6 +101,11 @@ export default function Workspace(props: {
   /** publicView iken yaşayan-gizleme kilit değeri (sahibin tercihi). */
   hideLivingForced?: boolean;
   /**
+   * Genel paylaşımda AÇILAN görünümler (madde 35/G). Verilmezse kısıt yok.
+   * Sekmeler buna göre süzülüyor ve açılış sekmesi listenin ilki oluyor.
+   */
+  allowedViews?: string[];
+  /**
    * Bu oturumun kayıt sahipliği kimliği (`ctx.authorId`).
    *
    * Katkı verici KENDİ eklediğini düzenleyebiliyor; arayüzün "kaydet" mi
@@ -149,6 +155,7 @@ function WorkspaceInner({
   accountName,
   initialSelectedId,
   publicView,
+  allowedViews,
 }: {
   people: Person[];
   version: string;
@@ -164,6 +171,7 @@ function WorkspaceInner({
   initialSelectedId?: string;
   publicView?: boolean;
   hideLivingForced?: boolean;
+  allowedViews?: string[];
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
@@ -178,7 +186,14 @@ function WorkspaceInner({
     setBaseVersion(version);
   }, [version]);
 
-  const [view, setView] = useState<ViewKey>("agac");
+  /*
+   * AÇILIŞ SEKMESİ kapsamın İLKİ.
+   *
+   * Sabit "agac" olsaydı, ağacı içermeyen bir paylaşım (ör. yalnız kitap ve
+   * tarifler) kapsam dışı bir sekmeyle açılır ve ziyaretçi ilk gördüğü şey
+   * olarak boş bir ekrana bakardı.
+   */
+  const [view, setView] = useState<ViewKey>(() => firstAllowed(allowedViews) as ViewKey);
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
   /** Ağaçta gezinirken merkeze alınan/vurgulanan kişi — detay panelinden ayrı */
   const [treeFocus, setTreeFocus] = useState<string | undefined>(initialSelectedId);
@@ -623,6 +638,7 @@ function WorkspaceInner({
     <div className="app-shell flex flex-col h-screen overflow-hidden">
       <TopBar
         familyName={familyName}
+        allowedViews={allowedViews}
         view={view}
         onViewChange={(v) => {
           // Madde 1 — Veri yokken "Aile Kitabı" açılmaz; diğer görünüm

@@ -8,6 +8,7 @@ import { translate } from "@/lib/i18n-dict";
 import { SITE_URL } from "@/lib/site";
 import EmbedTree from "@/components/EmbedTree";
 import Invalid from "@/app/g/[token]/Invalid";
+import { allows } from "@/lib/share-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,13 @@ export default async function EmbedPage({
    * Bağlantının kendisi `/g/<jeton>` olarak çalışmaya devam ediyor.
    */
   if (valid.share.personId) return <Invalid />;
+
+  /*
+   * KAPSAM (madde 35/G): gömme YALNIZ ağacı gösteriyor. Bağlantı ağacı
+   * paylaşmıyorsa gömme de yok — yoksa kapsam ayarı, aynı jetonun bir
+   * harfi değişmiş yolundan sessizce delinirdi.
+   */
+  if (!allows(valid.share.scope, "agac")) return <Invalid />;
 
   try {
     const h = await headers();

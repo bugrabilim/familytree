@@ -10,6 +10,7 @@ import PublicObituaries from "@/components/PublicObituaries";
 import { readPublicObituaries } from "@/lib/obituary-store";
 import { translate } from "@/lib/i18n-dict";
 import Invalid from "./Invalid";
+import { allows, scopeOrAll } from "@/lib/share-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,22 @@ export default async function SharePage({
    * tercihi istemcide yaşıyor. Etiketler Türkçe (`tr`) verilir — sayfanın
    * varsayılan dili odur.
    */
-  const obits = await readPublicObituaries(valid.treeId).catch(() => []);
+  /*
+   * KAPSAM (madde 35/G). Bağlantı hangi görünümleri açıyorsa yalnız onlar
+   * çiziliyor. Kısıt YOKSA (eski bağlantılar) hepsi açık — yokluğu
+   * "hiçbiri" saymak, var olan her bağlantıyı boş sayfaya çevirirdi.
+   */
+  const allowedViews = scopeOrAll(valid.share.scope);
+
+  /*
+   * Taziye şeridi de kapsama bağlı ve verisi kapsam dışıysa HİÇ OKUNMUYOR.
+   * Yalnız gizlemek yetmezdi: sunucu bileşeninden istemciye geçen proplar
+   * RSC yüküne serileştiriliyor, yani "çizme ama gönder" demek, kapsam
+   * dışı bırakılan duyuruları sayfa kaynağında bırakmak olurdu.
+   */
+  const obits = allows(valid.share.scope, "taziye")
+    ? await readPublicObituaries(valid.treeId).catch(() => [])
+    : [];
   const L = (k: string) => translate("tr", k);
 
   return (
@@ -138,6 +154,7 @@ export default async function SharePage({
       isFounder={false}
         publicView
         hideLivingForced={valid.share.hideLiving}
+        allowedViews={allowedViews}
       />
     </>
   );

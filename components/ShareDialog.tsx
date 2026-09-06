@@ -7,6 +7,7 @@ import PersonPicker from "./PersonPicker";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import { useT, type TFunction } from "@/lib/i18n";
+import { SHARE_SCOPES } from "@/lib/share-scope";
 
 interface Visit {
   at: string;
@@ -28,6 +29,8 @@ interface Share {
   views: number;
   visits: Visit[];
   qr: string;
+  /** Bu bağlantının açtığı görünümler. Sunucu HER ZAMAN tam liste gönderiyor. */
+  scope: string[];
 }
 
 /**
@@ -59,6 +62,16 @@ export default function ShareDialog({
   // Tek kişilik (mezar QR) bağlantı — kapalıyken bağlantı ağacın tamamını açar.
   const [single, setSingle] = useState(false);
   const [personId, setPersonId] = useState("");
+  /*
+   * KAPSAM — varsayılan HEPSİ seçili.
+   *
+   * Boş başlasaydı, seçim yapmayan sahip hiçbir şey açmayan bir bağlantı
+   * üretirdi; oysa "paylaş" düğmesine basan kişinin varsayılan beklentisi
+   * bugüne dek olan şey: ağacın açılması.
+   */
+  const [scope, setScope] = useState<string[]>([...SHARE_SCOPES]);
+  const scopeToggle = (k: string) =>
+    setScope((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
 
   // id → ad: kartlarda "kimin anma sayfası" yazabilmek için.
   const nameOf = useMemo(() => {
@@ -118,11 +131,13 @@ export default function ShareDialog({
       hideLiving,
       label: label.trim(),
       expiresDays: Number.isFinite(days) ? days : 0,
+      scope,
       // Kutu kapalıysa alan hiç gönderilmez: ağacın tamamı açılır.
       ...(single && personId ? { personId } : {}),
     });
     setLabel("");
     setExpiryDays("7");
+    setScope([...SHARE_SCOPES]);
   };
 
   const remove = (id: string) => {
@@ -134,6 +149,12 @@ export default function ShareDialog({
   const longExpiry = Number.isFinite(days) && days > 7;
   const unlimitedExpiry = !Number.isFinite(days) || days <= 0; // 0/boş = süresiz (#5)
   const labelMissing = !label.trim(); // Etiket zorunlu (#6)
+  /*
+   * Hiçbir görünüm seçilmemişse bağlantı oluşturulamaz. Sunucu da ayrıca
+   * reddediyor; burada düğmeyi kapatmak, kullanıcıyı formu doldurup 400
+   * yemeye davet etmemek için.
+   */
+  const scopeEmpty = scope.length === 0;
 
   return (
     <Modal title={t("share.title")} subtitle={treeName ? t("share.subtitle", { tree: treeName }) : undefined} onClose={onClose}>
@@ -184,11 +205,40 @@ export default function ShareDialog({
               </>
             )}
           </div>
+          {/*
+            * KAPSAM KUTULARI. Tek kişilik bağlantıda gizli: o bağlantı ağacı
+            * değil, tek bir anma sayfasını açıyor — seçilecek bir sekme yok.
+            */}
+          {!single && (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                  {t("share.scopeTitle")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setScope(scope.length === SHARE_SCOPES.length ? [] : [...SHARE_SCOPES])}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  {scope.length === SHARE_SCOPES.length ? t("share.scopeNone") : t("share.scopeAll")}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {SHARE_SCOPES.map((k) => (
+                  <label key={k} className="flex items-center gap-1.5 text-xs text-text cursor-pointer">
+                    <input type="checkbox" checked={scope.includes(k)} onChange={() => scopeToggle(k)} />
+                    {t(`view.${k}.label`)}
+                  </label>
+                ))}
+              </div>
+              {scopeEmpty && <p className="text-[11px] text-amber-700 dark:text-amber-300">{t("share.scopeEmpty")}</p>}
+            </div>
+          )}
           <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
           {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
           {unlimitedExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.unlimitedWarn")}</p>}
-          <Button size="sm" onClick={create} disabled={busy || labelMissing || (single && !personId)}>
+          <Button size="sm" onClick={create} disabled={busy || labelMissing || scopeEmpty || (single && !personId)}>
             {busy ? t("share.working") : t("share.createBtn")}
           </Button>
         </section>
@@ -257,6 +307,18 @@ function ShareCard({
           {/* Bu bağlantının ağacın tamamını mı yoksa tek kişiyi mi açtığı,
              silmeden önce görülebilmeli. Kişi silinmişse ad çözülemez;
              o zaman da en azından "tek kişilik" olduğu yazsın. */}
+          {/*
+            * Kapsam özeti: bağlantının neyi açtığı kartta GÖRÜNMELİ. Yalnız
+            * oluştururken sorulup bir daha gösterilmeseydi, sahip aylar
+            * sonra elindeki bağlantının ne açtığını bilemezdi.
+            */}
+          {!s.personId && (
+            <span className="text-[11px] text-text-subtle">
+              {s.scope.length >= SHARE_SCOPES.length
+                ? t("share.scopeAllOpen")
+                : t("share.scopeSome", { count: s.scope.length })}
+            </span>
+          )}
           {s.personId && (
             <p className="text-[11px] text-accent truncate">
               🪦 {personName ?? t("share.singleUnknown")}

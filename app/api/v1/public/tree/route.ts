@@ -6,6 +6,7 @@ import { applyPublicVisibility } from "@/lib/public-visibility";
 import { translate } from "@/lib/i18n-dict";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { toPublicTree } from "@/lib/public-api";
+import { allows } from "@/lib/share-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,22 @@ export async function GET(req: NextRequest) {
 
   const valid = await findValidShare(decodeURIComponent(token));
   if (!valid) return json({ error: "Bağlantı geçersiz ya da süresi dolmuş." }, 404);
+
+  /*
+   * KAPSAM (madde 35/G) BURADA DA GEÇERLİ.
+   *
+   * Bu uç, ağaç görünümünün gösterdiği verinin ta kendisini JSON olarak
+   * veriyor. Kapsam yalnız HTML sayfasında uygulansaydı, "ağacı paylaşma,
+   * yalnız kitabı paylaş" diyen bir bağlantı aynı kişileri bu uçtan
+   * eksiksiz teslim ederdi — yani ayar bir görünüm tercihine, koruma da
+   * yanıltıcı bir vaade dönerdi.
+   *
+   * Ölçüt "agac": ağacın kendisi paylaşılmıyorsa kişi verisini dökmek de
+   * paylaşılmıyor. Tek kişilik jeton bunun dışında — o zaten tek kişiye
+   * daralmış ve aşağıda ayrıca ele alınıyor.
+   */
+  if (!valid.share.personId && !allows(valid.share.scope, "agac"))
+    return json({ error: "Bu bağlantı ağaç verisini paylaşmıyor." }, 403);
 
   const { people } = await getFamilyData(valid.treeId);
 

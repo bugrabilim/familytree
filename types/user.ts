@@ -1,3 +1,4 @@
+import type { ShareScope } from "@/lib/share-scope";
 export interface User {
   id: string;
   familyName: string;
@@ -188,6 +189,12 @@ export interface ShareLink {
   views?: number;
   /** Son ziyaretler (kim/nereden/ne zaman — anonim; kapalı liste, en yeni önce). */
   visits?: ShareVisit[];
+  /**
+   * Bu bağlantının AÇTIĞI görünümler (madde 35/G). Alan YOKSA kısıt yok —
+   * bağlantı her şeyi açar. Yokluğu "hiçbiri" saymak, bu özellikten önce
+   * açılmış her bağlantıyı sessizce boş sayfaya çevirirdi.
+   */
+  scope?: ShareScope[];
 }
 
 /**
