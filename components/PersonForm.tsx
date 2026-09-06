@@ -42,6 +42,7 @@ import { useT } from "@/lib/i18n";
 import ContactSection from "./ContactSection";
 import { useAuthority } from "./AuthorityContext";
 import { PERSON_FIELDS } from "@/lib/person-fields";
+import { sameValue } from "@/lib/proposals";
 import PlaceInput from "./PlaceInput";
 import { fullName } from "@/lib/name";
 
@@ -53,6 +54,8 @@ interface Props {
   relation?: { type: RelationType; target: Person };
   onCancel: () => void;
   onSaved: (person: Person) => void;
+  /** Öneri gönderildiğinde — kullanıcıya gittiğini SÖYLEMEK için. */
+  onProposed?: () => void;
 }
 
 type Errors = Partial<Record<"firstName" | "lastName" | "birthDate" | "officialBirthDate" | "deathDate" | "gender" | "events" | "form", string>>;
@@ -104,6 +107,7 @@ export default function PersonForm({
   relation,
   onCancel,
   onSaved,
+  onProposed,
 }: Props) {
   const t = useT();
   /*
@@ -574,10 +578,35 @@ export default function PersonForm({
        */
       if (oneriModu) {
         const izinli = new Set(PERSON_FIELDS.map((f) => String(f.key)));
+        const mevcut = (initial ?? {}) as unknown as Record<string, unknown>;
         const changes: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(payload as unknown as Record<string, unknown>))
-          if (izinli.has(k)) changes[k] = v;
+        for (const [k, v] of Object.entries(payload as unknown as Record<string, unknown>)) {
+          if (!izinli.has(k)) continue;
+          /*
+           * YALNIZ GERÇEKTEN DEĞİŞENLER gönderiliyor.
+           *
+           * Gövdenin tamamı gönderildiğinde form, doldurulmamış alanlar için
+           * her zaman `[]`/`false` yolluyordu; kayıtta o alanlar hiç yokken
+           * "değişmiş" sayılıyor ve tek alan değiştiren bir öneri on bir
+           * alanlık çıkıyordu. Daha kötüsü: o kişi için bir öneri
+           * onaylandığı anda kalan bütün öneriler kalıcı olarak "bayat"
+           * olup bir daha onaylanamıyordu.
+           *
+           * Sunucu da aynı denkliği uyguluyor (`sameValue`); burada süzmek
+           * ONUN yerine geçmiyor, öneriyi daha en baştan dürüst kılıyor —
+           * düzenleyici, önerenin gerçekten neye dokunduğunu görüyor.
+           */
+          if (sameValue(mevcut[k], v)) continue;
+          changes[k] = v;
+        }
+        if (Object.keys(changes).length === 0) {
+          setErrors({ form: t("proposal.noChange") });
+          setSaving(false);
+          return;
+        }
         await proposeChanges(personId!, changes, oneriNotu.trim() || undefined);
+        setSaving(false);
+        onProposed?.();
         onCancel();
         return;
       }

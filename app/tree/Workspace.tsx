@@ -829,6 +829,13 @@ function WorkspaceInner({
             relation={editor.relation}
             onCancel={() => setEditor(null)}
             onSaved={handleSaved}
+            /*
+             * Öneri gönderilince form sessizce kapanıyordu; kullanıcı
+             * isteğinin gidip gitmediğini yalnız kuyruğu açarak
+             * anlayabiliyordu. Gönderdiğini SÖYLEMEK, bildirimin kendisi
+             * kadar önemli.
+             */
+            onProposed={() => notify(t("proposal.sent"))}
           />
         </Modal>
       )}

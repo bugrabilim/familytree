@@ -279,7 +279,14 @@ export default function PersonDrawer({
                   öner" diyor. "Düzenle" deseydi, formu doldurup kaydedene
                   kadar değişikliğin doğrudan geçmeyeceğini bilmezdi.
                 */}
-                {authority.canEditPerson(person) ? t("drawer.edit") : t("proposal.submit")}
+                {/*
+                  HAM kayıt soruluyor, maskeli kopya değil. `maskPerson` bir
+                  beyaz liste ve `addedBy` taşımıyor; maskeli kopyayla
+                  sorulduğunda kendi eklediği gizli kayıt için çekmece
+                  "değişiklik öner" derken form "güncelle" diyordu — aynı
+                  kayıt için iki farklı vaat.
+                */}
+                {authority.canEditPerson(rawPerson) ? t("drawer.edit") : t("proposal.submit")}
               </Button>
             )}
             <Button size="sm" variant="secondary" onClick={() => onFocus(person.id)}>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
+import { canEdit } from "@/lib/roles";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -18,6 +19,17 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
+  /*
+   * ROL KAPISI — eskiden HİÇ yoktu.
+   *
+   * Uç yazma yapmıyor, o yüzden veri riski taşımıyordu; ama oturumu olan
+   * herkese (görüntüleyene de) açıktı ve her çağrı ağaç sahibinin YZ
+   * kotasından harcıyordu. Kapı testi de bunu göremiyordu: yalnız
+   * `canContribute` GEÇEN rotalara bakıyordu, hiç kapısı olmayan bir rota
+   * ona görünmüyordu.
+   */
+  if (!canEdit(ctx.role))
+    return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
   const rl = await rateLimitShared(`ai:suggest:${ctx.accountId}`, { capacity: 12, refillPerSec: 0.2 });
   if (!rl.ok)
     return NextResponse.json(

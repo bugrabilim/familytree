@@ -66,6 +66,67 @@ for (const r of rotalar()) {
   else
     check(!(r in ACIK), `${r} → listede ama artık canContribute kullanmıyor (liste ölü)`);
 }
+
+/* --- 1b. KAPISIZ rotalar ------------------------------------------------- */
+/*
+ * Yukarıdaki döngünün KÖR NOKTASI vardı ve gerçek bir açık oradan geçti.
+ * Yalnız `canContribute` GEÇEN rotalara bakıyordu; hiçbir rol kapısı
+ * OLMAYAN bir rota ona tamamen görünmezdi. `ai/suggest` tam olarak öyleydi:
+ * oturumu olan herkese açıktı ve her çağrı ağaç sahibinin YZ kotasını
+ * harcıyordu.
+ *
+ * İddia başlığı "listeye girmeyen hiçbir uç açık olmasın" diyordu ama
+ * kanıtladığı şey "canContribute yazan her uç listede"ydi — vaat ettiğinden
+ * azını kanıtlayan bir iddia.
+ */
+{
+  /* Rol kapısı gerekmeyen uçlar ve GEREKÇELERİ. */
+  const KAPISIZ: Record<string, string> = {
+    "auth/[...nextauth]/route.ts": "Kimlik doğrulamanın kendisi; rolden önce geliyor.",
+    "register/route.ts": "Hesap açma — henüz rol yok.",
+    "mobile/login/route.ts": "Giriş; rolü bu uç ÜRETİYOR.",
+    "mobile/register/route.ts": "Kayıt; rolü bu uç üretiyor.",
+    "reset-password/route.ts": "Şifre sıfırlama; oturumsuz, kendi jetonu var.",
+    "reset-password/email/route.ts": "Şifre sıfırlama e-postası; oturumsuz.",
+    "reset-password/token/route.ts": "Jeton doğrulama; oturumsuz.",
+    "health/route.ts": "Sağlık ucu; veri döndürmüyor.",
+    "cron/reminders/route.ts": "Zamanlanmış iş; CRON_SECRET ile korunuyor.",
+    "cron/backup/route.ts": "Zamanlanmış iş; CRON_SECRET ile korunuyor.",
+    "hikaye/[treeId]/route.ts": "Girişsiz hikâye yanıtı; jetonla korunuyor.",
+    "rsvp/[treeId]/route.ts": "Girişsiz katılım yanıtı; jetonla korunuyor.",
+    "contact/answer/route.ts": "Girişsiz iletişim onayı; jetonla korunuyor.",
+    "contact/unsubscribe/route.ts": "Girişsiz çıkış; jetonla korunuyor.",
+    "v1/public/tree/route.ts": "Herkese açık salt-okunur API; kendi jetonu var.",
+    "account/email/route.ts": "Hesap sahibinin kendi adresi; isFounder istiyor.",
+    "account/email/verify/route.ts": "Adres doğrulama; jetonla.",
+    "account/notify/route.ts": "Hesap sahibinin kendi tercihi; isFounder istiyor.",
+    "admin/drift/route.ts": "Kendi ağaçlarının denetimi; isFounder + canManage.",
+    "admin/migrate/route.ts": "Kendi ağaçlarının göçü; isFounder + canManage.",
+    "trees/route.ts": "Kendi ağaç listesi; kapsam hesabın kendisi.",
+    "trees/switch/route.ts": "Aktif ağaç seçimi; kapsam hesabın kendisi.",
+    "tree/join/route.ts": "Davetle katılma; rolü davet belirliyor.",
+    "family/route.ts": "Ağacı OKUMA; okumak için rol kapısı yok.",
+    "family/activity/route.ts": "Etkinlik akışını okuma.",
+    "family/export/route.ts": "Kendi ağacını dışa aktarma.",
+    "family/report-card/route.ts": "Okuma; karne hesabı.",
+    "family/proposals/route.ts": "Kendi kapıları var (canContribute/canEdit).",
+    "records/search/route.ts": "Dış kayıt arama; yazma yok.",
+    "family/person/[id]/contact/route.ts": "Kendi guard'ı canEdit çağırıyor.",
+  };
+
+  for (const r of rotalar()) {
+    const src = kodu(read(`../app/api/${r}`));
+    const kapili = /canEdit\(|canContribute\(|canManage\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
+    if (kapili) continue;
+    check(r in KAPISIZ, `${r} → hiçbir rol kapısı yok ve muafiyet listesinde de değil`);
+  }
+  /* Muafiyet listesi ÖLÜ kalmasın. */
+  const hepsi = rotalar();
+  for (const r of Object.keys(KAPISIZ)) {
+    check(hepsi.includes(r), `"${r}" hâlâ var olan bir rota`);
+    check(KAPISIZ[r].trim().length > 15, `"${r}" için gerekçe yazılmış`);
+  }
+}
 for (const [r, neden] of Object.entries(ACIK))
   check(neden.trim().length > 25, `"${r}" için gerekçe yazılmış`);
 

@@ -71,6 +71,46 @@ async function save(treeId: string, book: ProposalBook): Promise<void> {
   });
 }
 
+/** Eşzamanlı yazma denemesi sayısı. */
+const CAKISMA_DENEME = 4;
+
+/**
+ * OKU → DEĞİŞTİR → YAZ, çakışma denetimiyle.
+ *
+ * Kilit olmadan kayıp yazma gerçekti: iki katkı verici aynı anda öneri
+ * açtığında ikisi de kitabı AYNI hâlde okuyor, sırayla yazıyor ve ikinci
+ * yazma birincinin önerisini tamamen siliyordu. Öneren 200 alıyor, önerisi
+ * hiç yok — sessiz kayıp.
+ *
+ * Blob'un koşullu yazması bu depoda kullanılamıyor (sürüm damgası yalnız
+ * doğrudan `get` yolunda geliyor ve o yol her kurulumda çalışmıyor), o
+ * yüzden korumanın dayanağı kitabın kendi `updatedAt` damgası: yazmadan
+ * hemen önce yeniden okunuyor, damga değiştiyse işlem baştan alınıyor.
+ * Pencereyi kapatmıyor ama DARALTIYOR; kapatan tek şey koşullu yazma
+ * olurdu ve o burada yok.
+ */
+async function mutate<T>(
+  treeId: string,
+  degistir: (book: ProposalBook) => { yaz: boolean; sonuc: T }
+): Promise<T> {
+  for (let i = 0; i < CAKISMA_DENEME; i++) {
+    const book = await getProposalBook(treeId);
+    const damga = book.updatedAt;
+    const r = degistir(book);
+    if (!r.yaz) return r.sonuc;
+
+    const taze = await getProposalBook(treeId);
+    if (taze.updatedAt !== damga) continue; // araya biri girdi — baştan
+    await save(treeId, book);
+    return r.sonuc;
+  }
+  /*
+   * Denemeler tükendi: SESSİZCE BAŞARILI DÖNMÜYORUZ. Dönseydik öneri
+   * kaybolur ama öneren gönderdiğini sanırdı.
+   */
+  throw new Error("Öneri kuyruğu şu an çok yoğun; birazdan tekrar dene.");
+}
+
 export async function listProposals(treeId: string): Promise<Proposal[]> {
   return (await getProposalBook(treeId)).proposals;
 }
@@ -80,12 +120,14 @@ export async function addProposal(
   treeId: string,
   yeni: Omit<Proposal, "id">
 ): Promise<{ ok: true; proposal: Proposal } | { ok: false; fail: "kuyruk-dolu" }> {
-  const book = await getProposalBook(treeId);
   const proposal: Proposal = { ...yeni, id: randomUUID() };
-  const r = planProposal(book.proposals, proposal);
-  if (!r.ok) return r;
-  await save(treeId, { ...book, proposals: r.list });
-  return { ok: true, proposal };
+  type Sonuc = { ok: true; proposal: Proposal } | { ok: false; fail: "kuyruk-dolu" };
+  return mutate<Sonuc>(treeId, (book) => {
+    const r = planProposal(book.proposals, proposal);
+    if (!r.ok) return { yaz: false, sonuc: r };
+    book.proposals = r.list;
+    return { yaz: true, sonuc: { ok: true, proposal } };
+  });
 }
 
 /**
@@ -96,13 +138,12 @@ export async function addProposal(
  * ikisi ayrışırdı.
  */
 export async function replaceProposal(treeId: string, p: Proposal): Promise<boolean> {
-  const book = await getProposalBook(treeId);
-  const i = book.proposals.findIndex((x) => x.id === p.id);
-  if (i === -1) return false;
-  const proposals = [...book.proposals];
-  proposals[i] = p;
-  await save(treeId, { ...book, proposals });
-  return true;
+  return mutate(treeId, (book) => {
+    const i = book.proposals.findIndex((x) => x.id === p.id);
+    if (i === -1) return { yaz: false, sonuc: false };
+    book.proposals = book.proposals.map((x, j) => (j === i ? p : x));
+    return { yaz: true, sonuc: true };
+  });
 }
 
 export async function findProposal(treeId: string, id: string): Promise<Proposal | null> {

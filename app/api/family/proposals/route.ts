@@ -8,7 +8,7 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import {
-  applyProposal, buildChanges, decide, MAX_NOTE, pendingCount, visibleTo,
+  applyProposal, buildChanges, decide, MAX_NOTE, MAX_VALUE, pendingCount, visibleTo,
   type Proposal,
 } from "@/lib/proposals";
 import { addProposal, findProposal, listProposals, replaceProposal } from "@/lib/proposal-store";
@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       "alan-yok": "Önerilemeyen bir alan gönderildi.",
       "degisiklik-yok": "Değişen bir şey yok.",
       "cok-alan": "Tek seferde önerilebilecek alan sayısı aşıldı.",
+      "cok-uzun": `Bir alan çok uzun (en fazla ${MAX_VALUE} karakter).`,
     }[kur.fail];
     return NextResponse.json({ error: mesaj }, { status: 400 });
   }
@@ -156,6 +157,18 @@ export async function PATCH(req: NextRequest) {
   const p = await findProposal(ctx.treeId, id);
   if (!p) return NextResponse.json({ error: "Öneri bulunamadı" }, { status: 404 });
 
+  /*
+   * Onaydan sonra ağacın YENİ sürümü istemciye dönüyor.
+   *
+   * İstemci taban sürümünü (`x-base-version`) modül düzeyinde tutuyor ve
+   * yalnız sayfa tazelendiğinde güncelliyor. Kuyruktan arka arkaya onay
+   * verildiğinde ikinci tıklama, kendi az önceki onayının değiştirdiği
+   * sürüm yüzünden 409 yiyordu — hem de "başka bir yerde değişti" diyerek.
+   * Kuyruğun asıl kullanımı toplu onay olduğu için bu, özelliği pratikte
+   * kullanılamaz kılıyordu.
+   */
+  let yeniSurum: string | undefined;
+
   const kararli = decide(
     p, karar, ctx.authorId, await gorunenAd(), new Date().toISOString(),
     typeof body.note === "string" ? body.note : ""
@@ -206,12 +219,38 @@ export async function PATCH(req: NextRequest) {
      * Ters olsaydı ve ağaç yazımı düşseydi, öneri onaylanmış görünür ama
      * değişiklik hiç gerçekleşmezdi — kimsenin fark etmeyeceği bir yalan.
      */
-    await saveFamilyData(ctx.treeId, { ...data, people });
+    /*
+     * Sürüm damgasını `saveFamilyData` KENDİ vuruyor (yazdığı nesnenin
+     * `updatedAt`ini değiştiriyor). Tahmin etmek yerine nesneyi elde tutup
+     * damgayı ondan okuyoruz: istemci bunu `x-base-version` olarak birebir
+     * geri gönderecek, bir milisaniye farkı bile 409 üretirdi.
+     */
+    const yeni = { ...data, people };
+    await saveFamilyData(ctx.treeId, yeni, { by: ctx.authorId });
+    yeniSurum = yeni.updatedAt;
   }
 
   const yazildi = await replaceProposal(ctx.treeId, kararli.proposal);
-  if (!yazildi) return NextResponse.json({ error: "Öneri bulunamadı" }, { status: 404 });
-  return NextResponse.json({ ok: true, proposal: kararli.proposal });
+  if (!yazildi)
+    /*
+     * DEĞİŞİKLİK AĞACA ZATEN YAZILDI ama damga yazılamadı. Buradan "Öneri
+     * bulunamadı" (404) dönmek yanıltıcıydı: kullanıcı hiçbir şey olmadığını
+     * sanıyor, oysa ağaç değişti. Öneri "bekliyor" kalıyor ve tekrar
+     * onaylandığında `applyProposal` artık idempotent olduğu için sorunsuz
+     * geçiyor — yani durum kurtarılabilir; söylenmesi gereken tek şey ne
+     * olduğu.
+     */
+    return NextResponse.json(
+      {
+        error:
+          karar === "onaylandi"
+            ? "Değişiklik ağaca uygulandı ama öneri damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin."
+            : "Öneri bulunamadı.",
+        applied: karar === "onaylandi",
+      },
+      { status: karar === "onaylandi" ? 500 : 404 }
+    );
+  return NextResponse.json({ ok: true, proposal: kararli.proposal, version: yeniSurum });
 }
 
 /**

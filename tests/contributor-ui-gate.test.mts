@@ -76,8 +76,19 @@ check(/!readOnly && authority\.canEditAll &&/.test(drawer), "silme yalnız tam y
   const j = drawer.indexOf("handleDelete", i);
   check(i > -1 && j > i, "silme düğmesi o koşulun İÇİNDE");
 }
-check(/authority\.canEditPerson\(person\) \? t\("drawer\.edit"\) : t\("proposal\.submit"\)/.test(drawer),
+/*
+ * HAM kayıt sorulmalı, maskeli kopya değil.
+ *
+ * İlk hâlinde `canEditPerson(person)` yazıyordu ve `person` çekmecede
+ * `view(rawPerson)` ile maskelenmiş kopya. `maskPerson` bir beyaz liste ve
+ * `addedBy` taşımıyor: katkı verici kendi eklediği kaydı "gizli"
+ * işaretlediğinde çekmece "değişiklik öner" derken form "güncelle" diyordu —
+ * aynı kayıt için iki farklı vaat. Test iddiası da bunu göremiyordu, çünkü
+ * çağrının VARLIĞINI kilitliyordu, neyin geçirildiğini değil.
+ */
+check(/authority\.canEditPerson\(rawPerson\) \? t\("drawer\.edit"\) : t\("proposal\.submit"\)/.test(drawer),
   "düzenleyemediği kayıtta düğme 'öner' diyor");
+check(!/canEditPerson\(person\)/.test(drawer), "maskelenmiş kopya sahiplik kararına GİRMİYOR");
 
 /* --- 4. Kimlik sunucudan geliyor ----------------------------------------- */
 /*
