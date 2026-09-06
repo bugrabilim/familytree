@@ -8,75 +8,96 @@ const kodu = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 /**
- * KAPI: gönderim, özel başlık yüzünden KAYBOLMAZ.
+ * KAPI: giden posta katmanı.
  *
- * Yanıtlarda `In-Reply-To`/`References` gönderiliyor ki yanıt alıcının posta
- * istemcisinde özgün iletinin altına düşsün. Ama bazı sağlayıcılar bu
- * "ayrılmış" başlıkların özel başlık alanından ayarlanmasını reddediyor ve o
- * durumda İSTEĞİN TAMAMI hata döner — yani zincirleme uğruna yanıtın kendisi
- * hiç gitmez.
+ * `lib/email.ts` ağ çağrısı yapıyor, o yüzden birim testi koşulamıyor; kural
+ * kaynak düzeyinde kilitleniyor. Burada kilitlenen üç şeyin üçü de sessizce
+ * bozulabilir ve üçünün bedeli de görünmez:
  *
- * `lib/email.ts` ağ çağrısı yaptığı için birim testi koşulamıyor; kural
- * kaynak düzeyinde kilitleniyor.
+ *  1. Gönderen adresini ÇAĞIRAN belirleyemez.
+ *  2. Yeniden deneme YOK — aynı posta iki kez gitmemeli.
+ *  3. Başarısızlık sessizce yutulmamalı.
  */
 const email = kodu(read("../lib/email.ts"));
 
-/* --- İki aşamalı gönderim var -------------------------------------------- */
-check(/async function denemeGonder\(/.test(email), "tek deneme ayrı bir işlevde");
-check(/basliklarla: boolean/.test(email), "deneme başlıklı/başlıksız çalışabiliyor");
-check(/const ilk = await denemeGonder\(input, apiKey, from, true\)/.test(email),
-  "ilk deneme başlıklarla");
-check(/denemeGonder\(input, apiKey, from, false\)/.test(email), "ikinci deneme BAŞLIKSIZ");
-
-/* --- Yeniden deneme YALNIZ HTTP reddinde --------------------------------- */
+/* --- 1. Gönderen ortam değişkeninden, çağırandan DEĞİL ------------------- */
 /*
- * Fırlatılan hatada (ağ kopması, zaman aşımı) isteğin gidip gitmediği
- * BİLİNEMEZ. Körlemesine tekrar denemek, alıcıya aynı postayı iki kez
- * göndermek olabilirdi — ve bir yas ilanının iki kez gitmesi, hiç
- * gitmemesinden daha kötüdür.
+ * `from` çağırandan alınabilseydi, bu katmanı kullanan herhangi bir uç
+ * "doğrulanmış alan adımızdan istediğim kişi adına posta at" aracına
+ * dönerdi — kimlik avı için hazır altyapı.
  */
-check(/httpRed\?: boolean/.test(email), "HTTP reddi ayrı bir bayrakla taşınıyor");
-check(/httpRed: true/.test(email), "yalnız `!res.ok` dalında işaretleniyor");
+/*
+ * İDDİALAR SIKI TUTULUYOR — gevşek olanı bir mutasyon geçti.
+ *
+ * İlk hâlinde "`from,` geçiyor mu" ve "`from: input.` YOK mu" diye
+ * bakılıyordu. `from: (input as {from?:string}).from ?? from,` mutasyonu
+ * İKİSİNİ DE geçti: `?? from,` ilk deseni karşılıyor, tür dönüşümü de
+ * ikincisini atlatıyor. Aynı tuzağa depoda daha önce de düşüldü
+ * (`(body as Record<string, unknown>).x`). Çare: deseni değil SATIRIN
+ * KENDİSİNİ aramak.
+ */
+check(/const from = process\.env\.EMAIL_FROM;/.test(email),
+  "gönderen YALNIZ EMAIL_FROM'dan okunuyor (satır orada bitiyor)");
 {
-  /* Bayrak, fırlatılan hata dalında KONMAMALI. */
-  const i = email.indexOf("} catch (e) {");
-  const catchBlok = email.slice(i, i + 200);
-  check(!/httpRed/.test(catchBlok), "fırlatılan hatada httpRed konmuyor");
+  const i = email.indexOf("JSON.stringify({");
+  const govde = email.slice(i, i + 400);
+  check(/\n\s+from,\n/.test(govde), "gövdeye o değişken kısayolla yazılıyor");
+  /*
+   * Gövdede HİÇ `from:` olmamalı. Kısayol (`from,`) kullanıldığı sürece
+   * bu doğru; hesaplanmış her gönderen — kaynağı ne olursa olsun —
+   * `from:` yazmak zorunda ve buraya takılır.
+   */
+  check(!/from:/.test(govde), "istek gövdesinde hesaplanmış bir gönderen alanı yok");
 }
-check(/if \(ozelBaslikVar && ilk\.httpRed\)/.test(email),
-  "yeniden deneme hem özel başlık hem HTTP reddi şartına bağlı");
+check(!/fromName/.test(email), "görünen adı çağıranın belirlediği alan da yok");
 
-/* --- En fazla İKİ deneme ------------------------------------------------- */
+/* --- 2. TEK deneme ------------------------------------------------------- */
 /*
- * Döngü yok, ikinci denemenin sonucu doğrudan dönüyor: üçüncü bir deneme
- * yolu kalmamalı, yoksa reddedilen bir gönderim sonsuza dek tekrarlanırdı.
+ * Bir süre iki aşamalı gönderim vardı (özel başlıkla dene, reddedilirse
+ * başlıksız tekrarla); o ihtiyaç gelen kutusuyla birlikte kalktı. Körlemesine
+ * yeniden denemek TEHLİKELİ: fırlatılan bir hatada isteğin gidip gitmediği
+ * bilinemez ve tekrar denemek alıcıya aynı postayı iki kez göndermek olabilir.
  */
-check((email.match(/await denemeGonder\(/g) ?? []).length === 2, "en fazla iki deneme");
-check(!/while|for \(/.test(email.slice(email.indexOf("export async function sendEmail"))),
-  "sendEmail içinde döngü yok");
-
-/* --- Başlıksız çağrıda boşuna ikinci deneme yapılmıyor ------------------- */
-check(/const ozelBaslikVar = !!input\.headers/.test(email),
-  "özel başlık yoksa ikinci deneme hiç düşünülmüyor");
-
-/* --- Yapılandırma eksikse AĞA HİÇ ÇIKILMIYOR ----------------------------- */
+check((email.match(/await fetch\(/g) ?? []).length === 1, "tek bir ağ çağrısı var");
 {
-  const i = email.indexOf("export async function sendEmail");
-  const govde = email.slice(i);
+  const govde = email.slice(email.indexOf("export async function sendEmail"));
+  check(!/while|for \(/.test(govde), "sendEmail içinde döngü yok");
+  check(!/denemeGonder/.test(govde), "ikinci deneme yolu kalmadı");
+}
+
+/* --- 3. Yapılandırma eksikse AĞA HİÇ ÇIKILMIYOR -------------------------- */
+{
+  const govde = email.slice(email.indexOf("export async function sendEmail"));
   const iYok = govde.indexOf('reason: "not-configured"');
-  const iDeneme = govde.indexOf("await denemeGonder(");
-  check(iYok > -1 && iDeneme > iYok, "anahtar denetimi denemeden önce");
+  const iCagri = govde.indexOf("await fetch(");
+  check(iYok > -1 && iCagri > iYok, "anahtar denetimi ağ çağrısından önce");
 }
 
-/* --- Sessiz düşme yok ---------------------------------------------------- */
+/* --- 4. Sessiz düşme yok ------------------------------------------------- */
 /*
- * İki deneme de başarısızsa çağıran BUNU BİLMELİ; "gönderildi" dönmek,
- * kullanıcıya gitmemiş bir yanıtı gitmiş göstermek olurdu.
+ * "Gönderildi" dönmek, kullanıcıya gitmemiş bir postayı gitmiş göstermek
+ * olurdu — hatırlatma, davet, şifre sıfırlama: hepsi karşı tarafın beklediği
+ * postalar.
  */
-check(/return \{ sent: false, reason: "error", error: ikinci\.error \}/.test(email),
-  "ikinci deneme de başarısızsa hata dönüyor");
-check(/console\.warn\(`\[eposta\] özel başlıklı gönderim reddedildi/.test(email),
-  "başlıksız denemeye düşüş günlüğe yazılıyor");
+check(/if \(!res\.ok\)/.test(email), "HTTP reddi ayrıca denetleniyor");
+{
+  const i = email.indexOf("if (!res.ok)");
+  const blok = email.slice(i, i + 300);
+  check(/sent: false/.test(blok), "reddedilen istek başarı sayılmıyor");
+  check(/res\.status/.test(blok), "hata metninde HTTP durumu taşınıyor");
+}
+check(/catch \(e\)[\s\S]{0,120}sent: false/.test(email), "fırlatılan hata da başarısızlık");
+check(/return \{ sent: true, id: data\?\.id \}/.test(email), "yalnız başarılı yanıtta sent:true");
+
+/* --- 5. Yanıt adresi: çağıran belirtmezse ortam değişkeninden ------------ */
+/*
+ * Bu alan olmadan yanıtlar `EMAIL_FROM` adresine gidiyordu ve o adresin bir
+ * POSTA KUTUSU olmak zorunda değil — yani aile üyesinin hatırlatmaya verdiği
+ * yanıt sessizce kayboluyordu.
+ */
+check(/input\.replyTo\?\.trim\(\) \|\| replyAddress\(\)/.test(email),
+  "yanıt adresi çağırandan, yoksa EMAIL_REPLY_TO'dan");
+check(/return r \? \{ reply_to: r \} : \{\}/.test(email), "ikisi de yoksa alan hiç gönderilmiyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

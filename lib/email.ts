@@ -25,24 +25,6 @@ export interface SendEmailInput {
    * hiçbir yere ulaşmıyordu — sessizce kaybolan bir geri bildirim kanalı.
    */
   replyTo?: string;
-  /**
-   * Ek başlıklar — yanıt zinciri için (`In-Reply-To`, `References`).
-   *
-   * Bunlar olmadan bir yanıt, posta istemcisinde AYRI bir konu gibi düşer ve
-   * karşı taraf neyin yanıtı olduğunu anlamaz. Serbest bırakılması bilinçli
-   * ama dar: çağıranlar `lib/inbox.ts`teki `threadHeaders`ı kullanıyor.
-   */
-  headers?: Record<string, string>;
-  /**
-   * `From`un GÖRÜNEN ADI — adres değişmiyor.
-   *
-   * İletilen gelen posta için var (`lib/inbox-forward.ts`). Gönderenin
-   * adresini `From`a yazmak mümkün değil: yalnız kendi doğrulanmış alan
-   * adımızdan gönderebiliyoruz. Görünen ad, kutu listesinde postanın kimden
-   * geldiğini gösteren TEK yer — o da olmazsa gelen her posta "Soylus"
-   * imzasıyla düşer ve birbirinden ayırt edilemez.
-   */
-  fromName?: string;
 }
 
 export type SendResult =
@@ -67,41 +49,26 @@ export function replyAddress(): string | null {
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 /**
- * `EMAIL_FROM`un görünen adını değiştirir; ADRESİ aynı kalır.
+ * Postayı gönderir.
  *
- * `"Soylus <bilgi@soylus.com>"` + `"Ali Veli"` → `"Ali Veli <bilgi@soylus.com>"`.
- * Adres kısmına DOKUNULMUYOR: değiştirilebilseydi bu alan, doğrulanmamış bir
- * adresten gönderme (ve alan adı taklidi) yolu olurdu.
+ * TEK DENEME — bilerek. Bir süre iki aşamalı gönderim vardı: özel başlıkla
+ * (`In-Reply-To`) denenip reddedilirse başlıksız tekrarlanıyordu. O ihtiyaç,
+ * uygulama içindeki gelen kutusunun yanıt zinciriyle birlikte ortadan kalktı.
+ * Körlemesine yeniden denemek burada TEHLİKELİ olurdu: fırlatılan bir hatada
+ * (ağ kopması, zaman aşımı) isteğin gidip gitmediği bilinemez ve tekrar
+ * denemek alıcıya aynı postayı iki kez göndermek olabilir — bir yas ilanının
+ * iki kez gitmesi, hiç gitmemesinden kötüdür.
  *
- * Ad, `From` sözdiziminde ayırıcı sayılan karakterlerden arındırılıyor.
- * Arındırılmasaydı bir gönderen, görünen adına yazacağı `<x@y>` ile başlığın
- * anlamını değiştirebilirdi — adı YABANCI yazıyor.
+ * GÖNDEREN ÇAĞIRANDAN ALINMIYOR: `from` yalnız `EMAIL_FROM`dan geliyor.
+ * Çağıran belirleyebilseydi, bir uç "doğrulanmış alan adımızdan istediğim
+ * adres adına posta at" aracına dönerdi.
  */
-export function applyFromName(from: string, name: string | undefined): string {
-  const temiz = (name ?? "")
-    .replace(/[\r\n\u2028\u2029]+/g, " ")
-    .replace(/[\u0000-\u001f\u007f<>"',;:@\\]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 78);
-  if (!temiz) return from;
-  const kose = from.match(/<([^>]+)>/);
-  const adres = (kose ? kose[1] : from).trim();
-  if (!adres) return from;
-  return `${temiz} <${adres}>`;
-}
+export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  // Yapılandırma eksikse AĞA HİÇ ÇIKILMIYOR.
+  if (!apiKey || !from) return { sent: false, reason: "not-configured" };
 
-/**
- * Tek bir gönderim denemesi. `httpRed` alanı ÖNEMLİ: isteğin sunucuya
- * ulaşıp REDDEDİLDİĞİNİ (yani kesinlikle gönderilmediğini) söylüyor.
- * Fırlatılan hatada bu bilinemez — istek gitmiş de olabilir.
- */
-async function denemeGonder(
-  input: SendEmailInput,
-  apiKey: string,
-  from: string,
-  basliklarla: boolean
-): Promise<SendResult & { httpRed?: boolean }> {
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: "POST",
@@ -110,29 +77,26 @@ async function denemeGonder(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: applyFromName(from, input.fromName),
+        from,
         to: Array.isArray(input.to) ? input.to : [input.to],
         // Yanıt adresi: çağıran belirtmediyse ortam değişkeninden.
         ...(() => {
           const r = input.replyTo?.trim() || replyAddress();
           return r ? { reply_to: r } : {};
         })(),
-        ...(basliklarla && input.headers && Object.keys(input.headers).length
-          ? { headers: input.headers }
-          : {}),
         subject: input.subject,
         ...(input.html ? { html: input.html } : {}),
         ...(input.text ? { text: input.text } : {}),
       }),
     });
+    /*
+     * SESSİZ DÜŞME YOK. Çağıran gönderimin başarısız olduğunu BİLMELİ:
+     * "gönderildi" dönmek, kullanıcıya gitmemiş bir postayı gitmiş
+     * göstermek olurdu.
+     */
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      return {
-        sent: false,
-        reason: "error",
-        error: `${res.status} ${detail}`.slice(0, 300),
-        httpRed: true,
-      };
+      return { sent: false, reason: "error", error: `${res.status} ${detail}`.slice(0, 300) };
     }
     const data = (await res.json().catch(() => null)) as { id?: string } | null;
     return { sent: true, id: data?.id };
@@ -140,42 +104,3 @@ async function denemeGonder(
     return { sent: false, reason: "error", error: (e as Error).message };
   }
 }
-
-/**
- * Postayı gönderir.
- *
- * ## Özel başlık reddedilirse posta YİNE DE gidiyor
- *
- * Yanıtlarda `In-Reply-To`/`References` gönderiliyor ki yanıt, alıcının
- * posta istemcisinde özgün iletinin altına düşsün. Ama bazı sağlayıcılar
- * bu "ayrılmış" başlıkların özel başlık alanından ayarlanmasını reddediyor
- * ve o durumda İSTEĞİN TAMAMI hata döner — yani zincirleme uğruna yanıtın
- * kendisi hiç gitmez.
- *
- * Zincirleme bir incelik, teslim ise işin kendisi. HTTP reddi alınırsa
- * başlıksız BİR KEZ daha deneniyor.
- *
- * Yeniden deneme YALNIZ HTTP reddinde: fırlatılan hatada (ağ kopması,
- * zaman aşımı) isteğin gidip gitmediği bilinemez ve körlemesine tekrar
- * denemek alıcıya AYNI postayı iki kez göndermek olabilirdi.
- */
-export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    return { sent: false, reason: "not-configured" };
-  }
-
-  const ilk = await denemeGonder(input, apiKey, from, true);
-  if (ilk.sent) return { sent: true, id: ilk.id };
-
-  const ozelBaslikVar = !!input.headers && Object.keys(input.headers).length > 0;
-  if (ozelBaslikVar && ilk.httpRed) {
-    console.warn(`[eposta] özel başlıklı gönderim reddedildi (${ilk.error}); başlıksız deneniyor`);
-    const ikinci = await denemeGonder(input, apiKey, from, false);
-    if (ikinci.sent) return { sent: true, id: ikinci.id };
-    return { sent: false, reason: "error", error: ikinci.error };
-  }
-  return { sent: false, reason: ilk.reason ?? "error", error: ilk.error };
-}
-
