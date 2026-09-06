@@ -21,6 +21,13 @@ import { useAuthority } from "./AuthorityContext";
  * öğrenemezdi. Görmediği bir kuyruğa yazmak, boşluğa yazmaktır.
  *
  * Süzme sunucuda (`visibleTo`); burası yalnız geleni çiziyor.
+ *
+ * ## Onay ve geri çekme İKİ ADIMLI (madde 35/D)
+ *
+ * Onay ağacı hemen değiştiriyor ve kuyrukta kartlar alt alta; yanlış karta
+ * basmak tek tıklık bir kaza. Doğrulama satırı kartın KENDİ içinde açılıyor
+ * — `window.confirm` kullanılmadı: metni çevrilemiyor ve bazı tarayıcılarda
+ * hiç çıkmıyor, yani koruma sessizce yok olabilirdi.
  */
 
 interface Change {
@@ -30,14 +37,18 @@ interface Change {
 
 interface Proposal {
   id: string;
+  /** Yokluğu "alan" demek — tür eklenmeden önce yazılmış öneriler. */
+  kind?: "alan" | "ekleme" | "silme";
   personId: string;
   personName: string;
   changes: Record<string, Change>;
+  /** "ekleme" türünde önerilen kişinin alanları. */
+  person?: Record<string, unknown>;
   note?: string;
   by: string;
   byName: string;
   at: string;
-  status: "bekliyor" | "onaylandi" | "reddedildi";
+  status: "bekliyor" | "onaylandi" | "reddedildi" | "geri-cekildi";
   decidedByName?: string;
   decidedAt?: string;
 }
@@ -69,11 +80,13 @@ export default function ProposalsDialog({ onClose, onApplied }: {
   onApplied?: () => void;
 }) {
   const t = useT();
-  const { canDecide } = useAuthority();
+  const { canDecide, authorId } = useAuthority();
   const [list, setList] = useState<Proposal[] | null>(null);
   const [hata, setHata] = useState("");
   const [busy, setBusy] = useState("");
   const [stale, setStale] = useState<Record<string, string[]>>({});
+  /** Doğrulama bekleyen işlem: hangi kart, hangi eylem. */
+  const [onay, setOnay] = useState<{ id: string; ne: "onaylandi" | "geri-cekildi" } | null>(null);
 
   const yukle = useCallback(async () => {
     try {
@@ -110,6 +123,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
   const karar = async (id: string, decision: "onaylandi" | "reddedildi") => {
     setBusy(id);
     setHata("");
+    setOnay(null);
     try {
       const res = await fetch("/api/family/proposals", {
         method: "PATCH",
@@ -142,6 +156,40 @@ export default function ProposalsDialog({ onClose, onApplied }: {
     }
   };
 
+  /**
+   * Kendi önerini geri çek.
+   *
+   * AYRI uca gidiyor (`/proposals/withdraw`), karar ucuna değil: karar
+   * `canEdit` istiyor, geri çekme ise önerinin sahibi olmayı. Ayrıca ağacı
+   * değiştirmediği için ne taban sürüm güncelleniyor ne de `onApplied`
+   * çağrılıyor — bekleyen bir öneri ağaca hiç uygulanmamıştı.
+   */
+  const geriCek = async (id: string) => {
+    setBusy(id);
+    setHata("");
+    setOnay(null);
+    try {
+      const res = await fetch("/api/family/proposals/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error ?? "İşlem başarısız.");
+      await yukle();
+    } catch (e) {
+      setHata((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  /** Karara bağlanmış önerinin durum etiketi. */
+  const durumAdi = (st: Proposal["status"]): string =>
+    st === "onaylandi" ? t("proposal.approved")
+      : st === "geri-cekildi" ? t("proposal.withdrawn")
+      : t("proposal.rejected");
+
   const bekleyen = (list ?? []).filter((p) => p.status === "bekliyor");
   const gecmis = (list ?? []).filter((p) => p.status !== "bekliyor");
 
@@ -161,20 +209,38 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               <p className="text-[11px] text-text-subtle">
                 {p.byName ? `${p.byName} · ` : ""}
                 {p.at.slice(0, 16).replace("T", " ")}
-                {p.status !== "bekliyor" &&
-                  ` · ${p.status === "onaylandi" ? t("proposal.approved") : t("proposal.rejected")}`}
+                {p.status !== "bekliyor" && ` · ${durumAdi(p.status)}`}
               </p>
             </div>
 
+            {/*
+              * TÜRÜ OLAN ÖNERİ DE GÖRÜNMELİ. Kart yalnız `changes`i
+              * çiziyordu; "ekleme" ve "silme" önerilerinde o alan boş
+              * olduğu için kartta addan başka hiçbir şey görünmüyor, karar
+              * veren neyi onayladığını bilmeden onaylıyordu.
+              */}
+            {(p.kind === "ekleme" || p.kind === "silme") && (
+              <p className="text-[11px] font-medium text-text-muted">
+                {p.kind === "ekleme" ? t("proposal.kindAdd") : t("proposal.kindDelete")}
+              </p>
+            )}
+
             <div className="space-y-1">
-              {Object.entries(p.changes).map(([k, c]) => (
-                <div key={k} className="text-[11px] leading-relaxed">
-                  <span className="text-text-subtle">{alanAdi(t, k)}: </span>
-                  <span className="text-text-muted line-through">{goster(c.from)}</span>
-                  <span className="text-text-subtle"> → </span>
-                  <span className="text-text">{goster(c.to)}</span>
-                </div>
-              ))}
+              {p.kind === "ekleme"
+                ? Object.entries(p.person ?? {}).map(([k, v]) => (
+                    <div key={k} className="text-[11px] leading-relaxed">
+                      <span className="text-text-subtle">{alanAdi(t, k)}: </span>
+                      <span className="text-text">{goster(v)}</span>
+                    </div>
+                  ))
+                : Object.entries(p.changes).map(([k, c]) => (
+                    <div key={k} className="text-[11px] leading-relaxed">
+                      <span className="text-text-subtle">{alanAdi(t, k)}: </span>
+                      <span className="text-text-muted line-through">{goster(c.from)}</span>
+                      <span className="text-text-subtle"> → </span>
+                      <span className="text-text">{goster(c.to)}</span>
+                    </div>
+                  ))}
             </div>
 
             {p.note && <p className="text-[11px] text-text-muted italic">{p.note}</p>}
@@ -188,15 +254,58 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               </p>
             )}
 
-            {canDecide && p.status === "bekliyor" && (
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => karar(p.id, "onaylandi")} disabled={busy === p.id}>
-                  {t("proposal.approve")}
+            {/*
+              * DOĞRULAMA SATIRI. Onay ağacı hemen değiştiriyor, geri çekme
+              * ise kendi önerini kuyruktan düşürüyor; ikisi de tek tıkla
+              * olmamalı. Ret bilerek tek adımlı: geri alınabilir bir karar
+              * ve kuyruğun asıl işi.
+              */}
+            {onay?.id === p.id ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-text-muted">
+                  {onay.ne === "onaylandi" ? t("proposal.confirmApprove") : t("proposal.confirmWithdraw")}
+                </span>
+                <Button
+                  size="sm"
+                  variant={onay.ne === "onaylandi" ? "primary" : "secondary"}
+                  disabled={busy === p.id}
+                  onClick={() =>
+                    onay.ne === "onaylandi" ? karar(p.id, "onaylandi") : geriCek(p.id)
+                  }
+                >
+                  {t("proposal.confirmYes")}
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => karar(p.id, "reddedildi")} disabled={busy === p.id}>
-                  {t("proposal.reject")}
+                <Button size="sm" variant="ghost" onClick={() => setOnay(null)}>
+                  {t("proposal.cancel")}
                 </Button>
               </div>
+            ) : (
+              p.status === "bekliyor" && (
+                <div className="flex flex-wrap gap-2">
+                  {canDecide && (
+                    <>
+                      <Button size="sm" onClick={() => setOnay({ id: p.id, ne: "onaylandi" })} disabled={busy === p.id}>
+                        {t("proposal.approve")}
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => karar(p.id, "reddedildi")} disabled={busy === p.id}>
+                        {t("proposal.reject")}
+                      </Button>
+                    </>
+                  )}
+                  {/*
+                    * GERİ ÇEKME yalnız ÖNERENDE. Yöneticinin başkasının
+                    * önerisini geri çekmesi yok — onun aracı ret; geri
+                    * çekmek "vazgeçtim" demek ve ondan ancak öneren
+                    * vazgeçebilir. Sunucu da aynı kuralı ayrıca uyguluyor;
+                    * burası yalnız gereksiz düğmeyi göstermiyor.
+                    */}
+                  {!!p.by && p.by === authorId && (
+                    <Button size="sm" variant="ghost" onClick={() => setOnay({ id: p.id, ne: "geri-cekildi" })} disabled={busy === p.id}>
+                      {t("proposal.withdraw")}
+                    </Button>
+                  )}
+                </div>
+              )
             )}
           </article>
         ))}

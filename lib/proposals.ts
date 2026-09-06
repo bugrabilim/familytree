@@ -43,7 +43,14 @@ export const MAX_NOTE = 1000;
 /** Tek bir alan değerinin metin uzunluğu. */
 export const MAX_VALUE = 4000;
 
-export type ProposalStatus = "bekliyor" | "onaylandi" | "reddedildi";
+/**
+ * Önerinin durumu.
+ *
+ * "geri-cekildi" ÖNERENİN kendi kararı — reddedilmekten ayrı tutuluyor.
+ * Aynı kovaya konsaydı, kişi kendi vazgeçtiği öneriyi kuyrukta "reddedildi"
+ * diye görürdü: kimsenin vermediği bir kararı birine mal etmek.
+ */
+export type ProposalStatus = "bekliyor" | "onaylandi" | "reddedildi" | "geri-cekildi";
 
 /** Tek bir alan değişikliği: neydi, ne olsun. */
 export interface Change {
@@ -334,6 +341,39 @@ export function decide(
       decidedAt: at,
       ...(note.trim() ? { decisionNote: note.trim().slice(0, MAX_NOTE) } : {}),
     },
+  };
+}
+
+export type WithdrawFail = "karar-verilmis" | "sahibi-degil";
+
+/**
+ * Öneriyi ÖNERENİ geri çeker.
+ *
+ * Ayrı bir işlev, çünkü `decide` ile iki ayrı yetki: karara `canEdit`
+ * gerekiyor, geri çekmeye ise önerinin SAHİBİ olmak — yöneticinin bile
+ * başkasının önerisini geri çekmesi yok, onun aracı ret. Tek işleve
+ * sığdırılsaydı, "kim yapabilir" sorusunun yanıtı çağıranın verdiği bir
+ * bayrağa kalırdı; unutulan tek çağrı yetki kapısını açardı.
+ *
+ * Yalnız "bekliyor" geri çekilebilir: karara bağlanmış (belki de ağaca
+ * uygulanmış) bir öneriyi geri çekmek, olmuş bir değişikliği olmamış
+ * göstermek olurdu. Uygulanan bir onayı geri almak ayrı bir iş.
+ *
+ * Damga alanları (`decidedBy`/`decidedAt`) yeniden kullanılıyor: bunlar
+ * "bu öneriyi sonlandıran kim, ne zaman" demek ve geri çekmede o kişi
+ * önerenin kendisi. Durum ikisini zaten ayırıyor.
+ */
+export function withdraw(
+  p: Proposal,
+  by: string,
+  byName: string,
+  at: string
+): { ok: true; proposal: Proposal } | { ok: false; fail: WithdrawFail } {
+  if (p.by !== by) return { ok: false, fail: "sahibi-degil" };
+  if (p.status !== "bekliyor") return { ok: false, fail: "karar-verilmis" };
+  return {
+    ok: true,
+    proposal: { ...p, status: "geri-cekildi", decidedBy: by, decidedByName: byName, decidedAt: at },
   };
 }
 

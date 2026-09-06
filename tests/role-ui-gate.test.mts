@@ -107,8 +107,23 @@ check(/<AuthorityProvider role=\{props\.role \?\? "yonetici"\} authorId=\{props\
  */
 check(/onOpenProposals=\{!publicView && authority\.canAdd \?/.test(workspace),
   "kuyruk katkı vericiye de açık");
-check(/canDecide && p\.status === "bekliyor"/.test(dialog),
-  "karar düğmeleri yalnız karar verebilene");
+/*
+ * Karar düğmeleri İKİ koşula bağlı: öneri hâlâ bekliyor OLMALI ve bakan
+ * kişi karar verebiliyor olmalı. Kart artık geri çekme düğmesini de
+ * taşıyor (o ÖNERENE ait), bu yüzden iddia "canDecide" bloğunun içini
+ * kapsamlı biçimde sınıyor — tek bir dizge araması, düğmeyi yanlışlıkla
+ * geri çekme dalına taşıyan bir düzenlemeyi kaçırırdı.
+ */
+check(/p\.status === "bekliyor" && \(/.test(dialog), "düğme kümesi yalnız BEKLEYEN öneride");
+{
+  const i = dialog.indexOf("{canDecide && (");
+  const son = dialog.indexOf("</>", i);
+  const dal = i > -1 && son > i ? dialog.slice(i, son) : "";
+  check(i > -1, "canDecide dalı bulundu");
+  check(/setOnay\(\{ id: p\.id, ne: "onaylandi" \}\)/.test(dal), "ONAYLA yalnız karar verebilende");
+  check(/karar\(p\.id, "reddedildi"\)/.test(dal), "REDDET yalnız karar verebilende");
+  check(!/geri-cekildi/.test(dal), "geri çekme bu dalda DEĞİL (öneren için)");
+}
 check(/proposalCount/.test(workspace), "bekleyen sayısı taşınıyor");
 
 /* --- 6. Rol davet edilebilir --------------------------------------------- */

@@ -1,6 +1,6 @@
 import {
   applyProposal, bosMu, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
-  normalizeValue, pendingCount, planProposal, proposableKeys, sameValue, visibleTo,
+  normalizeValue, pendingCount, planProposal, proposableKeys, sameValue, visibleTo, withdraw,
   MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
   type Proposal,
 } from "../lib/proposals.ts";
@@ -395,6 +395,90 @@ eq(kindOf({ kind: "silme" }), "silme", "tür varsa o okunuyor");
     "silme önerisi personId'siz olamaz");
   check(!isCoherent({ ...temel, kind: "silme", personId: "p1", changes: { a: { from: "", to: "x" } } } as Proposal),
     "silme önerisi `changes` taşıyamaz");
+}
+
+/* ── Geri çekme (madde 35/D) ──────────────────────────────────────────────── */
+{
+  const p = oneri();
+  const r = withdraw(p, "u1", "Mehmet", "2026-09-06T12:00:00.000Z");
+  check(r.ok, "öneren kendi önerisini geri çekebiliyor");
+  if (r.ok) {
+    eq(r.proposal.status, "geri-cekildi", "durum geri-cekildi");
+    eq(r.proposal.decidedBy, "u1", "sonlandıran, önerenin kendisi");
+    eq(r.proposal.decidedAt, "2026-09-06T12:00:00.000Z", "damga yazılıyor");
+    eq(r.proposal.changes, p.changes, "içerik korunuyor — kayıt kayboluyor değil");
+    /*
+     * KOPYA dönüyor, özgün nesne değişmiyor. Yerinde değiştirseydi rota,
+     * depoya yazma başarısız olsa bile elindeki nesneyi "geri çekilmiş"
+     * görürdü — kuyrukta duran öneri, bellekte çekilmiş sayılırdı.
+     */
+    check(p.status === "bekliyor", "özgün nesnenin DURUMU değişmiyor");
+    check(p.decidedBy === undefined, "özgün nesneye damga yazılmıyor");
+    check(r.proposal !== p, "dönen nesne farklı bir referans");
+  }
+}
+
+/*
+ * BAŞKASININ ÖNERİSİ GERİ ÇEKİLEMEZ — kuralın en pahalı hâli.
+ *
+ * Serbest bırakılsaydı, kararı beğenmeyen bir yönetici reddetmek yerine
+ * öneriyi geri çekebilirdi: kuyrukta "öneren vazgeçti" yazardı, oysa
+ * vazgeçen o değildi. Reddin bir sahibi var (`decisionNote`), geri çekmenin
+ * sahibi ise tanım gereği önerenin kendisi.
+ */
+{
+  /*
+   * İddia KOŞULSUZ yazıldı. `if (!r.ok) eq(...)` kalıbında, denetim
+   * kalkarsa `eq` hiç çalışmaz ve tek bir iddia kırmızıya döner; koşulsuz
+   * hâlde hem sonuç hem gerekçe sınanıyor.
+   */
+  const r = withdraw(oneri(), "u2", "Başkası", "2026-09-06T12:00:00.000Z");
+  eq(r.ok ? "ÇEKİLDİ" : r.fail, "sahibi-degil", "başkası geri çekemiyor (gerekçe: sahibi değil)");
+  check(!r.ok, "sonuç başarısız");
+}
+/* Yönetici bile başkasının önerisini geri çekemiyor — onun aracı RET. */
+{
+  const r = withdraw(oneri({ by: "uye7" }), "yonetici", "Y", "2026-09-06T12:00:00.000Z");
+  eq(r.ok ? "ÇEKİLDİ" : r.fail, "sahibi-degil", "yönetici de başkasınınkini çekemiyor");
+}
+
+/* Karara bağlanmış öneri geri çekilemez: olmuş bir değişikliği olmamış göstermek olurdu. */
+for (const st of ["onaylandi", "reddedildi", "geri-cekildi"] as const) {
+  const r = withdraw(oneri({ status: st }), "u1", "Mehmet", "2026-09-06T12:00:00.000Z");
+  check(!r.ok, `${st} durumundaki öneri geri çekilemiyor`);
+  if (!r.ok) eq(r.fail, "karar-verilmis", `${st} → karar-verilmis`);
+}
+
+/* Geri çekilen öneriye SONRADAN karar da verilemez — `decide` de "bekliyor" istiyor. */
+{
+  const r = withdraw(oneri(), "u1", "Mehmet", "2026-09-06T12:00:00.000Z");
+  check(r.ok, "önce geri çekildi");
+  if (r.ok) {
+    const k = decide(r.proposal, "onaylandi", "yonetici", "Y", "2026-09-06T13:00:00.000Z");
+    check(!k.ok, "geri çekilmiş öneri onaylanamıyor");
+  }
+}
+
+/* Geri çekilen öneri BEKLEYEN sayılmıyor — rozet onu göstermemeli. */
+{
+  const r = withdraw(oneri(), "u1", "Mehmet", "2026-09-06T12:00:00.000Z");
+  if (r.ok) eq(pendingCount([r.proposal, oneri({ id: "o2" })]), 1, "geri çekilen rozete girmiyor");
+}
+
+/*
+ * Geri çekilen öneri tavan dolduğunda DÜŞÜRÜLEBİLİR ("bekliyor" değil).
+ * Düşürülemeseydi, vazgeçilmiş öneriler kuyruğu kalıcı olarak tıkardı.
+ */
+{
+  const dolu: Proposal[] = [];
+  for (let i = 0; i < MAX_PROPOSALS; i++) dolu.push(oneri({ id: `x${i}`, status: "geri-cekildi" }));
+  const r = planProposal(dolu, oneri({ id: "yeni" }));
+  check(r.ok, "geri çekilenler tavanı tıkamıyor");
+  if (r.ok) {
+    eq(r.list.length, MAX_PROPOSALS, "tavan korunuyor");
+    check(r.list.some((x) => x.id === "yeni"), "yeni öneri girdi");
+    check(!r.list.some((x) => x.id === "x0"), "en eski geri çekilen düştü");
+  }
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
