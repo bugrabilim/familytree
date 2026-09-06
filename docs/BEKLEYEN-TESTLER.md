@@ -20,7 +20,13 @@ Supabase'de kaldırılmış misafir giriş özelliğinden kalma bir kayıt duruy
 - 1 ağaç (ana ağaç) + 7 kişi kaydı; oluşturma 2026-09-05
 - Blob tarafında da `family-data-7b37a143….json` beklenir
 
-Neden duruyor: hesap silme özelliği bitince **onun üzerinde denenecek**.
+**KARAR DEĞİŞTİ (2026-09-06): kayıt DURUYOR, dokunulmayacak.** Ürün sahibi
+"misafir hesabı kalsın, elleme" dedi. Aşağıdaki doğrulama listesi bu kayıt
+için ARTIK GEÇERSİZ; silme özelliği başka bir kayıt üzerinde denenecek ya da
+hiç denenmeyecek.
+
+Özgün gerekçe (kayıt için): hesap silme özelliği bitince onun üzerinde
+denenecekti.
 Elle silinseydi, kodun gerçekten HER yeri temizlediğini doğrulayacak gerçek
 bir örnek kalmazdı — yazdığımız silme yolunun tek sınavı yine kendi
 testlerimiz olurdu.
