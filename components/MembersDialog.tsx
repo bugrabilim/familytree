@@ -130,6 +130,13 @@ export default function MembersDialog({ treeName, onClose }: Props) {
               className="h-9 px-2 rounded-lg bg-surface border border-border text-sm text-text focus:outline-none focus:border-primary"
             >
               <option value="viewer">{t("role.viewer")}</option>
+              {/*
+                KATKI VERİCİ (madde 35): ekleyebilir, var olanı değiştiremez —
+                değişiklik önerir. "Biraz katkı versin" demek için editor
+                vermek zorunda kalmanın karşılığı; editor ağacın tamamını
+                silebiliyor.
+              */}
+              <option value="contributor">{t("role.contributor")}</option>
               <option value="editor">{t("role.editor")}</option>
               <option value="admin">{t("role.admin")}</option>
             </select>
@@ -137,6 +144,17 @@ export default function MembersDialog({ treeName, onClose }: Props) {
               {creating ? t("members.creating") : t("members.createInvite")}
             </Button>
           </div>
+          {/*
+            Yeni kademe SEÇİLİRKEN ne olduğu yazılıyor. Rol adı tek başına
+            "katkı verici"nin editor'den ne farkı olduğunu anlatmıyor ve
+            fark tam olarak burada önemli: daveti gönderen kişi, karşı tarafa
+            ne kadar yetki verdiğini bilmeli.
+          */}
+          {role === "contributor" && (
+            <p className="mt-2 text-[11px] text-text-subtle leading-relaxed">
+              {t("role.contributorHint")}
+            </p>
+          )}
           {link && (
             <div className="mt-2.5">
               <p className="text-[11px] text-text-subtle mb-1">{t("members.linkHint")}</p>

@@ -1,4 +1,4 @@
-import { roleAtLeast, canContribute, canEdit, canManage } from "../lib/roles.ts";
+import { roleAtLeast, canContribute, canEdit, canEditPerson, canManage } from "../lib/roles.ts";
 
 let ok = 0, fail = 0;
 const check = (ad: string, kosul: boolean, detay = "") =>
@@ -59,6 +59,25 @@ check("canContribute null değil", !canContribute(null));
  */
 check("canEdit contributor DEĞİL", !canEdit("contributor"));
 check("canManage contributor değil", !canManage("contributor"));
+
+/* ── canEditPerson: rol + SAHİPLİK ───────────────────────────────────────── */
+const kendi = { addedBy: "u1" };
+const baskasi = { addedBy: "u9" };
+const eski = {};
+
+check("editor herkesin kaydını düzenler", canEditPerson("editor", "u1", baskasi));
+check("admin herkesin kaydını düzenler", canEditPerson("admin", "u1", eski));
+check("katkı verici KENDİ eklediğini düzenler", canEditPerson("contributor", "u1", kendi));
+check("katkı verici BAŞKASININ kaydını düzenleyemez", !canEditPerson("contributor", "u1", baskasi));
+/*
+ * `addedBy` yoksa sahiplik KURULAMAZ. İzin verilseydi, rolden önce eklenmiş
+ * bütün eski ağaç katkı vericiye açılırdı — hem de tek bir eksik alan yüzünden.
+ */
+check("addedBy yoksa katkı verici düzenleyemez", !canEditPerson("contributor", "u1", eski));
+check("kimliği olmayan katkı verici düzenleyemez", !canEditPerson("contributor", "", kendi));
+check("viewer hiçbir şeyi düzenleyemez", !canEditPerson("viewer", "u1", kendi));
+check("rolsüz düzenleyemez", !canEditPerson(undefined, "u1", kendi));
+check("kayıt yoksa düzenleyemez", !canEditPerson("contributor", "u1", undefined));
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

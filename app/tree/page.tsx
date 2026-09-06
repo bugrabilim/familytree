@@ -34,6 +34,7 @@ export default async function TreePage({
       familyName={activeName}
       displayName={session?.user?.name ?? undefined}
       role={ctx.role}
+      authorId={ctx.authorId}
       trees={trees}
       activeTreeId={ctx.treeId}
       isFounder={isFounder}

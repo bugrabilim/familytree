@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { mergePersonFields } from "@/lib/person-fields";
-import { canContribute, canEdit } from "@/lib/roles";
+import { canContribute, canEdit, canEditPerson } from "@/lib/roles";
 import { deleteBondsOfPerson } from "@/lib/bond-store";
 import { scrubDeleted } from "@/lib/scrub";
 
@@ -54,8 +54,7 @@ export async function PUT(
    * `undefined === undefined` gibi bir eşleşmeye izin verilseydi, kimliği
    * çözülemeyen bir katkı verici bütün eski ağacı düzenleyebilirdi.
    */
-  if (!canEdit(ctx.role) && data.people[index].addedBy !== ctx.authorId)
-    return forbidden();
+  if (!canEditPerson(ctx.role, ctx.authorId, data.people[index])) return forbidden();
 
   /*
    * Alanlar KAYIT DEFTERİNDEN birleştirilir (`lib/person-fields.ts`).

@@ -11,6 +11,7 @@ import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
 import GatheringsDialog from "@/components/GatheringsDialog";
 import StoriesDialog from "@/components/StoriesDialog";
+import ProposalsDialog from "@/components/ProposalsDialog";
 import PersonDrawer from "@/components/PersonDrawer";
 import EgoNetwork from "@/components/EgoNetwork";
 import CommandPalette from "@/components/CommandPalette";
@@ -41,6 +42,7 @@ import PersonForm from "@/components/PersonForm";
 import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
 import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
+import { AuthorityProvider, useAuthority } from "@/components/AuthorityContext";
 import { setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 import { isMember } from "@/lib/associates";
@@ -88,6 +90,14 @@ export default function Workspace(props: {
   publicView?: boolean;
   /** publicView iken yaşayan-gizleme kilit değeri (sahibin tercihi). */
   hideLivingForced?: boolean;
+  /**
+   * Bu oturumun kayıt sahipliği kimliği (`ctx.authorId`).
+   *
+   * Katkı verici KENDİ eklediğini düzenleyebiliyor; arayüzün "kaydet" mi
+   * "değişiklik öner" mi göstereceği bu karşılaştırmaya bakıyor. Gelmezse
+   * sahiplik hiç kurulamaz, yani her kayıt için öneri açılır — güvenli yön.
+   */
+  authorId?: string;
 }) {
   // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
   // tüketebilsin diye asıl mantık sağlayıcıların içindeki bir bileşene taşındı.
@@ -96,7 +106,14 @@ export default function Workspace(props: {
   return (
     <ReadOnlyProvider forced={forcedViewer}>
       <PrivacyProvider forced={forcedViewer} forcedValue={props.publicView ? props.hideLivingForced : undefined}>
-        <WorkspaceInner {...props} />
+        {/*
+          YETKİ sağlayıcısı: "ne yapabilirim" sorusunu tek yerden yanıtlıyor.
+          Genel paylaşımda (publicView) rol "viewer" geliyor zaten; orada
+          kimlik de yok, dolayısıyla hiçbir kayıt "kendi eklediği" sayılmıyor.
+        */}
+        <AuthorityProvider role={props.role ?? "admin"} authorId={props.authorId ?? ""}>
+          <WorkspaceInner {...props} />
+        </AuthorityProvider>
       </PrivacyProvider>
     </ReadOnlyProvider>
   );
@@ -130,6 +147,7 @@ function WorkspaceInner({
   const router = useRouter();
   const { readOnly } = useReadOnly();
   const { view: maskView } = usePrivacy();
+  const authority = useAuthority();
   const t = useT();
 
   // Madde 9 — İyimser kilitleme: değiştirme istekleri, düzenlemenin dayandığı
@@ -162,6 +180,32 @@ function WorkspaceInner({
   const [shareHubOpen, setShareHubOpen] = useState(false);
   const [gatheringsOpen, setGatheringsOpen] = useState(false);
   const [storiesOpen, setStoriesOpen] = useState(false);
+  const [proposalsOpen, setProposalsOpen] = useState(false);
+  const [proposalCount, setProposalCount] = useState(0);
+
+  /*
+   * BEKLEYEN ÖNERİ SAYISI.
+   *
+   * Yalnız karar verebilene sorulmuyor: katkı verici de kendi önerilerini
+   * görebiliyor ve kuyruğa girebilmeli. Ama SAYIYI sunucu yalnız karar
+   * verebilene döndürüyor (`pending`), çünkü katkı vericiye verilseydi
+   * göremediği önerilerin varlığını sayıdan çıkarırdı.
+   */
+  useEffect(() => {
+    if (publicView || !authority.canAdd) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/family/proposals", { cache: "no-store" });
+        if (!res.ok || !alive) return;
+        const d = await res.json();
+        if (alive) setProposalCount(typeof d.pending === "number" ? d.pending : 0);
+      } catch {
+        /* sayı gösterememek özelliği bozmuyor; kuyruk yine menüden açılıyor */
+      }
+    })();
+    return () => { alive = false; };
+  }, [publicView, authority.canAdd, proposalsOpen]);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   // AI sohbet geçmişi burada tutulur → panel kapanıp açılınca konuşma korunur.
   const [aiMessages, setAiMessages] = useState<AiMsg[]>([]);
@@ -572,6 +616,12 @@ function WorkspaceInner({
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShare={() => setShareHubOpen(true)}
         onOpenPeople={!publicView ? () => setPeopleOpen(true) : undefined}
+        /*
+         * Kuyruk katkı vericiye de açık: yazdığı önerinin onaylanıp
+         * onaylanmadığını göremeseydi, boşluğa yazmış olurdu.
+         */
+        onOpenProposals={!publicView && authority.canAdd ? () => setProposalsOpen(true) : undefined}
+        proposalCount={proposalCount}
         onPrintView={printCurrentView}
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
@@ -867,6 +917,14 @@ function WorkspaceInner({
           people={people.map(maskView).map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() }))}
           editable={!readOnly}
           onClose={() => setStoriesOpen(false)}
+          onApplied={() => router.refresh()}
+        />
+      )}
+
+      {proposalsOpen && (
+        <ProposalsDialog
+          onClose={() => setProposalsOpen(false)}
+          /* Onay ağacı değiştirdi: tazelenmezse ekranda eski hâli kalır. */
           onApplied={() => router.refresh()}
         />
       )}

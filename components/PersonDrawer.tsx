@@ -30,6 +30,7 @@ import {
   indexPeople,
 } from "@/lib/relations";
 import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions";
+import { useAuthority } from "./AuthorityContext";
 import { moveInList, siblingGroup } from "@/lib/siblings";
 import { useRouter } from "next/navigation";
 import { fullName } from "@/lib/name";
@@ -87,6 +88,7 @@ export default function PersonDrawer({
 
   const { view, hideLiving } = usePrivacy();
   const { readOnly } = useReadOnly();
+  const authority = useAuthority();
   const t = useT();
   const router = useRouter();
   const [reordering, setReordering] = useState(false);
@@ -272,7 +274,12 @@ export default function PersonDrawer({
           <div className="flex flex-wrap gap-1.5 mt-4">
             {!readOnly && (
               <Button size="sm" variant="secondary" onClick={() => onEdit(person.id)}>
-                {t("drawer.edit")}
+                {/*
+                  Katkı vericinin düzenleyemediği kayıtta düğme "değişiklik
+                  öner" diyor. "Düzenle" deseydi, formu doldurup kaydedene
+                  kadar değişikliğin doğrudan geçmeyeceğini bilmezdi.
+                */}
+                {authority.canEditPerson(person) ? t("drawer.edit") : t("proposal.submit")}
               </Button>
             )}
             <Button size="sm" variant="secondary" onClick={() => onFocus(person.id)}>
@@ -284,7 +291,13 @@ export default function PersonDrawer({
             <Button size="sm" variant="secondary" onClick={() => onEgo(person.id)}>
               {t("drawer.ego")}
             </Button>
-            {!readOnly && (
+            {/*
+              SİLME katkı vericiye kapalı — kendi eklediği kayıt için bile.
+              Sunucu da reddediyor (`canEdit`); burada gizlenmeseydi düğme
+              görünür, basılır ve 403 dönerdi. Sebebi anlaşılmayan bir ret,
+              görünmeyen bir düğmeden kötüdür.
+            */}
+            {!readOnly && authority.canEditAll && (
               <div className="ml-auto">
                 {confirmDelete ? (
                   <div className="flex gap-1.5">
