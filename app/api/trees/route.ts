@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createTree, deleteTree, listTrees, renameTree } from "@/lib/trees";
+import { createTree, listDeletedTrees, listTrees, renameTree, softDeleteTree } from "@/lib/trees";
 import { resolveActiveTree } from "@/lib/tree-context";
+import { GRACE_DAYS } from "@/lib/retention";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,25 @@ async function founderCtx() {
   return { accountId: session.user.id, treeName: session.user.treeName ?? session.user.name ?? "Ağaç" };
 }
 
-/** Founder'ın ağaçları + aktif ağaç kimliği. */
+/**
+ * Founder'ın ağaçları + aktif ağaç kimliği.
+ *
+ * `deleted`: bekleme süresindeki ağaçlar (kalan günüyle). Ayrı bir alan,
+ * çünkü `trees` listesi canlı ağaçlar demek ve arayüzün bir yerinde
+ * kazayla karışmaları, silinmiş ağacı yeniden açık göstermek olurdu.
+ */
 export async function GET() {
   const c = await founderCtx();
   if ("error" in c) return c.error;
-  const [trees, active] = await Promise.all([listTrees(c.accountId, c.treeName), resolveActiveTree()]);
+  const [trees, deleted, active] = await Promise.all([
+    listTrees(c.accountId, c.treeName),
+    listDeletedTrees(c.accountId),
+    resolveActiveTree(),
+  ]);
   return NextResponse.json({
     trees,
+    deleted,
+    graceDays: GRACE_DAYS,
     activeTreeId: active.ok ? active.treeId : c.accountId,
   });
 }
@@ -49,13 +62,52 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-/** Ağaç sil (ana ağaç silinemez). */
+/**
+ * Ağaç sil — YUMUŞAK (ana ağaç silinemez).
+ *
+ * Veri hemen yok edilmiyor: ağaç `GRACE_DAYS` gün bekleme süresine alınır,
+ * her yüzeyden düşer ve `POST /api/trees/restore` ile geri getirilebilir.
+ * Süre dolunca zamanlanmış iş kalıcı olarak siler. Gerekçe
+ * `lib/retention.ts`te: aile ağacı geri getirilemez, yanlış ağacı silmek ise
+ * kolay.
+ *
+ * Ana ağaç burada silinemez; onu silmek hesabı silmek demek ve o akış şifre
+ * teyidi istiyor (`POST /api/account/delete`).
+ */
 export async function DELETE(req: NextRequest) {
   const c = await founderCtx();
   if ("error" in c) return c.error;
   const body = await req.json().catch(() => ({}));
   const treeId = typeof body.treeId === "string" ? body.treeId : "";
-  const ok = await deleteTree(c.accountId, treeId);
-  if (!ok) return NextResponse.json({ error: "Silinemedi (ana ağaç ya da bulunamadı)." }, { status: 400 });
-  return NextResponse.json({ success: true });
+  /*
+   * Damga yazılamazsa (Blob hatası) ağaç SİLİNMİŞ SAYILMAZ: `softDeleteTree`
+   * erişim dosyasını yazamadığında hata yükseltiyor, çünkü yarı gizlenmiş bir
+   * ağaç — listeden düşmüş ama bağlantısı açık — en kötü durum. Kullanıcı
+   * açık bir hata görüp tekrar denemeli.
+   */
+  let r: Awaited<ReturnType<typeof softDeleteTree>>;
+  try {
+    r = await softDeleteTree(c.accountId, treeId);
+  } catch (e) {
+    console.error(`[silme] ağaç silinemedi (${treeId}):`, (e as Error).message);
+    return NextResponse.json(
+      { error: "Ağaç şu an silinemedi. Lütfen tekrar deneyin." },
+      { status: 500 }
+    );
+  }
+  if (!r.ok) {
+    const mesaj =
+      r.reason === "home"
+        ? "Ana ağaç silinemez. Hesabı silmek için hesap ayarlarını kullanın."
+        : r.reason === "already-deleted"
+          ? "Bu ağaç zaten silinmiş."
+          : "Ağaç bulunamadı.";
+    return NextResponse.json({ error: mesaj }, { status: 400 });
+  }
+  return NextResponse.json({
+    success: true,
+    deletedAt: r.deletedAt,
+    purgeAt: r.purgeAt,
+    daysLeft: r.daysLeft,
+  });
 }

@@ -205,3 +205,104 @@ export async function proposeChanges(
   });
   if (!res.ok) throw new Error(await parseError(res, "Öneri gönderilemedi."));
 }
+
+/* ── Yıkıcı işlemler: ağaç silme, geri getirme ve hesap silme ───────────────
+ *
+ * Silme KALICI DEĞİL: kayıt önce beklemeye alınır, `purgeAt` anında kalıcı
+ * olarak yok edilir. Kalıcı yok edişi kullanıcı tetikleyemez; tetikleyebilseydi
+ * bekleme süresi de anlamını yitirirdi.
+ *
+ * İki uç 207 döndürebiliyor: kayıt beklemeye alındı ama ona bağlı bazı veriler
+ * (Blob nesneleri, Cloudinary varlıkları, Postgres aynası) işlenemedi. 207
+ * `res.ok` olduğu için, alışıldık `if (!res.ok) throw` kalıbı onu SESSİZCE
+ * tam başarı sayardı — kullanıcı "her şey halloldu" der, oysa verisinin bir
+ * kısmı beklendiği yerde değildir. O yüzden sonuç bir birlik (union): çağıran
+ * kısmi başarıyı görmezden GELEMEZ, `durum` alanını ayırmak zorunda.
+ */
+export type SilmeSonucu =
+  | { durum: "tamam"; purgeAt?: string; deletedAt?: string }
+  | { durum: "kismi"; failed: string[]; purgeAt?: string; deletedAt?: string };
+
+async function silmeYaniti(res: Response, fallback: string): Promise<SilmeSonucu> {
+  if (!res.ok) throw new Error(await parseError(res, fallback));
+  const data = await res.json().catch(() => ({}));
+  const purgeAt = typeof data?.purgeAt === "string" ? data.purgeAt : undefined;
+  const deletedAt = typeof data?.deletedAt === "string" ? data.deletedAt : undefined;
+  if (res.status === 207) {
+    const failed = Array.isArray(data?.failed) ? (data.failed as string[]) : [];
+    return { durum: "kismi", failed, purgeAt, deletedAt };
+  }
+  return { durum: "tamam", purgeAt, deletedAt };
+}
+
+/**
+ * Ağacı beklemeye alır (30 gün sonra kalıcı silme). ANA ağaç silinemez —
+ * sunucu reddediyor, arayüz de seçeneği hiç göstermiyor (bkz. TreeSwitcher):
+ * gösterilip reddedilen bir düğme, sebebi anlaşılmayan bir hatadır.
+ */
+export async function deleteTree(
+  treeId: string,
+  fallback = "Ağaç silinemedi."
+): Promise<SilmeSonucu> {
+  const res = await fetch("/api/trees", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ treeId }),
+  });
+  return silmeYaniti(res, fallback);
+}
+
+/**
+ * Beklemedeki ağacı geri getirir. Bekleme süresinin TEK anlamı bu: geri
+ * getirme yolu olmasaydı elimizde yalnız gecikmeli bir silme kalırdı.
+ */
+export async function restoreTree(
+  treeId: string,
+  fallback = "Ağaç geri getirilemedi."
+): Promise<void> {
+  const res = await fetch("/api/trees/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ treeId }),
+  });
+  if (!res.ok) throw new Error(await parseError(res, fallback));
+}
+
+/**
+ * Hesabın tamamını beklemeye alır. `confirm` hesabın aile adıdır ve sunucuda
+ * birebir karşılaştırılır; şifre AYRICA sorulur. İkisi birden isteniyor çünkü
+ * açık kalmış bir oturumda tek tıkla hesap silmek — bekleme süresi dolunca
+ * geri dönüşü olmayan — bir kazadır.
+ */
+export async function deleteAccount(
+  password: string,
+  confirm: string,
+  fallback = "Hesap silinemedi."
+): Promise<SilmeSonucu> {
+  const res = await fetch("/api/account/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password, confirm }),
+  });
+  return silmeYaniti(res, fallback);
+}
+
+/**
+ * Bekleme süresindeki hesabı geri getirir — OTURUMSUZ (giriş ekranından).
+ *
+ * Silinmiş hesapla giriş YAPILAMIYOR (`lib/credentials.ts`), o yüzden geri
+ * almanın da oturumu olamaz: kullanıcı elinde yalnız aile adı ve şifresiyle
+ * geliyor. Uç kimliği doğrudan şifreyle doğruluyor.
+ */
+export async function restoreAccount(
+  familyName: string,
+  password: string,
+  fallback = "Hesap geri getirilemedi."
+): Promise<SilmeSonucu> {
+  const res = await fetch("/api/account/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ familyName, password }),
+  });
+  return silmeYaniti(res, fallback);
+}

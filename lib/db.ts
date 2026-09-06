@@ -143,6 +143,49 @@ export async function dbDeleteTree(treeId: string): Promise<void> {
 }
 
 /**
+ * HESABI ve ona bağlı HER ŞEYİ Postgres'ten siler.
+ *
+ * FK CASCADE'E GÜVENİLMİYOR ve bu bilinçli: `trees.owner_account` hesabı
+ * işaret ediyor ama YABANCI ANAHTAR DEĞİL (bkz. supabase/schema.sql). Yani
+ * `accounts` satırını silmek ağaçlarını silmez; ağaçlar açıkça siliniyor —
+ * onların altındaki `people` / `tree_members` / `tree_invites` ise gerçekten
+ * cascade ile gidiyor.
+ *
+ * Bu tam olarak yaşanmış bir hata: kaldırılan misafir girişinden arta kalan
+ * yetim bir `accounts` satırı depoda öylece kaldı. Yaşam döngüsünün sonu
+ * yazılmadığında ortaya çıkan şey budur.
+ *
+ * `rate_limits` ayrıca temizleniyor: anahtarların içinde hesap kimliği geçiyor
+ * (`ai:chat:<accountId>` gibi) ve satırlar kendiliğinden düşmüyor.
+ */
+export async function dbDeleteAccount(accountId: string): Promise<void> {
+  const sb = supabaseAdmin();
+
+  // 1) Ağaçlar (people/members/invites cascade ile birlikte gider).
+  const trees = await sb.from("trees").delete().eq("owner_account", accountId);
+  if (trees.error) throw new Error(`trees delete (owner): ${trees.error.message}`);
+
+  // 2) Hesabın kendisi.
+  const acc = await sb.from("accounts").delete().eq("id", accountId);
+  if (acc.error) throw new Error(`accounts delete: ${acc.error.message}`);
+}
+
+/**
+ * Kimliği ANAHTARININ İÇİNDE geçen hız-sınırı satırlarını siler.
+ *
+ * Anahtarlar `<alan>:<accountId>` ya da `<alan>:<accountId>:<ip>` biçiminde
+ * (`lib/rate-limit.ts` çağıranları). Kimlik bir UUID olduğu için `like`
+ * kalıbının yanlış satır yakalama ihtimali yok denecek kadar düşük; yine de
+ * hata BEST-EFFORT sayılmalı — artakalan bir kova satırı zararsızdır, oysa
+ * silmeyi bunun yüzünden durdurmak değil.
+ */
+export async function dbDeleteRateLimitsFor(id: string): Promise<void> {
+  if (!id) return;
+  const { error } = await supabaseAdmin().from("rate_limits").delete().like("key", `%${id}%`);
+  if (error) throw new Error(`rate_limits delete: ${error.message}`);
+}
+
+/**
  * Ağacın verisini Postgres'ten oku (Faz 2d — okuma yolu).
  *
  * Ağaç Postgres'te YOKSA `null` döner → çağıran Blob'a düşer (henüz göç

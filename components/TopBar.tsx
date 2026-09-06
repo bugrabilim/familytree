@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import TreeSwitcher from "./TreeSwitcher";
+import TreeSwitcher, { type DeletedTreeItem, type TreeItem } from "./TreeSwitcher";
 import AboutDialog from "./AboutDialog";
 import { useT, type TFunction } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
-import type { TreeMeta } from "@/lib/trees";
 
 export type ViewKey =
   | "agac" | "cevre" | "soy" | "yelpaze" | "liste" | "zaman" | "harita"
@@ -121,7 +120,9 @@ interface Props {
   onAiChat?: () => void;
   peopleCount: number;
   /** Çoklu ağaç (yalnız founder). Verilmezse marka adı statik gösterilir. */
-  trees?: Array<TreeMeta & { home: boolean }>;
+  trees?: TreeItem[];
+  /** Bekleme süresindeki ağaçlar — seçicideki "Silinenler" bölümü. */
+  deletedTrees?: DeletedTreeItem[];
   activeTreeId?: string;
   isFounder?: boolean;
   /** Herkese açık salt-okunur görünüm: sahip menüsü/çıkış gizlenir, kayıt CTA'sı gösterilir. */
@@ -142,6 +143,7 @@ export default function TopBar({
   onAiChat,
   peopleCount,
   trees,
+  deletedTrees,
   activeTreeId,
   isFounder,
   publicView,
@@ -201,7 +203,7 @@ export default function TopBar({
           </div>
           {showSwitcher ? (
             <div className="min-w-0 hidden sm:block">
-              <TreeSwitcher trees={trees!} activeTreeId={activeTreeId!} peopleCount={peopleCount} />
+              <TreeSwitcher trees={trees!} deletedTrees={deletedTrees} activeTreeId={activeTreeId!} peopleCount={peopleCount} />
             </div>
           ) : (
             <div className="min-w-0 hidden sm:block">

@@ -2,28 +2,51 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useT } from "@/lib/i18n";
+import DeleteTreeDialog from "./DeleteTreeDialog";
+import { useLang, useT } from "@/lib/i18n";
 import useClickOutside from "@/lib/useClickOutside";
+import { restoreTree } from "@/lib/actions";
+import { daysLeft, isSoftDeleted } from "@/lib/retention";
 import type { TreeMeta } from "@/lib/trees";
 
-type Tree = TreeMeta & { home: boolean };
+/** Canlı ağaç kaydının arayüzdeki hâli. */
+export type TreeItem = TreeMeta & { home: boolean };
+
+/**
+ * Bekleme süresindeki (yumuşak silinmiş) ağaç.
+ *
+ * `purgeAt`/`daysLeft` sunucudan geliyor ama OPSİYONEL tutuluyor: kalan gün
+ * istemcide `deletedAt`ten yeniden hesaplanıyor. Sebep, sayfa uzun süre açık
+ * kalabiliyor — sunucu render'ında hesaplanmış "3 gün kaldı" ertesi gün hâlâ
+ * "3 gün" der ve kullanıcı acelesi olmadığını sanır.
+ */
+export type DeletedTreeItem = TreeMeta & {
+  deletedAt?: string;
+  purgeAt?: string;
+  daysLeft?: number;
+};
 
 /**
  * Çoklu ağaç seçici (yalnız founder). Aktif ağacı gösterir; açılır menüden
- * ağaç değiştir / yeni ağaç oluştur / yeniden adlandır / sil. Değişiklik
- * sonrası sunucu bileşenleri tazelensin diye router.refresh().
+ * ağaç değiştir / yeni ağaç oluştur / yeniden adlandır / sil. Silinenler ayrı
+ * bir bölümde listelenir ve geri getirilebilir. Değişiklik sonrası sunucu
+ * bileşenleri tazelensin diye router.refresh().
  */
 export default function TreeSwitcher({
   trees,
+  deletedTrees = [],
   activeTreeId,
   peopleCount,
 }: {
-  trees: Tree[];
+  trees: TreeItem[];
+  /** Bekleme süresindeki ağaçlar — "Silinenler" bölümü bunlardan çiziliyor. */
+  deletedTrees?: DeletedTreeItem[];
   activeTreeId: string;
   peopleCount: number;
 }) {
   const router = useRouter();
   const t = useT();
+  const { lang } = useLang();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -31,13 +54,46 @@ export default function TreeSwitcher({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameName, setRenameName] = useState("");
   const [error, setError] = useState<string>();
+  /** Silme onayı açık olan ağaç — pencere açılır kapağın DIŞINDA çiziliyor. */
+  const [silinecek, setSilinecek] = useState<TreeItem | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   useClickOutside(rootRef, () => setOpen(false), open);
 
-  const active = trees.find((tr) => tr.treeId === activeTreeId) ?? trees[0];
+  /*
+   * Kalan gün, menü HER AÇILDIĞINDA istemci saatiyle yeniden hesaplanıyor.
+   * Sunucunun render anındaki `daysLeft` değeri yalnız ilk açılışa kadar
+   * geçerli; ona kalınsaydı uzun süre açık duran bir sekmede sayı donardı ve
+   * kullanıcı "daha 3 günüm var" diye bakarken süre çoktan dolmuş olabilirdi.
+   * `Date.now()` render sırasında çağrılamaz (saf olmayan işlev); olay
+   * işleyicisi doğru yer.
+   */
+  const [simdi, setSimdi] = useState<number | null>(null);
+
+  /*
+   * Beklemedeki ağaçlar canlı listeden ÇIKARILIYOR. Sunucu (`listTrees`)
+   * zaten süzüyor; buradaki ikinci süzgeç, damgalı bir ağacın listeye
+   * sızması hâlinde kullanıcının ona geçmeye çalışmasını engelliyor —
+   * `accessibleTreeIds` silinmiş ağacı vermediği için o geçiş sebebi
+   * anlaşılmayan bir hatayla biterdi.
+   */
+  const canli = trees.filter((tr) => !isSoftDeleted(tr));
+  const active = canli.find((tr) => tr.treeId === activeTreeId) ?? canli[0];
+
+  const tarihYaz = (iso?: string | null) => {
+    if (!iso) return "";
+    try {
+      return new Date(iso).toLocaleDateString(lang === "en" ? "en" : "tr", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return iso;
+    }
+  };
 
   const call = async (
-    method: "POST" | "PATCH" | "DELETE",
+    method: "POST" | "PATCH",
     body: Record<string, unknown>
   ): Promise<Response> => {
     return fetch("/api/trees", {
@@ -117,15 +173,11 @@ export default function TreeSwitcher({
     }
   };
 
-  const remove = async (tree: Tree) => {
-    if (!window.confirm(t("tree.deleteConfirm", { name: tree.name }))) return;
+  const geriGetir = async (treeId: string) => {
     setBusy(true);
     setError(undefined);
     try {
-      const res = await call("DELETE", { treeId: tree.treeId });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d?.error ?? t("tree.deleteFailed"));
-      // Silinen aktif ağaçsa sunucu ana ağaca düşer; her hâlükârda tazele.
+      await restoreTree(treeId, t("tree.restoreFailed"));
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -139,6 +191,7 @@ export default function TreeSwitcher({
       <button
         onClick={() => {
           setOpen((o) => !o);
+          setSimdi(Date.now());
           setError(undefined);
           setCreating(false);
           setRenamingId(null);
@@ -175,7 +228,7 @@ export default function TreeSwitcher({
             </div>
 
             <div className="max-h-72 overflow-y-auto py-1">
-              {trees.map((tree) => {
+              {canli.map((tree) => {
                 const isActive = tree.treeId === activeTreeId;
                 if (renamingId === tree.treeId) {
                   return (
@@ -248,7 +301,13 @@ export default function TreeSwitcher({
                         </svg>
                       )}
                     </button>
-                    {/* Ana ağaç yeniden adlandırılamaz/silinemez (kayıtta tutulmaz). */}
+                    {/*
+                      Ana ağaç yeniden adlandırılamaz/SİLİNEMEZ (kayıtta
+                      tutulmaz; hesabın kendisidir). Sunucu da reddediyor ama
+                      düğmeyi göstermek, basılınca sebebi anlaşılmayan bir hata
+                      demek olurdu — hesabı silmek isteyen kullanıcı ayarlardaki
+                      "Hesabı sil" bölümüne gitmeli.
+                    */}
                     {!tree.home && (
                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
@@ -266,7 +325,18 @@ export default function TreeSwitcher({
                           </svg>
                         </button>
                         <button
-                          onClick={() => remove(tree)}
+                          onClick={() => {
+                            /*
+                              Açılır kapak kapatılıyor: onay penceresi kapağın
+                              DIŞINDA çiziliyor ve pencereye yapılan tıklama
+                              `useClickOutside` için "dışarısı"dır. Kapak açık
+                              kalsaydı ilk tıklamada kapanır, pencere de onunla
+                              birlikte kaybolurdu.
+                            */
+                            setSilinecek(tree);
+                            setOpen(false);
+                            setError(undefined);
+                          }}
                           disabled={busy}
                           title={t("tree.delete")}
                           className="w-7 h-7 grid place-items-center rounded-md text-text-subtle hover:text-danger hover:bg-surface-3"
@@ -281,6 +351,55 @@ export default function TreeSwitcher({
                 );
               })}
             </div>
+
+            {/*
+              Silinenler — bekleme süresinin ANLAMI bu bölüm. Geri getirme yolu
+              görünmeseydi elimizde yalnız gecikmeli bir silme kalırdı ve
+              kullanıcı 30 gün boyunca hiçbir şey yapamadığını sanırdı.
+              En görünür bilgi KALAN GÜN: asıl karar verdiren sayı o.
+            */}
+            {deletedTrees.length > 0 && (
+              <>
+                <div className="h-px bg-border" />
+                <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
+                  {t("tree.deletedTitle")}
+                </div>
+                <div className="max-h-48 overflow-y-auto pb-1">
+                  {deletedTrees.map((tree) => {
+                    const kalan =
+                      tree.deletedAt && simdi !== null
+                        ? daysLeft(tree.deletedAt, simdi)
+                        : tree.daysLeft ?? null;
+                    return (
+                      <div key={tree.treeId} className="flex items-start gap-2 px-3.5 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-text-muted truncate line-through">{tree.name}</p>
+                          <p className="text-[12px] font-semibold text-danger leading-tight">
+                            {kalan === null
+                              ? t("tree.deletedPending")
+                              : kalan === 0
+                              ? t("tree.purgeToday")
+                              : t("tree.deletedDaysLeft", { days: kalan })}
+                          </p>
+                          <p className="text-[10px] text-text-subtle leading-tight">
+                            {t("tree.deletedOn", { date: tarihYaz(tree.deletedAt) })}
+                          </p>
+                        </div>
+                        {/* Geri getirme YALNIZ silinmiş ağaçlarda: canlı listede
+                            böyle bir düğme anlamsız olurdu. */}
+                        <button
+                          onClick={() => geriGetir(tree.treeId)}
+                          disabled={busy}
+                          className="shrink-0 h-7 px-2.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-surface-2 disabled:opacity-50"
+                        >
+                          {t("tree.restore")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             <div className="h-px bg-border" />
 
@@ -339,6 +458,14 @@ export default function TreeSwitcher({
             )}
           </div>
         </>
+      )}
+
+      {silinecek && (
+        <DeleteTreeDialog
+          tree={silinecek}
+          onClose={() => setSilinecek(null)}
+          onDeleted={() => router.refresh()}
+        />
       )}
     </div>
   );

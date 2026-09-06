@@ -77,6 +77,9 @@ const OTURUMSUZ: Readonly<Record<string, string>> = {
   "reset-password/email": "Aynı gerekçe; kurtarma postası isteme.",
   "reset-password/token": "Bağlantı postadan geliyor, başka cihazda açılabilir.",
   "account/email/verify": "Doğrulama bağlantısı postadan; kimlik jetonda.",
+  "account/restore":
+    "Silinmekte olan hesabın GİRİŞİ kapalı (lib/credentials.ts), o yüzden geri " +
+    "almanın da oturumu olamaz; kimlik doğrudan şifreyle kanıtlanıyor.",
   "mobile/login": "Mobil jetonu almanın yolu; öncesinde oturum olamaz.",
   "mobile/register": "Mobil kayıt; aynı gerekçe.",
   "v1/public/tree": "Herkese açık okuma API'si (madde 34); yayımlanan ağaç.",

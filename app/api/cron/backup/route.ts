@@ -7,6 +7,7 @@ import {
   stampOf,
   type BackupSummary,
 } from "@/lib/backup";
+import { sweepExpired } from "@/lib/account-lifecycle";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -36,6 +37,19 @@ export const maxDuration = 300;
  * Aynı depo içindeki kopya, gerçekleşmesi EN OLASI kayba karşı korur:
  * uygulamanın kendi hatasıyla verinin bozulması ya da silinmesi. Deponun
  * tamamının kaybına karşı KORUMAZ — o ayrı bir hedef ister (`docs/YEDEKLEME.md`).
+ *
+ * ## Neden SİLME TEMİZLİĞİ de burada
+ *
+ * Bekleme süresi dolmuş ağaç/hesapların kalıcı silinmesi (`sweepExpired`)
+ * bu işin son adımı. Ayrı bir cron olmasının sebebi YOK DEĞİL: Vercel Hobby
+ * planında proje başına EN FAZLA İKİ zamanlanmış iş var ve ikisi de dolu
+ * (`reminders`, `backup`). Günlük koşan ve zaten veriyle uğraşan iş bu
+ * olduğu için temizlik buraya bağlandı.
+ *
+ * SIRA ÖNEMLİ: temizlik yedekten SONRA. Böylece silinen verinin o günkü
+ * görüntüsü `backups/<gün>/` altına alınmış oluyor ve saklama süresi boyunca
+ * elle geri getirilebiliyor. Ters sırada silinen ağacın son yedeği hiç
+ * alınmamış olurdu.
  */
 
 /** Kaç günlük görüntü saklanacak. */
@@ -124,6 +138,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    /*
+     * SİLME TEMİZLİĞİ — yedekten sonra (yukarıdaki gerekçe). Hata bütün işi
+     * düşürmesin: yedek alınmışken 500 dönmek, sağlayıcı günlüğünde yedeği de
+     * başarısız gösterirdi. Özet yanıtta ve günlükte görünür.
+     */
+    let sweep = { purgedAccounts: 0, purgedTrees: 0, failed: [] as string[] };
+    try {
+      sweep = await sweepExpired(new Date());
+    } catch (e) {
+      console.error("[temizlik] koşu başarısız:", (e as Error).message);
+      sweep.failed.push(`sweep:${(e as Error).message}`);
+    }
+
     const summary: BackupSummary = {
       stamp,
       copied,
@@ -151,7 +178,14 @@ export async function GET(req: NextRequest) {
     if (copied === 0) console.warn(`${satir} — HİÇBİR ŞEY KOPYALANMADI`);
     else console.log(satir);
 
-    return NextResponse.json({ ok: true, ...summary });
+    if (sweep.purgedAccounts || sweep.purgedTrees || sweep.failed.length) {
+      console.log(
+        `[temizlik] ${stamp} — kalıcı silinen hesap ${sweep.purgedAccounts}, ` +
+          `ağaç ${sweep.purgedTrees}, silinemeyen yol ${sweep.failed.length}`
+      );
+    }
+
+    return NextResponse.json({ ok: true, ...summary, sweep });
   } catch (e) {
     // Aynı gerekçe: yanıtı okuyan kimse yok, hata günlüğe düşmeli.
     console.error(`[yedek] ${stamp} — BAŞARISIZ:`, (e as Error).message);

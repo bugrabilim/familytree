@@ -2,6 +2,7 @@ import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import type { Person } from "@/types/family";
 import { matchesHash, parseToken, verifyUnsubToken, type Locator } from "@/lib/contact-token";
 import { applyAnswer, applyUnsubscribe } from "@/lib/contact-consent";
+import { isTreeDeleted } from "@/lib/members";
 
 /**
  * JETONDAN KİŞİYE — oturumsuz yanıt yolunun tek okuma/yazma yeri.
@@ -30,6 +31,19 @@ export interface Found {
 }
 
 async function bul(loc: Locator, personId: string) {
+  /*
+   * SİLİNMEKTE OLAN AĞACIN JETONU ÖLÜDÜR — okuma da yazma da.
+   *
+   * Jeton posta kutusunda duruyor ve ağaç silindikten sonra da tıklanabilir.
+   * Kayıt hâlâ blob'da olduğu için (bekleme süresi) denetim olmasaydı hem
+   * kişinin adı okunur hem de silinmiş bir ağaca onay yazılırdı. Okuma
+   * hatası da "yok" sayılıyor: kapının güvenli yönü kapalı olmak.
+   */
+  try {
+    if (await isTreeDeleted(loc.treeId)) return null;
+  } catch {
+    return null;
+  }
   const data = await getFamilyData(loc.treeId, { skipCache: true });
   const index = data.people.findIndex((p) => p.id === personId);
   return index === -1 ? null : { data, index };

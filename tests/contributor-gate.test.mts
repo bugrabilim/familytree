@@ -100,6 +100,8 @@ for (const r of rotalar()) {
     "account/email/route.ts": "Hesap sahibinin kendi adresi; isFounder istiyor.",
     "account/email/verify/route.ts": "Adres doğrulama; jetonla.",
     "account/notify/route.ts": "Hesap sahibinin kendi tercihi; isFounder istiyor.",
+    "account/restore/route.ts":
+      "Silinmekte olan hesabı geri alma; oturum ve rol YOK, kimlik şifreyle kanıtlanıyor.",
     "admin/drift/route.ts": "Kendi ağaçlarının denetimi; isFounder + canManage.",
     "admin/migrate/route.ts": "Kendi ağaçlarının göçü; isFounder + canManage.",
     "trees/route.ts": "Kendi ağaç listesi; kapsam hesabın kendisi.",

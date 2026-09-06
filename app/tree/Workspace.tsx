@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
-import type { TreeMeta } from "@/lib/trees";
+import type { DeletedTreeItem, TreeItem } from "@/components/TreeSwitcher";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
@@ -82,9 +82,17 @@ export default function Workspace(props: {
   coverPhoto?: string;
   displayName?: string;
   role?: TreeRole;
-  trees?: Array<TreeMeta & { home: boolean }>;
+  trees?: TreeItem[];
+  /** Bekleme süresindeki ağaçlar — seçicideki "Silinenler" bölümü. */
+  deletedTrees?: DeletedTreeItem[];
   activeTreeId?: string;
   isFounder?: boolean;
+  /**
+   * Hesabın ADI (ana ağacın adı = aile adı) — `familyName`den AYRI: o, aktif
+   * ağacın adı ve başka bir ağaca geçildiğinde değişir. "Hesabı sil" teyidi
+   * aile adına birebir eşleşmek zorunda olduğu için karıştırılamaz.
+   */
+  accountName?: string;
   initialSelectedId?: string;
   /** Herkese açık salt-okunur paylaşım görünümü (üyeliksiz genel ziyaretçi). */
   publicView?: boolean;
@@ -126,8 +134,10 @@ function WorkspaceInner({
   coverPhoto: initialCoverPhoto,
   role = "admin",
   trees,
+  deletedTrees,
   activeTreeId,
   isFounder,
+  accountName,
   initialSelectedId,
   publicView,
 }: {
@@ -137,9 +147,11 @@ function WorkspaceInner({
   coverPhoto?: string;
   displayName?: string;
   role?: TreeRole;
-  trees?: Array<TreeMeta & { home: boolean }>;
+  trees?: TreeItem[];
+  deletedTrees?: DeletedTreeItem[];
   activeTreeId?: string;
   isFounder?: boolean;
+  accountName?: string;
   initialSelectedId?: string;
   publicView?: boolean;
   hideLivingForced?: boolean;
@@ -626,6 +638,7 @@ function WorkspaceInner({
         onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
+        deletedTrees={deletedTrees}
         activeTreeId={activeTreeId}
         isFounder={isFounder}
         publicView={publicView}
@@ -868,6 +881,12 @@ function WorkspaceInner({
           onToggleAssociates={setShowAssociates}
           showBonds={showBonds}
           onToggleBonds={setShowBonds}
+          familyName={accountName}
+          /* Beklemedeki ağaçlar sayılmıyor: kullanıcıya "3 ağaç gidecek"
+             derken zaten silinmiş olanı da saymak yanlış bir sayı olurdu. */
+          treeCount={(trees ?? []).filter((tr) => !tr.deletedAt).length || 1}
+          peopleCount={people.length}
+          isFounder={isFounder}
         />
       )}
 

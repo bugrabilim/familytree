@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { auth } from "@/auth";
 import { verifyMobileToken } from "@/lib/mobile-token";
 import { accessibleTreeIds, hasTreeAccess } from "@/lib/trees";
+import { isAccountDeleted } from "@/lib/users";
 import type { TreeRole } from "@/types/user";
 
 /** Aktif ağaç kimliğini taşıyan çerez. */
@@ -76,6 +77,20 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   if (!sessionUser) return { ok: false, status: 401 };
 
   const accountId = sessionUser.id;
+
+  /*
+   * SİLİNMEKTE OLAN HESABIN OTURUMU DA ÇÖZÜLMEZ.
+   *
+   * Girişi kapatmak (`lib/credentials.ts`) tek başına yetmiyor: silmeden
+   * önce verilmiş NextAuth çerezi ve mobil JWT günlerce geçerli kalıyor ve
+   * ikisi de geri çağrılamıyor. Bu satır olmasaydı "hesabımı sildim" diyen
+   * kullanıcı, açık sekmesinden uygulamayı kullanmaya devam ederdi.
+   *
+   * Bedeli her istekte bir hesap listesi okuması olurdu; `isAccountDeleted`
+   * bu yüzden birkaç saniyelik bir önbellek tutuyor (`lib/users.ts`).
+   */
+  if (await isAccountDeleted(accountId)) return { ok: false, status: 401 };
+
   const isFounder = sessionUser.isFounder;
   const homeRole = sessionUser.role;
   // Kurucuda üye kimliği yok; ağacın kimliği onu temsil eder.

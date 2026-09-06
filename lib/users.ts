@@ -4,6 +4,7 @@ import type { User, UsersData } from "@/types/user";
 import { dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
+import { isSoftDeleted } from "@/lib/retention";
 
 const USERS_PATHNAME = "users.json";
 
@@ -312,4 +313,88 @@ export async function applyRecoveryReset(
     console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
   }
   return true;
+}
+
+/* ── HESAP YAŞAM DÖNGÜSÜ: yumuşak silme, geri alma, kalıcı silme ────────────
+ *
+ * Gerekçe `lib/retention.ts` başında. Burada yalnız `users.json` üzerindeki
+ * yazmalar var; sıralama ve öteki depolar `lib/account-lifecycle.ts`te.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Hesabı yumuşak siler / geri alır (`null` → damgayı kaldırır).
+ *
+ * Damga hesabın KENDİ satırında duruyor, ayrı bir "silinenler" dosyasında
+ * değil: iki dosya ayrışırsa hesap ya iki kez silinir ya hiç silinmez, ve
+ * `users.json` zaten kimliğin tek kaynağı.
+ */
+export async function setUserDeletedAt(id: string, deletedAt: string | null): Promise<boolean> {
+  const data = await getUsersData();
+  const user = data.users.find((u) => u.id === id);
+  if (!user) return false;
+  if (deletedAt) user.deletedAt = deletedAt;
+  else delete user.deletedAt;
+  /*
+   * SİLİNEN HESABIN BEKLEYEN JETONLARI DÜŞER. Sıfırlama/doğrulama postaları
+   * yolda olabilir; hesap beklemedeyken o bağlantıların çalışması, silme
+   * kararını postayı eline geçiren birine açmak olurdu. Geri almanın yolu
+   * ŞİFRE (`/api/account/restore`), posta değil.
+   */
+  if (deletedAt) {
+    user.resetTokenHash = undefined;
+    user.resetTokenExpires = undefined;
+    user.emailTokenHash = undefined;
+    user.emailTokenExpires = undefined;
+  }
+  await saveUsersData(data);
+  silinmisOnbellek = null; // kapı verisi değişti → önbellek geçersiz
+  return true;
+}
+
+/** Hesabın `users.json` satırını KALICI olarak siler. */
+export async function deleteUserRow(id: string): Promise<boolean> {
+  const data = await getUsersData();
+  const kalan = data.users.filter((u) => u.id !== id);
+  if (kalan.length === data.users.length) return false;
+  await saveUsersData({ users: kalan });
+  silinmisOnbellek = null;
+  return true;
+}
+
+/*
+ * SİLİNMİŞ HESAP KİMLİKLERİ — kısa ömürlü önbellek.
+ *
+ * `resolveActiveTree` her API isteğinde bu soruyu soruyor. Oturum çerezi
+ * silmeden önce verilmiş olabilir ve JWT'yi geri çağırmanın yolu yok; yani
+ * "giriş kapalı" tek başına yetmiyor, VAR OLAN oturum da çözülmemeli.
+ *
+ * Her istekte `users.json` indirmek bunun bedeli olurdu, o yüzden yalnız
+ * KİMLİK KÜMESİ birkaç saniye tutuluyor. Bedeli, silmeden sonra en fazla
+ * `ONBELLEK_MS` kadar süren bir pencere: o pencerede hesabın kendi açık
+ * oturumu çalışmaya devam eder. Kabul edilebilir — veri zaten `GRACE_DAYS`
+ * gün duruyor ve pencere yalnız hesabın KENDİSİNE açık.
+ */
+const ONBELLEK_MS = 15_000;
+let silinmisOnbellek: { ids: Set<string>; at: number } | null = null;
+
+export async function deletedAccountIds(): Promise<Set<string>> {
+  const now = Date.now();
+  if (silinmisOnbellek && now - silinmisOnbellek.at < ONBELLEK_MS) return silinmisOnbellek.ids;
+  const { users } = await getUsersData();
+  const ids = new Set(users.filter((u) => isSoftDeleted(u)).map((u) => u.id));
+  silinmisOnbellek = { ids, at: now };
+  return ids;
+}
+
+/**
+ * Hesap yumuşak silinmiş mi? Okuma başarısız olursa `false` — kimseyi kendi
+ * altyapı hatamız yüzünden uygulamasından etmeyiz; silinmiş hesabın gizlenmesi
+ * bir gizlilik değil, bir yaşam döngüsü kuralı ve gecikmesi zarar vermez.
+ */
+export async function isAccountDeleted(accountId: string): Promise<boolean> {
+  try {
+    return (await deletedAccountIds()).has(accountId);
+  } catch {
+    return false;
+  }
 }

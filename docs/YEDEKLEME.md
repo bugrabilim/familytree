@@ -101,3 +101,10 @@ aktarabilir (üç-nokta menü > İçe/dışa aktar). Bu, kişisel bir yedek katm
 - **Günlük**: `scripts/backup.mjs` (Blob) + Supabase otomatik yedek.
 - **Sürüm öncesi**: elle bir anlık yedek al.
 - Medya (Cloudinary) için sağlayıcının kendi yedek/çoğaltma seçeneklerine bakın.
+
+## Silme ile ilişkisi
+
+Günlük yedek işi, yedeği aldıktan **sonra** bekleme süresi dolmuş ağaç ve
+hesapları kalıcı olarak siliyor (`sweepExpired`). Yani kalıcı silinen verinin
+son görüntüsü o günün yedeğinde durur ve saklama süresi (varsayılan 14 gün)
+boyunca elle geri getirilebilir. Ayrıntı: `docs/SILME-VE-SAKLAMA.md`.
