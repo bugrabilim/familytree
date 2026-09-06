@@ -7,6 +7,7 @@ import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
 import { useT } from "@/lib/i18n";
+import { normalizeUsername, suggestUsername } from "@/lib/username";
 
 type Status =
   | { kind: "loading" }
@@ -20,6 +21,12 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
 
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  /*
+   * Ad alanı BİR KEZ öneriyle doluyor. Her tuşta yeniden türetilseydi,
+   * kullanıcının elle yazdığı ad görünen adı düzelttiği anda silinirdi.
+   */
+  const [adDokunuldu, setAdDokunuldu] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,15 +56,27 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
       const res = await fetch("/api/tree/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, displayName, password }),
+        body: JSON.stringify({ token, displayName, password, username }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? t("join.failed"));
         return;
       }
-      // Katıldıktan sonra ağaç adı + kişisel şifreyle otomatik giriş.
-      await signIn("credentials", { familyName: data.treeName, password, redirect: false });
+      /*
+       * Otomatik giriş, KULLANICI ADIYLA. Adsız gönderilseydi sunucu kurucu
+       * yolunu dener ve üye şifresiyle giriş yapamazdı: kişi az önce
+       * katıldığı ağaca kapıda kalırdı.
+       *
+       * Ad sunucunun döndürdüğü hâlden okunuyor (`data.username`) —
+       * normalleştirmeyi yapan orası ve iki taraf ayrışmasın.
+       */
+      await signIn("credentials", {
+        familyName: data.treeName,
+        username: data.username ?? username,
+        password,
+        redirect: false,
+      });
       router.push("/tree");
     } catch {
       setError(t("join.connError"));
@@ -104,10 +123,30 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             id="join-name"
             className={authField}
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              if (!adDokunuldu) setUsername(suggestUsername(e.target.value));
+            }}
             placeholder={t("join.namePlaceholder")}
             autoFocus
           />
+        </div>
+        <div>
+          <label className={authLabel} htmlFor="join-user">{t("join.userLabel")}</label>
+          <input
+            id="join-user"
+            className={authField}
+            value={username}
+            onChange={(e) => {
+              setAdDokunuldu(true);
+              setUsername(normalizeUsername(e.target.value));
+            }}
+            placeholder={t("join.userPlaceholder")}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <p className="mt-1 text-[11px] text-text-subtle">{t("join.userHint")}</p>
         </div>
         <div>
           <label className={authLabel} htmlFor="join-pass">{t("join.passLabel")}</label>

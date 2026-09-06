@@ -10,13 +10,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       name: "credentials",
       credentials: {
         familyName: { label: "Ağaç adı", type: "text" },
+        username: { label: "Kullanıcı adı", type: "text" },
         password: { label: "Şifre", type: "password" },
       },
       async authorize(credentials) {
         const familyName = credentials?.familyName as string | undefined;
         const password = credentials?.password as string | undefined;
+        // Üye girişi (madde 36): boşsa kurucu yolu, doluysa yalnız o üye.
+        const username = credentials?.username as string | undefined;
         // Doğrulama mantığı web + mobil ortak: lib/credentials.
-        return (await verifyLogin(familyName ?? "", password ?? "")) ?? null;
+        return (await verifyLogin(familyName ?? "", password ?? "", username ?? "")) ?? null;
       },
     }),
 

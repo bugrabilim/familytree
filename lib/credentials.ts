@@ -1,9 +1,23 @@
 import { compare } from "bcryptjs";
 import { findUserByFamilyName } from "@/lib/users";
-import { findMemberByPassword } from "@/lib/members";
+import { findMemberByPassword, findMemberByUsername } from "@/lib/members";
 import { authEmailForAccount, isSupabaseLoginEnabled, supabaseVerifyPassword } from "@/lib/auth-users";
 import { isSoftDeleted } from "@/lib/retention";
 import type { TreeRole, User } from "@/types/user";
+
+/**
+ * Bulunamayan kullanıcı adı için de bir bcrypt çalıştır — ZAMAN SIZINTISINA
+ * karşı.
+ *
+ * Ad yoksa hemen `null` dönmek, "bu ad yok" yanıtını ölçülebilir biçimde
+ * hızlandırır; dışarıdan biri hangi adların var olduğunu yalnız yanıt
+ * süresine bakarak sayabilirdi. Özet gerçek bir bcrypt özeti (12 tur) ama
+ * hiçbir hesaba ait değil.
+ */
+const SAHTE_OZET = "$2b$12$C6UzMDM.H6dfI/f/IKcEe.CjR7SD.eaVFQBKQfxYBQAaVIL9L1Cbe";
+async function bedeliOde(password: string): Promise<void> {
+  try { await compare(password || "x", SAHTE_OZET); } catch { /* süre yakıldı, yeter */ }
+}
 
 /** Giriş sonucu — hem web (NextAuth) hem mobil (jeton) tarafında ortak. */
 export interface SessionUser {
@@ -25,11 +39,23 @@ export interface SessionUser {
 }
 
 /**
- * Soyadı + şifre doğrular. Sıra: (bayrak açıksa) Supabase Auth → bcrypt (founder)
- * → davetli üye şifresi. Web `authorize()` ve mobil `/api/mobile/login` bunu
- * paylaşır — tek kaynak. Doğrulama başarısızsa `null`.
+ * Ağaç adı + şifre (+ isteğe bağlı kullanıcı adı) doğrular.
+ *
+ * Sıra: kullanıcı adı verildiyse YALNIZ o üye; verilmediyse (bayrak açıksa)
+ * Supabase Auth → bcrypt (kurucu) → adsız üyeler arasında şifre eşleşmesi.
+ * Web `authorize()` ve mobil `/api/mobile/login` bunu paylaşır — tek kaynak.
+ * Doğrulama başarısızsa `null`.
  */
-export async function verifyLogin(familyName: string, password: string): Promise<SessionUser | null> {
+export async function verifyLogin(
+  familyName: string,
+  password: string,
+  /**
+   * Üyenin giriş adı (madde 36). Verildiğinde KURUCU YOLU HİÇ DENENMİYOR:
+   * kurucunun kullanıcı adı yok, dolayısıyla ad yazıp kurucu şifresiyle
+   * girilebilseydi ad bir kimlik değil, göz ardı edilen bir süs olurdu.
+   */
+  username?: string
+): Promise<SessionUser | null> {
   if (!familyName || !password) return null;
 
   const user = await findUserByFamilyName(familyName);
@@ -51,6 +77,34 @@ export async function verifyLogin(familyName: string, password: string): Promise
    * Geri alma yolu ayrı ve yine şifreye bağlı: `POST /api/account/restore`.
    */
   if (isSoftDeleted(user)) return null;
+
+  const uyeAdi = (username ?? "").trim();
+  if (uyeAdi) {
+    /*
+     * ADLA GİRİŞ. Kimlik adla çözülüyor, şifre YALNIZ o üyenin özetiyle
+     * karşılaştırılıyor — eski yol her üye için bir bcrypt çalıştırıyordu
+     * ve maliyeti ağacın üye sayısıyla büyüyordu.
+     *
+     * Ad bulunamadığında da bir bcrypt yürütülüyor (`bedeliOde`): yoksa
+     * "böyle bir kullanıcı yok" yanıtı ölçülebilir biçimde hızlı döner ve
+     * dışarıdan biri, hangi adların var olduğunu yalnız SÜREYE bakarak
+     * çıkarabilirdi.
+     */
+    const member = await findMemberByUsername(user.id, uyeAdi);
+    if (!member) {
+      await bedeliOde(password);
+      return null;
+    }
+    if (!(await compare(password, member.passwordHash))) return null;
+    return {
+      id: user.id,
+      memberId: member.id,
+      name: member.displayName,
+      role: member.role,
+      treeName: user.familyName,
+      isFounder: false,
+    };
+  }
 
   const founderSession: SessionUser = {
     id: user.id,

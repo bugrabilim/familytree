@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { createHash } from "node:crypto";
 import { acceptInvite, findValidInvite } from "@/lib/members";
+import { checkUsername, normalizeUsername, USERNAME_MAX, USERNAME_MIN } from "@/lib/username";
 import { getUsersData } from "@/lib/users";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -75,11 +76,35 @@ export async function POST(req: NextRequest) {
 
   const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const username = normalizeUsername(body.username);
 
   if (displayName.length < 2)
     return NextResponse.json({ error: "Adınız en az 2 karakter olmalı." }, { status: 400 });
   if (password.length < 6)
     return NextResponse.json({ error: "Şifre en az 6 karakter olmalı." }, { status: 400 });
+  /*
+   * KULLANICI ADI ZORUNLU (madde 36) — yeni katılımlarda.
+   *
+   * İsteğe bağlı bırakılsaydı, adsız katılan her üye eski (şifreyle kimlik
+   * çözen) yolda kalırdı ve düzeltmeye çalıştığımız belirsizlik yeni
+   * kayıtlarla büyümeye devam ederdi. Alan `Member` tipinde opsiyonel
+   * kalıyor, ama o yalnız ESKİ kayıtlar için.
+   */
+  if (!username)
+    return NextResponse.json({ error: "Kullanıcı adı gerekli." }, { status: 400 });
+  const gecerli = checkUsername(username);
+  if (!gecerli.ok)
+    return NextResponse.json(
+      {
+        error: {
+          kisa: `Kullanıcı adı en az ${USERNAME_MIN} karakter olmalı.`,
+          uzun: `Kullanıcı adı en fazla ${USERNAME_MAX} karakter olabilir.`,
+          gecersiz: "Kullanıcı adında yalnız İngiliz harfleri, rakam, nokta, alt çizgi ve tire olabilir.",
+          "basi-harf-degil": "Kullanıcı adı bir harfle başlamalı.",
+        }[gecerli.fail],
+      },
+      { status: 400 }
+    );
 
   const valid = await findValidInvite(token);
   if (!valid) return NextResponse.json({ error: "Davet geçersiz ya da süresi dolmuş." }, { status: 400 });
@@ -88,7 +113,7 @@ export async function POST(req: NextRequest) {
   if (!treeName) return NextResponse.json({ error: "Ağaç bulunamadı." }, { status: 404 });
 
   const passwordHash = await hash(password, 12);
-  const result = await acceptInvite(token, displayName, passwordHash, password);
+  const result = await acceptInvite(token, displayName, passwordHash, password, username);
   if (!result) return NextResponse.json({ error: "Davet geçersiz ya da süresi dolmuş." }, { status: 400 });
   /*
    * Aynı ağaçta aynı şifre olamaz. Giriş formu üye seçtirmediği için kimlik
@@ -97,9 +122,14 @@ export async function POST(req: NextRequest) {
    */
   if ("error" in result)
     return NextResponse.json(
-      { error: "Bu şifre bu ağaçta kullanılıyor. Başka bir şifre seçin." },
+      {
+        error:
+          result.error === "ad-dolu"
+            ? "Bu kullanıcı adı bu ağaçta kullanılıyor. Başka bir ad seçin."
+            : "Bu şifre bu ağaçta kullanılıyor. Başka bir şifre seçin.",
+      },
       { status: 409 }
     );
 
-  return NextResponse.json({ treeName, role: result.member.role });
+  return NextResponse.json({ treeName, role: result.member.role, username: result.member.username });
 }

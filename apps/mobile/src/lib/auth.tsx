@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean;
   token: string | null;
   user: ApiUser | null;
-  signIn: (familyName: string, password: string) => Promise<void>;
+  signIn: (familyName: string, password: string, username?: string) => Promise<void>;
   signUp: (familyName: string, password: string) => Promise<{ recoveryCode: string }>;
   signOut: () => Promise<void>;
 }
@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(
-    async (familyName: string, password: string) => {
-      const { token: t, user: u } = await loginRequest(familyName, password);
+    async (familyName: string, password: string, username = "") => {
+      const { token: t, user: u } = await loginRequest(familyName, password, username);
       await persist(t, u);
     },
     [persist]

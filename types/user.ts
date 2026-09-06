@@ -133,6 +133,17 @@ export function normalizeRole(raw: unknown): TreeRole {
 export interface Member {
   id: string;
   displayName: string;
+  /**
+   * Giriş adı — küçük harfe indirilmiş, ağaç içinde benzersiz (madde 36).
+   *
+   * OPSİYONEL, çünkü bu alandan önce katılmış üyeler var ve onların girişi
+   * hâlâ eski yoldan (şifreyle kimlik çözme) çalışmalı. Zorunlu yapmak,
+   * var olan her üyeyi kapıda bırakırdı.
+   *
+   * `displayName` "ekranda ne yazsın", bu alan "kim giriyor" sorusunun
+   * yanıtı. İkisi ayrı: görünen ad serbest ve tekrar edebilir.
+   */
+  username?: string;
   passwordHash: string;
   role: TreeRole;
   joinedAt: string;

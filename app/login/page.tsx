@@ -9,10 +9,19 @@ import Button from "@/components/ui/Button";
 import { useT } from "@/lib/i18n";
 import { restoreAccount } from "@/lib/actions";
 import { demoGirisi } from "./actions";
+import { normalizeUsername } from "@/lib/username";
 
 function LoginForm() {
   const t = useT();
   const [familyName, setFamilyName] = useState("");
+  /*
+   * ÜYE GİRİŞİ (madde 36) — isteğe bağlı alan.
+   *
+   * Boşsa kurucu girişi: ağaç adı + şifre, eskisi gibi. Doluysa sunucu
+   * yalnız o üyeyi deniyor. Zorunlu yapılamazdı: kurucunun kullanıcı adı
+   * yok ve bu alandan önce katılmış üyelerin de yok.
+   */
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,7 +46,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/tree";
 
   const girisYap = async () => {
-    const res = await signIn("credentials", { familyName, password, redirect: false });
+    const res = await signIn("credentials", { familyName, username, password, redirect: false });
     if (res?.error) {
       setError(t("login.error"));
       setLoading(false);
@@ -111,6 +120,22 @@ function LoginForm() {
             autoComplete="username"
             required
           />
+        </div>
+
+        <div>
+          <label className={authLabel} htmlFor="kullanici">{t("login.username")}</label>
+          <input
+            id="kullanici"
+            className={authField}
+            value={username}
+            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+            placeholder={t("login.usernamePlaceholder")}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <p className="mt-1 text-[11px] text-text-subtle">{t("login.usernameHint")}</p>
         </div>
 
         <div>
