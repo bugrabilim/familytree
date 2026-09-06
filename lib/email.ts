@@ -33,6 +33,16 @@ export interface SendEmailInput {
    * ama dar: çağıranlar `lib/inbox.ts`teki `threadHeaders`ı kullanıyor.
    */
   headers?: Record<string, string>;
+  /**
+   * `From`un GÖRÜNEN ADI — adres değişmiyor.
+   *
+   * İletilen gelen posta için var (`lib/inbox-forward.ts`). Gönderenin
+   * adresini `From`a yazmak mümkün değil: yalnız kendi doğrulanmış alan
+   * adımızdan gönderebiliyoruz. Görünen ad, kutu listesinde postanın kimden
+   * geldiğini gösteren TEK yer — o da olmazsa gelen her posta "Soylus"
+   * imzasıyla düşer ve birbirinden ayırt edilemez.
+   */
+  fromName?: string;
 }
 
 export type SendResult =
@@ -57,6 +67,31 @@ export function replyAddress(): string | null {
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 /**
+ * `EMAIL_FROM`un görünen adını değiştirir; ADRESİ aynı kalır.
+ *
+ * `"Soylus <bilgi@soylus.com>"` + `"Ali Veli"` → `"Ali Veli <bilgi@soylus.com>"`.
+ * Adres kısmına DOKUNULMUYOR: değiştirilebilseydi bu alan, doğrulanmamış bir
+ * adresten gönderme (ve alan adı taklidi) yolu olurdu.
+ *
+ * Ad, `From` sözdiziminde ayırıcı sayılan karakterlerden arındırılıyor.
+ * Arındırılmasaydı bir gönderen, görünen adına yazacağı `<x@y>` ile başlığın
+ * anlamını değiştirebilirdi — adı YABANCI yazıyor.
+ */
+export function applyFromName(from: string, name: string | undefined): string {
+  const temiz = (name ?? "")
+    .replace(/[\r\n\u2028\u2029]+/g, " ")
+    .replace(/[\u0000-\u001f\u007f<>"',;:@\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 78);
+  if (!temiz) return from;
+  const kose = from.match(/<([^>]+)>/);
+  const adres = (kose ? kose[1] : from).trim();
+  if (!adres) return from;
+  return `${temiz} <${adres}>`;
+}
+
+/**
  * Tek bir gönderim denemesi. `httpRed` alanı ÖNEMLİ: isteğin sunucuya
  * ulaşıp REDDEDİLDİĞİNİ (yani kesinlikle gönderilmediğini) söylüyor.
  * Fırlatılan hatada bu bilinemez — istek gitmiş de olabilir.
@@ -75,7 +110,7 @@ async function denemeGonder(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from,
+        from: applyFromName(from, input.fromName),
         to: Array.isArray(input.to) ? input.to : [input.to],
         // Yanıt adresi: çağıran belirtmediyse ortam değişkeninden.
         ...(() => {

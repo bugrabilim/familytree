@@ -36,6 +36,11 @@ E-posta (gelen kutusu, `/admin/posta`):
       bildirimi postanın gövdesini taşımıyor; gövde ayrı bir çağrıyla
       alınıyor. Yalnız gönderim yetkili anahtarla posta yine de kutuya düşer
       ama gövdesi boş kalır — ekran nedenini ve çözümü yazar.
+- [ ] `INBOX_FORWARD_TO` — gelen postanın İLETİLECEĞİ kendi adresin. Boşsa
+      iletme kapalı olur ve postayı görmek için `/admin/posta` sayfasına
+      girmek gerekir; girilmediği için de posta okunmaz. İletilen posta kendi
+      adresimizden çıkar ama `Reply-To` özgün gönderendir: "Yanıtla" demek
+      doğrudan yazan kişiye yazmak demektir.
 
 Tam liste ve açıklamalar: `.env.local.example`.
 

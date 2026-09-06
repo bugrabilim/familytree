@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readHeaders, verifyWebhook } from "@/lib/webhook-signature";
 import { parseInboundResult, payloadShape } from "@/lib/inbox";
-import { setBody, storeMail } from "@/lib/inbox-store";
+import { setBody, setForward, storeMail } from "@/lib/inbox-store";
+import { forwardIncoming } from "@/lib/inbox-forward-send";
 import { fetchInboundBody } from "@/lib/resend-inbound";
 
 export const dynamic = "force-dynamic";
@@ -123,14 +124,38 @@ export async function POST(req: NextRequest) {
   if (mail.providerId) {
     try {
       const g = await fetchInboundBody(mail.providerId);
-      if (g.ok) await setBody(mail.id, { text: g.text });
-      else {
+      if (g.ok) {
+        await setBody(mail.id, { text: g.text });
+        // Yerel kopya da güncelleniyor: iletilen posta gövdesiz kalmasın.
+        mail.text = g.text;
+      } else {
         await setBody(mail.id, { state: g.state });
+        mail.bodyFetch = g.state;
         console.warn(`[gelen-posta] gövde alınamadı (${g.state}) — ${mail.id}`);
       }
     } catch (e) {
+      mail.bodyFetch = "hata";
       console.warn("[gelen-posta] gövde çağrısı hata verdi:", (e as Error).message);
     }
+  }
+
+  /*
+   * İLETME — gövde denemesinden SONRA, bilerek.
+   *
+   * Sıra tersine olsaydı iletilen posta hep gövdesiz giderdi: webhook yükü
+   * yalnız üstbilgi taşıyor, gövde ayrı çağrıyla geliyor. Kullanıcı da
+   * kutuda "boş posta" görür, gerçek metni okumak için yine uygulamaya
+   * girmek zorunda kalırdı — yani iletmenin bütün amacı kaybolurdu.
+   *
+   * EN İYİ ÇABA: başarısızlığı webhook'u düşürmüyor. Posta zaten saklandı;
+   * burada kaybedilen bildirim, veri değil. Sonucu KAYDETMEK ise şart —
+   * iz bırakmayan bir başarısızlık, "kimse yazmadı" ile "yazdı ama sana
+   * ulaşmadı"yı ayırt edilemez kılardı.
+   */
+  try {
+    await setForward(mail.id, await forwardIncoming(mail));
+  } catch (e) {
+    console.warn("[gelen-posta] iletme hata verdi:", (e as Error).message);
   }
 
   return NextResponse.json({ ok: true });
