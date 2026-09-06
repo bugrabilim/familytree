@@ -19,7 +19,7 @@ interface PrivacyValue {
   /** Yaşayan kişilerin özel bilgileri gizlensin mi? */
   hideLiving: boolean;
   setHideLiving: (v: boolean) => void;
-  /** Rol "viewer" olduğu için gizleme zorunlu mu? (kullanıcı kapatamaz) */
+  /** Genel paylaşım olduğu için gizleme zorunlu mu? (kullanıcı kapatamaz) */
   forced: boolean;
   /** Gösterime hazır kişi: tümüyle maskeli kopya, alan-bazlı gizli, ya da aynısı. */
   view: (p: Person) => Person;
@@ -56,7 +56,7 @@ export function PrivacyProvider({
   forcedValue,
 }: {
   children: React.ReactNode;
-  /** Rol "viewer" ise true — yaşayan maskesi zorunlu, kullanıcı kapatamaz. */
+  /** Genel paylaşımda true — yaşayan maskesi zorunlu, kullanıcı kapatamaz. */
   forced?: boolean;
   /**
    * `forced` iken kilitlenecek değer. Verilmezse `true` (yaşayanları gizle).

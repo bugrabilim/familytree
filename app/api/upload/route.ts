@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToCloudinary } from "@/lib/cloudinary";
-import { canContribute } from "@/lib/roles";
+import { canPropose } from "@/lib/roles";
 import { resolveActiveTree } from "@/lib/tree-context";
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
    * Dosyanın BİR KAYDA BAĞLANMASI ayrı bir istek (kişi POST/PUT) ve orada
    * kendi kapısı var; burada açık olması oraya bir şey açmıyor.
    */
-  if (!canContribute(ctx.role))
+  if (!canPropose(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const formData = await req.formData();

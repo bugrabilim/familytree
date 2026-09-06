@@ -1,5 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
-import type { TreeRole } from "@/types/user";
+/*
+ * GÖRELİ YOL — bilerek. Bu dosyanın birim testi var ve testler
+ * `--experimental-strip-types` ile koşuyor: `@/…` bir ÇALIŞMA ZAMANI
+ * içe aktarımı olduğunda çözümlenemiyor (tip-only olsaydı sorun yoktu,
+ * o zaten siliniyor). `lib/roles.ts` de aynı sebeple göreli.
+ */
+import { normalizeRole, type TreeRole } from "../types/user.ts";
 
 /**
  * Native mobil uygulama için jeton (JWT) tabanlı kimlik. Web tarafı NextAuth
@@ -71,7 +77,12 @@ export async function verifyMobileToken(token: string): Promise<MobileClaims | n
     return {
       sub: payload.sub,
       name: typeof payload.name === "string" ? payload.name : undefined,
-      role: (payload.role as TreeRole) ?? "admin",
+      /*
+       * Eski jetonlar ESKİ ROL ADINI taşıyor ("admin"/"editor"/…) ve
+       * `normalizeRole` onları bugünkü kademeye çeviriyor. Rolsüz jeton
+       * `yonetici` sayılıyor: o jetonlar ağaç şifresiyle giren kurucularındı.
+       */
+      role: payload.role === undefined ? "yonetici" : normalizeRole(payload.role),
       isFounder: payload.isFounder !== false,
       treeName: typeof payload.treeName === "string" ? payload.treeName : undefined,
       memberId: typeof payload.memberId === "string" ? payload.memberId : undefined,

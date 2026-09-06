@@ -97,7 +97,7 @@ check(!/canEditPerson\(person\)/.test(drawer), "maskelenmiş kopya sahiplik kara
  * bile düzeltemez.
  */
 check(/authorId=\{ctx\.authorId\}/.test(page), "sunucu bileşeni kimliği geçiriyor");
-check(/<AuthorityProvider role=\{props\.role \?\? "admin"\} authorId=\{props\.authorId \?\? ""\}>/.test(workspace),
+check(/<AuthorityProvider role=\{props\.role \?\? "yonetici"\} authorId=\{props\.authorId \?\? ""\}>/.test(workspace),
   "sağlayıcı rol ve kimliği alıyor");
 
 /* --- 5. Kuyruk katkı vericiye de açık ------------------------------------ */
@@ -112,9 +112,17 @@ check(/canDecide && p\.status === "bekliyor"/.test(dialog),
 check(/proposalCount/.test(workspace), "bekleyen sayısı taşınıyor");
 
 /* --- 6. Rol davet edilebilir --------------------------------------------- */
-check(/<option value="contributor">/.test(members), "üye ekranında seçilebiliyor");
-check(/role === "contributor" &&/.test(members) && /role\.contributorHint/.test(members),
-  "seçilince ne olduğu yazıyor");
+/*
+ * Davet kutusu TEK seçenekli: `uye`. Yönetici ağacı kuran hesap, davetle
+ * verilen bir kademe değil.
+ */
+check(/<option value="uye">/.test(members), "üye ekranında seçilebiliyor");
+check(!/<option value="yonetici">/.test(members), "davetle yöneticilik verilemiyor");
+/*
+ * Ne verdiğini SÖYLEMEK şart: daveti gönderen, karşı tarafın her
+ * değişikliğinin kendi onayına geleceğini bilmeli.
+ */
+check(/role\.uyeHint/.test(members), "davet edilenin ne yapabileceği yazıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

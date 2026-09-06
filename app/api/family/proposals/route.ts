@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canContribute, canEdit } from "@/lib/roles";
+import { canEdit, canPropose } from "@/lib/roles";
 import { getUsersData } from "@/lib/users";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
@@ -59,7 +59,7 @@ async function gorunenAd(): Promise<string> {
 export async function GET() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  if (!canContribute(ctx.role)) return forbidden();
+  if (!canPropose(ctx.role)) return forbidden();
 
   const hepsi = await listProposals(ctx.treeId);
   const kararVerebilir = canEdit(ctx.role);
@@ -79,7 +79,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  if (!canContribute(ctx.role)) return forbidden();
+  if (!canPropose(ctx.role)) return forbidden();
 
   const body = (await req.json().catch(() => ({}))) as {
     kind?: unknown;
@@ -193,7 +193,7 @@ export async function PATCH(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   /*
-   * KARAR canEdit İSTİYOR. `canContribute` yetseydi katkı verici kendi
+   * KARAR canEdit İSTİYOR. `canPropose` yetseydi katkı verici kendi
    * önerisini onaylayıp yazma kapısını tamamen dolanırdı — yani rol,
    * gecikmeli bir editor olurdu.
    */

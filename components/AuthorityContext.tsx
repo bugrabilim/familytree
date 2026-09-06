@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo } from "react";
-import { canContribute, canEdit, canEditPerson } from "@/lib/roles";
+import { canEdit, canEditPerson, canManage, canPropose } from "@/lib/roles";
 import type { TreeRole } from "@/types/user";
 
 /**
@@ -38,7 +38,7 @@ const AuthorityContext = createContext<AuthorityValue | null>(null);
 
 export function AuthorityProvider({
   children,
-  role = "admin",
+  role = "yonetici",
   authorId = "",
 }: {
   children: React.ReactNode;
@@ -49,11 +49,22 @@ export function AuthorityProvider({
     () => ({
       role,
       authorId,
-      canAdd: canContribute(role),
+      canAdd: canEdit(role),
       canEditAll: canEdit(role),
-      canDecide: canEdit(role),
-      proposes: canContribute(role) && !canEdit(role),
-      canEditPerson: (person) => canEditPerson(role, authorId, person),
+      canDecide: canManage(role),
+      /*
+       * ÜYE her şeyi ÖNEREREK yapıyor. Eski modelde bu "katkı verici ama
+       * düzenleyici değil" diye hesaplanıyordu; artık doğrudan kademenin
+       * kendisi: yönetici değilse öneriyor.
+       */
+      proposes: canPropose(role) && !canEdit(role),
+      /*
+       * İmza `person` alıyor ama kural artık kayda BAKMIYOR (bkz.
+       * `lib/roles.ts`). Bileşenler kaydı geçiriyor olarak kaldı: çağrı
+       * yerlerini değiştirmemek için değil, ileride kayıt-bazlı bir kural
+       * gerekirse tek noktadan bağlanabilsin diye.
+       */
+      canEditPerson: () => canEditPerson(role),
     }),
     [role, authorId]
   );
@@ -72,7 +83,7 @@ export function useAuthority(): AuthorityValue {
   const ctx = useContext(AuthorityContext);
   return (
     ctx ?? {
-      role: "admin",
+      role: "yonetici",
       authorId: "",
       canAdd: true,
       canEditAll: true,

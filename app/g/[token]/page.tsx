@@ -134,7 +134,7 @@ export default async function SharePage({
       people={safePeople}
       version={updatedAt}
       familyName={valid.share.treeName}
-      role="viewer"
+      role="uye"
       isFounder={false}
         publicView
         hideLivingForced={valid.share.hideLiving}

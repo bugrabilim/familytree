@@ -123,7 +123,13 @@ export function PersonForm({
     ]);
   };
 
-  const canEdit = user?.role !== "viewer";
+  /*
+   * ROL MODELİ İKİ KADEMEYE İNDİ (madde 35): `yonetici` ve `uye`.
+   * Eskiden "viewer değilse düzenleyebilir" yeterliydi; artık DOĞRUDAN
+   * yazabilen tek kademe yönetici. Üyenin yolu öneri kuyruğu ve mobilde o
+   * ekran henüz yok, o yüzden burada düzenleme kapalı — sunucu da reddederdi.
+   */
+  const canEdit = user?.role === "yonetici";
 
   return (
     <KeyboardAvoidingView

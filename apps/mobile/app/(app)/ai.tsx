@@ -55,7 +55,8 @@ export default function AiScreen() {
     }
   };
 
-  const viewer = user?.role === "viewer";
+  /* İki kademe: yönetici doğrudan yazar, üye yazamaz (bkz. madde 35). */
+  const viewer = user?.role !== "yonetici";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["left", "right", "bottom"]}>

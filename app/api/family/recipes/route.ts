@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canContribute, canEdit } from "@/lib/roles";
+import { canEdit, canPropose } from "@/lib/roles";
 import {
   addRecipe,
   deleteRecipe,
@@ -28,11 +28,20 @@ export const dynamic = "force-dynamic";
  * koyuyordu; katkı vericiye ekleme açmak istediğimiz anda güncelleme ve
  * silme de açılırdı. Üçüncü seviye tam olarak bu ayrımı taşıyor.
  */
+/*
+ * BİLİNÇLİ BOŞLUK — "ekle" seviyesi ÜYEYE AÇIK.
+ *
+ * Yeni model "üyenin her değişikliği onaydan geçer" diyor, ama öneri motoru
+ * bugün yalnız KİŞİ kayıtlarını taşıyor. Bu ucu yöneticiye kapatsaydık üye
+ * tarif/etkinlik/mektup ekleyemez hâle gelirdi ve yerine koyacak bir yol da
+ * olmazdı — yani daraltma, bir yeteneği yok ederdi. Öneri motoru bu depoları
+ * da kapsayınca burası `canEdit`e çekilecek.
+ */
 async function guard(seviye: "oku" | "ekle" | "duzenle") {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
   const yeter =
-    seviye === "oku" ? true : seviye === "ekle" ? canContribute(ctx.role) : canEdit(ctx.role);
+    seviye === "oku" ? true : seviye === "ekle" ? canPropose(ctx.role) : canEdit(ctx.role);
   if (!yeter)
     return {
       error: NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 }),

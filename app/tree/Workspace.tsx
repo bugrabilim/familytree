@@ -43,6 +43,7 @@ import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
 import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { AuthorityProvider, useAuthority } from "@/components/AuthorityContext";
+import { canEdit, canManage } from "@/lib/roles";
 import { setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 import { isMember } from "@/lib/associates";
@@ -107,19 +108,27 @@ export default function Workspace(props: {
    */
   authorId?: string;
 }) {
-  // Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her ikisini de
-  // tüketebilsin diye asıl mantık sağlayıcıların içindeki bir bileşene taşındı.
-  // Rol "viewer" ya da genel paylaşım ise salt-okunur zorlanır (sunucu da reddeder).
-  const forcedViewer = props.role === "viewer" || !!props.publicView;
+  /*
+   * Sağlayıcılar iç içe: görüntüleme modu + gizlilik. WorkspaceInner her
+   * ikisini de tüketebilsin diye asıl mantık sağlayıcıların içindeki bir
+   * bileşene taşındı.
+   *
+   * SALT-OKUNUR ZORLAMASI ARTIK YALNIZ GENEL PAYLAŞIMDA. Eskiden rol
+   * "viewer" ise de zorlanıyordu; yeni modelde en alt kademe (`uye`)
+   * salt-okunur DEĞİL — okuyor ve ÖNERİYOR, yani düzenleme formunu açması
+   * gerekiyor. Zorlama kalsaydı üye hiçbir öneri yazamazdı ve rolün tek
+   * varlık sebebi ortadan kalkardı.
+   */
+  const forcedViewer = !!props.publicView;
   return (
     <ReadOnlyProvider forced={forcedViewer}>
       <PrivacyProvider forced={forcedViewer} forcedValue={props.publicView ? props.hideLivingForced : undefined}>
         {/*
           YETKİ sağlayıcısı: "ne yapabilirim" sorusunu tek yerden yanıtlıyor.
-          Genel paylaşımda (publicView) rol "viewer" geliyor zaten; orada
-          kimlik de yok, dolayısıyla hiçbir kayıt "kendi eklediği" sayılmıyor.
+          Genel paylaşımda rol `uye` geliyor ve `publicView` salt-okunuru
+          ayrıca zorluyor.
         */}
-        <AuthorityProvider role={props.role ?? "admin"} authorId={props.authorId ?? ""}>
+        <AuthorityProvider role={props.role ?? "yonetici"} authorId={props.authorId ?? ""}>
           <WorkspaceInner {...props} />
         </AuthorityProvider>
       </PrivacyProvider>
@@ -132,7 +141,7 @@ function WorkspaceInner({
   version,
   familyName,
   coverPhoto: initialCoverPhoto,
-  role = "admin",
+  role = "yonetici",
   trees,
   deletedTrees,
   activeTreeId,
@@ -635,7 +644,7 @@ function WorkspaceInner({
         onOpenProposals={!publicView && authority.canAdd ? () => setProposalsOpen(true) : undefined}
         proposalCount={proposalCount}
         onPrintView={printCurrentView}
-        onAiChat={!publicView && role !== "viewer" ? () => setAiChatOpen(true) : undefined}
+        onAiChat={!publicView && canEdit(role) ? () => setAiChatOpen(true) : undefined}
         peopleCount={people.length}
         trees={trees}
         deletedTrees={deletedTrees}
@@ -909,9 +918,9 @@ function WorkspaceInner({
       {shareHubOpen && (
         <ShareHubDialog
           onClose={() => setShareHubOpen(false)}
-          onShare={role === "admin" && !publicView ? () => { setShareHubOpen(false); setShareOpen(true); } : undefined}
-          onManageMembers={role === "admin" && !publicView ? () => { setShareHubOpen(false); setMembersOpen(true); } : undefined}
-          onPair={role === "admin" && !publicView ? () => { setShareHubOpen(false); setPairOpen(true); } : undefined}
+          onShare={canManage(role) && !publicView ? () => { setShareHubOpen(false); setShareOpen(true); } : undefined}
+          onManageMembers={canManage(role) && !publicView ? () => { setShareHubOpen(false); setMembersOpen(true); } : undefined}
+          onPair={canManage(role) && !publicView ? () => { setShareHubOpen(false); setPairOpen(true); } : undefined}
           /*
            * Etkinlikleri GÖRMEK için düzenleyici olmak gerekmiyor (katılım
            * listesi ailenin bilgisi); DEĞİŞTİRMEK için gerekiyor. Diyalog
@@ -965,7 +974,7 @@ function WorkspaceInner({
           onImported={() => router.refresh()}
           onSetView={setView}
           onSetAssociates={setShowAssociates}
-          onOpenShare={role === "admin" && !publicView ? () => setShareOpen(true) : undefined}
+          onOpenShare={canManage(role) && !publicView ? () => setShareOpen(true) : undefined}
           onOpenBook={() => setBookOpen(true)}
           onAddPerson={openAdd}
           onPersonAdded={() => router.refresh()}
@@ -988,15 +997,15 @@ function WorkspaceInner({
         />
       )}
 
-      {pairOpen && role === "admin" && !publicView && (
+      {pairOpen && canManage(role) && !publicView && (
         <PairDialog onClose={() => setPairOpen(false)} />
       )}
 
-      {shareOpen && role === "admin" && !publicView && (
+      {shareOpen && canManage(role) && !publicView && (
         <ShareDialog treeName={familyName} people={people} onClose={() => setShareOpen(false)} />
       )}
 
-      {membersOpen && role === "admin" && (
+      {membersOpen && canManage(role) && (
         <MembersDialog treeName={familyName} onClose={() => setMembersOpen(false)} />
       )}
 

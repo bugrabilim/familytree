@@ -29,7 +29,7 @@ interface ReadOnlyValue {
   /** Uygulama salt-okunur (görüntüleme) modunda mı? */
   readOnly: boolean;
   setReadOnly: (v: boolean) => void;
-  /** Rol "viewer" olduğu için zorunlu mu? (kullanıcı kapatamaz) */
+  /** Genel paylaşım olduğu için zorunlu mu? (kullanıcı kapatamaz) */
   forced: boolean;
 }
 
@@ -63,7 +63,7 @@ export function ReadOnlyProvider({
   forced = false,
 }: {
   children: React.ReactNode;
-  /** Rol "viewer" ise true — salt-okunur zorlanır, kullanıcı açamaz. */
+  /** Genel paylaşımda true — salt-okunur zorlanır, kullanıcı açamaz. Üye kademesi salt-okunur DEĞİL: okur ve önerir, yani formu açabilmeli. */
   forced?: boolean;
 }) {
   const stored = useSyncExternalStore(subscribe, readSnapshot, () => false);

@@ -28,17 +28,18 @@ const store = kodu(read("../lib/proposal-store.ts"));
 {
   const patch = rota.slice(rota.indexOf("export async function PATCH"));
   check(/if \(!canEdit\(ctx\.role\)\) return forbidden\(/.test(patch),
-    "KARAR canEdit istiyor (katkı verici kendi önerisini onaylayamaz)");
-  check(!/canContribute/.test(patch), "PATCH dalında canContribute hiç geçmiyor");
+    "KARAR canEdit istiyor (üye kendi önerisini onaylayamaz)");
+  check(!/canPropose/.test(patch), "PATCH dalında canPropose hiç geçmiyor");
 }
 {
   const post = rota.slice(rota.indexOf("export async function POST"), rota.indexOf("export async function PATCH"));
-  check(/if \(!canContribute\(ctx\.role\)\) return forbidden\(\);/.test(post), "öneri açmak katkı verici yetkisi istiyor");
-  check(!/canEdit/.test(post), "öneri açmak düzenleyici İSTEMİYOR (rolün tek amacı bu)");
+  check(/if \(!canPropose\(ctx\.role\)\) return forbidden\(\);/.test(post),
+    "öneri açmak ağacın her ÜYESİNE açık");
+  check(!/canEdit\(ctx\.role\)/.test(post), "öneri açmak yöneticilik İSTEMİYOR (rolün tek amacı bu)");
 }
 {
   const get = rota.slice(rota.indexOf("export async function GET"), rota.indexOf("export async function POST"));
-  check(/if \(!canContribute\(ctx\.role\)\) return forbidden\(\);/.test(get), "kuyruk en az katkı verici istiyor");
+  check(/if \(!canPropose\(ctx\.role\)\) return forbidden\(\);/.test(get), "kuyruğu her üye görebiliyor");
   check(/visibleTo\(hepsi, ctx\.authorId, kararVerebilir\)/.test(get),
     "kuyruk görünürlükten geçiyor (katkı verici yalnız kendi önerisini görür)");
   /*

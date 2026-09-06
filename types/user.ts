@@ -78,29 +78,55 @@ export interface UsersData {
 }
 
 /**
- * Ağaç erişim rolleri (Madde 13/35). Founder (ağacı kuran hesap) her zaman
- * "admin" sayılır; üyeler davet bağlantısıyla katılır.
- *  - viewer     : yalnızca okur
- *  - contributor: EKLER, ama var olan kayda dokunamaz — değişiklik ÖNERİR
- *  - editor     : kişi ekler/düzenler/siler
- *  - admin      : buna ek olarak üyeleri ve davetleri yönetir
+ * Ağaç erişim rolleri — İKİ KADEME (madde 35, ikinci tur).
  *
- * ## `contributor` neden var
+ *  - yonetici: ağacı KURAN hesap. Her şeyi doğrudan yapar, önerilere karar
+ *              verir, üyeleri yönetir, ağacı siler.
+ *  - uye     : okur ve ÖNERİR. Hiçbir değişikliği doğrudan geçmez.
  *
- * Aradaki boşluk gerçekti: bir akrabaya "kendi dalını gir" demek için ona
- * `editor` vermek gerekiyordu ve `editor` ağacın TAMAMINI silebiliyor,
- * herkesin kaydını değiştirebiliyor. "Biraz katkı versin" ile "her şeye
- * dokunabilsin" arasında kademe yoktu; sonuç, ya kimseyi davet etmemek ya da
- * herkese tam yetki vermekti.
+ * ## Neden dört kademe ikiye indi
  *
- * SIRA ANLAMLIDIR. `lib/roles.ts` yetkiyi bu dizilime göre karşılaştırıyor,
- * yani buraya bir kademe sokmak her yetki kapısını yeniden değerlendirmek
- * demek. Varsayılan GÜVENLİ yönde: kapılar `canEdit` (editor ve üstü) ile
- * korunmaya devam ediyor; katkı vericiye açılan uçlar TEK TEK `canContribute`
- * ile işaretlendi. Yani bir kapı unutulursa katkı verici DIŞARIDA kalır,
- * içeride değil.
+ * Önceki dizilim `viewer < contributor < editor < admin` idi ve dört kademe
+ * üç farklı soruya cevap veriyormuş gibi duruyordu: "okuyabilir mi",
+ * "ekleyebilir mi", "değiştirebilir mi", "üye yönetir mi". Ama ürün sahibinin
+ * kararıyla YÖNETİCİ OLMAYAN HERKESİN her değişikliği onaya gidiyor — o anda
+ * `editor` ile `viewer` arasındaki fark ortadan kalktı: ikisi de okuyor,
+ * ikisi de öneriyor, hiçbiri doğrudan yazmıyor. Aradaki kademeler ayrı
+ * ADLARDI ama ayrı YETKİLER değildi.
+ *
+ * ## Eski değerler
+ *
+ * Depoda ve Postgres'te hâlâ eski dizeler duruyor. `normalizeRole` onları
+ * okurken çeviriyor; kayıtlar bir sonraki yazmada kendiliğinden güncelleniyor
+ * — göç betiği YOK, çünkü çeviri kayıpsız ve tek yönlü.
+ *
+ * `admin` → `yonetici`. Bu bilinçli bir GÜVENLİ yön tercihi: eski bir
+ * yöneticiyi üyeye indirmek, ona haber vermeden yetkisini almak olurdu.
+ * Geri kalan her şey (`editor`, `contributor`, `viewer`) → `uye`; hiçbiri
+ * yetki KAZANMIYOR.
  */
-export type TreeRole = "viewer" | "contributor" | "editor" | "admin";
+export type TreeRole = "yonetici" | "uye";
+
+/** Depoda karşılaşılabilecek eski rol adları. */
+const ESKI_ROLLER: Record<string, TreeRole> = {
+  admin: "yonetici",
+  editor: "uye",
+  contributor: "uye",
+  viewer: "uye",
+};
+
+/**
+ * Herhangi bir yerden okunan rol değerini bugünkü kademeye çevirir.
+ *
+ * TANINMAYAN değer `uye` oluyor — en az yetkili kademe. Bozuk ya da
+ * gelecekten gelen bir değerin yönetici sayılması, tek bir yazım hatasıyla
+ * ağacın kontrolünü devretmek olurdu.
+ */
+export function normalizeRole(raw: unknown): TreeRole {
+  if (raw === "yonetici" || raw === "uye") return raw;
+  if (typeof raw === "string" && raw in ESKI_ROLLER) return ESKI_ROLLER[raw];
+  return "uye";
+}
 
 /** Ağaca davetle katılmış üye hesabı (founder dışındaki kişiler). */
 export interface Member {

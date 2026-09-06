@@ -1,70 +1,65 @@
 import type { TreeRole } from "../types/user";
 
 /**
- * Rol hiyerarşisi — saf, test edilebilir. Sunucu tarafı yetki denetimleri
- * bunu kullanır (istemci yalnızca gösterim; asıl kapı API'de).
+ * ROL YETKİLERİ — iki kademe (madde 35, ikinci tur).
+ *
+ * `yonetici` ağacı kuran hesap; `uye` okuyan ve ÖNEREN herkes. Aradaki tek
+ * fark yazma yetkisi değil, yazmanın YOLU: üyenin her değişikliği öneri
+ * kuyruğundan geçip yöneticinin onayıyla gerçekleşiyor.
+ *
+ * ## Hiyerarşi neden kalktı
+ *
+ * Burada sıralı bir dizi (`ORDER`) ve `roleAtLeast` vardı; dört kademe için
+ * gerekliydi. İkiye inince taşıdığı tek bilgi "yonetici > uye" oldu ve bir
+ * dizinin indeksini karşılaştırmak, doğrudan eşitlik denetiminden ne daha
+ * okunur ne daha güvenli. Dizi kaldırıldı: araya kademe sokmanın sessizce
+ * kapı kaydırma riski de onunla birlikte gitti.
  */
-const ORDER: TreeRole[] = ["viewer", "contributor", "editor", "admin"];
 
-/** `role`, en az `min` yetkisine sahip mi? Bilinmeyen/rolsüz → false. */
-export function roleAtLeast(role: TreeRole | undefined | null, min: TreeRole): boolean {
-  if (!role) return false;
-  const r = ORDER.indexOf(role);
-  const m = ORDER.indexOf(min);
-  return r >= 0 && m >= 0 && r >= m;
+/** Ağacı kuran hesap mı? Doğrudan yazan, karar veren, üye yöneten kademe. */
+export function isYonetici(role: TreeRole | undefined | null): boolean {
+  return role === "yonetici";
 }
 
 /**
- * EKLEME yetkisi: contributor ve üstü.
+ * Var olanı DOĞRUDAN değiştirme/silme ve yeni kayıt açma yetkisi.
  *
- * `canEdit`ten AYRI durması bilinçli. Tek bir "yazma" kapısı olsaydı, katkı
- * vericiye kişi eklettirmek istediğimiz anda ona toplu silmeyi, ağacı
- * temizlemeyi ve başkasının kaydını değiştirmeyi de açmış olurduk — hepsi
- * aynı kapıdan geçiyor. İki ayrı soru, iki ayrı işlev:
- *
- *   canContribute → "yeni bir şey ekleyebilir mi?"
- *   canEdit       → "VAR OLANI değiştirebilir/silebilir mi?"
- *
- * Uçların çoğu `canEdit`te KALDI; katkı vericiye açılanlar tek tek seçildi.
- */
-export function canContribute(role: TreeRole | undefined | null): boolean {
-  return roleAtLeast(role, "contributor");
-}
-
-/**
- * Var olanı değiştirme/silme yetkisi: editor ve üstü.
- *
- * Katkı verici buradan GEÇEMEZ — onun yolu değişiklik önerisi
- * (madde 35'in ikinci parçası).
+ * Artık yalnız yöneticide. Üyenin yolu öneri; bu ayrım rolün bütün varlık
+ * sebebi ve `canEdit`ten geçen her uç, üyeye kapalı demek.
  */
 export function canEdit(role: TreeRole | undefined | null): boolean {
-  return roleAtLeast(role, "editor");
+  return isYonetici(role);
 }
 
-/** Üye/davet yönetimi: yalnızca admin. */
+/** Üye ve davet yönetimi — yalnız yönetici. */
 export function canManage(role: TreeRole | undefined | null): boolean {
-  return roleAtLeast(role, "admin");
+  return isYonetici(role);
 }
 
 /**
- * Bu kişiyi DOĞRUDAN düzenleyebilir mi? (madde 35)
+ * ÖNERİ açabilir mi? Ağacın her üyesi açabilir.
  *
- * Kural TEK YERDE: hem sunucu kapısı (`/api/family/person/[id]` PUT) hem de
- * arayüz (öner düğmesi mi, kaydet düğmesi mi) bunu çağırıyor. İkiye
- * bölünseydi ayrışırlardı ve ayrışmanın yönü kötü olurdu: arayüz "kaydet"
- * gösterir, sunucu 403 döner — kullanıcı ne yaptığını anlamaz.
- *
- * `addedBy` YOKSA sahiplik kurulamaz. Boşluğun güvenli yöne düşmesi bilinçli:
- * `undefined === undefined` gibi bir eşleşmeye izin verilseydi, kimliği
- * çözülemeyen bir katkı verici rolden önce eklenmiş bütün eski ağacı
- * düzenleyebilirdi.
+ * `canContribute`in yerini aldı ve anlamı DEĞİŞTİ: o "doğrudan ekleyebilir"
+ * demekti, bu "önerebilir" demek. Ad da değişti, çünkü aynı adı bırakıp
+ * anlamını kaydırmak, çağrı yerlerini okuyan birine eski anlamı düşündürürdü
+ * — ve o yerlerden biri yanlış anlaşılırsa üye doğrudan yazar hâle gelirdi.
  */
-export function canEditPerson(
-  role: TreeRole | undefined | null,
-  authorId: string | undefined | null,
-  person: { addedBy?: string } | undefined | null
-): boolean {
-  if (canEdit(role)) return true;
-  if (!canContribute(role)) return false;
-  return !!authorId && !!person?.addedBy && person.addedBy === authorId;
+export function canPropose(role: TreeRole | undefined | null): boolean {
+  return role === "yonetici" || role === "uye";
+}
+
+/**
+ * Bu kişiyi DOĞRUDAN düzenleyebilir mi?
+ *
+ * Artık sahiplik istisnası YOK ve imzadan da kalktı. Önceki kademede katkı
+ * verici kendi eklediği kaydı düzeltebiliyordu; yeni modelde üyenin
+ * EKLEMESİ de onaydan geçtiği için "kendi eklediği" diye doğrudan yazılmış
+ * bir kayıt zaten oluşmuyor.
+ *
+ * Parametreleri "ileride lazım olur" diye tutmadım: kullanılmayan bir
+ * parametre, çağıranlara hâlâ bir kural varmış izlenimi verir ve o izlenim
+ * yanlış yerde güvene dönüşür. Gerekirse geri eklemek kolay.
+ */
+export function canEditPerson(role: TreeRole | undefined | null): boolean {
+  return canEdit(role);
 }

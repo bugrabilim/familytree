@@ -60,7 +60,7 @@ export default async function PairedTreePage({
       people={safePeople}
       version={updatedAt}
       familyName={pairing.peerName}
-      role="viewer"
+      role="uye"
       isFounder={false}
       publicView
       hideLivingForced

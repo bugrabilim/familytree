@@ -994,9 +994,11 @@ export const tr: Dict = {
   "print.memories": "Anılar",
   "book.listen": "Dinle",
   "book.audioOnly": "Sesli anı — QR'ı okutunca çalar.",
-  "role.viewer": "Görüntüleyen",
-  "role.contributor": "Katkı verici",
-  "role.contributorHint": "Ekleyebilir; var olan kayıtlar için değişiklik önerir.",
+  "role.uye": "Üye",
+  "role.uyeHint":
+    "Ağacı görür ve değişiklik önerir. Eklediği, düzelttiği ya da silmek istediği her şey senin onayına gelir; onaylamadan ağaca işlenmez.",
+  "role.yonetici": "Yönetici",
+  "role.yoneticiHint": "Ağacı kuran hesap. Her şeyi doğrudan yapar ve önerilere karar verir.",
   "proposal.submit": "Değişiklik öner",
   "proposal.sending": "Öneri gönderiliyor…",
   "proposal.hint":
@@ -1019,8 +1021,6 @@ export const tr: Dict = {
   "proposal.stale":
     "Bu öneri yazıldığından beri alanlar değişmiş; onaylamak yeni bilgiyi silerdi. Öneriyi reddedip kişiden güncel hâlini isteyebilirsin.",
   "proposal.staleFields": "Değişen alanlar",
-  "role.editor": "Editör",
-  "role.admin": "Yönetici",
   "members.menu": "Üyeler ve davetler",
   "share.menu": "Paylaş (herkese açık)",
   "pair.menu": "Bağlı ağaçlar",
@@ -3148,9 +3148,11 @@ export const en: Dict = {
   "print.memories": "Memories",
   "book.listen": "Listen",
   "book.audioOnly": "Voice memory — scan the QR to play.",
-  "role.viewer": "Viewer",
-  "role.contributor": "Contributor",
-  "role.contributorHint": "Can add; suggests changes to existing records.",
+  "role.uye": "Member",
+  "role.uyeHint":
+    "Can view the tree and suggest changes. Anything they add, correct or want removed comes to you for approval; nothing reaches the tree without it.",
+  "role.yonetici": "Owner",
+  "role.yoneticiHint": "The account that created the tree. Does everything directly and decides on suggestions.",
   "proposal.submit": "Suggest change",
   "proposal.sending": "Sending suggestion…",
   "proposal.hint":
@@ -3173,8 +3175,6 @@ export const en: Dict = {
   "proposal.stale":
     "Fields have changed since this suggestion was written; approving it would erase the newer information. You can reject it and ask for an updated suggestion.",
   "proposal.staleFields": "Changed fields",
-  "role.editor": "Editor",
-  "role.admin": "Admin",
   "members.menu": "Members & invites",
   "share.menu": "Share (public)",
   "pair.menu": "Linked trees",

@@ -86,7 +86,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 |---|---|:-:|---|
 | 33 | Paylaşımlı oran sınırı | C | `rate-limit.ts` örnek-içi bellekte — sunucusuzda gerçek sınır değil. Supabase tablosuyla yapılır (yeni hesap gerekmez). 34 ve 36'dan önce | ✅
 | 34 | Herkese açık okuma API'si `/api/v1/public/tree` | C | 10 ve 33 olmadan yapılmaz. Sürümleme baştan `/v1` | ✅
-| 35 | Katkı verici rolü | E | ✅ **yapıldı** (A: rol kademesi + sunucu kapıları + `addedBy` sahipliği · B: öneri deposu + onay akışı + bayatlık denetimi · C: öner düğmesi, öneri paneli, ⋮ rozeti, üye ekranında rol). Ekleyebildikleri: kişi, medya, tarif, etkinlik, mektup. Var olana dokunamaz; kendi eklediğini düzeltir, silemez; gerisi için öneri açar. **İlişki değişiklikleri (ebeveyn/eş bağı) önerilemiyor** — karşılıklılık akışıyla yürüdükleri için tek yönlü bir alan değişikliğine sığmıyorlar |
+| 35 | Rol modeli — Yönetici + Üye | E | ✅ **yapıldı** — dört kademe (`viewer/contributor/editor/admin`) İKİYE indi: `yonetici` (ağacı kuran) doğrudan yazar ve önerilere karar verir; `uye` okur ve ÖNERİR. Eski adlar `normalizeRole` ile çevriliyor (`admin`→yönetici, gerisi→üye; kimse yetki kazanmıyor), göç betiği yok. Öneri motoru alan/ekleme/silme türlerini taşıyor. **Kalan:** ilişki değişikliği önerileri, öneriyi geri çekme, toplu karar, onayı geri alma, ve içerik depolarının (tarif/etkinlik/mektup) öneriye bağlanması |
 | 36 | Aile etkinliği + RSVP | C | **anonim yazma yüzeyi** açıyor | ✅
 | 37 | Osmanlı ↔ modern yer adı sözlüğü | C | ✅ **çalışıyor** — açık kaynak yolu seçildi, lisans beklenmedi. Tarihî katman `resolvePlace`in EN SONUNDA: mevcut pinler kaymıyor |
 | 38 | Yerleşim arama: modern + tarihî | C | ✅ **çalışıyor** — doğum/defin yeri alanında öneri; yazılan eski ad DEĞİŞTİRİLMİYOR |

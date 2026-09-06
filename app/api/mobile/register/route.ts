@@ -53,13 +53,13 @@ export async function POST(req: NextRequest) {
   const id = crypto.randomUUID();
   await createUser(id, familyName, passwordHash, kurtarma.hash, kurtarma.index);
 
-  const token = await signMobileToken({ sub: id, name: familyName, role: "admin", isFounder: true, treeName: familyName });
+  const token = await signMobileToken({ sub: id, name: familyName, role: "yonetici", isFounder: true, treeName: familyName });
 
   return NextResponse.json(
     {
       token,
       recoveryCode,
-      user: { id, name: familyName, role: "admin", treeName: familyName, isFounder: true },
+      user: { id, name: familyName, role: "yonetici", treeName: familyName, isFounder: true },
     },
     { status: 201 }
   );
