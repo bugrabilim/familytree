@@ -30,6 +30,7 @@ const DEPOLAR = [
   "gathering-store",
   "bond-store",
   "story-store",
+  "proposal-store",
 ] as const;
 
 for (const ad of DEPOLAR) {

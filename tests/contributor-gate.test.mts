@@ -53,6 +53,8 @@ const ACIK: Record<string, string> = {
   "family/recipes/route.ts": "POST yeni tarif ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
   "family/gatherings/route.ts": "POST yeni etkinlik ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
   "family/letters/route.ts": "POST yeni mektup ekler; PUT/DELETE düzenleme seviyesinde kaldı.",
+  "family/proposals/route.ts":
+    "Rolün varlık sebebi: değişiklik ÖNERİSİ açmak. GET/POST katkı verici seviyesinde; KARAR (PATCH) canEdit istiyor — aksi hâlde katkı verici kendi önerisini onaylayıp yazma kapısını dolanırdı.",
 };
 
 /* --- 1. Listeye girmeyen hiçbir uç katkı vericiye açık olmasın ----------- */
