@@ -41,7 +41,36 @@ export async function POST(req: NextRequest) {
   const r = verifyWebhook(process.env.RESEND_WEBHOOK_SECRET, basliklar, body, new Date());
   if (!r.ok) {
     console.warn(`[gelen-posta] imza reddedildi: ${r.error}`);
-    return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
+    /*
+     * RET SEBEBİ YANITTA — bilerek.
+     *
+     * Buradan dönen gövde, sağlayıcının teslim günlüğünde görünen TEK
+     * penceredir; sunucu günlüğüne erişimi olmayan biri için başka tanı yolu
+     * yok. "Yetkisiz" deyip susmak, arızayı "sebebi bilinmeyen 401"e
+     * çeviriyordu ve gerçekten öyle oldu: yanlış katmanda saatler harcandı.
+     *
+     * Sızdırdığı bir şey YOK. Sebep etiketi ve başlık ADLARI saldırganın
+     * zaten bildiği şeyler (isteği o gönderdi); zaman damgası da kendi
+     * yolladığı değer. İmzanın kendisi ya da sır asla dönmüyor — ve
+     * yapılandırma eksikken de reddettiğimiz için "sır yok" bilgisi bir
+     * kapı açmıyor.
+     */
+    return NextResponse.json(
+      {
+        error: "Yetkisiz",
+        reason: r.error,
+        // Hangi başlık adları geldi? (svix-* mi, webhook-* mi, hiçbiri mi)
+        headers: {
+          id: !!basliklar.id,
+          timestamp: !!basliklar.timestamp,
+          signature: !!basliklar.signature,
+        },
+        // Ham zaman damgası: saniye mi milisaniye mi, tek bakışta belli olur.
+        ts: basliklar.timestamp ?? null,
+        now: Math.floor(Date.now() / 1000),
+      },
+      { status: 401 }
+    );
   }
 
   let payload: unknown;
