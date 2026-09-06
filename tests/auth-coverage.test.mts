@@ -178,7 +178,17 @@ for (const r of hepsi) {
   }
 }
 
-check(denetlenenYontem >= 90, `denetlenen yöntem sayısı (${denetlenenYontem})`);
+/*
+ * TABAN — yürüyücünün SESSİZCE hiçbir şey bulmamasına karşı.
+ *
+ * Dosya deseni ya da ayrıştırma bozulursa bu dosyadaki bütün iddialar
+ * "denetlenecek bir şey yok" diye kendiliğinden yeşile döner; asıl tehlike
+ * o. Sayı, gelen kutusu kaldırılınca 93'ten 88'e indi (webhook + yönetici
+ * kutusunun beş yöntemi). Taban gerçek sayının biraz altında tutuluyor:
+ * birkaç rotanın kazara silinmesi hâlâ takılsın, ama her rota eklendiğinde
+ * burayı güncellemek gerekmesin.
+ */
+check(denetlenenYontem >= 85, `denetlenen yöntem sayısı (${denetlenenYontem})`);
 
 /* --- Muafiyet listeleri ÖLÜ kalmasın ------------------------------------ */
 for (const r of Object.keys(OTURUMSUZ))

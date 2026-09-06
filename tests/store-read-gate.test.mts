@@ -30,7 +30,6 @@ const DEPOLAR = [
   "gathering-store",
   "bond-store",
   "story-store",
-  "inbox-store",
 ] as const;
 
 for (const ad of DEPOLAR) {
@@ -55,12 +54,10 @@ for (const ad of DEPOLAR) {
    * kaldı, `tsc` ve `lint` de sustu. Yanlışın yokluğu, doğrunun varlığı
    * demek değil.
    */
-  if (ad !== "inbox-store") {
-    check(/if \(!res\.ok\) throw new Error\(/.test(src),
-      `${ad}: HTTP hatası KOŞULA bağlı fırlatılıyor`);
-    check(/if \(!res\.ok\)[\s\S]{0,200}?return normalize/.test(src),
-      `${ad}: başarılı yanıt hâlâ ayrıştırılıyor (throw her yolu kapatmıyor)`);
-  }
+  check(/if \(!res\.ok\) throw new Error\(/.test(src),
+    `${ad}: HTTP hatası KOŞULA bağlı fırlatılıyor`);
+  check(/if \(!res\.ok\)[\s\S]{0,200}?return normalize/.test(src),
+    `${ad}: başarılı yanıt hâlâ ayrıştırılıyor (throw her yolu kapatmıyor)`);
   check(/throw/.test(src), `${ad}: okuma hatası yükseliyor`);
 }
 
