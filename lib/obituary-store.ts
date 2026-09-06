@@ -27,10 +27,22 @@ async function getBoard(treeId: string): Promise<ObituaryBoard> {
     const blob = found.blobs[0];
     if (!blob) return empty();
     const res = await fetch(blob.url, { cache: "no-store" });
-    if (!res.ok) return empty();
+    if (!res.ok) throw new Error(`vefat ilanları okunamadı (HTTP ${res.status})`);
     return normalizeBoard((await res.json()) as ObituaryBoard);
-  } catch {
-    return empty();
+  } catch (e) {
+    /*
+     * OKUNAMAYAN dosya, BOŞ dosya DEĞİLDİR.
+     *
+     * Burada eskiden `empty()` dönülüyordu ve çağıran onun üstüne yazıyordu:
+     * tek bir geçici indirme hatası, o ana kadarki BÜTÜN kayıtları siliyordu.
+     * Üstelik sessizce — uç 200 dönüyor, kullanıcı listeyi boş görüyor ve
+     * yeniden yazmaya başlıyor; ilk yazma da eski dosyanın üstüne biniyor.
+     *
+     * Dosya GERÇEKTEN yoksa (yukarıdaki `!blob`) boş sayılıyor — o doğru.
+     * Ama "var ama okuyamadım" hata olarak yükseliyor: gürültülü bir arıza,
+     * sessiz bir veri kaybından her zaman iyidir.
+     */
+    throw e;
   }
 }
 

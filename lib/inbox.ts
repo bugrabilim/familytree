@@ -52,6 +52,36 @@ export const MAX_MAILS = 500;
 export const MAX_ADDR = 254;
 /** Kayda geçen ek adı sayısı. */
 export const MAX_ATTACHMENTS = 20;
+/**
+ * `htmlToText`e giren HTML'in tavanı.
+ *
+ * Sınır ÇIKTIDA (`MAX_TEXT`) değil GİRDİDE olmak zorunda: görünmez blokları
+ * (`script`/`style`/`head`/`noscript`) atan desen, KAPANMAYAN bir etiket
+ * karşısında karesel davranıyor — her açılış, olmayan kapanışı aramak için
+ * metnin sonuna kadar taranıyor. Ölçüldü: 78 KB → 135 ms, 156 KB → 570 ms,
+ * 312 KB → 2,3 s, 625 KB → 9,5 s. Gövdeyi YABANCI yazıyor, yani birkaç MB'lik
+ * bozuk bir HTML sunucusuz işlevi zaman aşımına sokabilirdi.
+ *
+ * 200 KB, saklanacak metnin (`MAX_TEXT`, 20 000) on katı işaretleme demek —
+ * gerçek bir postanın kaybedecek metni kalmıyor. Kötü niyetli girdide ise en
+ * kötü durum bir saniyenin altında kalıyor.
+ */
+export const MAX_HTML = 200_000;
+/**
+ * `Message-ID` için tavan.
+ *
+ * Bu alanın sınırsız olması gerçek bir açıktı: değeri GÖNDEREN yazıyor
+ * (kendi postasının başlığı) ve kırpılmadan saklanıyordu. 50 KB'lik bir
+ * `Message-ID` ile tek bir posta kaydı 100 KB'a çıkıyor, `MAX_MAILS` (500)
+ * ile çarpılınca kutu dosyası onlarca MB oluyordu — `MAX_TEXT` özenle
+ * uygulanırken yanındaki delikten geçiliyordu.
+ *
+ * RFC 5322 bir başlık satırını 998 sekizliyle sınırlıyor; gerçek
+ * `Message-ID`ler 100 karakterin altında. 400 fazlasıyla geniş.
+ */
+export const MAX_MESSAGE_ID = 400;
+/** Sağlayıcı kimliği için tavan. Resend'inkiler UUID (36 karakter). */
+export const MAX_PROVIDER_ID = 200;
 
 export interface Attachment {
   name: string;
@@ -129,6 +159,53 @@ export interface Mail {
   attachments?: Attachment[];
 }
 
+/* ── Başlığa yazılabilir metin ────────────────────────────────────────────── */
+
+/**
+ * BAŞLIK ENJEKSİYONUNA karşı tek satıra indirger.
+ *
+ * Konu ve `Message-ID` yabancının yazdığı başlıklardan geliyor ve ikisi de
+ * GİDEN yanıtımızın başlıklarına yazılıyor (`subject`, `In-Reply-To`,
+ * `References`). Satır sonu taşıyan bir değer, posta biçiminde YENİ BİR
+ * BAŞLIK açar: `<a@b>\r\nBcc: kurban@ornek.com` gibi bir `Message-ID`,
+ * doğrulanmış alan adımızdan istediği adrese gizli kopya göndermenin yolu
+ * olurdu — üstelik işletmeci gönderdiğini hiç görmeden.
+ *
+ * Sağlayıcının bunu ayrıca eleyip elemediğini bilmiyoruz ve BİLMEK ZORUNDA
+ * da değiliz: başlığa yazdığımız değeri temizlemek bizim işimiz.
+ */
+export function headerSafe(raw: string): string {
+  return raw
+    .replace(/[\r\n\u2028\u2029]+/g, " ")
+    // Kalan denetim karakterleri: başlıkta işleri yok.
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .trim();
+}
+
+/**
+ * `Message-ID` KIRPILMAZ, ya bütünüyle kabul edilir ya da DÜŞER.
+ *
+ * Kırpmak, yanlış bir kimlikle zincir kurmak demek olurdu: yanıt hiçbir
+ * yazışmaya bağlanmaz ama bağlanmış gibi görünür. Boşluk/denetim karakteri
+ * taşıyan değer zaten geçerli bir `msg-id` değil.
+ */
+export function safeMessageId(raw: string): string {
+  const s = raw.trim();
+  if (!s || s.length > MAX_MESSAGE_ID) return "";
+  // Geçerli bir msg-id boşluk ya da denetim karakteri taşımaz.
+  if (/[\s\u0000-\u001f\u007f]/.test(s)) return "";
+  return s;
+}
+
+/** Sağlayıcı kimliği: kırpmak onu BAŞKA bir kaydı gösterir hâle getirirdi. */
+export function safeProviderId(raw: string): string {
+  const s = raw.trim();
+  if (!s || s.length > MAX_PROVIDER_ID) return "";
+  // Kimlik bir URL'e giriyor; boşluk/denetim taşıyan değer bizim değil.
+  if (/[\s\u0000-\u001f\u007f]/.test(s)) return "";
+  return s;
+}
+
 /* ── Adres ────────────────────────────────────────────────────────────────── */
 
 /**
@@ -173,6 +250,8 @@ export function displayName(raw: unknown): string {
 export function htmlToText(html: string): string {
   if (!html) return "";
   return html
+    // TAVAN ÖNCE: aşağıdaki desenlerin maliyeti girdi uzunluğuna bağlı.
+    .slice(0, MAX_HTML)
     // Görünmeyen bloklar: içerikleriyle birlikte.
     .replace(/<(script|style|head|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
@@ -346,11 +425,11 @@ export function parseInboundResult(
       from,
       fromName: displayName(fromRaw) || undefined,
       to,
-      subject: metin(d.subject).trim().slice(0, MAX_SUBJECT) || "(konusuz)",
+      subject: headerSafe(metin(d.subject)).slice(0, MAX_SUBJECT) || "(konusuz)",
       text: govde.slice(0, MAX_TEXT),
       at: now.toISOString(),
-      messageId: metin(d.message_id ?? d.messageId) || undefined,
-      providerId: metin(d.email_id ?? d.emailId) || undefined,
+      messageId: safeMessageId(metin(d.message_id ?? d.messageId)) || undefined,
+      providerId: safeProviderId(metin(d.email_id ?? d.emailId)) || undefined,
       /*
        * Gövde bildirimde yoksa "bekliyor" işaretleniyor — ayrı çağrıyla
        * alınacak. İşaret konmasaydı, gövdesiz posta ile gerçekten boş posta
@@ -394,7 +473,8 @@ export function planReply(mevcut: Reply[] | undefined, yeni: Reply): Reply[] {
 
 /** `"Merhaba"` → `"Re: Merhaba"`; zaten `Re:` varsa İKİNCİSİ eklenmiyor. */
 export function replySubject(subject: string): string {
-  const s = subject.trim();
+  // İKİNCİ KAT: kayıt eski bir sürümde temizlenmeden yazılmış olabilir.
+  const s = headerSafe(subject);
   if (/^re\s*:/i.test(s)) return s.slice(0, MAX_SUBJECT);
   return `Re: ${s}`.slice(0, MAX_SUBJECT);
 }
@@ -418,6 +498,12 @@ export function quoteForReply(m: Pick<Mail, "from" | "at" | "text">, limit = 200
  * karşı taraf neyin yanıtı olduğunu anlamaz.
  */
 export function threadHeaders(m: Pick<Mail, "messageId">): Record<string, string> {
-  if (!m.messageId) return {};
-  return { "In-Reply-To": m.messageId, References: m.messageId };
+  /*
+   * İKİNCİ KAT. Ayrıştırma zaten eliyor ama kayıt DEPODAN geliyor ve depoda
+   * bu denetimden önce yazılmış postalar var. Zinciri kaybetmek, başlık
+   * enjeksiyonuna açık kalmaktan ucuz.
+   */
+  const id = safeMessageId(m.messageId ?? "");
+  if (!id) return {};
+  return { "In-Reply-To": id, References: id };
 }

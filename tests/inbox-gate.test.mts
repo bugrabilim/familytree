@@ -92,10 +92,25 @@ check(isAdminAccount("DOGRU-ID", "dogru-id"), "harf kutusu engel değil");
 check(!isAdminAccount("", "dogru-id"), "boş kimlik reddediliyor");
 check(!isAdminAccount(undefined, "dogru-id"), "kimliksiz oturum reddediliyor");
 
-/* Her yöntem ayrı ayrı korunuyor — biri atlanırsa kapı kırık demektir. */
-for (const y of ["PATCH", "POST", "DELETE"]) {
+/*
+ * Her yöntem ayrı ayrı korunuyor — biri atlanırsa kapı kırık demektir.
+ *
+ * `GET` bu listede YOKTU ve bu, kapının en pahalı yöntemini denetimsiz
+ * bıraktı: `GET` kutunun TAMAMINI döndürüyor, ama kendi kopya denetimini
+ * taşıdığı için `guard()` aranmıyordu. `isAdminAccount(id)` iddiası da
+ * boşluğu kapatmıyor: o desen `guard()`ın içinde de geçiyor, yani `GET`ten
+ * denetim tümüyle silinse bile yeşil kalıyordu (denendi: 52/52 geçti).
+ */
+for (const y of ["GET", "PATCH", "POST", "DELETE"]) {
   const i = api.indexOf(`export async function ${y}(`);
-  const govde = api.slice(i, i + 400);
+  /*
+   * Pencere BİR SONRAKİ yönteme kadar. Sabit uzunlukta bir pencere (ilk
+   * hâli 400 karakterdi) komşu yöntemin gövdesine taşıyor ve iddiayı
+   * BOŞUNA yeşil bırakıyordu: `GET`ten denetim tümüyle silindiğinde bile
+   * pencere `PATCH`in `guard()` çağrısını görüp geçiyordu. Denendi.
+   */
+  const sonraki = api.indexOf("export async function ", i + 1);
+  const govde = api.slice(i, sonraki > -1 ? sonraki : undefined);
   check(i > -1 && /const g = await guard\(\);/.test(govde), `${y} kapıdan geçiyor`);
 }
 
@@ -112,6 +127,22 @@ check(!isPublicPath("/admin/posta"), "gelen kutusu ekranı oturumsuz açık DEĞ
  */
 check(/to: mail\.from,/.test(api), "alıcı kayıttaki gönderenden");
 check(!/to: body\./.test(api), "alıcı gövdeden OKUNMUYOR");
+/*
+ * Alıcı kayıttan geliyor ama BAŞLIKLAR da yabancı: konu ve `Message-ID`
+ * gönderenin yazdığı başlıklardan. Satır sonu taşıyan bir değer, giden
+ * yanıtımızda YENİ BİR BAŞLIK açardı (`Bcc:`) — doğrulanmış alan adımızdan
+ * gizli kopya göndermenin yolu. Rota bu değerleri ham kullanmamalı.
+ */
+check(/subject: replySubject\(mail\.subject\)/.test(api), "konu temizleyen yardımcıdan geçiyor");
+check(!/subject: mail\.subject/.test(api), "ham konu doğrudan gönderilmiyor");
+check(/headers: threadHeaders\(mail\)/.test(api), "zincir başlıkları temizleyen yardımcıdan");
+check(!/"In-Reply-To"/.test(api), "rota başlığı kendi eliyle kurmuyor");
+{
+  const inboxSrc = kodu(read("../lib/inbox.ts"));
+  check(/const id = safeMessageId\(m\.messageId \?\? ""\);/.test(inboxSrc),
+    "`threadHeaders` depodan geleni de doğruluyor (ikinci kat)");
+  check(/subject: headerSafe\(/.test(inboxSrc), "konu ayrıştırmada temizleniyor");
+}
 
 /* --- 3. HTML HİÇ SAKLANMIYOR, HİÇ ÇİZİLMİYOR ---------------------------- */
 /*
@@ -143,6 +174,13 @@ check(/export function htmlToText\(/.test(inbox), "html'den düz metin çıkarı
     check(!inbox.includes(tehlike), `çıkarma ${tehlike} kullanmıyor`);
 }
 check(!/dangerouslySetInnerHTML/.test(ekran), "ekranda dangerouslySetInnerHTML YOK");
+/*
+ * Gövde tek yabancı alan değil: konu, gönderenin GÖRÜNEN ADI ve ek adlarını
+ * da gönderen yazıyor. Hepsi JSX metin çocuğu olarak çiziliyor (React
+ * kaçırıyor); ham HTML'e açılan BAŞKA bir kapı da olmamalı.
+ */
+for (const kapi of ["innerHTML", "insertAdjacentHTML", "document.write"])
+  check(!ekran.includes(kapi), `ekranda ${kapi} yok`);
 check(/whitespace-pre-wrap/.test(ekran), "gövde düz metin olarak çiziliyor");
 check(!/m\.html/.test(ekran), "ekran html alanı okumuyor");
 
@@ -162,6 +200,41 @@ check(/name: metin\(a\?\.filename \?\? a\?\.name\)/.test(inbox), "ekten yalnız 
  */
 check(!/getFamilyData|saveFamilyData/.test(store), "gelen kutusu deposu ağaç verisine erişmiyor");
 check(/const PATHNAME = "inbox\.json"/.test(store), "kutu kendi dosyasında");
+
+/* --- YARIŞ ve OKUMA HATASI: kuralların depoya BAĞLI olduğu ------------- */
+/*
+ * Kuralların kendisi `lib/inbox-box.ts`te ve orada birim testi var
+ * (`tests/inbox-box.test.mts`). Burada denetlenen tek şey, deponun onları
+ * gerçekten KULLANDIĞI: kural doğru olup da bağlanmamışsa hiçbir işe
+ * yaramaz.
+ *
+ * İkisi de gerçek kayıp senaryosu:
+ *  · Okuma başarısız olunca boş kutu dönülüyordu ve üstüne yazılıyordu —
+ *    tek bir geçici 503, kutudaki her postayı siliyordu (webhook 200
+ *    dönerek).
+ *  · Kilit yoktu: aynı anda gelen iki posta aynı sürümü okuyup ikisi de
+ *    yazıyor, ikincisi birincisini siliyordu.
+ */
+{
+  const kutu = kodu(read("../lib/inbox-box.ts"));
+  check(/mutateBox\(/.test(store), "yazmalar tek çakışma-korumalı yoldan geçiyor");
+  check(!/async function saveBox|await saveBox\(/.test(store), "doğrudan yazma yolu KALMADI");
+  check(/ifMatch: etag/.test(store), "yazma sürüm damgasıyla KOŞULLU (kilit yerine CAS)");
+  check(/instanceof BlobPreconditionFailedError/.test(store), "sürüm çakışması tanınıyor");
+  check(/etag: direct\.blob\.etag/.test(store), "okurken sürüm damgası alınıyor");
+  check(/throw new Error\(`inbox\.json okunamadı/.test(store),
+    "indirme hatası BOŞ KUTUYA düşmüyor, fırlatıyor");
+  check(/if \(!io\.isConflict\(e\)\) throw e;/.test(kutu), "çakışma olmayan hata yeniden denenmiyor");
+  check(/throw son;/.test(kutu), "denemeler tükenince sessiz başarı YOK");
+}
+
+/* --- Yanıt metni: GÖNDERİLEN ile SAKLANAN ayrışmıyor -------------------- */
+/*
+ * Depo `MAX_TEXT` uyguluyor. Daha uzun bir metin gönderilip kaydın içinde
+ * eksik dursaydı, kullanıcı ne yazdığını sandığından farklı bir şey görür ve
+ * farkı hiç öğrenemezdi.
+ */
+check(/metin\.length > MAX_TEXT/.test(api), "aşırı uzun yanıt gönderilmeden reddediliyor");
 
 /* --- GÖVDE ÇEKME postayı riske ATMIYOR ---------------------------------- */
 /*
