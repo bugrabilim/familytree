@@ -1,8 +1,8 @@
 import {
-  MAX_MAILS, MAX_SUBJECT, MAX_TEXT,
-  MAX_REPLIES, displayName, htmlToText, normalizeAddress, parseInbound, parseInboundResult,
-  payloadShape, planReply,
-  planStore, quoteForReply, replySubject, threadHeaders,
+  MAX_HTML, MAX_MAILS, MAX_MESSAGE_ID, MAX_PROVIDER_ID, MAX_SUBJECT, MAX_TEXT,
+  MAX_REPLIES, displayName, headerSafe, htmlToText, normalizeAddress, parseInbound,
+  parseInboundResult, payloadShape, planReply,
+  planStore, quoteForReply, replySubject, safeMessageId, safeProviderId, threadHeaders,
   type Mail,
 } from "../lib/inbox.ts";
 
@@ -165,6 +165,90 @@ for (const [ad, y] of [
   check(m.attachments?.[0]?.size === 1234, "ek boyutu kaydediliyor");
   check(!JSON.stringify(m).includes("BASE64VERI"), "ekin İÇERİĞİ saklanmıyor");
   check(parseInbound(YUK, "m9", SIMDI)?.attachments === undefined, "eksiz postada alan hiç yok");
+}
+
+/* ── BAŞLIK ENJEKSİYONU — giden yanıtın başlıklarına yabancı satır sokulamaz ─ */
+/*
+ * Konu ve `Message-ID` GÖNDERENİN yazdığı başlıklardan geliyor ve ikisi de
+ * bizim GİDEN yanıtımızın başlıklarına yazılıyor (`subject`, `In-Reply-To`,
+ * `References`). Satır sonu taşıyan bir değer posta biçiminde YENİ BİR
+ * BAŞLIK açar: `<a@b>\r\nBcc: kurban@ornek.com` gibi bir `Message-ID`,
+ * doğrulanmış alan adımızdan gizli kopya göndermenin yolu olurdu — üstelik
+ * işletmeci gönderdiğini hiç görmeden. Sağlayıcının ayrıca eleyip
+ * elemediğine güvenmiyoruz: başlığa yazdığımız değer bizim sorumluluğumuz.
+ */
+{
+  check(headerSafe("Selam\r\nBcc: kurban@x.com") === "Selam Bcc: kurban@x.com", "CR/LF boşluğa iniyor");
+  check(headerSafe("a\u0000b\u0007c") === "abc", "denetim karakterleri düşüyor");
+  check(headerSafe("a\u2028b") === "a b", "satır ayırıcı unicode de iniyor");
+  check(headerSafe("  x  ") === "x", "kırpılıyor");
+}
+{
+  const y = {
+    data: {
+      from: "a@b.co", to: "bilgi@soylus.com",
+      subject: "Merhaba\r\nBcc: kurban@ornek.com",
+      message_id: "<a@b>\r\nBcc: kurban@ornek.com",
+      text: "x",
+    },
+  };
+  const m = parseInbound(y, "enj", SIMDI)!;
+  check(!/[\r\n]/.test(m.subject), "konuda satır sonu KALMIYOR");
+  check(m.messageId === undefined, "satır sonu taşıyan Message-ID hiç saklanmıyor");
+  check(Object.keys(threadHeaders(m)).length === 0, "böyle bir kayıttan zincir başlığı üretilmiyor");
+}
+{
+  /*
+   * İKİNCİ KAT: kayıt bu denetimden ÖNCE yazılmış olabilir. Depodan gelen
+   * bozuk değer de başlığa geçmemeli.
+   */
+  const eski = { messageId: "<a@b>\r\nBcc: kurban@ornek.com" };
+  check(Object.keys(threadHeaders(eski)).length === 0, "eski kayıttaki bozuk Message-ID de eleniyor");
+  check(threadHeaders({ messageId: "<iyi@mail>" })["In-Reply-To"] === "<iyi@mail>", "sağlam Message-ID geçiyor");
+  check(!/[\r\n]/.test(replySubject("Konu\r\nBcc: k@x.com")), "replySubject de satır sonu bırakmıyor");
+  check(replySubject("Konu\r\nBcc: k@x.com") === "Re: Konu Bcc: k@x.com", "temizlenen konuya Re: ekleniyor");
+}
+{
+  check(safeMessageId("<a@b>") === "<a@b>", "sağlam msg-id kabul");
+  check(safeMessageId("<a b@c>") === "", "boşluklu msg-id red");
+  check(safeMessageId("") === "" && safeMessageId("   ") === "", "boş msg-id red");
+  check(safeMessageId(`<${"x".repeat(MAX_MESSAGE_ID)}@y>`) === "", "aşırı uzun msg-id red");
+  check(safeProviderId("f2cc5cbd-6bb1-4c1d-ab51-f76e9a97913f").length === 36, "UUID kimlik kabul");
+  check(safeProviderId("x".repeat(MAX_PROVIDER_ID + 1)) === "", "aşırı uzun sağlayıcı kimliği red");
+  check(safeProviderId("a b") === "", "boşluklu sağlayıcı kimliği red");
+}
+
+/* --- KAYIT BOYUTU: sınırsız alan KALMADI -------------------------------- */
+/*
+ * `MAX_TEXT` özenle uygulanırken yanındaki delikten geçiliyordu: `messageId`
+ * ve `providerId` KIRPILMADAN saklanıyordu ve ikisini de gönderen yazıyor.
+ * 50 KB'lik bir `Message-ID` ile tek kayıt 100 KB'a çıkıyor, `MAX_MAILS`
+ * (500) ile çarpılınca kutu dosyası onlarca MB oluyordu.
+ *
+ * Kırpma değil DÜŞÜRME: yarım bir `Message-ID` hiçbir yazışmaya bağlanmaz
+ * ama bağlanmış gibi görünür; yarım bir sağlayıcı kimliği başka bir kaydı
+ * gösterir.
+ */
+{
+  const m = parseInbound(
+    {
+      data: {
+        from: "a@b.co", to: "bilgi@soylus.com", subject: "k".repeat(5000),
+        text: "m".repeat(MAX_TEXT * 3),
+        message_id: `<${"x".repeat(50_000)}@y>`,
+        email_id: "y".repeat(50_000),
+        attachments: Array.from({ length: 200 }, () => ({ filename: "a".repeat(5000), size: 1 })),
+      },
+    },
+    "buyuk", SIMDI
+  )!;
+  check(m.messageId === undefined, "devasa Message-ID saklanmıyor");
+  check(m.providerId === undefined, "devasa sağlayıcı kimliği saklanmıyor");
+  check(m.attachments!.length <= 20, "ek sayısı tavanda");
+  check(m.attachments!.every((a) => a.name.length <= 200), "ek adı kırpılıyor");
+  /* Tek bir kaydın üst sınırı hesaplanabilir olmalı. */
+  const boyut = JSON.stringify(m).length;
+  check(boyut < MAX_TEXT + 10_000, `tek kayıt sınırlı kalıyor (${boyut} bayt)`);
 }
 
 /* ── Saklama ─────────────────────────────────────────────────────────────── */
@@ -368,6 +452,31 @@ for (const t of ["email.sent", "email.delivered", "email.bounced", "email.opened
   /* Uzun ve kötü biçimli girdide de çöküyor olmamalı. */
   check(typeof htmlToText("<p".repeat(5000)) === "string", "kapanmamış etiket yığını çökmüyor");
   check(typeof htmlToText("<<<>>>") === "string", "bozuk işaretleme çökmüyor");
+}
+{
+  /*
+   * KARESEL DAVRANIŞ — ölçülmüş bir arıza.
+   *
+   * Görünmez blokları atan desen, KAPANMAYAN bir etiket karşısında her
+   * açılış için metnin sonuna kadar tarıyordu: 78 KB → 135 ms ama 625 KB →
+   * 9,5 s. Gövdeyi yabancı yazıyor; birkaç MB'lik bozuk bir HTML sunucusuz
+   * işlevi zaman aşımına sokardı. Sınır çıktıda değil GİRDİDE olmak zorunda,
+   * çünkü maliyet metin üretilmeden ÖNCE oluşuyor.
+   */
+  const isaret = "GORUNMEMELI";
+  // Tavanın ON KATI: tavanlı koşu her hâlükârda 200 KB işliyor, tavansız hâl
+  // 2 MB'ı karesel tarıyor — aradaki fark saniyelerle ölçülüyor.
+  const kotu = "<script>".repeat(Math.ceil((MAX_HTML * 10) / 8)) + isaret;
+  check(kotu.length > MAX_HTML * 9, "sınav girdisi tavanın belirgin üstünde");
+  const t = Date.now();
+  const cikti = htmlToText(kotu);
+  const sure = Date.now() - t;
+  check(!cikti.includes(isaret), "tavanın ötesindeki girdi hiç işlenmiyor");
+  /*
+   * Eşik CÖMERT (5 s): amaç mikro-ölçüm değil, karesel davranışın geri
+   * gelmesini yakalamak. Tavansız hâlde bu girdi dakikalarca sürüyor.
+   */
+  check(sure < 5000, `kötü niyetli girdi sınırlı sürede bitiyor (${sure} ms)`);
 }
 
 /* ── Gönderilen yanıtlar saklanıyor ─────────────────────────────────────── */

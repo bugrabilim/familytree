@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdminAccount, isAdminConfigured } from "@/lib/admin";
 import { isEmailConfigured, replyAddress, sendEmail } from "@/lib/email";
-import { quoteForReply, replySubject, threadHeaders } from "@/lib/inbox";
+import { MAX_TEXT, quoteForReply, replySubject, threadHeaders } from "@/lib/inbox";
 import { deleteMail, findMail, markRead, markReplied, readInbox, setBody } from "@/lib/inbox-store";
 import { fetchInboundBody } from "@/lib/resend-inbound";
 import { renderEmail } from "@/lib/email-template";
@@ -18,31 +18,55 @@ export const dynamic = "force-dynamic";
  * Kapı `lib/admin.ts`te ve ortam değişkenine dayanıyor.
  */
 
-const yetkisiz = () => NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
-
+/**
+ * DÖRT YÖNTEMİN DE tek kapısı.
+ *
+ * `GET` bir süre kendi kopyasını taşıdı ve bu, kapının kendisini denetimsiz
+ * bıraktı: kaynak-düzeyi kapı testi yalnız `PATCH`/`POST`/`DELETE`in
+ * `guard()` çağırdığına bakıyordu, `GET`in kopyası ise `isAdminAccount`
+ * geçtiği için ayrıca aranmıyordu. `GET` kutunun TAMAMINI döndüren yöntem,
+ * yani korumasız kalması en pahalı olan. Kopya yok: kural tek yerde.
+ *
+ * Yetkisiz kurucuya KENDİ hesap kimliğini söylüyoruz — yapılandırmayı
+ * yapabilmesi için gereken tek bilgi bu ve kendi kimliği, kendisinden
+ * saklanacak bir şey değil. Kutunun içeriği elbette gitmiyor.
+ */
 async function guard() {
   const session = await auth();
   const id = session?.user?.id;
   if (!id) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
-  if (!isAdminAccount(id)) return { error: yetkisiz(), accountId: id };
+  if (!isAdminAccount(id))
+    return {
+      error: NextResponse.json(
+        { error: "Yetkisiz", yourAccountId: id, configured: isAdminConfigured() },
+        { status: 403 }
+      ),
+      accountId: id,
+    };
   return { accountId: id };
 }
 
-/**
- * Kutu. Yetkisiz kurucuya KENDİ hesap kimliğini söylüyoruz — yapılandırmayı
- * yapabilmesi için gereken tek bilgi bu ve kendi kimliği, kendisinden
- * saklanacak bir şey değil. Kutunun içeriği elbette gitmiyor.
- */
+/** Kutu. */
 export async function GET() {
-  const session = await auth();
-  const id = session?.user?.id;
-  if (!id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!isAdminAccount(id))
+  const g = await guard();
+  if ("error" in g) return g.error;
+  try {
+    return NextResponse.json({ mails: await readInbox(), emailReady: isEmailConfigured() });
+  } catch (e) {
+    /*
+     * Depo artık okuyamadığında BOŞ KUTU dönmüyor, fırlatıyor — çünkü boş
+     * kutu dönmek hem yanlış bilgi hem de (yazma yolunda) veri kaybıydı.
+     * Karşılığında bu hatayı burada okunur kılmak gerekiyor: yakalanmazsa
+     * ekran ham bir sunucu hatası sayfasını JSON sanıp ayrıştırmaya
+     * çalışırdı. "Kutu boş" ile "kutu okunamadı" ayrımı bu hattın en pahalı
+     * belirsizliğiydi; ekranda da ayrı görünmeli.
+     */
+    console.error("[gelen-posta] kutu okunamadı:", (e as Error).message);
     return NextResponse.json(
-      { error: "Yetkisiz", yourAccountId: id, configured: isAdminConfigured() },
-      { status: 403 }
+      { error: "Gelen kutusu şu an okunamadı. Birazdan tekrar dene." },
+      { status: 503 }
     );
-  return NextResponse.json({ mails: await readInbox(), emailReady: isEmailConfigured() });
+  }
 }
 
 /**
@@ -95,6 +119,17 @@ export async function POST(req: NextRequest) {
   const id = typeof body.id === "string" ? body.id : "";
   const metin = typeof body.text === "string" ? body.text.trim() : "";
   if (!id || !metin) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+  /*
+   * Kırpıp göndermek YOK: depo `MAX_TEXT` uyguluyor, dolayısıyla daha uzun
+   * bir metin GÖNDERİLİR ama kaydın içinde eksik durur — kullanıcı ne
+   * yazdığını sandığından farklı bir şey görür ve farkı hiç öğrenemez.
+   * Reddetmek, sessizce ayrışan bir kayıttan iyidir.
+   */
+  if (metin.length > MAX_TEXT)
+    return NextResponse.json(
+      { error: `Yanıt çok uzun (en fazla ${MAX_TEXT} karakter).` },
+      { status: 400 }
+    );
 
   const mail = await findMail(id);
   if (!mail) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
@@ -132,7 +167,12 @@ export async function POST(req: NextRequest) {
    * olmayan bir yazışmayı kayda geçirmek olurdu ve kullanıcı karşı tarafın
    * onu okuduğunu sanırdı.
    */
-  await markReplied(id, new Date().toISOString(), metin);
+  const kaydedildi = await markReplied(id, new Date().toISOString(), metin);
+  /*
+   * Posta arada silinmiş olabilir. Gönderim GERÇEKLEŞTİ; sessiz kalmak,
+   * kayıtta izi olmayan bir yanıt bırakmak olurdu.
+   */
+  if (!kaydedildi) console.warn(`[gelen-posta] yanıt gönderildi ama kayda yazılamadı — ${id}`);
   return NextResponse.json({ ok: true, mail: await findMail(id) });
 }
 

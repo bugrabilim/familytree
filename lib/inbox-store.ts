@@ -1,6 +1,7 @@
 import "server-only";
-import { put, list, get } from "@vercel/blob";
-import { MAX_MAILS, MAX_TEXT, planReply, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
+import { put, list, get, BlobNotFoundError, BlobPreconditionFailedError } from "@vercel/blob";
+import { MAX_TEXT, planReply, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
+import { mutateBox, readBox, type Box, type BoxIO } from "@/lib/inbox-box";
 
 /**
  * GELEN KUTUSU DEPOSU — `inbox.json`.
@@ -9,82 +10,89 @@ import { MAX_MAILS, MAX_TEXT, planReply, planStore, type BodyFetchState, type Ma
  * postaları, yani işletmecinin yazışması. Ağaç verisiyle karışmaması bilinçli
  * — bir ağacın yedeği alınırken ya da silinirken yabancıların postaları da
  * gitmemeli.
+ *
+ * Bu dosya artık YALNIZ Blob adaptörü: oku-değiştir-yaz kuralları (okunamayan
+ * kutu boş sayılmaz; yazma sürüm damgasıyla koşulludur) `lib/inbox-box.ts`te
+ * ve orada birim testi var. Buradaki `server-only` + `@vercel/blob` içe
+ * aktarımları o testlerin koşmasını imkânsız kılıyordu.
  */
 
 const PATHNAME = "inbox.json";
 
-interface Box {
-  mails: Mail[];
-  updatedAt: string;
-}
-
-const empty = (): Box => ({ mails: [], updatedAt: new Date(0).toISOString() });
-
-function normalize(raw: Partial<Box> | null): Box {
-  const arr = Array.isArray(raw?.mails) ? raw!.mails : [];
-  return {
-    mails: arr
-      .filter(
-        (m): m is Mail =>
-          !!m && typeof m.id === "string" && typeof m.from === "string" && typeof m.at === "string"
-      )
-      .slice(0, MAX_MAILS),
-    updatedAt: typeof raw?.updatedAt === "string" ? raw.updatedAt : new Date(0).toISOString(),
-  };
-}
-
-async function getBox(): Promise<Box> {
-  try {
-    const direct = await get(PATHNAME, { access: "private", useCache: false });
-    if (direct && direct.statusCode === 200) {
-      return normalize((await new Response(direct.stream).json()) as Partial<Box>);
+const io: BoxIO = {
+  async read() {
+    /*
+     * (1) Doğrudan okuma — sürüm damgasını (ETag) YALNIZ bu yol veriyor,
+     * yani koşullu yazma da yalnız bu yolla mümkün.
+     */
+    try {
+      const direct = await get(PATHNAME, { access: "private", useCache: false });
+      if (direct && direct.statusCode === 200) {
+        return { raw: await new Response(direct.stream).json(), etag: direct.blob.etag };
+      }
+    } catch (e) {
+      // Dosya gerçekten yoksa aramaya devam etmenin anlamı yok.
+      if (e instanceof BlobNotFoundError) return null;
+      /* Başka bir arıza: (2) ile bir şans daha. */
     }
-  } catch {
-    /* (2)'ye düş */
-  }
-  try {
-    const found = await list({ prefix: PATHNAME, limit: 1 });
-    const blob = found.blobs[0];
-    if (!blob) return empty();
-    const res = await fetch(blob.url, { cache: "no-store" });
-    if (!res.ok) return empty();
-    return normalize((await res.json()) as Partial<Box>);
-  } catch {
-    return empty();
-  }
-}
 
-async function saveBox(box: Box): Promise<void> {
-  box.updatedAt = new Date().toISOString();
-  await put(PATHNAME, JSON.stringify(box), {
-    access: "private",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
-}
+    /*
+     * (2) Liste üstünden okuma. Bazı kurulumlarda (1) çalışmıyor, bu yol
+     * yedek. `blobs[0]` DEĞİL, tam ad eşleşmesi aranıyor: `list` önek
+     * eşliyor ve `inbox.json.bak` gibi bir komşu dosya kutunun yerine
+     * geçebilirdi.
+     */
+    const found = await list({ prefix: PATHNAME, limit: 100 });
+    const blob = found.blobs.find((b) => b.pathname === PATHNAME);
+    // Kutu gerçekten yok — ilk posta bunu oluşturacak.
+    if (!blob) return null;
+    const res = await fetch(blob.url, { cache: "no-store" });
+    /*
+     * BOŞ KUTU DÖNMÜYORUZ. Eskiden burada `return empty()` vardı ve tek bir
+     * geçici 503, çağıranın kutunun ÜSTÜNE yazıp o ana kadarki bütün
+     * postaları silmesine yol açıyordu — sessizce, webhook 200 dönerek.
+     */
+    if (!res.ok) throw new Error(`inbox.json okunamadı: ${res.status}`);
+    // Damga yok: bu yolda koşullu yazma yapılamıyor (yedek yol, nadir).
+    return { raw: await res.json() };
+  },
+
+  async write(box: Box, etag: string | undefined) {
+    await put(PATHNAME, JSON.stringify(box), {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "application/json",
+      // Damga varsa yazma KOŞULLU: aradaki bir yazmayı ezmiyoruz.
+      ...(etag ? { ifMatch: etag } : {}),
+    });
+  },
+
+  isConflict: (e) => e instanceof BlobPreconditionFailedError,
+};
 
 export async function readInbox(): Promise<Mail[]> {
-  return (await getBox()).mails;
+  return (await readBox(io)).mails;
 }
 
 /** Gelen postayı saklar. Tavan ve yineleme kuralı saf katmanda. */
 export async function storeMail(mail: Mail): Promise<void> {
-  const box = await getBox();
-  const sonra = planStore(box.mails, mail);
-  // Yineleme ise dosyaya hiç dokunmuyoruz: gereksiz sürüm üretmenin anlamı yok.
-  if (sonra === box.mails) return;
-  box.mails = sonra;
-  await saveBox(box);
+  await mutateBox(io, (box) => {
+    const sonra = planStore(box.mails, mail);
+    // Yineleme ise dosyaya hiç dokunmuyoruz: gereksiz sürüm üretmenin anlamı yok.
+    if (sonra === box.mails) return { yaz: false, sonuc: undefined };
+    box.mails = sonra;
+    return { yaz: true, sonuc: undefined };
+  });
 }
 
 export async function markRead(id: string, read: boolean): Promise<boolean> {
-  const box = await getBox();
-  const m = box.mails.find((x) => x.id === id);
-  if (!m) return false;
-  m.read = read;
-  await saveBox(box);
-  return true;
+  return mutateBox(io, (box) => {
+    const m = box.mails.find((x) => x.id === id);
+    if (!m) return { yaz: false, sonuc: false };
+    m.read = read;
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /**
@@ -98,14 +106,14 @@ export async function markRead(id: string, read: boolean): Promise<boolean> {
  * kayda geçirmek olurdu.
  */
 export async function markReplied(id: string, at: string, text = ""): Promise<boolean> {
-  const box = await getBox();
-  const m = box.mails.find((x) => x.id === id);
-  if (!m) return false;
-  m.repliedAt = at;
-  m.read = true;
-  if (text.trim()) m.replies = planReply(m.replies, { text: text.slice(0, MAX_TEXT), at });
-  await saveBox(box);
-  return true;
+  return mutateBox(io, (box) => {
+    const m = box.mails.find((x) => x.id === id);
+    if (!m) return { yaz: false, sonuc: false };
+    m.repliedAt = at;
+    m.read = true;
+    if (text.trim()) m.replies = planReply(m.replies, { text: text.slice(0, MAX_TEXT), at });
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /**
@@ -119,28 +127,28 @@ export async function setBody(
   id: string,
   sonuc: { text: string } | { state: BodyFetchState }
 ): Promise<boolean> {
-  const box = await getBox();
-  const m = box.mails.find((x) => x.id === id);
-  if (!m) return false;
-  if ("text" in sonuc) {
-    m.text = sonuc.text;
-    m.bodyFetch = undefined;
-  } else {
-    m.bodyFetch = sonuc.state;
-  }
-  await saveBox(box);
-  return true;
+  return mutateBox(io, (box) => {
+    const m = box.mails.find((x) => x.id === id);
+    if (!m) return { yaz: false, sonuc: false };
+    if ("text" in sonuc) {
+      m.text = sonuc.text;
+      m.bodyFetch = undefined;
+    } else {
+      m.bodyFetch = sonuc.state;
+    }
+    return { yaz: true, sonuc: true };
+  });
 }
 
 export async function findMail(id: string): Promise<Mail | null> {
-  return (await getBox()).mails.find((m) => m.id === id) ?? null;
+  return (await readBox(io)).mails.find((m) => m.id === id) ?? null;
 }
 
 export async function deleteMail(id: string): Promise<boolean> {
-  const box = await getBox();
-  const before = box.mails.length;
-  box.mails = box.mails.filter((m) => m.id !== id);
-  if (box.mails.length === before) return false;
-  await saveBox(box);
-  return true;
+  return mutateBox(io, (box) => {
+    const before = box.mails.length;
+    box.mails = box.mails.filter((m) => m.id !== id);
+    if (box.mails.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
