@@ -90,9 +90,29 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
     }
   }
 
-  // API rotaları artık kayıt defterinden geçmeli; alanları tek tek saymak
-  // yerine defterin KULLANILDIĞINI denetliyoruz — asıl güvence bu.
-  check(post.includes("buildPersonFields"), "POST rotası kayıt defterinden kuruyor");
+  /*
+   * API rotaları kayıt defterinden geçmeli; alanları tek tek saymak yerine
+   * defterin KULLANILDIĞINI denetliyoruz — asıl güvence bu.
+   *
+   * Oluşturma `lib/person-create.ts`e çıkarıldı (öneri akışının onay yolu da
+   * aynı işlevi çağırıyor), yani rota artık deftere DOLAYLI bağlanıyor.
+   * İddia zinciri baştan sona izliyor: rota → `createPerson` → defter.
+   * Yalnız birine bakmak yetmezdi — rota `createPerson` çağırıp o defteri
+   * atlasaydı ya da rota kendi listesine dönseydi, tek halkalı bir iddia
+   * ikisini de göremezdi.
+   */
+  check(post.includes("createPerson("), "POST rotası ortak oluşturucuyu çağırıyor");
+  check(!post.includes("nextCode("), "rota kendi kod üretimini yapmıyor (kopya yok)");
+  {
+    const create = readFileSync(new URL("../lib/person-create.ts", import.meta.url), "utf8");
+    /*
+     * ÇAĞRIYA bakılıyor, ada değil. İlk hâli `includes("buildPersonFields")`
+     * diyordu ve mutasyonu KAÇIRDI: çağrıyı tamamen sildiğimde bile iddia
+     * yeşil kaldı, çünkü İMPORT SATIRI o adı zaten içeriyordu. Bir adın
+     * dosyada geçmesi, o adın kullanıldığı anlamına gelmiyor.
+     */
+    check(/\.\.\.buildPersonFields\(/.test(create), "ortak oluşturucu kayıt defterinden kuruyor");
+  }
   check(put.includes("mergePersonFields"), "PUT rotası kayıt defterinden birleştiriyor");
 
   // Etiket anahtarları iki dilde de var.

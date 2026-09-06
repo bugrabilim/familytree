@@ -8,10 +8,12 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import {
-  applyProposal, buildChanges, decide, MAX_NOTE, MAX_VALUE, pendingCount, visibleTo,
-  type Proposal,
+  applyProposal, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
+  MAX_NOTE, MAX_VALUE, pendingCount, visibleTo,
+  type Proposal, type ProposalKind,
 } from "@/lib/proposals";
 import { addProposal, findProposal, listProposals, replaceProposal } from "@/lib/proposal-store";
+import { createPerson } from "@/lib/person-create";
 
 export const dynamic = "force-dynamic";
 
@@ -80,46 +82,98 @@ export async function POST(req: NextRequest) {
   if (!canContribute(ctx.role)) return forbidden();
 
   const body = (await req.json().catch(() => ({}))) as {
+    kind?: unknown;
     personId?: unknown;
     changes?: unknown;
+    person?: unknown;
+    relation?: unknown;
     note?: unknown;
   };
+  const kind: ProposalKind =
+    body.kind === "ekleme" || body.kind === "silme" ? body.kind : "alan";
   const personId = typeof body.personId === "string" ? body.personId : "";
-  const istek =
-    body.changes && typeof body.changes === "object" && !Array.isArray(body.changes)
-      ? (body.changes as Record<string, unknown>)
-      : null;
-  if (!personId || !istek) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
-
-  const data = await getFamilyData(ctx.treeId, { skipCache: true });
-  const person = data.people.find((p) => p.id === personId);
-  if (!person) return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 404 });
-
-  /*
-   * `from` değerleri KAYITTAN okunuyor, istekten değil (`buildChanges`).
-   * İstemci yazabilseydi bayatlık denetimi anlamsızlaşırdı.
-   */
-  const kur = buildChanges(person, istek);
-  if (!kur.ok) {
-    const mesaj = {
-      "alan-yok": "Önerilemeyen bir alan gönderildi.",
-      "degisiklik-yok": "Değişen bir şey yok.",
-      "cok-alan": "Tek seferde önerilebilecek alan sayısı aşıldı.",
-      "cok-uzun": `Bir alan çok uzun (en fazla ${MAX_VALUE} karakter).`,
-    }[kur.fail];
-    return NextResponse.json({ error: mesaj }, { status: 400 });
-  }
-
-  const eklendi = await addProposal(ctx.treeId, {
-    personId,
-    personName: `${person.firstName} ${person.lastName}`.trim(),
-    changes: kur.changes,
-    note: typeof body.note === "string" ? body.note.trim().slice(0, MAX_NOTE) : undefined,
+  const nesne = (v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  const not = typeof body.note === "string" ? body.note.trim().slice(0, MAX_NOTE) : undefined;
+  const ortak = {
+    note: not,
     by: ctx.authorId,
     byName: await gorunenAd(),
     at: new Date().toISOString(),
-    status: "bekliyor",
-  });
+    status: "bekliyor" as const,
+  };
+
+  const hata = (fail: string) =>
+    NextResponse.json(
+      {
+        error: {
+          "alan-yok": "Önerilemeyen bir alan gönderildi.",
+          "degisiklik-yok": "Değişen bir şey yok.",
+          "cok-alan": "Tek seferde önerilebilecek alan sayısı aşıldı.",
+          "cok-uzun": `Bir alan çok uzun (en fazla ${MAX_VALUE} karakter).`,
+        }[fail] ?? "Geçersiz istek",
+      },
+      { status: 400 }
+    );
+
+  let taslak: Omit<Proposal, "id">;
+
+  if (kind === "ekleme") {
+    /*
+     * YENİ KİŞİ ÖNERİSİ. `changes` yok: ortada karşılaştırılacak bir "önceki
+     * değer" olmadığı için bayatlık denetiminin de anlamı yok. Bağ isteğe
+     * bağlı; verilirse hedefin VAR OLDUĞU burada doğrulanıyor, onay anında
+     * değil — öneren, hedefi silinmiş bir bağı kuyruğa sokmasın.
+     */
+    const istek = nesne(body.person);
+    if (!istek) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+    const kur = buildNewPerson(istek);
+    if (!kur.ok) return hata(kur.fail);
+
+    let relation: Proposal["relation"];
+    const r = nesne(body.relation);
+    if (r && typeof r.targetId === "string" && typeof r.type === "string") {
+      const data = await getFamilyData(ctx.treeId, { skipCache: true });
+      if (!data.people.some((p) => p.id === r.targetId))
+        return NextResponse.json({ error: "Bağlanacak kişi bulunamadı" }, { status: 404 });
+      relation = {
+        type: r.type as NonNullable<Proposal["relation"]>["type"],
+        targetId: r.targetId,
+        ...(typeof r.assocType === "string" ? { assocType: r.assocType } : {}),
+      };
+    }
+    const ad = `${istek.firstName ?? ""} ${istek.lastName ?? ""}`.trim();
+    taslak = { ...ortak, kind, personId: "", personName: ad, changes: {}, person: kur.person, relation };
+  } else {
+    const data = await getFamilyData(ctx.treeId, { skipCache: true });
+    const person = data.people.find((p) => p.id === personId);
+    if (!person) return NextResponse.json({ error: "Kişi bulunamadı" }, { status: 404 });
+    const ad = `${person.firstName} ${person.lastName}`.trim();
+
+    if (kind === "silme") {
+      taslak = { ...ortak, kind, personId, personName: ad, changes: {} };
+    } else {
+      const istek = nesne(body.changes);
+      if (!istek) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+      /*
+       * `from` değerleri KAYITTAN okunuyor, istekten değil (`buildChanges`).
+       * İstemci yazabilseydi bayatlık denetimi anlamsızlaşırdı.
+       */
+      const kur = buildChanges(person, istek);
+      if (!kur.ok) return hata(kur.fail);
+      taslak = { ...ortak, kind, personId, personName: ad, changes: kur.changes };
+    }
+  }
+
+  /*
+   * TÜR TUTARLILIĞI depoya girmeden sınanıyor. Türü "ekleme" olup `personId`
+   * taşıyan bir kayıt, onay anında hangi kod yolunun çalışacağını belirsiz
+   * kılardı; belirsizliği yazma anında kesmek onay anında keşfetmekten ucuz.
+   */
+  if (!isCoherent({ ...taslak, id: "" })) 
+    return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+
+  const eklendi = await addProposal(ctx.treeId, taslak);
   if (!eklendi.ok)
     return NextResponse.json(
       { error: "Öneri kuyruğu dolu; bekleyen öneriler karara bağlanmalı." },
@@ -194,26 +248,82 @@ export async function PATCH(req: NextRequest) {
         { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
         { status: 409 }
       );
-    const i = data.people.findIndex((x) => x.id === p.personId);
-    /*
-     * Kişi arada silinmiş olabilir. Öneriyi "onaylandı" diye işaretleyip
-     * uygulayamamak, kayıtta olmayan bir değişikliği olmuş göstermek olurdu.
-     */
-    if (i === -1)
-      return NextResponse.json({ error: "Öneri edilen kişi artık yok." }, { status: 409 });
+    let people: typeof data.people;
 
-    const uygula = applyProposal(data.people[i], p);
-    if (!uygula.ok)
-      return NextResponse.json(
-        {
-          error: "Bu öneri yazıldığından beri alanlar değişmiş; onaylamak yeni bilgiyi silerdi.",
-          stale: uygula.stale,
-        },
-        { status: 409 }
-      );
+    if (kindOf(p) === "ekleme") {
+      /*
+       * YENİ KİŞİ. Oluşturma `lib/person-create.ts`te ve kişi ucu da AYNI
+       * işlevi çağırıyor — kopyalansaydı ikisi ayrışır, kullanıcı kendi
+       * eklediğinde kurulan bir bağ öneriyle eklendiğinde kurulmazdı.
+       *
+       * `addedBy` ÖNEREN kişi: kaydı isteyen odur, onaylayan değil. Böylece
+       * öneriyle eklenen kaydı sonradan düzeltmek de önerene açık kalıyor.
+       *
+       * İlişki dizileri KAPALI (`allowLinkArrays: false`): öneri gövdesi
+       * kayıt defterinden süzülüyor ve o diziler zaten deftere girmiyor;
+       * bağ yalnız `relation` üstünden, tek bir hedefe kuruluyor.
+       */
+      const kur = createPerson(data, {
+        fields: p.person ?? {},
+        relation: p.relation,
+        allowLinkArrays: false,
+        addedBy: p.by,
+      });
+      if (!kur.ok)
+        return NextResponse.json(
+          {
+            error:
+              kur.fail === "iki-ebeveyn"
+                ? "Bağlanacak kişinin zaten iki ebeveyni var."
+                : "Öneride bağlanacak kişi artık yok.",
+          },
+          { status: 409 }
+        );
+      people = data.people;
+    } else {
+      const i = data.people.findIndex((x) => x.id === p.personId);
+      /*
+       * Kişi arada silinmiş olabilir. Öneriyi "onaylandı" diye işaretleyip
+       * uygulayamamak, kayıtta olmayan bir değişikliği olmuş göstermek olurdu.
+       */
+      if (i === -1)
+        return NextResponse.json({ error: "Öneri edilen kişi artık yok." }, { status: 409 });
 
-    const people = [...data.people];
-    people[i] = uygula.person;
+      if (kindOf(p) === "silme") {
+        /*
+         * SİLME. İlişki grafiğinden de düşürülüyor: yalnız kaydı atmak,
+         * başkalarının `parentIds`/`spouseIds` listelerinde OLMAYAN bir
+         * kimliğe işaret eden bağlar bırakırdı ve o bağlar ekranda sessizce
+         * kaybolan ebeveyn/eş olarak görünürdü.
+         */
+        const silinen = data.people[i].id;
+        people = data.people
+          .filter((x) => x.id !== silinen)
+          .map((x) => ({
+            ...x,
+            parentIds: (x.parentIds ?? []).filter((id) => id !== silinen),
+            spouseIds: (x.spouseIds ?? []).filter((id) => id !== silinen),
+            ...(x.formerSpouseIds
+              ? { formerSpouseIds: x.formerSpouseIds.filter((id) => id !== silinen) }
+              : {}),
+            ...(x.associations
+              ? { associations: x.associations.filter((a) => a.personId !== silinen) }
+              : {}),
+          }));
+      } else {
+        const uygula = applyProposal(data.people[i], p);
+        if (!uygula.ok)
+          return NextResponse.json(
+            {
+              error: "Bu öneri yazıldığından beri alanlar değişmiş; onaylamak yeni bilgiyi silerdi.",
+              stale: uygula.stale,
+            },
+            { status: 409 }
+          );
+        people = [...data.people];
+        people[i] = uygula.person;
+      }
+    }
     /*
      * SIRA: önce ağaç yazılıyor, sonra öneri "onaylandı" işaretleniyor.
      * Ters olsaydı ve ağaç yazımı düşseydi, öneri onaylanmış görünür ama

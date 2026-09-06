@@ -1,6 +1,7 @@
 import {
-  applyProposal, bosMu, buildChanges, decide, normalizeValue, pendingCount, planProposal,
-  proposableKeys, sameValue, visibleTo, MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
+  applyProposal, bosMu, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
+  normalizeValue, pendingCount, planProposal, proposableKeys, sameValue, visibleTo,
+  MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
   type Proposal,
 } from "../lib/proposals.ts";
 import type { Person } from "../types/family.ts";
@@ -323,6 +324,77 @@ eq(pendingCount([oneri(), oneri({ status: "onaylandi" }), oneri()]), 2, "bekleye
   eq(visibleTo(liste, "u1", true).length, 2, "karar verebilen hepsini görüyor");
   eq(visibleTo(liste, "u1", false).map((p) => p.id), ["a"], "katkı verici yalnız kendi önerisini görüyor");
   eq(visibleTo(liste, "u9", false).map((p) => p.id), ["b"], "başkasının önerisi görünmüyor");
+}
+
+/* ── Öneri TÜRLERİ (ekleme / silme) ──────────────────────────────────────── */
+/*
+ * İlk sürümde tek tür vardı ve bu, rolün yapabildiklerini sessizce
+ * sınırlıyordu: yeni kişi eklemek ve silmek öneri kuyruğundan geçemiyor,
+ * ancak DOĞRUDAN yazma yetkisiyle yapılabiliyordu. Rolleri daraltmadan önce
+ * bu boşluk kapanmalı — yoksa daraltma bir yeteneği yok eder.
+ */
+eq(kindOf({ kind: undefined }), "alan", "tür yoksa 'alan' (eski kayıtlar göç istemiyor)");
+eq(kindOf({ kind: "silme" }), "silme", "tür varsa o okunuyor");
+
+{
+  const r = buildNewPerson({ firstName: "Zeynep", lastName: "Kaya", birthDate: "1950" });
+  check(r.ok, "geçerli ekleme önerisi kuruluyor");
+  if (r.ok) eq(Object.keys(r.person).sort(), ["birthDate", "firstName", "lastName"], "alanlar taşınıyor");
+}
+{
+  // Boş alanlar taşınmıyor: kayıtta olmayan alan, "boş" diye yazılmamalı.
+  const r = buildNewPerson({ firstName: "Zeynep", nickname: "", photos: [], confidential: false });
+  check(r.ok, "boş alanlar süzülüp öneri yine kuruluyor");
+  if (r.ok) eq(Object.keys(r.person), ["firstName"], "yalnız dolu alanlar");
+}
+{
+  /*
+   * Defter dışı anahtar reddediliyor — `buildChanges` ile aynı gerekçe:
+   * onay anında doğrudan kayda yazılırdı ve öneri akışı, kapatmaya
+   * çalıştığımız kapının etrafından dolanmanın yolu olurdu.
+   */
+  const r = buildNewPerson({ firstName: "X", addedBy: "baskasi" });
+  check(!r.ok && r.fail === "alan-yok", "ekleme önerisinde de defter dışı alan reddediliyor");
+}
+{
+  const r = buildNewPerson({ nickname: "", photos: [] });
+  check(!r.ok && r.fail === "degisiklik-yok", "tamamen boş ekleme önerisi reddediliyor");
+}
+{
+  const r = buildNewPerson({ bio: "x".repeat(MAX_VALUE + 1) });
+  check(!r.ok && r.fail === "cok-uzun", "ekleme önerisinde de uzun değer reddediliyor");
+}
+
+/* ── Tür tutarlılığı ─────────────────────────────────────────────────────── */
+/*
+ * Depoya girmeden sorulmalı: türü "ekleme" olup `personId` taşıyan bir kayıt,
+ * onay anında hangi kod yolunun çalışacağını belirsiz kılar. Belirsizliği
+ * yazma anında kesmek, onay anında keşfetmekten ucuz.
+ */
+{
+  const temel = { id: "o", personName: "", by: "u", byName: "", at: "", status: "bekliyor" } as const;
+  check(isCoherent({ ...temel, personId: "p1", changes: { a: { from: "", to: "x" } } } as Proposal),
+    "alan önerisi: personId + changes");
+  check(!isCoherent({ ...temel, personId: "", changes: { a: { from: "", to: "x" } } } as Proposal),
+    "alan önerisi personId'siz olamaz");
+  check(!isCoherent({ ...temel, personId: "p1", changes: {} } as Proposal),
+    "boş `changes` ile alan önerisi olmaz");
+
+  check(isCoherent({ ...temel, kind: "ekleme", personId: "", changes: {}, person: { firstName: "Z" } } as Proposal),
+    "ekleme önerisi: personId YOK, person VAR");
+  check(!isCoherent({ ...temel, kind: "ekleme", personId: "p1", changes: {}, person: { firstName: "Z" } } as Proposal),
+    "ekleme önerisi personId taşıyamaz");
+  check(!isCoherent({ ...temel, kind: "ekleme", personId: "", changes: {}, person: {} } as Proposal),
+    "boş `person` ile ekleme önerisi olmaz");
+  check(!isCoherent({ ...temel, kind: "ekleme", personId: "", changes: { a: { from: "", to: "x" } }, person: { firstName: "Z" } } as Proposal),
+    "ekleme önerisi `changes` taşıyamaz");
+
+  check(isCoherent({ ...temel, kind: "silme", personId: "p1", changes: {} } as Proposal),
+    "silme önerisi: personId VAR, gerisi boş");
+  check(!isCoherent({ ...temel, kind: "silme", personId: "", changes: {} } as Proposal),
+    "silme önerisi personId'siz olamaz");
+  check(!isCoherent({ ...temel, kind: "silme", personId: "p1", changes: { a: { from: "", to: "x" } } } as Proposal),
+    "silme önerisi `changes` taşıyamaz");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
