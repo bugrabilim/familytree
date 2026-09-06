@@ -8,12 +8,13 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import {
-  applyProposal, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
+  buildChanges, buildNewPerson, decide, isCoherent,
   MAX_NOTE, MAX_VALUE, pendingCount, visibleTo,
   type Proposal, type ProposalKind,
 } from "@/lib/proposals";
-import { addProposal, findProposal, listProposals, replaceProposal } from "@/lib/proposal-store";
-import { createPerson } from "@/lib/person-create";
+import { addProposal, listProposals, replaceProposals } from "@/lib/proposal-store";
+import { applyFailMessage, applyToTree } from "@/lib/proposal-apply";
+import type { FamilyData } from "@/types/family";
 
 export const dynamic = "force-dynamic";
 
@@ -188,7 +189,35 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, proposal: eklendi.proposal });
 }
 
-/** Onay / ret — yalnız düzenleyici ve üstü. */
+/** Tek istekte karara bağlanabilecek öneri sayısı. */
+const MAX_TOPLU = 100;
+
+/**
+ * ONAY / RET — tek öneri ya da TOPLU (madde 35/E).
+ *
+ * `{ id }` tek öneriyi, `{ ids: [...] }` bir kümeyi karara bağlar. İkisi de
+ * AYNI gövdeden geçiyor; toplu onay ayrı bir uca konsaydı iki yol ayrışırdı
+ * ve ayrışmanın yönü kötü olurdu (bkz. `lib/proposal-apply.ts`).
+ *
+ * ## Toplu onayda ağaç TEK KEZ yazılıyor
+ *
+ * Öneriler sırayla AYNI anlık görüntüye uygulanıyor, sonra tek `saveFamilyData`.
+ * Her öneri için ayrı kaydetseydik: N tane Blob yazması, N sürüm damgası ve
+ * her damgada istemcinin taban sürümü bayatlar — kullanıcı ikinci onayda
+ * kendi az önceki onayı yüzünden 409 yerdi.
+ *
+ * Art arda uygulama, önerilerin birbirinin sonucunu GÖRMESİNİ de sağlıyor:
+ * aynı alana iki farklı değer öneren iki kayıttan ikincisi artık bayat
+ * çıkıyor ve reddediliyor — birincinin yazdığını sessizce ezmek yerine.
+ *
+ * ## Kısmi başarı KABUL EDİLİYOR
+ *
+ * Bir öneri bayatsa ya da kişisi silinmişse yalnız O öneri düşüyor,
+ * ötekiler uygulanıyor ve sonuç listesi hangisinin neden düştüğünü
+ * söylüyor. Hepsini geri almak, tek bayat öneriyle yüz onaylık bir kuyruğu
+ * kilitlerdi — özelliğin var oluş sebebinin tam tersi. Düşen öneri
+ * "bekliyor" kalıyor, yani kaybolmuyor.
+ */
 export async function PATCH(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
@@ -201,166 +230,157 @@ export async function PATCH(req: NextRequest) {
 
   const body = (await req.json().catch(() => ({}))) as {
     id?: unknown;
+    ids?: unknown;
     decision?: unknown;
     note?: unknown;
   };
-  const id = typeof body.id === "string" ? body.id : "";
   const karar = body.decision === "onaylandi" || body.decision === "reddedildi" ? body.decision : null;
-  if (!id || !karar) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
-
-  const p = await findProposal(ctx.treeId, id);
-  if (!p) return NextResponse.json({ error: "Öneri bulunamadı" }, { status: 404 });
-
   /*
-   * Onaydan sonra ağacın YENİ sürümü istemciye dönüyor.
-   *
-   * İstemci taban sürümünü (`x-base-version`) modül düzeyinde tutuyor ve
-   * yalnız sayfa tazelendiğinde güncelliyor. Kuyruktan arka arkaya onay
-   * verildiğinde ikinci tıklama, kendi az önceki onayının değiştirdiği
-   * sürüm yüzünden 409 yiyordu — hem de "başka bir yerde değişti" diyerek.
-   * Kuyruğun asıl kullanımı toplu onay olduğu için bu, özelliği pratikte
-   * kullanılamaz kılıyordu.
+   * Yanıt BİÇİMİ isteğin biçimini izliyor: `{id}` ile gelen tek bir
+   * `proposal` alıyor, `{ids}` ile gelen `results` listesi. Tek biçime
+   * indirilseydi ya eski istemci kırılırdı ya da toplu yanıt hangi
+   * önerinin neden düştüğünü söyleyemezdi.
    */
-  let yeniSurum: string | undefined;
-
-  const kararli = decide(
-    p, karar, ctx.authorId, await gorunenAd(), new Date().toISOString(),
-    typeof body.note === "string" ? body.note : ""
-  );
-  if (!kararli.ok)
+  const toplu = Array.isArray(body.ids);
+  const ham = toplu
+    ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && !!x)
+    : typeof body.id === "string" && body.id
+      ? [body.id]
+      : [];
+  const ids = [...new Set(ham)];
+  if (!ids.length || !karar) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+  if (ids.length > MAX_TOPLU)
     return NextResponse.json(
-      { error: kararli.fail === "karar-verilmis" ? "Bu öneri zaten karara bağlanmış." : "Geçersiz karar." },
-      { status: 409 }
+      { error: `Tek seferde en fazla ${MAX_TOPLU} öneri karara bağlanabilir.` },
+      { status: 400 }
     );
 
+  // Kuyruk TEK KEZ okunuyor: her kimlik için ayrı okuma, toplu onayı
+  // öneri sayısıyla çarpan bir Blob trafiğine çevirirdi.
+  const kitap = new Map((await listProposals(ctx.treeId)).map((p) => [p.id, p]));
+
+  const ad = await gorunenAd();
+  const simdi = new Date().toISOString();
+  const not = typeof body.note === "string" ? body.note : "";
+
+  type Sonuc = { id: string; ok: boolean; error?: string; stale?: string[]; status?: number };
+  const sonuclar: Sonuc[] = [];
+  const yazilacak: Proposal[] = [];
+
+  let data: FamilyData | null = null;
   if (karar === "onaylandi") {
-    const data = await getFamilyData(ctx.treeId, { skipCache: true });
+    data = await getFamilyData(ctx.treeId, { skipCache: true });
     /*
      * İYİMSER KİLİT — öbür yazan uçlarla aynı kural.
      *
-     * `applyProposal`ın bayatlık denetimi yalnız ÖNERİLEN ALANLARI koruyor.
-     * Ağaç tek bir dosya; okuma ile yazma arasında başkası başka bir kişiyi
-     * kaydettiyse, bu yazma onun değişikliğini de ezerdi. İki denetim farklı
-     * şeylere bakıyor ve ikisi de gerekli.
+     * Bayatlık denetimi yalnız ÖNERİLEN ALANLARI koruyor. Ağaç tek bir
+     * dosya; okuma ile yazma arasında başkası başka bir kişiyi kaydettiyse,
+     * bu yazma onun değişikliğini de ezerdi. İki denetim farklı şeylere
+     * bakıyor ve ikisi de gerekli.
      */
     if (versionMismatch(req, data.updatedAt))
       return NextResponse.json(
         { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
         { status: 409 }
       );
-    let people: typeof data.people;
-
-    if (kindOf(p) === "ekleme") {
-      /*
-       * YENİ KİŞİ. Oluşturma `lib/person-create.ts`te ve kişi ucu da AYNI
-       * işlevi çağırıyor — kopyalansaydı ikisi ayrışır, kullanıcı kendi
-       * eklediğinde kurulan bir bağ öneriyle eklendiğinde kurulmazdı.
-       *
-       * `addedBy` ÖNEREN kişi: kaydı isteyen odur, onaylayan değil. Böylece
-       * öneriyle eklenen kaydı sonradan düzeltmek de önerene açık kalıyor.
-       *
-       * İlişki dizileri KAPALI (`allowLinkArrays: false`): öneri gövdesi
-       * kayıt defterinden süzülüyor ve o diziler zaten deftere girmiyor;
-       * bağ yalnız `relation` üstünden, tek bir hedefe kuruluyor.
-       */
-      const kur = createPerson(data, {
-        fields: p.person ?? {},
-        relation: p.relation,
-        allowLinkArrays: false,
-        addedBy: p.by,
-      });
-      if (!kur.ok)
-        return NextResponse.json(
-          {
-            error:
-              kur.fail === "iki-ebeveyn"
-                ? "Bağlanacak kişinin zaten iki ebeveyni var."
-                : "Öneride bağlanacak kişi artık yok.",
-          },
-          { status: 409 }
-        );
-      people = data.people;
-    } else {
-      const i = data.people.findIndex((x) => x.id === p.personId);
-      /*
-       * Kişi arada silinmiş olabilir. Öneriyi "onaylandı" diye işaretleyip
-       * uygulayamamak, kayıtta olmayan bir değişikliği olmuş göstermek olurdu.
-       */
-      if (i === -1)
-        return NextResponse.json({ error: "Öneri edilen kişi artık yok." }, { status: 409 });
-
-      if (kindOf(p) === "silme") {
-        /*
-         * SİLME. İlişki grafiğinden de düşürülüyor: yalnız kaydı atmak,
-         * başkalarının `parentIds`/`spouseIds` listelerinde OLMAYAN bir
-         * kimliğe işaret eden bağlar bırakırdı ve o bağlar ekranda sessizce
-         * kaybolan ebeveyn/eş olarak görünürdü.
-         */
-        const silinen = data.people[i].id;
-        people = data.people
-          .filter((x) => x.id !== silinen)
-          .map((x) => ({
-            ...x,
-            parentIds: (x.parentIds ?? []).filter((id) => id !== silinen),
-            spouseIds: (x.spouseIds ?? []).filter((id) => id !== silinen),
-            ...(x.formerSpouseIds
-              ? { formerSpouseIds: x.formerSpouseIds.filter((id) => id !== silinen) }
-              : {}),
-            ...(x.associations
-              ? { associations: x.associations.filter((a) => a.personId !== silinen) }
-              : {}),
-          }));
-      } else {
-        const uygula = applyProposal(data.people[i], p);
-        if (!uygula.ok)
-          return NextResponse.json(
-            {
-              error: "Bu öneri yazıldığından beri alanlar değişmiş; onaylamak yeni bilgiyi silerdi.",
-              stale: uygula.stale,
-            },
-            { status: 409 }
-          );
-        people = [...data.people];
-        people[i] = uygula.person;
-      }
-    }
-    /*
-     * SIRA: önce ağaç yazılıyor, sonra öneri "onaylandı" işaretleniyor.
-     * Ters olsaydı ve ağaç yazımı düşseydi, öneri onaylanmış görünür ama
-     * değişiklik hiç gerçekleşmezdi — kimsenin fark etmeyeceği bir yalan.
-     */
-    /*
-     * Sürüm damgasını `saveFamilyData` KENDİ vuruyor (yazdığı nesnenin
-     * `updatedAt`ini değiştiriyor). Tahmin etmek yerine nesneyi elde tutup
-     * damgayı ondan okuyoruz: istemci bunu `x-base-version` olarak birebir
-     * geri gönderecek, bir milisaniye farkı bile 409 üretirdi.
-     */
-    const yeni = { ...data, people };
-    await saveFamilyData(ctx.treeId, yeni, { by: ctx.authorId });
-    yeniSurum = yeni.updatedAt;
   }
 
-  const yazildi = await replaceProposal(ctx.treeId, kararli.proposal);
-  if (!yazildi)
+  let agacDegisti = false;
+  for (const id of ids) {
+    const p = kitap.get(id);
+    if (!p) {
+      sonuclar.push({ id, ok: false, error: "Öneri bulunamadı", status: 404 });
+      continue;
+    }
+    const kararli = decide(p, karar, ctx.authorId, ad, simdi, not);
+    if (!kararli.ok) {
+      sonuclar.push({
+        id, ok: false, status: 409,
+        error: kararli.fail === "karar-verilmis" ? "Bu öneri zaten karara bağlanmış." : "Geçersiz karar.",
+      });
+      continue;
+    }
+    if (karar === "onaylandi") {
+      const uygula = applyToTree(data as FamilyData, p);
+      if (!uygula.ok) {
+        sonuclar.push({
+          id, ok: false, status: 409,
+          error: applyFailMessage(uygula.fail),
+          ...(uygula.fail.kod === "bayat" ? { stale: uygula.fail.stale } : {}),
+        });
+        continue;
+      }
+      agacDegisti = true;
+    }
+    yazilacak.push(kararli.proposal);
+    sonuclar.push({ id, ok: true });
+  }
+
+  /*
+   * SIRA: önce ağaç yazılıyor, sonra öneriler "onaylandı" işaretleniyor.
+   * Ters olsaydı ve ağaç yazımı düşseydi, öneriler onaylanmış görünür ama
+   * değişiklik hiç gerçekleşmezdi — kimsenin fark etmeyeceği bir yalan.
+   *
+   * Sürüm damgasını `saveFamilyData` KENDİ vuruyor; tahmin etmek yerine
+   * nesneyi elde tutup damgayı ondan okuyoruz: istemci bunu
+   * `x-base-version` olarak birebir geri gönderecek, bir milisaniye farkı
+   * bile 409 üretirdi.
+   */
+  let yeniSurum: string | undefined;
+  if (karar === "onaylandi" && agacDegisti && data) {
+    await saveFamilyData(ctx.treeId, data, { by: ctx.authorId });
+    yeniSurum = data.updatedAt;
+  }
+
+  const damgalandi = await replaceProposals(ctx.treeId, yazilacak);
+
+  if (!toplu) {
+    const tek = sonuclar[0];
+    if (!tek.ok) return NextResponse.json({ error: tek.error, ...(tek.stale ? { stale: tek.stale } : {}) }, { status: tek.status ?? 409 });
+    if (damgalandi === 0)
+      /*
+       * DEĞİŞİKLİK AĞACA ZATEN YAZILDI ama damga yazılamadı. Buradan "Öneri
+       * bulunamadı" (404) dönmek yanıltıcıydı: kullanıcı hiçbir şey
+       * olmadığını sanıyor, oysa ağaç değişti. Öneri "bekliyor" kalıyor ve
+       * tekrar onaylandığında `applyProposal` idempotent olduğu için
+       * sorunsuz geçiyor — yani durum kurtarılabilir.
+       */
+      return NextResponse.json(
+        {
+          error:
+            karar === "onaylandi"
+              ? "Değişiklik ağaca uygulandı ama öneri damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin."
+              : "Öneri bulunamadı.",
+          applied: karar === "onaylandi",
+        },
+        { status: karar === "onaylandi" ? 500 : 404 }
+      );
+    return NextResponse.json({ ok: true, proposal: yazilacak[0], version: yeniSurum });
+  }
+
+  const basarili = sonuclar.filter((r) => r.ok).length;
+  return NextResponse.json(
+    {
+      ok: basarili > 0,
+      // `status` yalnız TEK öneri yanıtının HTTP kodunu seçmek için tutuldu;
+      // toplu yanıtta istemciye çıkmıyor.
+      results: sonuclar.map((r) => ({ id: r.id, ok: r.ok, ...(r.error ? { error: r.error } : {}), ...(r.stale ? { stale: r.stale } : {}) })),
+      done: basarili,
+      failed: sonuclar.length - basarili,
+      version: yeniSurum,
+      /*
+       * Ağaç yazıldı ama damga yazılamadıysa istemci bunu BİLMELİ: kuyrukta
+       * hâlâ "bekliyor" görünen öneriler aslında uygulanmış olabilir.
+       */
+      ...(basarili > 0 && damgalandi < basarili ? { stampFailed: true } : {}),
+    },
     /*
-     * DEĞİŞİKLİK AĞACA ZATEN YAZILDI ama damga yazılamadı. Buradan "Öneri
-     * bulunamadı" (404) dönmek yanıltıcıydı: kullanıcı hiçbir şey olmadığını
-     * sanıyor, oysa ağaç değişti. Öneri "bekliyor" kalıyor ve tekrar
-     * onaylandığında `applyProposal` artık idempotent olduğu için sorunsuz
-     * geçiyor — yani durum kurtarılabilir; söylenmesi gereken tek şey ne
-     * olduğu.
+     * Hiçbiri geçmediyse 409: istemci "oldu" sanmasın. Bir kısmı geçtiyse
+     * 200 — çünkü gerçekten bir şey OLDU ve sonuç listesi neyin olmadığını
+     * zaten söylüyor.
      */
-    return NextResponse.json(
-      {
-        error:
-          karar === "onaylandi"
-            ? "Değişiklik ağaca uygulandı ama öneri damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin."
-            : "Öneri bulunamadı.",
-        applied: karar === "onaylandi",
-      },
-      { status: karar === "onaylandi" ? 500 : 404 }
-    );
-  return NextResponse.json({ ok: true, proposal: kararli.proposal, version: yeniSurum });
+    { status: basarili > 0 ? 200 : 409 }
+  );
 }
 
 /**
