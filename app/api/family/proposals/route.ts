@@ -311,6 +311,15 @@ export async function PATCH(req: NextRequest) {
         continue;
       }
       agacDegisti = true;
+      /*
+       * GERİ ALMA KAYDI onay anında yazılıyor, çünkü bilgi yalnız burada
+       * var: "ekleme"de oluşan kaydın kimliği bu çağrıda üretiliyor,
+       * "silme"de silinen kayıt ve koparılan bağlar bir sonraki okumada
+       * artık yok. Sonradan türetilemez.
+       */
+      yazilacak.push({ ...kararli.proposal, undo: uygula.undo });
+      sonuclar.push({ id, ok: true });
+      continue;
     }
     yazilacak.push(kararli.proposal);
     sonuclar.push({ id, ok: true });
