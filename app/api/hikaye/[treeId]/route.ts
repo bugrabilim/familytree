@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
 import { findRequestByToken, submitContribution } from "@/lib/story-store";
+import { isTreeDeleted } from "@/lib/members";
 import { publicRequest } from "@/lib/contribution";
 import { fullName } from "@/lib/name";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -35,6 +36,22 @@ function ipOf(req: NextRequest): string {
  */
 const yok = () => NextResponse.json({ error: "Bu bağlantı geçerli değil." }, { status: 404 });
 
+/**
+ * SİLİNMEKTE OLAN AĞACIN BAĞLANTISI ÖLÜDÜR.
+ *
+ * Bu uç elindeki tek şey `treeId` — ağacın sahibini, dolayısıyla hesabın ağaç
+ * kaydını bilmiyor. Damga o yüzden ağacın kendi erişim dosyasında da duruyor
+ * (`lib/members.ts`). Okuma hatası da "silinmiş" sayılıyor: kapının güvenli
+ * yönü kapalı olmak, yoksa geçici bir Blob hatası silinmiş ağacı açardı.
+ */
+async function silinmis(treeId: string): Promise<boolean> {
+  try {
+    return await isTreeDeleted(treeId);
+  } catch {
+    return true;
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ treeId: string }> }) {
   const { treeId } = await params;
   const token = (new URL(req.url).searchParams.get("token") ?? "").trim();
@@ -47,6 +64,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tree
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
     );
 
+  if (await silinmis(treeId)) return yok();
   const r = await findRequestByToken(treeId, token);
   if (!r) return yok();
 
@@ -84,6 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tre
   }
 
   const token = typeof body.token === "string" ? body.token : "";
+  if (await silinmis(treeId)) return yok();
   const r = await submitContribution(treeId, token, {
     authorName: body.authorName,
     text: body.text,

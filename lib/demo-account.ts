@@ -1,7 +1,7 @@
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser } from "@/lib/users";
 import { saveFamilyData } from "@/lib/blob";
-import { listTrees, deleteTree } from "@/lib/trees";
+import { listTrees, purgeTree } from "@/lib/trees";
 import { DEMO_PEOPLE } from "@/lib/demo-data";
 import type { User } from "@/types/user";
 
@@ -48,7 +48,14 @@ export async function prepareDemoAccount(): Promise<User> {
   try {
     const trees = await listTrees(user.id, DEMO_FAMILY_NAME);
     for (const t of trees) {
-      if (!t.home) await deleteTree(user.id, t.treeId);
+      /*
+       * Demo'da BEKLEME SÜRESİ YOK: yumuşak silme (`softDeleteTree`) yerine
+       * doğrudan kalıcı silme. Bekleme süresi "yanlışlıkla sildim" hatasına
+       * karşı; demo ağaçları zaten her girişte sıfırlanan oyuncak veri ve 30
+       * gün beklemek, ziyaretçilerin bıraktığı ağaçların birikmesi demek
+       * olurdu.
+       */
+      if (!t.home) await purgeTree(user.id, t.treeId);
     }
   } catch {
     /* temizlik başarısız olsa da demo çalışmaya devam eder */

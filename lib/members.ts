@@ -8,6 +8,7 @@ import { findUserById } from "@/lib/users";
 // Saf normalleştirme `lib/tree-access.ts`te (birim testli): `shares` alanı
 // burada DÜŞÜRÜLMEMELİ — düşerse tüm paylaşım bağlantıları kaybolur.
 import { normalizeAccess, normalizeShares } from "@/lib/tree-access";
+import { isSoftDeleted } from "@/lib/retention";
 
 /**
  * Ağaç erişim (üye + davet) deposu — Madde 13.
@@ -103,6 +104,48 @@ async function saveTreeAccess(
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/* ── YUMUŞAK SİLİNMİŞ AĞAÇ: yalnız `treeId` bilen yüzeylerin kapısı ─────────
+ *
+ * Yumuşak silmenin asıl kaydı hesabın ağaç kaydında (`lib/trees.ts`), ama
+ * paylaşım bağlantısı, davet, üye girişi, RSVP ve hikâye bağlantısı sahibin
+ * kim olduğunu BİLMİYOR — ellerinde yalnız bir `treeId` var. O yüzden damga
+ * ağacın kendi erişim dosyasında da duruyor ve bu dosyadaki bütün jeton/şifre
+ * çözümleri ona bakıyor.
+ *
+ * Yarı gizlenmiş bir ağaç en kötüsü: kullanıcı sildiğini sanar, WhatsApp'taki
+ * bağlantı hâlâ açılır.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Ağaç yumuşak silinmiş mi? (yalnız `treeId` bilen çağıranlar için).
+ *
+ * `strict`: okuma başarısız olursa HATA yükselir, "silinmemiş" denmez.
+ * Bu bir gizleme kapısı; okunamayan dosyayı "canlı" saymak, geçici bir Blob
+ * hatasında silinmiş ağacın bağlantılarını yeniden açardı. Çağıranlar
+ * (girişsiz uçlar) hatayı "bağlantı geçersiz" diye karşılar.
+ */
+export async function isTreeDeleted(treeId: string): Promise<boolean> {
+  return isSoftDeleted(await getTreeAccess(treeId, { strict: true }));
+}
+
+/**
+ * Ağacın erişim dosyasına silme damgasını yazar (`null` → damgayı kaldırır).
+ *
+ * HATA YÜKSELİR. Çağıran (`lib/trees.ts`) damgayı kayda yazmadan ÖNCE burayı
+ * çağırıyor: bu yazma başarısızsa ağaç listeden düşer ama bağlantıları açık
+ * kalırdı — silmenin en kötü yarım hâli.
+ *
+ * `mirror: false`: üye/davet listeleri değişmiyor, yalnız damga. Ayna "sil ve
+ * yeniden yaz" ile çalıştığı için gereksiz yere bütün üye satırlarını
+ * döndürmenin anlamı yok.
+ */
+export async function markTreeDeleted(treeId: string, deletedAt: string | null): Promise<void> {
+  const data = await getTreeAccess(treeId, { strict: true });
+  if (deletedAt) data.deletedAt = deletedAt;
+  else delete data.deletedAt;
+  await saveTreeAccess(treeId, data, { mirror: false });
+}
+
 /**
  * Davet oluştur. Ham jeton `<treeId>.<secret>` biçiminde döner (yalnız
  * bağlantıda görünür); blob'da secret'ın SHA-256 özeti saklanır. Tek kullanım,
@@ -144,6 +187,7 @@ export async function findValidInvite(token: string): Promise<{ treeId: string; 
   const { treeId, secret } = parsed;
   const hash = sha256(secret);
   const data = await getTreeAccess(treeId);
+  if (isSoftDeleted(data)) return null; // silinmiş ağaca davet geçersizdir
   const invite = data.invites.find((iv) => iv.tokenHash === hash);
   if (!invite || invite.usedAt) return null;
   if (new Date(invite.expiresAt).getTime() < Date.now()) return null;
@@ -174,6 +218,7 @@ export async function acceptInvite(
   const { treeId, secret } = parsed;
   const hash = sha256(secret);
   const data = await getTreeAccess(treeId);
+  if (isSoftDeleted(data)) return null; // silinmiş ağaca yeni üye alınmaz
   const invite = data.invites.find((iv) => iv.tokenHash === hash);
   if (!invite || invite.usedAt) return null;
   if (new Date(invite.expiresAt).getTime() < Date.now()) return null;
@@ -220,8 +265,11 @@ export async function findMemberByPassword(
   treeId: string,
   password: string
 ): Promise<Member | null> {
-  const { members } = await getTreeAccess(treeId);
-  for (const m of members) {
+  const data = await getTreeAccess(treeId);
+  // Ağaç silinmişse üye de giremez: yoksa kurucu giremezken davetlisi
+  // girebilirdi ve ağaç "silinmiş" görünürken yaşamaya devam ederdi.
+  if (isSoftDeleted(data)) return null;
+  for (const m of data.members) {
     if (await compare(password, m.passwordHash)) return m;
   }
   return null;
@@ -373,6 +421,8 @@ export async function findValidShare(
     } catch {
       data = null;
     }
+    // Silinmiş ağacın bağlantısı ölüdür — tekrar denemenin de anlamı yok.
+    if (data && isSoftDeleted(data)) return null;
     if (data) {
       const share = normalizeShares(data).find((s) => s.token === token);
       if (share) return isExpired(share) ? null : { treeId: parsed.treeId, share };
@@ -423,13 +473,49 @@ export async function recordShareVisit(
 /** Ağacın onaylı bağlı ağaçları. */
 export async function listPairings(treeId: string): Promise<Pairing[]> {
   const data = await getTreeAccess(treeId);
-  return data.pairings ?? [];
+  const pairings = data.pairings ?? [];
+  if (pairings.length === 0) return [];
+  /*
+   * KARŞI ağaç silinmişse eşleşme de listelenmez. `/p/<treeId>`,
+   * `/pair/compare/<treeId>`, aşılama ve birleştirme yetkiyi bu listeden
+   * alıyor; filtre burada olmasaydı, komşu hesabın sildiği ağaç bizim
+   * ekranımızda okunmaya devam ederdi.
+   *
+   * Maliyet: eşleşme başına bir erişim dosyası okuması. Eşleşme sayısı
+   * elle kurulan bir şey (tipik olarak 0–3), o yüzden kabul edilebilir.
+   */
+  const durum = await Promise.all(
+    pairings.map(async (p) => {
+      try {
+        return await isTreeDeleted(p.peerTreeId);
+      } catch {
+        return false; // okunamadıysa eşleşmeyi gizleme; hata gizlilik kararı değil
+      }
+    })
+  );
+  return pairings.filter((_, i) => !durum[i]);
 }
 
-/** İki ağaç onaylı bağlı mı? (her iki blob'da da kayıt olması beklenir). */
+/**
+ * İki ağaç onaylı bağlı mı? (her iki blob'da da kayıt olması beklenir).
+ *
+ * Aşılama (`/api/tree/graft`) ve tam birleştirme (`/api/tree/merge-tree`)
+ * yetkiyi buradan alıyor, `listPairings`ten değil — o yüzden silinmiş ağaç
+ * denetimi burada da ayrıca yapılıyor. Yoksa komşu hesabın sildiği ağacın
+ * kişileri, silme sonrasında bizim ağacımıza kopyalanabilirdi.
+ *
+ * Denetim İKİ TARAF için: bizim ağacımız silinmişse de bağ yoktur (silinmiş
+ * bir ağaca veri yazmak, onu yaşatmak olur).
+ */
 export async function arePaired(treeId: string, peerTreeId: string): Promise<boolean> {
   const data = await getTreeAccess(treeId);
-  return (data.pairings ?? []).some((p) => p.peerTreeId === peerTreeId);
+  if (isSoftDeleted(data)) return false;
+  if (!(data.pairings ?? []).some((p) => p.peerTreeId === peerTreeId)) return false;
+  try {
+    return !(await isTreeDeleted(peerTreeId));
+  } catch {
+    return false; // okunamayan komşu, bağlı sayılmaz (yazma yolunda kapı kapalı düşer)
+  }
 }
 
 /**

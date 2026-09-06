@@ -62,6 +62,15 @@ export interface User {
   resetTokenHash?: string;
   /** Bekleyen sıfırlamanın son kullanma anı (ISO). */
   resetTokenExpires?: string;
+  /**
+   * HESAP YUMUŞAK SİLİNDİ — damga varsa hesap bekleme süresindedir
+   * (`lib/retention.ts`, `GRACE_DAYS`).
+   *
+   * Damga duruyorken: giriş YAPILAMAZ (`lib/credentials.ts`), oturum çözülmez
+   * (`lib/tree-context.ts`), hatırlatma postası gitmez — ama veri durur ve
+   * şifreyle geri alınabilir. Süre dolunca zamanlanmış iş her şeyi siler.
+   */
+  deletedAt?: string;
 }
 
 export interface UsersData {
@@ -191,4 +200,17 @@ export interface TreeAccess {
   pairings?: Pairing[];
   /** Bekleyen eşleştirme davetleri. */
   pairInvites?: PairInvite[];
+  /**
+   * AĞAÇ YUMUŞAK SİLİNDİ (ISO damga) — ağacın KENDİ dosyasındaki kopya.
+   *
+   * Asıl kayıt hesabın ağaç kaydında (`account-trees-<accountId>.json`), ama
+   * paylaşım bağlantısı / davet / RSVP gibi yüzeylerin elinde yalnız bir
+   * `treeId` var; sahibin kim olduğunu bilmeden o kayda ulaşamazlar. Damganın
+   * ağacın kendi erişim dosyasında da durması, "yalnız treeId bilen" her
+   * yüzeyin tek okumayla kapanabilmesi demek.
+   *
+   * İki damga tek yerden yazılır (`lib/trees.ts` → `softDeleteTree`), yoksa
+   * ayrışır ve ağaç yarı gizlenmiş olur — en kötüsü o.
+   */
+  deletedAt?: string;
 }

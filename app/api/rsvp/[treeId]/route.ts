@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addRsvp, findByToken } from "@/lib/gathering-store";
+import { isTreeDeleted } from "@/lib/members";
 import { publicGathering } from "@/lib/gathering";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -35,6 +36,21 @@ function ipOf(req: NextRequest): string {
   );
 }
 
+/**
+ * SİLİNMEKTE OLAN AĞACIN DAVET BAĞLANTISI ÖLÜDÜR.
+ *
+ * Elde yalnız `treeId` var (sahibi bilinmiyor), o yüzden damga ağacın kendi
+ * erişim dosyasından okunuyor (`lib/members.ts`). Okuma hatası "silinmiş"
+ * sayılıyor: girişsiz bir yazma ucunda kapının güvenli yönü kapalı olmak.
+ */
+async function silinmis(treeId: string): Promise<boolean> {
+  try {
+    return await isTreeDeleted(treeId);
+  } catch {
+    return true;
+  }
+}
+
 const MESAJ: Record<string, { text: string; status: number }> = {
   yok: { text: "Bu davet bağlantısı geçerli değil.", status: 404 },
   kapali: { text: "Bu etkinlik için katılım bildirimi kapalı.", status: 403 },
@@ -57,6 +73,9 @@ export async function GET(
       { error: "Çok fazla istek." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
     );
+
+  if (await silinmis(treeId))
+    return NextResponse.json({ error: MESAJ.yok.text }, { status: 404 });
 
   const g = await findByToken(treeId, decodeURIComponent(token));
   if (!g) return NextResponse.json({ error: MESAJ.yok.text }, { status: 404 });
@@ -89,6 +108,9 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
+
+  if (await silinmis(treeId))
+    return NextResponse.json({ error: MESAJ.yok.text }, { status: 404 });
 
   const res = await addRsvp(treeId, decodeURIComponent(token), body);
   if ("error" in res) {

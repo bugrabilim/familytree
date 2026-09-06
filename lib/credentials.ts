@@ -2,7 +2,8 @@ import { compare } from "bcryptjs";
 import { findUserByFamilyName } from "@/lib/users";
 import { findMemberByPassword } from "@/lib/members";
 import { authEmailForAccount, isSupabaseLoginEnabled, supabaseVerifyPassword } from "@/lib/auth-users";
-import type { TreeRole } from "@/types/user";
+import { isSoftDeleted } from "@/lib/retention";
+import type { TreeRole, User } from "@/types/user";
 
 /** Giriş sonucu — hem web (NextAuth) hem mobil (jeton) tarafında ortak. */
 export interface SessionUser {
@@ -33,6 +34,23 @@ export async function verifyLogin(familyName: string, password: string): Promise
 
   const user = await findUserByFamilyName(familyName);
   if (!user) return null;
+
+  /*
+   * SİLİNMEKTE OLAN HESABA GİRİLEMEZ (`lib/retention.ts`).
+   *
+   * Bekleme süresi verinin durması içindir, hesabın çalışmaya devam etmesi
+   * için değil: "hesabımı sildim" diyen biri hâlâ girebiliyorsa silme
+   * yapılmamış demektir. Kapı burada, çünkü web (`auth.ts`) ve mobil
+   * (`/api/mobile/login`) doğrulamayı bu tek işlevden geçiriyor — rota başına
+   * eklenseydi biri unutulurdu.
+   *
+   * ÜYELER DE GİREMEZ: aşağıdaki üye yolu da bu erken dönüşün arkasında.
+   * Hesap beklemedeyken davetlisinin girebilmesi, ağacı sahibi olmadan
+   * yaşatmak olurdu.
+   *
+   * Geri alma yolu ayrı ve yine şifreye bağlı: `POST /api/account/restore`.
+   */
+  if (isSoftDeleted(user)) return null;
 
   const founderSession: SessionUser = {
     id: user.id,
@@ -75,4 +93,28 @@ export async function verifyLogin(familyName: string, password: string): Promise
   }
 
   return null;
+}
+
+/**
+ * Founder'ın şifresini doğrular — OTURUM AÇMAZ, üye şifrelerine BAKMAZ.
+ *
+ * İki ayrı iş için var:
+ *  · geri alma (`/api/account/restore`) — hesap beklemede olduğu için
+ *    `verifyLogin` bilerek `null` dönüyor, ama kimliği yine de kanıtlamak
+ *    gerek;
+ *  · silme teyidi (`/api/account/delete`) — oturum zaten var; sorulan şey
+ *    "klavyenin başındaki gerçekten hesap sahibi mi".
+ *
+ * Üye şifresi KABUL EDİLMEZ: davetli bir `viewer`, ağacın tamamını silme ya
+ * da geri getirme kararını veremez.
+ */
+export async function verifyFounderPassword(
+  user: Pick<User, "id" | "passwordHash">,
+  password: string
+): Promise<boolean> {
+  if (!password || !user?.passwordHash) return false;
+  if (isSupabaseLoginEnabled()) {
+    if (await supabaseVerifyPassword(authEmailForAccount(user.id), password)) return true;
+  }
+  return compare(password, user.passwordHash);
 }

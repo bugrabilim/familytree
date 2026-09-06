@@ -3,6 +3,7 @@
 import Modal from "./ui/Modal";
 import ThemeToggle from "./ThemeToggle";
 import AccountEmailSection from "./AccountEmailSection";
+import DeleteAccountSection from "./DeleteAccountSection";
 import NotifySection from "./NotifySection";
 import LanguageSwitch from "./LanguageSwitch";
 import { usePrivacy } from "./PrivacyContext";
@@ -19,6 +20,17 @@ interface Props {
    */
   showBonds: boolean;
   onToggleBonds: (v: boolean) => void;
+  /** Hesabın aile adı — "Hesabı sil" teyidi buna birebir eşleşmeli. */
+  familyName?: string;
+  /** Hesaba bağlı ağaç sayısı ("ne kadar içerik gidecek" özeti için). */
+  treeCount?: number;
+  /** Aktif ağaçtaki kişi sayısı. */
+  peopleCount?: number;
+  /**
+   * Hesap sahibi mi? Hesabı YALNIZ kurucu silebilir; davetli üyeye bölümü
+   * göstermek, basınca 403 yiyeceği bir düğme göstermek olurdu.
+   */
+  isFounder?: boolean;
 }
 
 /**
@@ -31,6 +43,10 @@ export default function SettingsDialog({
   onToggleAssociates,
   showBonds,
   onToggleBonds,
+  familyName,
+  treeCount = 1,
+  peopleCount = 0,
+  isFounder,
 }: Props) {
   const t = useT();
   const { hideLiving, setHideLiving, forced: privacyForced } = usePrivacy();
@@ -93,6 +109,21 @@ export default function SettingsDialog({
         */}
         <AccountEmailSection />
         <NotifySection />
+
+        {/*
+          Hesabı sil — EN ALTTA ve ayrı bir tehlike kutusunda. Yukarıdaki
+          zararsız tercihlerin arasına karışsaydı yanlışlıkla açılması çok
+          kolay olurdu. Aile adı bilinmiyorsa bölüm hiç çizilmiyor: teyit
+          metninin karşılaştırılacağı bir ad olmadan onay kutusu anlamsız,
+          düğme de körlemesine basılan bir düğme olurdu.
+        */}
+        {isFounder && familyName && (
+          <DeleteAccountSection
+            familyName={familyName}
+            treeCount={treeCount}
+            peopleCount={peopleCount}
+          />
+        )}
       </div>
     </Modal>
   );

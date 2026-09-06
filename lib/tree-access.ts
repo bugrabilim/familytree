@@ -10,6 +10,15 @@ export interface TreeMeta {
   treeId: string;
   name: string;
   createdAt: string;
+  /**
+   * YUMUŞAK SİLME damgası (ISO) — `lib/retention.ts`.
+   *
+   * Damgalı ağaç listelerden ve yetki çözümünden düşer ama verisi durur;
+   * `GRACE_DAYS` gün sonra zamanlanmış iş kalıcı olarak siler. Kayıttan
+   * SATIRI ÇIKARMAK yerine damga konmasının sebebi bu: geri alma, ağacın
+   * adının ve oluşturulma tarihinin durmasına bağlı.
+   */
+  deletedAt?: string;
 }
 
 /**
@@ -38,6 +47,12 @@ export function normalizeAccess(data: TreeAccess): TreeAccess {
     shares: data.shares ?? [],
     pairings: data.pairings ?? [],
     pairInvites: data.pairInvites ?? [],
+    /*
+     * `deletedAt` de DÜŞÜRÜLEMEZ — `shares` ile aynı tuzak, ama sonucu daha
+     * kötü: damga her okuma-yazma turunda silinseydi, yumuşak silinmiş bir
+     * ağacın paylaşım bağlantıları ilk yazmada yeniden açılırdı.
+     */
+    ...(data.deletedAt ? { deletedAt: data.deletedAt } : {}),
   };
 }
 

@@ -195,3 +195,26 @@ export async function confirmAccountAuthEmail(accountId: string, email: string):
   });
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Supabase Auth kullanıcısını KALICI siler (hesap kalıcı silmenin parçası).
+ *
+ * Yapılandırma yoksa ya da kimlik UUID değilse (demo) sessizce çıkar: o
+ * durumda zaten hiç kullanıcı oluşturulmamıştır (`importAccountToAuth` aynı
+ * koşula bakıyor).
+ *
+ * Hata FIRLATIR: çağıran best-effort sarıp "silinemeyenler" listesine yazsın.
+ * Artakalan bir Auth kullanıcısı tek başına giriş vermez (giriş `users.json`
+ * satırını arıyor), ama yine de silinmemiş bir kayıttır ve görünmesi gerekir.
+ */
+export async function deleteAccountAuthUser(accountId: string): Promise<void> {
+  if (!isSupabaseConfigured() || !isUuid(accountId)) return;
+  const { error } = await supabaseAdmin().auth.admin.deleteUser(accountId);
+  if (error) {
+    // "Kullanıcı yok" bir hata değil: silme idempotent olmalı, yoksa ikinci
+    // deneme (bir sonraki temizlik koşusu) sonsuza dek başarısız görünür.
+    const msg = (error.message || "").toLowerCase();
+    if (msg.includes("not found") || error.status === 404) return;
+    throw new Error(error.message);
+  }
+}

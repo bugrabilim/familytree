@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsersData } from "@/lib/users";
+import { isSoftDeleted } from "@/lib/retention";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { todaysReminders, remindersToText } from "@/lib/reminders";
@@ -64,6 +65,13 @@ export async function GET(req: NextRequest) {
   try {
     const { users } = await getUsersData();
     for (const u of users) {
+      /*
+       * SİLİNMEKTE OLAN HESABA POSTA GİTMEZ. Veri bekleme süresi boyunca
+       * duruyor, yani hatırlatmalar hesaplanabilir hâlde — ama hesabını
+       * silmiş birine doğum günü hatırlatması göndermek, silmenin
+       * yapılmadığını söylemenin en gürültülü yolu olurdu.
+       */
+      if (isSoftDeleted(u)) continue;
       const gunluk = !!u.notifyEmail && (!!u.notifyReminders || !!u.notifyMemorials);
       const bultenGunu = !!u.notifyEmail && !!u.notifyNewsletter && ayinIlkGunu;
       if (!gunluk && !bultenGunu) continue;

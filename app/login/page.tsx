@@ -7,6 +7,7 @@ import Link from "next/link";
 import AuthShell, { authField, authLabel } from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
 import { useT } from "@/lib/i18n";
+import { restoreAccount } from "@/lib/actions";
 import { demoGirisi } from "./actions";
 
 function LoginForm() {
@@ -16,23 +17,66 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  /*
+   * Silinmekte olan hesabın geri getirilmesi (bekleme süresi, `lib/retention.ts`).
+   *
+   * Neden burada: silinmiş hesapla GİRİŞ YAPILAMIYOR, dolayısıyla geri
+   * getirmenin oturumlu bir yolu yok. Kullanıcının elinde yalnız aile adı ve
+   * şifresi var — ikisi de bu formda zaten yazılı. Bu bağlantı olmasaydı
+   * bekleme süresi kullanıcı için hiçbir işe yaramazdı: verisi süre boyunca
+   * duruyor ama ona ulaşacak hiçbir düğme yok.
+   *
+   * Yalnız BAŞARISIZ girişten sonra gösteriliyor: uç güvenlik gereği "böyle
+   * hesap yok", "hesap canlı" ve "şifre yanlış" arasında ayrım yapmıyor, o
+   * yüzden kimin hesabının beklemede olduğunu önceden bilemiyoruz.
+   */
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState<string[] | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/tree";
+
+  const girisYap = async () => {
+    const res = await signIn("credentials", { familyName, password, redirect: false });
+    if (res?.error) {
+      setError(t("login.error"));
+      setLoading(false);
+      return false;
+    }
+    router.push(callbackUrl);
+    return true;
+  };
+
+  const geriGetir = async () => {
+    setRestoreBusy(true);
+    setError("");
+    try {
+      const r = await restoreAccount(familyName, password, t("login.restore.failed"));
+      /*
+       * 207: hesap geri geldi ama bir şey işlenemedi. Sessizce girip
+       * "her şey yolunda" demek yanlış olurdu — kullanıcı, paylaşım
+       * bağlantısı gibi eksik kalmış olabilecek şeyleri bilmeli. O yüzden
+       * bu dalda otomatik giriş YOK; önce liste okunur.
+       */
+      if (r.durum === "kismi") {
+        setRestoreFailed(r.failed);
+        return;
+      }
+      setLoading(true);
+      await girisYap();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRestoreBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const res = await signIn("credentials", { familyName, password, redirect: false });
-
-    if (res?.error) {
-      setError(t("login.error"));
-      setLoading(false);
-    } else {
-      router.push(callbackUrl);
-    }
+    await girisYap();
   };
 
   return (
@@ -85,6 +129,51 @@ function LoginForm() {
 
         {error && (
           <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
+        )}
+
+        {/* Silinmekte olan hesap için geri getirme yolu — yalnız giriş
+            başarısız olduktan sonra, çünkü uç hangi hesabın beklemede
+            olduğunu söylemiyor (söyleseydi kayıtlı aile adlarını sormanın
+            aracı olurdu). */}
+        {error && !restoreFailed && (
+          <div className="rounded-xl border border-border bg-surface-2 px-3 py-2.5 space-y-2">
+            <p className="text-[11px] text-text-muted leading-snug">{t("login.restore.hint")}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              full
+              disabled={restoreBusy || loading || !familyName || !password}
+              onClick={geriGetir}
+            >
+              {restoreBusy ? t("login.restore.busy") : t("login.restore.action")}
+            </Button>
+          </div>
+        )}
+
+        {restoreFailed && (
+          <div className="rounded-xl border border-danger/40 bg-danger-soft/40 px-3 py-2.5 space-y-1.5">
+            <p className="text-[11px] text-danger font-medium">{t("login.restore.partial")}</p>
+            <ul className="text-[11px] text-text-muted space-y-0.5">
+              {restoreFailed.map((f) => (
+                <li key={f}>• {f}</li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              full
+              disabled={loading}
+              onClick={() => {
+                setRestoreFailed(null);
+                setLoading(true);
+                girisYap();
+              }}
+            >
+              {t("login.restore.continue")}
+            </Button>
+          </div>
         )}
 
         <Button type="submit" size="lg" full disabled={loading || demoLoading}>
