@@ -145,5 +145,74 @@ check(/if \(!blob\) return empty\(\);/.test(store), "dosya GERÇEKTEN yoksa boş
 check(/if \(!res\.ok\) throw new Error\(/.test(store), "HTTP hatasında fırlatılıyor");
 check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dönüş YOK");
 
+/* --- Öneri TÜRLERİ: ekleme ve silme --------------------------------------- */
+/*
+ * Rolleri daraltmanın ön koşulu bu iki tür. Yoksa yetkisi alınan kişi "yeni
+ * kişi ekle" ve "kaydı sil" isteklerini hiçbir yoldan iletemez ve daraltma,
+ * bir yeteneği yok etmiş olur.
+ */
+{
+  const patch = rota.slice(rota.indexOf("export async function PATCH"));
+
+  /*
+   * EKLEME onayı kişiyi ORTAK oluşturucudan kuruyor. Rota kendi kopyasını
+   * yazsaydı ikisi ayrışır ve kullanıcı kendi eklediğinde kurulan bir bağ
+   * öneriyle eklendiğinde kurulmazdı — fark aylar sonra tek yönlü kalmış bir
+   * eş bağı olarak ortaya çıkardı.
+   */
+  check(/createPerson\(data, \{/.test(patch), "ekleme onayı ortak oluşturucuyu çağırıyor");
+  check(!/nextCode\(/.test(rota), "rota kendi kod üretimini yapmıyor");
+  {
+    const i = patch.indexOf('kindOf(p) === "ekleme"');
+    const j = patch.indexOf("} else {", i);
+    const dal = i > -1 && j > i ? patch.slice(i, j) : "";
+    /*
+     * `addedBy` ÖNEREN kişi, onaylayan değil: kaydı isteyen odur ve
+     * öneriyle eklenen kaydı sonradan düzeltmek de ona açık kalmalı.
+     */
+    check(/addedBy: p\.by/.test(dal), "eklenen kaydın sahibi ÖNEREN");
+    /*
+     * İlişki dizileri KAPALI: öneri gövdesi kayıt defterinden süzülüyor ve
+     * o diziler deftere girmiyor; bağ yalnız `relation` üstünden kuruluyor.
+     */
+    check(/allowLinkArrays: false/.test(dal), "öneri yolunda ilişki dizileri kapalı");
+  }
+
+  /*
+   * SİLME onayı kaydı İLİŞKİ GRAFİĞİNDEN de düşürüyor. Yalnız kaydı atmak,
+   * başkalarının listelerinde olmayan bir kimliğe işaret eden bağlar
+   * bırakırdı ve o bağlar ekranda sessizce kaybolan ebeveyn/eş olurdu.
+   */
+  {
+    const i = patch.indexOf('kindOf(p) === "silme"');
+    const j = patch.indexOf("} else {", i);
+    const dal = i > -1 && j > i ? patch.slice(i, j) : "";
+    check(/filter\(\(x\) => x\.id !== silinen\)/.test(dal), "kayıt siliniyor");
+    check(/parentIds/.test(dal) && /spouseIds/.test(dal), "ebeveyn ve eş bağları temizleniyor");
+    check(/formerSpouseIds/.test(dal), "eski eş bağları da temizleniyor");
+    check(/associations/.test(dal), "çevre bağları da temizleniyor");
+  }
+
+  /* Üç tür de aynı iyimser kilidin ARKASINDA. */
+  {
+    const iKilit = patch.indexOf("versionMismatch(req");
+    const iEkleme = patch.indexOf('kindOf(p) === "ekleme"');
+    check(iKilit > -1 && iEkleme > iKilit, "tür ayrımı kilitten SONRA");
+  }
+}
+{
+  /*
+   * Öneri açarken TÜR TUTARLILIĞI depoya girmeden sınanıyor: türü "ekleme"
+   * olup `personId` taşıyan bir kayıt, onay anında hangi kod yolunun
+   * çalışacağını belirsiz kılardı.
+   */
+  const post = rota.slice(rota.indexOf("export async function POST"), rota.indexOf("export async function PATCH"));
+  check(/isCoherent\(/.test(post), "tür tutarlılığı yazmadan önce sınanıyor");
+  const iTutarli = post.indexOf("isCoherent(");
+  const iEkle = post.indexOf("await addProposal(");
+  check(iTutarli > -1 && iEkle > iTutarli, "sınama, depoya yazmadan ÖNCE");
+  check(/buildNewPerson\(/.test(post), "ekleme önerisi kayıt defterinden süzülüyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

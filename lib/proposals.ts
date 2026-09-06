@@ -52,8 +52,41 @@ export interface Change {
   to: unknown;
 }
 
+/**
+ * Önerinin TÜRÜ (madde 35, ikinci tur).
+ *
+ * İlk sürümde tek tür vardı — var olan bir kaydın alanlarını değiştirmek — ve
+ * bu, rolün yapabildiklerini sessizce sınırlıyordu: yeni kişi eklemek ve
+ * kayıt silmek öneri kuyruğundan geçemiyor, o yüzden ancak DOĞRUDAN yazma
+ * yetkisiyle yapılabiliyordu. Rolleri daraltmanın ön koşulu bu boşluğu
+ * kapatmak: yetkisi olmayan biri her şeyi ÖNEREBİLMELİ, yoksa daraltma bir
+ * yeteneği yok etmiş olur.
+ *
+ * Alan YOKSA "alan" sayılıyor — bu tür eklenmeden önce yazılmış öneriler
+ * için. Eski kayıtları göç ettirmeden okunur tutuyor.
+ */
+export type ProposalKind =
+  /** Var olan kaydın alanlarını değiştir. */
+  | "alan"
+  /** Yeni kişi ekle. */
+  | "ekleme"
+  /** Var olan kaydı sil. */
+  | "silme";
+
+/** Yeni kişi önerisinde, kişinin hangi kayda bağlanacağı. */
+export interface ProposedRelation {
+  type: "parent" | "child" | "spouse" | "sibling" | "associate";
+  targetId: string;
+  assocType?: string;
+}
+
 export interface Proposal {
   id: string;
+  /** Tür. Yokluğu "alan" demek (eski kayıtlar). */
+  kind?: ProposalKind;
+  /**
+   * Hangi kayıt için. "ekleme" türünde BOŞ — kayıt henüz yok.
+   */
   personId: string;
   /**
    * Kişinin adı, ÖNERİ ANINDAKİ hâliyle.
@@ -63,6 +96,14 @@ export interface Proposal {
    */
   personName: string;
   changes: Record<string, Change>;
+  /**
+   * "ekleme" türünde önerilen kişinin alanları (kayıt defterine göre
+   * süzülmüş). `changes` bu türde boş kalıyor: ortada karşılaştırılacak bir
+   * "önceki değer" yok, dolayısıyla bayatlık denetiminin de anlamı yok.
+   */
+  person?: Record<string, unknown>;
+  /** "ekleme" türünde kişinin bağlanacağı kayıt. */
+  relation?: ProposedRelation;
   note?: string;
   /** Öneriyi yazan (`ctx.authorId`). */
   by: string;
@@ -202,6 +243,64 @@ export function buildChanges(
   if (sayi === 0) return { ok: false, fail: "degisiklik-yok" };
   if (sayi > MAX_CHANGES) return { ok: false, fail: "cok-alan" };
   return { ok: true, changes };
+}
+
+/**
+ * "ekleme" önerisinin gövdesini kurar.
+ *
+ * Alanlar kayıt defterine göre SÜZÜLÜYOR — `buildChanges` ile aynı gerekçe:
+ * defter dışı bir anahtar (`addedBy`, `code`, ilişki grafiği) onay anında
+ * doğrudan kayda yazılırdı ve öneri akışı, kapatmaya çalıştığımız yetki
+ * kapısının etrafından dolanmanın yolu olurdu.
+ *
+ * Ad ZORUNLU değil ama boş öneri de kabul edilmiyor: adsız ve alansız bir
+ * "kişi ekle" önerisi, karar verecek kişiye hakkında hiçbir şey söylemez.
+ */
+export function buildNewPerson(
+  istek: Record<string, unknown>
+): { ok: true; person: Record<string, unknown> } | { ok: false; fail: BuildFail } {
+  const izinli = proposableKeys();
+  const person: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(istek)) {
+    if (!izinli.has(k)) return { ok: false, fail: "alan-yok" };
+    if (typeof v === "string" && v.trim().length > MAX_VALUE) return { ok: false, fail: "cok-uzun" };
+    if (bosMu(v)) continue;
+    person[k] = normalizeValue(v);
+  }
+  const sayi = Object.keys(person).length;
+  if (sayi === 0) return { ok: false, fail: "degisiklik-yok" };
+  if (sayi > MAX_CHANGES) return { ok: false, fail: "cok-alan" };
+  return { ok: true, person };
+}
+
+/**
+ * Önerinin türü — alan yoksa "alan".
+ *
+ * Tek yerden okunuyor ki her çağıran `p.kind ?? "alan"` yazmak zorunda
+ * kalmasın; unutulan bir yer eski kayıtları görünmez kılardı.
+ */
+export function kindOf(p: Pick<Proposal, "kind">): ProposalKind {
+  return p.kind ?? "alan";
+}
+
+/**
+ * Öneri kendi türüne göre TUTARLI mı?
+ *
+ * Depoya girmeden önce sorulmalı: türü "ekleme" olup `personId` taşıyan ya da
+ * türü "silme" olup `changes` taşıyan bir kayıt, onay anında hangi kod
+ * yolunun çalışacağını belirsiz kılar. Belirsizliği yazma anında kesmek,
+ * onay anında keşfetmekten ucuz.
+ */
+export function isCoherent(p: Proposal): boolean {
+  switch (kindOf(p)) {
+    case "ekleme":
+      return !p.personId && !!p.person && Object.keys(p.person).length > 0
+        && Object.keys(p.changes ?? {}).length === 0;
+    case "silme":
+      return !!p.personId && !p.person && Object.keys(p.changes ?? {}).length === 0;
+    case "alan":
+      return !!p.personId && !p.person && Object.keys(p.changes ?? {}).length > 0;
+  }
 }
 
 /* ── Karar ────────────────────────────────────────────────────────────────── */
