@@ -8,6 +8,47 @@ uygulama çalışır ve **hiçbir kullanıcı erişimini kaybetmeden** ilerlemek
 > giriş + ileride hesapsız (anonim) girişi e-postayla kalıcı hesaba bağlama —
 > hepsi tek serviste. Fotoğraf/ses için **Cloudinary kalır**.
 
+---
+
+## BUGÜNKÜ DURUM (2026-09-06 — ölçüldü, tahmin değil)
+
+Bu bölüm aşağıdaki faz anlatımından ÖNCE geliyor, çünkü belgenin gövdesi
+planı anlatıyor ve plan ile gerçek arasındaki farkı görmeden hiçbir adım
+doğru sıralanamaz. Sayılar Supabase'e sorularak alındı.
+
+| tablo | satır |
+|---|---|
+| `accounts` | 3 — `demo-hesap`, `Pirci` (test), `Misafir ağacı 7b37a143` (yetim) |
+| `trees` | 3 (aynı üçü) |
+| `people` | 373 (demo 366, Misafir 7, Pirci 0) |
+| `tree_members` | 0 |
+| `tree_invites` | 4 |
+| `auth.users` | 2 |
+| `trees.updated_at` dolu | 0 / 3 |
+
+**En önemli bulgu: ÜRÜN SAHİBİNİN HESABI POSTGRES'TE HİÇ YOK.**
+`604a6f47-b9c2-4924-a66f-ce0681925baa` yalnız bir hız-sınırı anahtarında
+geçiyor (`email:bind:604a6f47…`); `accounts`, `trees`, `people` ve
+`auth.users` tablolarının hiçbirinde satırı yok. Yani **asıl ağaç yalnız
+Blob'da** ve `getFamilyData` onu her okuyuşta Blob yedeğine düşüyor.
+
+Sonucu: Faz 4 bugün yapılsaydı (`users.json` emekliye ayrılır) o hesabın
+hiçbir yerde kimlik kaydı kalmazdı. Göç aracı (`/api/admin/migrate`) var ve
+idempotent — yalnız hiç çalıştırılmamış.
+
+`trees.updated_at` sütunu eklendi ve kod (#287) onu yazıyor, ama üç ağacın
+hiçbirinde henüz dolu değil: damga bir SONRAKİ kaydetmede oluşuyor.
+
+### Okuma yolu ZATEN Postgres öncelikli
+
+Faz 2 bölümü "doğrulama sonrası okuma Postgres olur" diye yazılmış; bu
+GERÇEKLEŞTİ (Faz 2d). `getFamilyData` önce `dbGetFamilyData` çağırıyor ve
+Blob'a yalnız AĞAÇ SATIRI Postgres'te yoksa düşüyor. Belgenin eski hâli
+okuyanı (bu belgeyi yazanı da dâhil) "hâlâ Blob'dan okunuyor" sanısına
+düşürdü; düzeltme burada.
+
+---
+
 ## İlkeler
 
 - **Kayıpsız kimlik.** Mevcut tüm kimlikler (`treeId`, `personId`, üye id'leri)
@@ -39,8 +80,10 @@ Yalnız altyapı; hiçbir mevcut rota değişmez, uygulama tümüyle Blob üzeri
   (ağaç kaydı, family-data, tree-access) Postgres'e kopyalar. İdempotent.
 - **Çift yazma** (kısa süre): yazma hem Blob'a hem Postgres'e gider; okuma
   Postgres'ten. Sorun çıkarsa Blob'a anında dönülür.
-- Doğrulama sonrası okuma/yazma tümüyle Postgres; Blob veri katmanı kaldırılır
-  (Blob yalnız gerekiyorsa dosya için kalır — fotoğraf/ses zaten Cloudinary'de).
+- **Faz 2d (bitti):** okuma Postgres öncelikli. `getFamilyData` önce
+  `dbGetFamilyData`ya bakıyor; ağaç satırı orada yoksa Blob'a düşüyor.
+- Yazma HÂLÂ iki yere gidiyor (Blob kaynak + Postgres aynası, en iyi çaba,
+  süre sınırlı). Blob veri katmanının kaldırılması Faz 4'ün işi.
 
 ## Faz 3 — Supabase Auth'a geçiş (kademeli, kesintisiz)
 
