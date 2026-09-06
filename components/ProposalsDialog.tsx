@@ -38,12 +38,14 @@ interface Change {
 interface Proposal {
   id: string;
   /** Yokluğu "alan" demek — tür eklenmeden önce yazılmış öneriler. */
-  kind?: "alan" | "ekleme" | "silme";
+  kind?: "alan" | "ekleme" | "silme" | "icerik";
   personId: string;
   personName: string;
   changes: Record<string, Change>;
   /** "ekleme" türünde önerilen kişinin alanları. */
   person?: Record<string, unknown>;
+  /** "icerik" türünde eklenecek kayıt ve deposu (tarif/etkinlik/mektup). */
+  content?: { store: string; item: Record<string, unknown> };
   note?: string;
   by: string;
   byName: string;
@@ -391,15 +393,19 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               * olduğu için kartta addan başka hiçbir şey görünmüyor, karar
               * veren neyi onayladığını bilmeden onaylıyordu.
               */}
-            {(p.kind === "ekleme" || p.kind === "silme") && (
+            {(p.kind === "ekleme" || p.kind === "silme" || p.kind === "icerik") && (
               <p className="text-[11px] font-medium text-text-muted">
-                {p.kind === "ekleme" ? t("proposal.kindAdd") : t("proposal.kindDelete")}
+                {p.kind === "ekleme"
+                  ? t("proposal.kindAdd")
+                  : p.kind === "silme"
+                    ? t("proposal.kindDelete")
+                    : `${t("proposal.kindContent")} · ${t(`proposal.store.${p.content?.store ?? ""}`)}`}
               </p>
             )}
 
             <div className="space-y-1">
-              {p.kind === "ekleme"
-                ? Object.entries(p.person ?? {}).map(([k, v]) => (
+              {p.kind === "icerik" || p.kind === "ekleme"
+                ? Object.entries(p.kind === "icerik" ? (p.content?.item ?? {}) : (p.person ?? {})).map(([k, v]) => (
                     <div key={k} className="text-[11px] leading-relaxed">
                       <span className="text-text-subtle">{alanAdi(t, k)}: </span>
                       <span className="text-text">{goster(v)}</span>

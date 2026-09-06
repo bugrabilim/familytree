@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canEdit, canPropose } from "@/lib/roles";
+import { canEdit } from "@/lib/roles";
 import {
   addGathering, deleteGathering, deleteRsvp, readGatherings, updateGathering,
 } from "@/lib/gathering-store";
@@ -30,19 +30,23 @@ export const dynamic = "force-dynamic";
  * silme de açılırdı. Üçüncü seviye tam olarak bu ayrımı taşıyor.
  */
 /*
- * BİLİNÇLİ BOŞLUK — "ekle" seviyesi ÜYEYE AÇIK.
+ * EKLEME ARTIK ÖNERİDEN GEÇİYOR (madde 37).
  *
- * Yeni model "üyenin her değişikliği onaydan geçer" diyor, ama öneri motoru
- * bugün yalnız KİŞİ kayıtlarını taşıyor. Bu ucu yöneticiye kapatsaydık üye
- * tarif/etkinlik/mektup ekleyemez hâle gelirdi ve yerine koyacak bir yol da
- * olmazdı — yani daraltma, bir yeteneği yok ederdi. Öneri motoru bu depoları
- * da kapsayınca burası `canEdit`e çekilecek.
+ * Burası "üyenin her değişikliği onaydan geçer" kuralındaki son boşluktu:
+ * öneri motoru yalnız KİŞİ kayıtlarını taşıdığı için bu depoya ekleme
+ * doğrudan yazma olarak açık bırakılmıştı. Motor artık "icerik" türünü de
+ * taşıyor, dolayısıyla boşluğun gerekçesi kalktı — üye ekleyemez hâle
+ * gelmiyor, ÖNEREREK ekliyor.
+ *
+ * Üç seviye duruyor ama "ekle" ile "duzenle" artık aynı kapıda; ayrım
+ * bilerek bırakıldı, çünkü seviyeler rotanın hangi işi yaptığını okunur
+ * kılıyor ve ileride ikisi yine ayrılabilir.
  */
 async function guard(seviye: "oku" | "ekle" | "duzenle") {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
   const yeter =
-    seviye === "oku" ? true : seviye === "ekle" ? canPropose(ctx.role) : canEdit(ctx.role);
+    seviye === "oku" ? true : canEdit(ctx.role);
   if (!yeter)
     return {
       error: NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 }),
@@ -65,7 +69,6 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  // EKLEME — katkı verici de yapabilir; güncelleme/silme aşağıda "duzenle".
   const g = await guard("ekle");
   if ("error" in g) return g.error;
   const created = await addGathering(g.treeId, await body(req));

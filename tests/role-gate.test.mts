@@ -57,12 +57,6 @@ const ACIK: Record<string, string> = {
     "Kendi önerisini geri çekmek — öneri açabilen, açtığından vazgeçebilmeli; vazgeçemeseydi yazdığı her şey kuyrukta kalıcı olurdu. Uç ağacı YAZMIYOR ve yalnız ÖNERENİN kendi kaydına dokunuyor (sahiplik denetimi `withdraw()` içinde).",
   "upload/route.ts":
     "Üye, önereceği kişiye fotoğraf ekleyebilmeli. Yükleme hiçbir kaydı DEĞİŞTİRMİYOR, yalnız URL üretiyor; bir kayda bağlanması ayrı istek ve orada kendi kapısı var.",
-  "family/recipes/route.ts":
-    "BİLİNÇLİ BOŞLUK: öneri motoru bugün yalnız KİŞİ kayıtlarını taşıyor. Kapatsaydık üye tarif ekleyemez hâle gelir ve yerine koyacak bir yol olmazdı — daraltma bir yeteneği yok ederdi. PUT/DELETE düzenleme seviyesinde kaldı.",
-  "family/gatherings/route.ts":
-    "BİLİNÇLİ BOŞLUK, tariflerle aynı gerekçe: öneri motoru etkinlikleri henüz taşımıyor. PUT/DELETE düzenleme seviyesinde kaldı.",
-  "family/letters/route.ts":
-    "BİLİNÇLİ BOŞLUK, tariflerle aynı gerekçe: öneri motoru mektupları henüz taşımıyor. PUT/DELETE düzenleme seviyesinde kaldı.",
 };
 
 

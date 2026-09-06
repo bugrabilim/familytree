@@ -10,6 +10,8 @@ import { fromLines, groupByOccasion, groupByPerson, matches } from "@/lib/recipe
 import { fullName } from "@/lib/name";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
+import { useAuthority } from "./AuthorityContext";
+import { proposeContent } from "@/lib/actions";
 
 /**
  * Aile tarif defteri.
@@ -30,6 +32,9 @@ export default function RecipesView({
   const { readOnly } = useReadOnly();
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [error, setError] = useState("");
+  const authority = useAuthority();
+  /** Öneri gönderildi bilgisi — hata değil, bu yüzden ayrı. */
+  const [bilgi, setBilgi] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [grouping, setGrouping] = useState<"person" | "occasion">("person");
@@ -54,7 +59,21 @@ export default function RecipesView({
   const call = async (method: "POST" | "PUT" | "DELETE", body: unknown) => {
     setBusy(true);
     setError("");
+    setBilgi("");
     try {
+      /*
+       * ÜYE EKLEYEMEZ, ÖNERİR (madde 37).
+       *
+       * Doğrudan yazma yolu sunucuda kapandı; burada da yönlendirilmeseydi
+       * üye formu doldurup 403 yerdi. Yalnız EKLEME dallanıyor —
+       * güncelleme/silme zaten yöneticinin.
+       */
+      if (method === "POST" && authority.proposes) {
+        await proposeContent("recipes", body);
+        setBilgi(t("proposal.sent"));
+        setEditing(null);
+        return;
+      }
       const res = await fetch("/api/family/recipes", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -140,6 +159,7 @@ export default function RecipesView({
             </div>
 
             {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+            {bilgi && <p className="text-xs text-text bg-primary-soft px-3 py-2.5 rounded-xl">{bilgi}</p>}
 
             {recipes.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">

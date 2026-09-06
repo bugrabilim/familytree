@@ -1,5 +1,6 @@
 import {
-  applyProposal, bosMu, buildChanges, buildNewPerson, decide, isCoherent, kindOf,
+  applyProposal, bosMu, buildChanges, buildContent, buildNewPerson, decide, isCoherent, kindOf,
+  MAX_CONTENT,
   invert, markUndone, normalizeValue, pendingCount, planProposal, proposableKeys, sameValue,
   visibleTo, withdraw,
   MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
@@ -553,6 +554,64 @@ for (const st of ["onaylandi", "reddedildi", "geri-cekildi"] as const) {
     check(tekrar.ok, "geri alınan öneri yeniden karara bağlanabiliyor");
     eq(pendingCount([g]), 1, "kuyruk sayısına geri giriyor");
   }
+}
+
+/* ── İçerik önerileri (madde 37) ──────────────────────────────────────────── */
+{
+  const r = buildContent("recipes", { title: "Mercimek çorbası", servings: 4 });
+  check(r.ok, "geçerli içerik önerisi kuruluyor");
+  if (r.ok) {
+    eq(r.content.store, "recipes", "depo taşınıyor");
+    eq(r.content.item, { title: "Mercimek çorbası", servings: 4 }, "gövde OLDUĞU GİBİ taşınıyor");
+  }
+}
+check(buildContent("gatherings", { title: "Bayram" }).ok, "etkinlik deposu tanınıyor");
+check(buildContent("letters", { body: "..." }).ok, "mektup deposu tanınıyor");
+
+const icFail = (store: unknown, item: unknown) => {
+  const r = buildContent(store, item);
+  return r.ok ? "GEÇTİ" : r.fail;
+};
+eq(icFail("people", { a: 1 }), "depo-yok", "bilinmeyen depo reddediliyor");
+eq(icFail("", { a: 1 }), "depo-yok", "boş depo adı reddediliyor");
+eq(icFail(null, { a: 1 }), "depo-yok", "depo adı dizge değilse reddediliyor");
+eq(icFail("recipes", null), "degisiklik-yok", "gövdesiz öneri reddediliyor");
+eq(icFail("recipes", {}), "degisiklik-yok", "boş gövde reddediliyor");
+eq(icFail("recipes", [1, 2]), "degisiklik-yok", "dizi gövde reddediliyor");
+eq(icFail("recipes", "metin"), "degisiklik-yok", "metin gövde reddediliyor");
+
+/*
+ * BOYUT SINIRI kuyruğu koruyor, deponun kuralını değil. Kuyruk tek bir
+ * dosya ve 300 kayıt tutuyor; sınırsız bir gövde onu tek başına şişirirdi.
+ */
+eq(icFail("recipes", { body: "x".repeat(MAX_CONTENT + 100) }), "cok-uzun", "çok büyük gövde reddediliyor");
+check(buildContent("recipes", { body: "x".repeat(100) }).ok, "makul gövde geçiyor");
+
+/*
+ * DERİN DOĞRULAMA BİLEREK YOK. Her deponun kendi kuralları var (tarifin adı,
+ * mektubun açılış tarihi) ve onları burada kopyalamak iki kuralın zamanla
+ * ayrışması demekti: kullanıcının kendi eklediğinde geçen bir kayıt,
+ * öneriyle eklendiğinde reddedilirdi. Karar onay anında deponun KENDİ
+ * ekleme işlevinde veriliyor.
+ */
+check(buildContent("recipes", { uydurmaAlan: "x" }).ok, "tanınmayan alan burada reddedilmiyor (karar depoda)");
+
+/* Tutarlılık: içerik önerisi bir KİŞİYE bağlı olamaz. */
+{
+  const temel = {
+    id: "o", personName: "", by: "u", byName: "", at: "", status: "bekliyor" as const,
+    changes: {}, personId: "",
+  };
+  const ic = { store: "recipes" as const, item: { title: "x" } };
+  check(isCoherent({ ...temel, kind: "icerik", content: ic } as Proposal), "içerik önerisi tutarlı");
+  check(!isCoherent({ ...temel, kind: "icerik" } as Proposal), "içeriksiz 'icerik' önerisi tutarsız");
+  check(!isCoherent({ ...temel, kind: "icerik", personId: "p1", content: ic } as Proposal),
+    "içerik önerisi personId taşıyamaz");
+  check(!isCoherent({ ...temel, kind: "icerik", content: ic, changes: { a: { from: "", to: "x" } } } as Proposal),
+    "içerik önerisi `changes` taşıyamaz");
+  check(!isCoherent({ ...temel, kind: "icerik", content: { store: "recipes", item: {} } } as Proposal),
+    "boş gövdeli içerik önerisi tutarsız");
+  eq(kindOf({ kind: "icerik" }), "icerik", "tür okunuyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

@@ -8,12 +8,13 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import {
-  buildChanges, buildNewPerson, decide, isCoherent,
+  buildChanges, buildContent, buildNewPerson, decide, isCoherent, kindOf,
   MAX_NOTE, MAX_VALUE, pendingCount, visibleTo,
   type Proposal, type ProposalKind,
 } from "@/lib/proposals";
 import { addProposal, listProposals, replaceProposals } from "@/lib/proposal-store";
 import { applyFailMessage, applyToTree } from "@/lib/proposal-apply";
+import { applyContent } from "@/lib/proposal-content";
 import type { FamilyData } from "@/types/family";
 
 export const dynamic = "force-dynamic";
@@ -88,10 +89,12 @@ export async function POST(req: NextRequest) {
     changes?: unknown;
     person?: unknown;
     relation?: unknown;
+    store?: unknown;
+    item?: unknown;
     note?: unknown;
   };
   const kind: ProposalKind =
-    body.kind === "ekleme" || body.kind === "silme" ? body.kind : "alan";
+    body.kind === "ekleme" || body.kind === "silme" || body.kind === "icerik" ? body.kind : "alan";
   const personId = typeof body.personId === "string" ? body.personId : "";
   const nesne = (v: unknown) =>
     v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -112,6 +115,7 @@ export async function POST(req: NextRequest) {
           "degisiklik-yok": "Değişen bir şey yok.",
           "cok-alan": "Tek seferde önerilebilecek alan sayısı aşıldı.",
           "cok-uzun": `Bir alan çok uzun (en fazla ${MAX_VALUE} karakter).`,
+          "depo-yok": "Bilinmeyen bir koleksiyon gönderildi.",
         }[fail] ?? "Geçersiz istek",
       },
       { status: 400 }
@@ -119,7 +123,27 @@ export async function POST(req: NextRequest) {
 
   let taslak: Omit<Proposal, "id">;
 
-  if (kind === "ekleme") {
+  if (kind === "icerik") {
+    /*
+     * İÇERİK ÖNERİSİ (madde 37). Kişiye bağlı değil; `changes` de yok, çünkü
+     * ortada karşılaştırılacak bir "önceki değer" yok — koleksiyona YENİ bir
+     * kayıt ekleniyor.
+     *
+     * Derin doğrulama burada değil, onay anında deponun kendi ekleme
+     * işlevinde: kural iki yere kopyalansaydı zamanla ayrışır ve kullanıcı
+     * kendi eklediğinde geçen bir kayıt, öneriyle eklendiğinde reddedilirdi.
+     */
+    const kur = buildContent(body.store, body.item);
+    if (!kur.ok) return hata(kur.fail);
+    const baslik =
+      typeof body.item === "object" && body.item
+        ? String((body.item as Record<string, unknown>).title ?? (body.item as Record<string, unknown>).name ?? "")
+        : "";
+    taslak = {
+      ...ortak, kind, personId: "", personName: baslik.slice(0, 120), changes: {},
+      content: kur.content,
+    };
+  } else if (kind === "ekleme") {
     /*
      * YENİ KİŞİ ÖNERİSİ. `changes` yok: ortada karşılaştırılacak bir "önceki
      * değer" olmadığı için bayatlık denetiminin de anlamı yok. Bağ isteğe
@@ -267,8 +291,21 @@ export async function PATCH(req: NextRequest) {
   const sonuclar: Sonuc[] = [];
   const yazilacak: Proposal[] = [];
 
+  /*
+   * AĞAÇ YALNIZ GEREKİYORSA OKUNUYOR VE KİLİTLENİYOR.
+   *
+   * İçerik önerileri (tarif/etkinlik/mektup) ağaç dosyasına hiç dokunmuyor.
+   * Kilidi yine de uygulasaydık, bir tarifi onaylamak "ağaç bu sırada başka
+   * bir yerde değişti" diye reddedilebilirdi — hiçbir çakışma olmadığı hâlde,
+   * yalnız araya başka birinin kişi düzenlemesi girdiği için.
+   */
+  const agacaDokunan = ids.some((id) => {
+    const p = kitap.get(id);
+    return !!p && kindOf(p) !== "icerik";
+  });
+
   let data: FamilyData | null = null;
-  if (karar === "onaylandi") {
+  if (karar === "onaylandi" && agacaDokunan) {
     data = await getFamilyData(ctx.treeId, { skipCache: true });
     /*
      * İYİMSER KİLİT — öbür yazan uçlarla aynı kural.
@@ -298,6 +335,23 @@ export async function PATCH(req: NextRequest) {
         id, ok: false, status: 409,
         error: kararli.fail === "karar-verilmis" ? "Bu öneri zaten karara bağlanmış." : "Geçersiz karar.",
       });
+      continue;
+    }
+    if (karar === "onaylandi" && kindOf(p) === "icerik") {
+      /*
+       * İçerik önerisi AĞACA DEĞİL kendi deposuna yazılıyor, o yüzden
+       * `agacDegisti` işaretlenmiyor: yalnız içerik onaylanan bir istekte
+       * ağaç dosyasına hiç dokunulmuyor ve boş yere yeni bir sürüm damgası
+       * üretilmiyor (üretseydik açık her düzenleme ekranına gereksiz bir
+       * çakışma düşerdi).
+       */
+      const ic = await applyContent(ctx.treeId, p);
+      if (!ic.ok) {
+        sonuclar.push({ id, ok: false, status: 409, error: ic.error });
+        continue;
+      }
+      yazilacak.push(kararli.proposal);
+      sonuclar.push({ id, ok: true });
       continue;
     }
     if (karar === "onaylandi") {

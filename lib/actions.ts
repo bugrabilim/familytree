@@ -206,6 +206,27 @@ export async function proposeChanges(
   if (!res.ok) throw new Error(await parseError(res, "Öneri gönderilemedi."));
 }
 
+/**
+ * İÇERİK ÖNERİSİ — tarif / etkinlik / mektup ekleme (madde 37).
+ *
+ * Üyenin bu depolara doğrudan yazma yolu kapandı; ekleme artık kuyruktan
+ * geçiyor. Gövde OLDUĞU GİBİ gönderiliyor: derin doğrulama onay anında
+ * deponun kendi ekleme işlevinde yapılıyor, çünkü kural iki yere
+ * kopyalansaydı zamanla ayrışır ve kullanıcının kendi eklediğinde geçen bir
+ * kayıt, öneriyle eklendiğinde reddedilirdi.
+ */
+export async function proposeContent(
+  store: "recipes" | "gatherings" | "letters",
+  item: unknown
+): Promise<void> {
+  const res = await fetch("/api/family/proposals", {
+    method: "POST",
+    headers: mutationHeaders(),
+    body: JSON.stringify({ kind: "icerik", store, item }),
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Öneri gönderilemedi."));
+}
+
 /* ── Yıkıcı işlemler: ağaç silme, geri getirme ve hesap silme ───────────────
  *
  * Silme KALICI DEĞİL: kayıt önce beklemeye alınır, `purgeAt` anında kalıcı

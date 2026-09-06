@@ -5,6 +5,8 @@ import type { Gathering } from "@/types/gathering";
 import { tally } from "@/lib/gathering";
 import { SITE_URL } from "@/lib/site";
 import { useT } from "@/lib/i18n";
+import { useAuthority } from "./AuthorityContext";
+import { proposeContent } from "@/lib/actions";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 
@@ -35,6 +37,9 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const authority = useAuthority();
+  /** Öneri gönderildi bilgisi — hata değil, bu yüzden ayrı. */
+  const [bilgi, setBilgi] = useState("");
   const [copiedId, setCopiedId] = useState("");
 
   /*
@@ -64,7 +69,21 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
   const gonder = async (method: "POST" | "PUT" | "DELETE", body: unknown) => {
     setBusy(true);
     setError("");
+    setBilgi("");
     try {
+      /*
+       * ÜYE EKLEYEMEZ, ÖNERİR (madde 37).
+       *
+       * Doğrudan yazma yolu sunucuda kapandı; burada da yönlendirilmeseydi
+       * üye formu doldurup 403 yerdi. Yalnız EKLEME dallanıyor —
+       * güncelleme/silme zaten yöneticinin.
+       */
+      if (method === "POST" && authority.proposes) {
+        await proposeContent("gatherings", body);
+        setBilgi(t("proposal.sent"));
+        return true;
+        return;
+      }
       const res = await fetch("/api/family/gatherings", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -266,6 +285,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
         )}
 
         {error && <p className="text-xs text-danger">{error}</p>}
+        {bilgi && <p className="text-xs text-text bg-primary-soft px-3 py-2.5 rounded-xl">{bilgi}</p>}
       </div>
     </Modal>
   );

@@ -10,6 +10,8 @@ import { formatLong } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { useReadOnly } from "./ReadOnlyContext";
 import { useT } from "@/lib/i18n";
+import { useAuthority } from "./AuthorityContext";
+import { proposeContent } from "@/lib/actions";
 
 /**
  * Zaman kilitli mektuplar.
@@ -30,6 +32,9 @@ export default function LettersView({
   const { readOnly } = useReadOnly();
   const [letters, setLetters] = useState<Letter[] | null>(null);
   const [error, setError] = useState("");
+  const authority = useAuthority();
+  /** Öneri gönderildi bilgisi — hata değil, bu yüzden ayrı. */
+  const [bilgi, setBilgi] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Letter | "new" | null>(null);
 
@@ -52,7 +57,21 @@ export default function LettersView({
   const call = async (method: "POST" | "PUT" | "DELETE", body: unknown) => {
     setBusy(true);
     setError("");
+    setBilgi("");
     try {
+      /*
+       * ÜYE EKLEYEMEZ, ÖNERİR (madde 37).
+       *
+       * Doğrudan yazma yolu sunucuda kapandı; burada da yönlendirilmeseydi
+       * üye formu doldurup 403 yerdi. Yalnız EKLEME dallanıyor —
+       * güncelleme/silme zaten yöneticinin.
+       */
+      if (method === "POST" && authority.proposes) {
+        await proposeContent("letters", body);
+        setBilgi(t("proposal.sent"));
+        setEditing(null);
+        return;
+      }
       const res = await fetch("/api/family/letters", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -102,6 +121,7 @@ export default function LettersView({
               </div>
             )}
             {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+            {bilgi && <p className="text-xs text-text bg-primary-soft px-3 py-2.5 rounded-xl">{bilgi}</p>}
 
             {letters.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">
