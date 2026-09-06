@@ -32,6 +32,8 @@ interface Mail {
   providerId?: string;
   /** Gövde çekilemediyse nedeni. Yokluğu "gövde elimizde" demek. */
   bodyFetch?: "bekliyor" | "yetki" | "bulunamadi" | "hata" | "yapilandirilmamis";
+  /** Kendi adresine iletildi mi? Yokluğu "denenmedi" demek. */
+  forward?: "gonderildi" | "kapali" | "dongu" | "hata";
 }
 
 /**
@@ -51,6 +53,20 @@ const GOVDE_MESAJI: Record<string, string> = {
   bekliyor: "Gövde henüz alınmadı. Postayı kapatıp yeniden açtığında denenir.",
 };
 
+/**
+ * İletmenin sonucu — her durum tek satırda.
+ *
+ * Bu satır olmasaydı iletme SESSİZ bir özellik olurdu: kullanıcı postayı
+ * kendi kutusunda görmediğinde "gelmedi mi, iletilemedi mi?" sorusunu
+ * yanıtlayamazdı.
+ */
+const ILETME_MESAJI: Record<string, string> = {
+  gonderildi: "Kendi adresine iletildi.",
+  kapali: "İletilmedi: INBOX_FORWARD_TO tanımlı değil.",
+  dongu: "İletilmedi: gönderen zaten iletme adresi (döngü olurdu).",
+  hata: "İletilemedi.",
+};
+
 export default function InboxClient() {
   const [mails, setMails] = useState<Mail[] | null>(null);
   const [hata, setHata] = useState("");
@@ -59,6 +75,7 @@ export default function InboxClient() {
   const [yanit, setYanit] = useState("");
   const [busy, setBusy] = useState(false);
   const [bilgi, setBilgi] = useState("");
+  const [iletmeAcik, setIletmeAcik] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +94,7 @@ export default function InboxClient() {
           throw new Error(d?.error ?? "Yüklenemedi.");
         }
         setMails(d.mails as Mail[]);
+        setIletmeAcik(d.forwardReady !== false);
       } catch (e) {
         if (alive) setHata((e as Error).message);
       }
@@ -86,7 +104,37 @@ export default function InboxClient() {
 
   const tazele = async () => {
     const res = await fetch("/api/admin/inbox", { cache: "no-store" });
-    if (res.ok) setMails(((await res.json()).mails as Mail[]) ?? []);
+    if (!res.ok) return;
+    const d = await res.json();
+    setMails((d.mails as Mail[]) ?? []);
+    setIletmeAcik(d.forwardReady !== false);
+  };
+
+  /**
+   * Yeniden iletme — posta GÖNDEREN bir eylem, o yüzden düğmeye bağlı.
+   * Sayfayı açmanın yan etkisi olsaydı kullanıcı istemediği bir gönderimi
+   * habersiz yapmış olurdu.
+   */
+  const ilet = async (id: string) => {
+    setBusy(true);
+    setBilgi("");
+    setHata("");
+    try {
+      const res = await fetch("/api/admin/inbox", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, read: true, forward: true }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error ?? "İletilemedi.");
+      const durum = (d.mail as Mail | null)?.forward;
+      setBilgi(durum === "gonderildi" ? "İletildi." : (ILETME_MESAJI[durum ?? "hata"] ?? "İletilemedi."));
+      await tazele();
+    } catch (e) {
+      setHata((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const ac = async (m: Mail) => {
@@ -168,6 +216,20 @@ export default function InboxClient() {
           </span>
         )}
       </h1>
+
+      {/*
+        İLETME KAPALIYSA SÖYLENİYOR. Kapalıyken bu sayfa "her gün açılması
+        gereken" bir yere dönüşüyor ve o yüzden okunmuyor — açık olması asıl
+        hâl, kapalı olması bildirilmesi gereken durum.
+      */}
+      {!iletmeAcik && (
+        <p className="text-[11px] text-text-subtle leading-relaxed border border-border rounded-xl px-3 py-2.5">
+          Gelen postalar kendi adresine iletilmiyor. Vercel → Settings →
+          Environment Variables bölümüne <code>INBOX_FORWARD_TO</code> ekle (kendi e-posta
+          adresin; virgülle birden fazla yazabilirsin) ve yeniden dağıt. Sonra bu
+          sayfayı açmak zorunda kalmazsın.
+        </p>
+      )}
 
       {mails.length === 0 && <p className="text-sm text-text-muted">Kutu boş.</p>}
 
@@ -251,10 +313,28 @@ export default function InboxClient() {
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              {/* İletme durumu: iletildiyse damga, iletilmediyse sebebi. */}
+              <p className="text-[11px] text-text-subtle">
+                {m.forward
+                  ? ILETME_MESAJI[m.forward] ?? ILETME_MESAJI.hata
+                  : "Bu posta iletilmedi (iletme eklenmeden önce gelmiş)."}
+              </p>
+
+              <div className="flex gap-2 flex-wrap">
                 <Button size="sm" onClick={() => gonder(m.id)} disabled={busy || !yanit.trim()}>
                   {busy ? "Gönderiliyor…" : "Yanıtla"}
                 </Button>
+                {/*
+                  Yeniden iletme YALNIZ işe yarayacağı durumlarda görünüyor:
+                  "gonderildi" zaten iletilmiş, "dongu" tekrar denense de aynı
+                  sonucu verir. İşe yaramayacak bir düğme, kullanıcıyı boşuna
+                  denemeye çağırmak olurdu.
+                */}
+                {iletmeAcik && m.forward !== "gonderildi" && m.forward !== "dongu" && (
+                  <Button size="sm" variant="secondary" onClick={() => ilet(m.id)} disabled={busy}>
+                    Kendime ilet
+                  </Button>
+                )}
                 <Button size="sm" variant="secondary" onClick={() => sil(m.id)} disabled={busy}>
                   Sil
                 </Button>

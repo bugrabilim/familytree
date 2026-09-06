@@ -3,7 +3,16 @@ import { auth } from "@/auth";
 import { isAdminAccount, isAdminConfigured } from "@/lib/admin";
 import { isEmailConfigured, replyAddress, sendEmail } from "@/lib/email";
 import { MAX_TEXT, quoteForReply, replySubject, threadHeaders } from "@/lib/inbox";
-import { deleteMail, findMail, markRead, markReplied, readInbox, setBody } from "@/lib/inbox-store";
+import {
+  deleteMail,
+  findMail,
+  markRead,
+  markReplied,
+  readInbox,
+  setBody,
+  setForward,
+} from "@/lib/inbox-store";
+import { forwardConfigured, forwardIncoming } from "@/lib/inbox-forward-send";
 import { fetchInboundBody } from "@/lib/resend-inbound";
 import { renderEmail } from "@/lib/email-template";
 
@@ -51,7 +60,11 @@ export async function GET() {
   const g = await guard();
   if ("error" in g) return g.error;
   try {
-    return NextResponse.json({ mails: await readInbox(), emailReady: isEmailConfigured() });
+    return NextResponse.json({
+      mails: await readInbox(),
+      emailReady: isEmailConfigured(),
+      forwardReady: forwardConfigured(),
+    });
   } catch (e) {
     /*
      * Depo artık okuyamadığında BOŞ KUTU dönmüyor, fırlatıyor — çünkü boş
@@ -83,7 +96,11 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
-  const body = (await req.json().catch(() => ({}))) as { id?: unknown; read?: unknown };
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: unknown;
+    read?: unknown;
+    forward?: unknown;
+  };
   const id = typeof body.id === "string" ? body.id : "";
   if (!id) return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   const ok = await markRead(id, body.read !== false);
@@ -102,6 +119,30 @@ export async function PATCH(req: NextRequest) {
       else await setBody(id, { state: r.state });
     } catch {
       await setBody(id, { state: "hata" });
+    }
+  }
+
+  /*
+   * YENİDEN İLETME — yalnız AÇIKÇA istendiğinde.
+   *
+   * Gövde çekmenin tersine bu kendiliğinden denenmiyor: iletme bir posta
+   * GÖNDERMEK demek, yani dışarıya çıkan bir eylem. Sayfayı açmanın yan
+   * etkisi olarak posta göndermek, kullanıcının istemediği bir şeyi
+   * habersiz yapmak olurdu — üstelik sayfayı açan kişi postayı zaten
+   * okuyor. Düğme ekranda, kararı kullanıcı veriyor.
+   */
+  if (body.forward === true) {
+    /*
+     * Kayıt YENİDEN OKUNUYOR: yukarıdaki gövde çekme başarılı olduysa
+     * elimizdeki `mail` artık eski ve iletilen posta GÖVDESİZ giderdi —
+     * hem de tam gövdenin geldiği anda.
+     */
+    const guncel = await findMail(id);
+    try {
+      if (guncel) await setForward(id, await forwardIncoming(guncel));
+    } catch (e) {
+      console.warn("[gelen-posta] yeniden iletme hata verdi:", (e as Error).message);
+      await setForward(id, "hata");
     }
   }
 

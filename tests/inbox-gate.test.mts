@@ -254,7 +254,8 @@ check(/metin\.length > MAX_TEXT/.test(api), "aşırı uzun yanıt gönderilmeden
    * düşürüyordu.
    */
   check(!webhook.slice(iGovde).includes("status: 500"), "çekmeden sonra 500 yolu yok");
-  check(/if \(g\.ok\) await setBody/.test(webhook), "başarıda gövde yazılıyor");
+  check(/if \(g\.ok\) \{\s*await setBody\(mail\.id, \{ text: g\.text \}\)/.test(webhook),
+    "başarıda gövde yazılıyor");
   check(/else \{\s*await setBody\(mail\.id, \{ state: g\.state \}\)/.test(webhook),
     "başarısızlıkta NEDEN yazılıyor");
 }
@@ -282,6 +283,64 @@ check(/Full access/.test(ekran), "yetki hatasında ne yapılacağı yazıyor");
   check(/markReplied\(id, new Date\(\)\.toISOString\(\), metin\)/.test(api),
     "gönderilen metnin kendisi saklanıyor");
   check(/m\.replies\.map/.test(ekran), "ekran eski yanıtları gösteriyor");
+}
+
+/* --- 4. İLETME: bildirimi olmayan gelen kutusu, arşivdir ----------------- */
+/*
+ * Bu sayfa günde bir kez ziyaret edilmediği sürece gelen posta okunmaz — ve
+ * edilmiyor. Bu yüzden gelen her posta işletmecinin KENDİ adresine
+ * iletiliyor. Aşağıdakiler, iletmenin sessizce bozulabileceği yerler.
+ */
+{
+  const ilet = kodu(read("../lib/inbox-forward-send.ts"));
+
+  /*
+   * SIRA: gövde çekildikten SONRA iletiliyor. Tersi olsaydı iletilen posta
+   * HEP gövdesiz giderdi (webhook yükü yalnız üstbilgi taşıyor) ve kullanıcı
+   * metni okumak için yine uygulamaya girmek zorunda kalırdı — yani iletmenin
+   * bütün amacı kaybolurdu. Bu, iddiasız kalırsa fark edilmeden bozulacak
+   * türden bir sıra: iki satırın yeri değişince testler değil, yalnız
+   * kullanıcı deneyimi bozulur.
+   */
+  const iGovde = webhook.indexOf("fetchInboundBody(mail.providerId)");
+  const iIlet = webhook.indexOf("forwardIncoming(mail)");
+  check(iGovde > -1 && iIlet > iGovde, "iletme, gövde çekmeden SONRA");
+  check(/mail\.text = g\.text/.test(webhook), "gövde gelince yerel kopya da güncelleniyor");
+
+  /*
+   * EN İYİ ÇABA: iletme başarısız diye webhook düşmüyor. Düşseydi sağlayıcı
+   * yeniden dener ve saklama yolu boşuna tekrarlanırdı.
+   */
+  {
+    const parca = webhook.slice(iIlet - 200, iIlet + 200);
+    check(/try \{/.test(parca), "iletme try/catch içinde");
+  }
+  check(/await setForward\(mail\.id, await forwardIncoming\(mail\)\)/.test(webhook),
+    "iletme sonucu KAYDEDİLİYOR (iz bırakmayan başarısızlık yok)");
+
+  /*
+   * İletilen postada HTML YOK. Gelen gövde yabancının yazdığı içerik; onu
+   * HTML olarak paketleyip kendi doğrulanmış adresimizden göndermek, o
+   * işaretlemeyi bizim adımıza dağıtmak olurdu.
+   */
+  check(!/html:/.test(ilet), "iletilen postada `html` alanı yok");
+  check(/text: karar\.plan\.text/.test(ilet), "yalnız düz metin gönderiliyor");
+  check(/replyTo: karar\.plan\.replyTo/.test(ilet), "yanıt adresi özgün göndereni gösteriyor");
+
+  /*
+   * YENİDEN İLETME açık istek gerektiriyor. Sayfayı açmanın yan etkisi
+   * olsaydı, kullanıcı istemediği bir gönderimi habersiz yapmış olurdu —
+   * gövde çekmenin tersine bu, dışarıya çıkan bir eylem.
+   */
+  check(/body\.forward === true/.test(api), "yeniden iletme yalnız açık istekte");
+  {
+    const iYeniden = api.indexOf("body.forward === true");
+    const iTazele = api.indexOf("const guncel = await findMail(id)");
+    check(iYeniden > -1 && iTazele > iYeniden,
+      "yeniden iletmeden önce kayıt TEKRAR okunuyor (gövde yeni gelmiş olabilir)");
+  }
+  check(/forwardReady: forwardConfigured\(\)/.test(api), "ekran iletmenin açık olup olmadığını öğreniyor");
+  check(/INBOX_FORWARD_TO/.test(ekran), "kapalıysa ekran nasıl açılacağını söylüyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

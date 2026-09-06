@@ -101,6 +101,25 @@ export type BodyFetchState =
   /** API anahtarı hiç tanımlı değil. */
   | "yapilandirilmamis";
 
+/**
+ * İLETME durumu — `undefined` "hiç denenmedi" demek.
+ *
+ * Gelen posta, işletmecinin KENDİ adresine de iletiliyor (`INBOX_FORWARD_TO`)
+ * ki `/admin/posta` sayfasını açmak zorunda kalmasın. İletmenin sonucu
+ * SAKLANIYOR: iz bırakmadan başarısız olan bir bildirim, "kimse yazmamış" ile
+ * "yazdı ama haberin olmadı"yı ayırt edilemez kılar — bu hattın en pahalı
+ * belirsizliği zaten buydu.
+ */
+export type ForwardState =
+  /** İletildi. */
+  | "gonderildi"
+  /** `INBOX_FORWARD_TO` tanımlı değil — özellik kapalı. */
+  | "kapali"
+  /** Gönderen zaten iletme hedefi: iletmek döngü kurardı. */
+  | "dongu"
+  /** Gönderim denendi, başarısız. Yeniden denenebilir. */
+  | "hata";
+
 /** Gönderilmiş bir yanıt. */
 export interface Reply {
   text: string;
@@ -156,6 +175,13 @@ export interface Mail {
    * "kişi boş posta atmış" ile "biz alamadık" ayırt edilemez.
    */
   bodyFetch?: BodyFetchState;
+  /**
+   * İşletmecinin kendi adresine İLETME denemesinin sonucu.
+   *
+   * Yokluğu "denenmedi" demek (eski kayıtlar, ya da webhook iletmeye
+   * varmadan düştü). `lib/inbox-forward.ts`teki plan bunu belirliyor.
+   */
+  forward?: ForwardState;
   attachments?: Attachment[];
 }
 

@@ -1,6 +1,13 @@
 import "server-only";
 import { put, list, get, BlobNotFoundError, BlobPreconditionFailedError } from "@vercel/blob";
-import { MAX_TEXT, planReply, planStore, type BodyFetchState, type Mail } from "@/lib/inbox";
+import {
+  MAX_TEXT,
+  planReply,
+  planStore,
+  type BodyFetchState,
+  type ForwardState,
+  type Mail,
+} from "@/lib/inbox";
 import { mutateBox, readBox, type Box, type BoxIO } from "@/lib/inbox-box";
 
 /**
@@ -136,6 +143,23 @@ export async function setBody(
     } else {
       m.bodyFetch = sonuc.state;
     }
+    return { yaz: true, sonuc: true };
+  });
+}
+
+/**
+ * İletme sonucunu yazar.
+ *
+ * Başarıda da yazılıyor (`"gonderildi"`), `setBody`in tersine: orada alanın
+ * YOKLUĞU "gövde elimizde" demek, burada yokluk "denenmedi" demek ve bu ikisi
+ * ayırt edilebilir kalmalı. İletme kapalıyken gelmiş eski postalar, ayar
+ * sonradan açıldığında yeniden denenebilsin diye.
+ */
+export async function setForward(id: string, state: ForwardState): Promise<boolean> {
+  return mutateBox(io, (box) => {
+    const m = box.mails.find((x) => x.id === id);
+    if (!m) return { yaz: false, sonuc: false };
+    m.forward = state;
     return { yaz: true, sonuc: true };
   });
 }
