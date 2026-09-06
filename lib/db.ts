@@ -2,6 +2,7 @@ import "server-only";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import type { FamilyData, Person } from "@/types/family";
 import type { Invite, Member, User } from "@/types/user";
+import { pickVersion } from "@/lib/version-stamp";
 
 /**
  * Postgres (Supabase) veri katmanı — Faz 2.
@@ -186,24 +187,42 @@ export async function dbDeleteRateLimitsFor(id: string): Promise<void> {
 }
 
 /**
+ * Ağacın sürüm damgasını ilerlet (`trees.updated_at`).
+ *
+ * Kaydetme yolunun aynası kişileri yazıyor ama ağacın KENDİ damgası yoktu;
+ * sürüm jetonu kişilerden türetildiği için bir silme jetonu geriye
+ * götürüyordu (ayrıntı: `lib/version-stamp.ts`). Bu çağrı, jetonu kişi
+ * satırlarından bağımsız kılar — silme ve yalnız-kapak gibi kişi damgasına
+ * hiç dokunmayan kayıtlar da jetonu ilerletir.
+ *
+ * Ağaç satırı Postgres'te yoksa hiçbir satır eşleşmez ve sessizce geçer:
+ * henüz göç etmemiş ağaç zaten Blob'dan okunuyor.
+ */
+export async function dbSetTreeUpdatedAt(treeId: string, iso: string): Promise<void> {
+  const { error } = await supabaseAdmin().from("trees").update({ updated_at: iso }).eq("id", treeId);
+  if (error) throw new Error(`tree stamp: ${error.message}`);
+}
+
+/**
  * Ağacın verisini Postgres'ten oku (Faz 2d — okuma yolu).
  *
  * Ağaç Postgres'te YOKSA `null` döner → çağıran Blob'a düşer (henüz göç
  * edilmemiş ağaçlar için güvenli yedek). Kişiler `data` (JSONB) sütunundan
- * kayıpsız geri kurulur; `updatedAt` sürüm jetonu, satırların en yeni
- * `updated_at` değeridir (iyimser kilitleme bununla tutarlı çalışır).
+ * kayıpsız geri kurulur; `updatedAt` sürüm jetonu ağaç damgası ile kişi
+ * damgalarının en büyüğüdür (`pickVersion` — neden öyle olduğu orada
+ * anlatılıyor: yalnız kişilere bakan jeton SİLMEDE geriye gidiyordu).
  */
 export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null> {
   const sb = supabaseAdmin();
-  const tree = await sb.from("trees").select("id").eq("id", treeId).maybeSingle();
+  const tree = await sb.from("trees").select("id, updated_at").eq("id", treeId).maybeSingle();
   if (tree.error) throw new Error(`tree get: ${tree.error.message}`);
   if (!tree.data) return null; // Postgres'te yok → Blob'a düş
+  const treeRow = tree.data as { id: string; updated_at: string | null };
 
   const { data, error } = await sb.from("people").select("data, updated_at").eq("tree_id", treeId);
   if (error) throw new Error(`people get: ${error.message}`);
   const rows = (data ?? []) as Array<{ data: Person; updated_at: string }>;
-  let updatedAt = "";
-  for (const r of rows) if (r.updated_at > updatedAt) updatedAt = r.updated_at;
+  const updatedAt = pickVersion(treeRow.updated_at, rows.map((r) => r.updated_at));
   return { people: rows.map((r) => r.data), updatedAt };
 }
 
