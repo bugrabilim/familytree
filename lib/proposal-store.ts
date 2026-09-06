@@ -146,6 +146,34 @@ export async function replaceProposal(treeId: string, p: Proposal): Promise<bool
   });
 }
 
+/**
+ * BİRDEN ÇOK öneriyi tek yazmada değiştirir — toplu onay için.
+ *
+ * `replaceProposal`ı döngüye almak akla yakın ama pahalı ve kırılgan: her
+ * çağrı kitabı okuyup yazıyor, yani 20 önerilik bir toplu onay 40 Blob
+ * isteği ve 20 ayrı çakışma penceresi demek. Arada başka biri öneri açarsa
+ * döngünün ortasında çakışma denemeleri tükenir ve toplu onay YARIM kalır:
+ * ağaç yazılmış, önerilerin bir kısmı hâlâ "bekliyor".
+ *
+ * Bulunamayan kimlikler sessizce atlanıyor; kaç tanesinin yazıldığı
+ * dönüyor. Çağıran ağaca zaten yazmış oluyor ve eksik damga, öneriyi
+ * "bekliyor" bırakmaktan başka bir şey bozmuyor (`applyProposal` idempotent).
+ */
+export async function replaceProposals(treeId: string, list: Proposal[]): Promise<number> {
+  if (list.length === 0) return 0;
+  return mutate(treeId, (book) => {
+    const yeni = new Map(list.map((p) => [p.id, p]));
+    let sayi = 0;
+    book.proposals = book.proposals.map((x) => {
+      const y = yeni.get(x.id);
+      if (!y) return x;
+      sayi++;
+      return y;
+    });
+    return { yaz: sayi > 0, sonuc: sayi };
+  });
+}
+
 export async function findProposal(treeId: string, id: string): Promise<Proposal | null> {
   return (await getProposalBook(treeId)).proposals.find((p) => p.id === id) ?? null;
 }

@@ -87,6 +87,12 @@ export default function ProposalsDialog({ onClose, onApplied }: {
   const [stale, setStale] = useState<Record<string, string[]>>({});
   /** Doğrulama bekleyen işlem: hangi kart, hangi eylem. */
   const [onay, setOnay] = useState<{ id: string; ne: "onaylandi" | "geri-cekildi" } | null>(null);
+  /** Toplu işlem için seçilen öneriler. */
+  const [secili, setSecili] = useState<Set<string>>(new Set());
+  /** Toplu onay doğrulama satırı açık mı. */
+  const [topluOnay, setTopluOnay] = useState(false);
+  /** Toplu işlemin özeti — kaç tanesi geçti. */
+  const [ozet, setOzet] = useState("");
 
   const yukle = useCallback(async () => {
     try {
@@ -184,6 +190,66 @@ export default function ProposalsDialog({ onClose, onApplied }: {
     }
   };
 
+  /**
+   * TOPLU karar.
+   *
+   * Tek uca `ids` ile gidiyor, öneri başına ayrı istek atmıyor: sunucu
+   * hepsini AYNI anlık görüntüye uygulayıp ağacı bir kez yazıyor. İstek
+   * başına gitseydi her yazma sürüm damgasını ilerletir ve ikinci istek
+   * kendi öncekinin damgası yüzünden 409 yerdi.
+   *
+   * Kısmi başarı normal: bayat ya da kişisi silinmiş öneriler düşüyor,
+   * gerekçeleri kendi kartlarında görünüyor.
+   */
+  const topluKarar = async (decision: "onaylandi" | "reddedildi") => {
+    const ids = [...secili];
+    if (ids.length === 0) return;
+    setBusy("toplu");
+    setHata("");
+    setOzet("");
+    setTopluOnay(false);
+    try {
+      const res = await fetch("/api/family/proposals", {
+        method: "PATCH",
+        headers: mutationHeaders(),
+        body: JSON.stringify({ ids, decision }),
+      });
+      const d = await res.json();
+      const sonuclar = Array.isArray(d?.results)
+        ? (d.results as Array<{ id: string; ok: boolean; error?: string; stale?: string[] }>)
+        : [];
+      /* Bayat alanlar kart kart gösteriliyor — toplu bir hata satırı hangi öneride ne olduğunu söylemezdi. */
+      const yeniStale: Record<string, string[]> = {};
+      for (const r of sonuclar) if (Array.isArray(r.stale)) yeniStale[r.id] = r.stale;
+      if (Object.keys(yeniStale).length) setStale((s) => ({ ...s, ...yeniStale }));
+      if (!res.ok && sonuclar.length === 0) throw new Error(d?.error ?? "İşlem başarısız.");
+
+      if (typeof d?.version === "string") setBaseVersion(d.version);
+      const done = Number(d?.done ?? 0);
+      const failed = Number(d?.failed ?? 0);
+      setOzet(
+        failed > 0
+          ? t("proposal.bulkPartial", { done, failed })
+          : t("proposal.bulkDone", { done })
+      );
+      if (done > 0 && decision === "onaylandi") onApplied?.();
+      setSecili(new Set());
+      await yukle();
+    } catch (e) {
+      setHata((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const secimDegistir = (id: string) =>
+    setSecili((s) => {
+      const y = new Set(s);
+      if (y.has(id)) y.delete(id);
+      else y.add(id);
+      return y;
+    });
+
   /** Karara bağlanmış önerinin durum etiketi. */
   const durumAdi = (st: Proposal["status"]): string =>
     st === "onaylandi" ? t("proposal.approved")
@@ -198,19 +264,90 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       <div className="space-y-3">
         {hata && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{hata}</p>}
         {!list && <p className="text-sm text-text-muted">…</p>}
+        {ozet && <p className="text-xs text-text-muted bg-primary-soft px-3 py-2.5 rounded-xl">{ozet}</p>}
         {list && bekleyen.length === 0 && gecmis.length === 0 && (
           <p className="text-sm text-text-muted">{t("proposal.empty")}</p>
         )}
 
+        {/*
+          * TOPLU İŞLEM ÇUBUĞU — yalnız karar verebilende ve bekleyen öneri
+          * varken. Kuyruğun asıl kullanımı "hepsini gözden geçir, onayla";
+          * elli öneriyi tek tek onaylatmak özelliği pratikte kullanılmaz
+          * kılıyordu.
+          */}
+        {canDecide && bekleyen.length > 0 && (
+          <div className="rounded-xl border border-border bg-surface-2 px-3 py-2.5 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSecili((s) =>
+                    s.size === bekleyen.length ? new Set() : new Set(bekleyen.map((p) => p.id))
+                  )
+                }
+              >
+                {secili.size === bekleyen.length ? t("proposal.clearSel") : t("proposal.selectAll")}
+              </Button>
+              {secili.size > 0 && (
+                <span className="text-[11px] text-text-muted">
+                  {t("proposal.selected", { count: secili.size })}
+                </span>
+              )}
+            </div>
+
+            {secili.size > 0 &&
+              (topluOnay ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-text-muted">
+                    {t("proposal.confirmBulk", { count: secili.size })}
+                  </span>
+                  <Button size="sm" disabled={busy === "toplu"} onClick={() => topluKarar("onaylandi")}>
+                    {t("proposal.confirmYes")}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setTopluOnay(false)}>
+                    {t("proposal.cancel")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {/* Toplu onay da doğrulamadan geçiyor — tek onaydan daha çok şey değiştiriyor. */}
+                  <Button size="sm" disabled={busy === "toplu"} onClick={() => setTopluOnay(true)}>
+                    {t("proposal.approveSel")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy === "toplu"}
+                    onClick={() => topluKarar("reddedildi")}
+                  >
+                    {t("proposal.rejectSel")}
+                  </Button>
+                </div>
+              ))}
+          </div>
+        )}
+
         {[...bekleyen, ...gecmis].map((p) => (
           <article key={p.id} className="rounded-xl border border-border p-3 space-y-2">
-            <div>
+            <div className="flex items-start gap-2">
+              {canDecide && p.status === "bekliyor" && (
+                <input
+                  type="checkbox"
+                  className="mt-1 accent-primary"
+                  aria-label={p.personName || "—"}
+                  checked={secili.has(p.id)}
+                  onChange={() => secimDegistir(p.id)}
+                />
+              )}
+              <div>
               <p className="text-sm font-medium text-text">{p.personName || "—"}</p>
               <p className="text-[11px] text-text-subtle">
                 {p.byName ? `${p.byName} · ` : ""}
                 {p.at.slice(0, 16).replace("T", " ")}
                 {p.status !== "bekliyor" && ` · ${durumAdi(p.status)}`}
               </p>
+              </div>
             </div>
 
             {/*

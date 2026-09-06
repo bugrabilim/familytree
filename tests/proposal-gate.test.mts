@@ -19,6 +19,7 @@ const kodu = (src: string) =>
 const rota = kodu(read("../app/api/family/proposals/route.ts"));
 const store = kodu(read("../lib/proposal-store.ts"));
 const cek = kodu(read("../app/api/family/proposals/withdraw/route.ts"));
+const uygula = kodu(read("../lib/proposal-apply.ts"));
 const dialog = kodu(read("../components/ProposalsDialog.tsx")).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 /* --- 1. Kim ne yapabilir ------------------------------------------------- */
@@ -71,10 +72,18 @@ check(/buildChanges\(person, istek\)/.test(rota), "değişiklikler KAYIT ile kar
 /* --- 3. Onay: bayatlık ve sıra ------------------------------------------- */
 {
   const patch = rota.slice(rota.indexOf("export async function PATCH"));
-  check(/applyProposal\(data\.people\[i\], p\)/.test(patch), "onayda öneri kayda uygulanıyor");
+  /*
+   * Uygulama mantığı `lib/proposal-apply.ts`e taşındı: tek onay ile toplu
+   * onay AYNI yoldan geçsin diye. Rota onu ÇAĞIRIYOR, kendi kopyasını
+   * yazmıyor — yazsaydı iki yol ayrışır ve tek tek onaylandığında
+   * ilişkileri temizlenen bir silme, toplu onaylandığında temizlenmezdi.
+   */
+  check(/applyToTree\(data as FamilyData, p\)/.test(patch), "onay ortak uygulayıcıyı çağırıyor");
+  check(/applyProposal\(data\.people\[i\], p\)/.test(uygula), "uygulayıcı bayatlık denetiminden geçiyor");
+  check(!/applyProposal\(/.test(rota), "rota kendi uygulama kopyasını yazmıyor");
   check(/if \(!uygula\.ok\)/.test(patch) && /status: 409/.test(patch),
     "bayat öneri 409 ile REDDEDİLİYOR (yeni bilgi ezilmiyor)");
-  check(/stale: uygula\.stale/.test(patch), "hangi alanların bayatladığı söyleniyor");
+  check(/stale: uygula\.fail\.stale/.test(patch), "hangi alanların bayatladığı söyleniyor");
 
   /*
    * SIRA: önce ağaç yazılıyor, sonra öneri "onaylandı" işaretleniyor. Ters
@@ -82,11 +91,13 @@ check(/buildChanges\(person, istek\)/.test(rota), "değişiklikler KAYIT ile kar
    * hiç gerçekleşmezdi — kimsenin fark etmeyeceği bir yalan.
    */
   const iAgac = patch.indexOf("await saveFamilyData(");
-  const iOneri = patch.indexOf("await replaceProposal(");
+  const iOneri = patch.indexOf("await replaceProposals(");
   check(iAgac > -1 && iOneri > iAgac, "ağaç yazımı, öneri damgasından ÖNCE");
 
   /* Kişi arada silinmişse onay uygulanamaz; "onaylandı" damgası da vurulmaz. */
-  check(/if \(i === -1\)/.test(patch), "silinmiş kişi için onay reddediliyor");
+  check(/if \(i === -1\) return \{ ok: false, fail: \{ kod: "kisi-yok" \} \};/.test(uygula),
+    "silinmiş kişi için onay reddediliyor");
+  check(/case "kisi-yok"/.test(uygula), "gerekçe kullanıcıya çevriliyor");
 
   /*
    * İYİMSER KİLİT ayrıca gerekiyor: bayatlık denetimi yalnız ÖNERİLEN
@@ -163,12 +174,13 @@ check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dön�
    * öneriyle eklendiğinde kurulmazdı — fark aylar sonra tek yönlü kalmış bir
    * eş bağı olarak ortaya çıkardı.
    */
-  check(/createPerson\(data, \{/.test(patch), "ekleme onayı ortak oluşturucuyu çağırıyor");
+  check(/createPerson\(data, \{/.test(uygula), "ekleme onayı ortak oluşturucuyu çağırıyor");
+  check(!/createPerson\(/.test(rota), "rota kişi oluşturmayı kendi yapmıyor");
   check(!/nextCode\(/.test(rota), "rota kendi kod üretimini yapmıyor");
   {
-    const i = patch.indexOf('kindOf(p) === "ekleme"');
-    const j = patch.indexOf("} else {", i);
-    const dal = i > -1 && j > i ? patch.slice(i, j) : "";
+    const i = uygula.indexOf('kindOf(p) === "ekleme"');
+    const j = uygula.indexOf("const i = data.people.findIndex", i);
+    const dal = i > -1 && j > i ? uygula.slice(i, j) : "";
     /*
      * `addedBy` ÖNEREN kişi, onaylayan değil: kaydı isteyen odur ve
      * öneriyle eklenen kaydı sonradan düzeltmek de ona açık kalmalı.
@@ -187,9 +199,9 @@ check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dön�
    * bırakırdı ve o bağlar ekranda sessizce kaybolan ebeveyn/eş olurdu.
    */
   {
-    const i = patch.indexOf('kindOf(p) === "silme"');
-    const j = patch.indexOf("} else {", i);
-    const dal = i > -1 && j > i ? patch.slice(i, j) : "";
+    const i = uygula.indexOf('kindOf(p) === "silme"');
+    const j = uygula.indexOf("const uygula = applyProposal", i);
+    const dal = i > -1 && j > i ? uygula.slice(i, j) : "";
     check(/filter\(\(x\) => x\.id !== silinen\)/.test(dal), "kayıt siliniyor");
     check(/parentIds/.test(dal) && /spouseIds/.test(dal), "ebeveyn ve eş bağları temizleniyor");
     check(/formerSpouseIds/.test(dal), "eski eş bağları da temizleniyor");
@@ -199,8 +211,8 @@ check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dön�
   /* Üç tür de aynı iyimser kilidin ARKASINDA. */
   {
     const iKilit = patch.indexOf("versionMismatch(req");
-    const iEkleme = patch.indexOf('kindOf(p) === "ekleme"');
-    check(iKilit > -1 && iEkleme > iKilit, "tür ayrımı kilitten SONRA");
+    const iUygula = patch.indexOf("applyToTree(");
+    check(iKilit > -1 && iUygula > iKilit, "uygulama kilitten SONRA");
   }
 }
 {
@@ -279,6 +291,123 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
    */
   check(/p\.kind === "ekleme" \? t\("proposal\.kindAdd"\)/.test(dialog), "ekleme önerisi etiketleniyor");
   check(/Object\.entries\(p\.person \?\? \{\}\)/.test(dialog), "önerilen yeni kişinin alanları çiziliyor");
+}
+
+/* --- 10. Toplu onay (madde 35/E) ----------------------------------------- */
+{
+  const patch = rota.slice(rota.indexOf("export async function PATCH"));
+
+  /*
+   * AĞAÇ TEK KEZ YAZILIYOR. Her öneri için ayrı kaydetseydik N Blob yazması
+   * ve N sürüm damgası olurdu; istemcinin taban sürümü her damgada bayatlar
+   * ve kullanıcı ikinci onayda KENDİ az önceki onayı yüzünden 409 yerdi.
+   */
+  const iDongu = patch.indexOf("for (const id of ids)");
+  /*
+   * İddia döngünün GÖVDESİNE bakıyor, sıraya değil.
+   *
+   * İlk hâli "kaydetme, döngü başlangıcından SONRA gelsin" diyordu ve
+   * kaydetmeyi döngünün İÇİNE taşıyan mutasyonu hiç yakalamadı: içeri
+   * taşınan çağrı da döngü başlangıcından sonra geliyor ve sayısı yine bir
+   * kalıyor. Yani iddia doğruydu ama yanlış şeyi ölçüyordu.
+   */
+  const govdeSon = patch.indexOf("\n  }", iDongu);
+  const dongu = iDongu > -1 && govdeSon > iDongu ? patch.slice(iDongu, govdeSon) : "";
+  check(iDongu > -1 && govdeSon > iDongu, "döngü gövdesi bulundu");
+  check(!/saveFamilyData\(/.test(dongu), "döngü GÖVDESİNDE kaydetme yok");
+  check(!/replaceProposal/.test(dongu), "döngü GÖVDESİNDE öneri yazma yok");
+  check(!/getFamilyData\(/.test(dongu), "döngü GÖVDESİNDE ağaç okuma yok");
+  check((patch.match(/await saveFamilyData\(/g) ?? []).length === 1, "kaydetme tek noktada");
+  const iYaz = patch.indexOf("await saveFamilyData(");
+  check(iYaz > govdeSon, "kaydetme döngüden SONRA");
+
+  /* Kilit ve kuyruk okuması da döngüden ÖNCE — id başına bir okuma değil. */
+  check(patch.indexOf("versionMismatch(req") < iDongu, "iyimser kilit döngüden ÖNCE");
+  check(patch.indexOf("await listProposals(ctx.treeId)") < iDongu, "kuyruk bir kez okunuyor");
+  check(!/findProposal\(/.test(rota), "id başına ayrı okuma YOK");
+
+  /*
+   * ÖNERİ DAMGALARI DA TEK YAZMADA. `replaceProposal`ı döngüye almak, 20
+   * önerilik bir onayda 20 ayrı çakışma penceresi açardı ve arada biri
+   * öneri açarsa toplu onay YARIM kalırdı: ağaç yazılmış, öneriler hâlâ
+   * "bekliyor".
+   */
+  check(/await replaceProposals\(ctx\.treeId, yazilacak\)/.test(patch), "damgalar toplu yazılıyor");
+  check(patch.indexOf("await replaceProposals(") > iDongu, "damgalama döngüden sonra");
+  {
+    const i = store.indexOf("export async function replaceProposals");
+    const govde = store.slice(i, store.indexOf("\nexport", i + 10));
+    check(i > -1, "replaceProposals bulundu");
+    check((govde.match(/mutate\(/g) ?? []).length === 1, "toplu değişiklik TEK mutate ile");
+  }
+
+  /*
+   * KISMİ BAŞARI. Bayat ya da kişisi silinmiş bir öneri yalnız KENDİSİ
+   * düşüyor; ötekiler uygulanıyor. Hepsini geri almak, tek bayat öneriyle
+   * yüz onaylık bir kuyruğu kilitlerdi.
+   */
+  check(/continue;/.test(patch), "düşen öneri döngüyü kesmiyor");
+  {
+    /* Düşen öneri `yazilacak`a GİRMEMELİ: girseydi uygulanmadan onaylanmış görünürdü. */
+    const iHata = patch.indexOf("applyFailMessage(uygula.fail)");
+    const iSonra = patch.indexOf("yazilacak.push(", iHata);
+    const arasi = iHata > -1 && iSonra > iHata ? patch.slice(iHata, iSonra) : "";
+    check(iHata > -1, "uygulama hatası ele alınıyor");
+    check(/continue;/.test(arasi), "hata dalı `yazilacak`a ULAŞMADAN kesiliyor");
+  }
+  check(/agacDegisti/.test(patch), "hiçbiri uygulanmadıysa ağaç yazılmıyor");
+
+  /* Tavan: sınırsız kimlik listesi, tek istekte ağacı N kez tarardı. */
+  check(/ids\.length > MAX_TOPLU/.test(patch), "toplu istek tavanı var");
+
+  /* Tekrarlı kimlikler ayıklanıyor: aynı öneri iki kez uygulanmasın. */
+  check(/\[\.\.\.new Set\(ham\)\]/.test(patch), "yinelenen kimlikler ayıklanıyor");
+
+  /*
+   * TEK öneri yanıtı BİÇİM DEĞİŞTİRMEDİ: `{ proposal, version }`. Toplu
+   * yanıta çevrilseydi mevcut ekran sessizce bozulurdu — ve bozulma
+   * "onaylandı ama liste tazelenmiyor" gibi görünürdü.
+   */
+  check(/if \(!toplu\)/.test(patch), "tek öneri yanıtı ayrı");
+  check(/ok: true, proposal: yazilacak\[0\], version: yeniSurum/.test(patch), "tek yanıt eski biçimde");
+  check(/results: sonuclar\.map/.test(patch), "toplu yanıt hangi önerinin düştüğünü söylüyor");
+}
+
+/* --- 11. Ekran: toplu seçim --------------------------------------------- */
+{
+  /*
+   * Toplu işlem TEK istek. Öneri başına ayrı istek atılsaydı her yazma
+   * sürüm damgasını ilerletir ve ikinci istek kendi öncekinin damgası
+   * yüzünden 409 yerdi — tam da toplu onayın çözmesi gereken şey.
+   */
+  const i = dialog.indexOf("const topluKarar");
+  const govde = i > -1 ? dialog.slice(i, dialog.indexOf("\n  };", i)) : "";
+  check(i > -1, "topluKarar bulundu");
+  check(/JSON\.stringify\(\{ ids, decision \}\)/.test(govde), "seçilenler TEK istekte gidiyor");
+  /*
+   * İddia "for yok" DEĞİL — gövdede sonuçları dolaşan meşru bir döngü var
+   * ve o iddia onu yanlışlıkla kırmızıya düşürüyordu. Kural tek şey söylüyor:
+   * gövdede TEK bir ağ isteği olmalı.
+   */
+  check((govde.match(/await fetch\(/g) ?? []).length === 1, "gövdede tek bir istek var");
+  check(!/\.map\(async/.test(govde) && !/Promise\.all/.test(govde), "istekler paralelleştirilmiyor");
+  check(/setBaseVersion\(d\.version\)/.test(govde), "taban sürüm güncelleniyor");
+  /* Bayat alanlar kart kart gösteriliyor: toplu bir hata satırı hangi öneride ne olduğunu söylemezdi. */
+  check(/r\.stale/.test(govde), "düşen önerilerin bayat alanları kartlarına dağıtılıyor");
+
+  /* Toplu onay da doğrulamadan geçiyor — tek onaydan daha çok şey değiştiriyor. */
+  check(/onClick=\{\(\) => setTopluOnay\(true\)\}/.test(dialog), "toplu ONAY doğrulama açıyor");
+  check(/onClick=\{\(\) => topluKarar\("reddedildi"\)\}/.test(dialog), "toplu RET tek adımlı");
+
+  /* Seçim kutusu yalnız karar verebilende ve BEKLEYEN öneride. */
+  {
+    const j = dialog.indexOf('type="checkbox"');
+    const once = dialog.slice(Math.max(0, j - 200), j);
+    check(j > -1, "seçim kutusu var");
+    check(/canDecide && p\.status === "bekliyor"/.test(once), "kutu yalnız karar verebilende ve bekleyende");
+  }
+  /* Çubuk da öyle: seçecek bir şey yokken yer kaplamamalı. */
+  check(/canDecide && bekleyen\.length > 0 && \(/.test(dialog), "toplu çubuk koşullu");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
