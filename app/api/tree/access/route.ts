@@ -34,6 +34,12 @@ export async function GET() {
     members: access.members.map((m) => ({
       id: m.id,
       displayName: m.displayName,
+      /*
+       * Kullanıcı adı YÖNETİCİYE gösteriliyor: üye "giremiyorum" dediğinde
+       * yöneticinin bakabileceği tek yer burası. Şifre özeti hâlâ dışarı
+       * çıkmıyor — ad bir kimlik, sır değil.
+       */
+      username: m.username ?? "",
       role: m.role,
       joinedAt: m.joinedAt,
     })),

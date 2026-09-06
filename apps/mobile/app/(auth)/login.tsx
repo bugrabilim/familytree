@@ -11,6 +11,8 @@ export default function Login() {
   const { signIn } = useAuth();
   const router = useRouter();
   const [familyName, setFamilyName] = useState("");
+  /* Üye girişi (madde 36): boşsa kurucu yolu. */
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +25,7 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await signIn(familyName.trim(), password);
+      await signIn(familyName.trim(), password, username.trim().toLowerCase());
       router.replace("/(app)/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Giriş başarısız.");
@@ -46,6 +48,17 @@ export default function Login() {
             value={familyName}
             onChangeText={setFamilyName}
             placeholder="ör. Demirtaş Ailesi"
+            placeholderTextColor={colors.textSubtle}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <Text style={styles.label}>Kullanıcı adı (üyeler için)</Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Ağacı sen kurduysan boş bırak"
             placeholderTextColor={colors.textSubtle}
             autoCapitalize="none"
             autoCorrect={false}

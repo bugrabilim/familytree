@@ -54,10 +54,14 @@ function safeJson(t: string): unknown {
 }
 
 /* ── Kimlik uçları ── */
-export function loginRequest(familyName: string, password: string) {
+/**
+ * Giriş. `username` boşsa KURUCU yolu (ağaç adı + şifre); doluysa sunucu
+ * yalnız o üyeyi deniyor (madde 36 — üyenin kendi kullanıcı adı).
+ */
+export function loginRequest(familyName: string, password: string, username = "") {
   return apiFetch<{ token: string; user: ApiUser }>("/api/mobile/login", {
     method: "POST",
-    body: { familyName, password },
+    body: { familyName, password, username },
   });
 }
 

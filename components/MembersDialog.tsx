@@ -9,6 +9,8 @@ import type { TreeRole } from "@/types/user";
 interface MemberRow {
   id: string;
   displayName: string;
+  /** Giriş adı (madde 36). Eski üyelerde boş. */
+  username?: string;
   role: TreeRole;
   joinedAt: string;
 }
@@ -186,7 +188,17 @@ export default function MembersDialog({ treeName, onClose }: Props) {
               {members.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2">
                   <span className="text-sm text-text truncate flex items-center gap-2">
-                    {m.displayName} {roleBadge(m.role)}
+                    {m.displayName}
+                    {/*
+                      * Kullanıcı adı yöneticiye gösteriliyor: üye
+                      * "giremiyorum" dediğinde bakılacak tek yer burası.
+                      * Eski üyelerde boş — onlar hâlâ yalnız şifreyle
+                      * giriyor.
+                      */}
+                    {m.username && (
+                      <span className="text-[11px] text-text-subtle">@{m.username}</span>
+                    )}
+                    {roleBadge(m.role)}
                   </span>
                   <button
                     onClick={() => removeMember(m.id)}

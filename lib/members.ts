@@ -10,6 +10,7 @@ import { findUserById } from "@/lib/users";
 // burada DÜŞÜRÜLMEMELİ — düşerse tüm paylaşım bağlantıları kaybolur.
 import { normalizeAccess, normalizeShares } from "@/lib/tree-access";
 import { isSoftDeleted } from "@/lib/retention";
+import { normalizeUsername, usernameTaken } from "@/lib/username";
 
 /**
  * Ağaç erişim (üye + davet) deposu — Madde 13.
@@ -206,14 +207,23 @@ export async function acceptInvite(
   /**
    * Düz-metin şifre — YALNIZ çakışma denetimi için (saklanmıyor).
    *
-   * Giriş formu ağaç adı + şifre istiyor, üye seçtirmiyor; bu yüzden
-   * `findMemberByPassword` kimliği ŞİFREYE göre çözüyor ve aynı ağaçta iki
-   * üye aynı şifreyi seçerse listedeki ilk eşleşen kazanıyor. Bir `viewer`
-   * kendi şifresini yazıp bir `admin`in kimliğiyle oturum açabilirdi.
-   * Kapı burada: aynı şifre ikinci kez kabul edilmiyor.
+   * Kullanıcı adı VERİLMEYEN eski yolda kimlik şifreye göre çözülüyor
+   * (`findMemberByPassword`), dolayısıyla aynı ağaçta iki üye aynı şifreyi
+   * seçerse biri ötekinin kimliğiyle VE ROLÜYLE oturum açardı. Kapı o yol
+   * için hâlâ burada.
+   *
+   * Kullanıcı adı VERİLDİĞİNDE bu denetim çalıştırılmıyor ve
+   * çalıştırılmamalı: kimlik artık adla çözülüyor, şifre yalnız o üyenin
+   * özetiyle karşılaştırılıyor. Denetimi sürdürmek, geçerli bir şifreyi
+   * "başkası kullanıyor" diye reddetmek — yani var olmayan bir çakışmayı
+   * duyurmak — olurdu.
    */
-  plainPassword?: string
-): Promise<{ treeId: string; member: Member } | { error: "sifre-dolu" } | null> {
+  plainPassword?: string,
+  /** Giriş adı (madde 36). Ham hâliyle gelir; normalleştirilip saklanır. */
+  username?: string
+): Promise<
+  { treeId: string; member: Member } | { error: "sifre-dolu" | "ad-dolu" } | null
+> {
   const parsed = parseInviteToken(token);
   if (!parsed) return null;
   const { treeId, secret } = parsed;
@@ -229,7 +239,17 @@ export async function acceptInvite(
    * denetleniyor: `verifyLogin` önce onu deniyor, dolayısıyla kurucunun
    * şifresini seçen bir üye hiç giriş yapamaz — sessiz bir kilit olurdu.
    */
-  if (plainPassword) {
+  const ad = normalizeUsername(username);
+  if (ad && usernameTaken(data.members, ad)) return { error: "ad-dolu" };
+
+  /*
+   * Şifre çakışması denetimi YALNIZ adsız katılımda. Ad varsa kimlik adla
+   * çözülüyor ve iki üyenin aynı şifreyi seçmesinin bir zararı yok;
+   * denetimi sürdürmek, geçerli bir şifreyi "başkası kullanıyor" diye
+   * reddetmek olurdu — üstelik bu, başkasının şifresini doğrulayan bir
+   * bilgi sızıntısı.
+   */
+  if (!ad && plainPassword) {
     for (const m of data.members) {
       if (await compare(plainPassword, m.passwordHash)) return { error: "sifre-dolu" };
     }
@@ -240,6 +260,7 @@ export async function acceptInvite(
   const member: Member = {
     id: crypto.randomUUID(),
     displayName: displayName.trim(),
+    ...(ad ? { username: ad } : {}),
     passwordHash,
     role: invite.role,
     joinedAt: new Date().toISOString(),
@@ -271,9 +292,39 @@ export async function findMemberByPassword(
   // girebilirdi ve ağaç "silinmiş" görünürken yaşamaya devam ederdi.
   if (isSoftDeleted(data)) return null;
   for (const m of data.members) {
+    /*
+     * KULLANICI ADI OLAN ÜYE BU YOLDAN GİREMEZ (madde 36).
+     *
+     * Girebilseydi belirsizlik geri gelirdi: adlı bir üyeyle adsız bir üye
+     * aynı şifreyi taşıyabiliyor (adlı katılımda şifre çakışması artık
+     * denetlenmiyor) ve bu döngü ilk eşleşeni döndürüyor — yani adsız üye,
+     * adlı üyenin kimliğiyle VE ROLÜYLE oturum açabilirdi.
+     *
+     * Adını belirleyen üye bundan sonra adıyla giriyor; eski yol yalnız
+     * hiç adı olmayanlar için duruyor.
+     */
+    if (m.username) continue;
     if (await compare(password, m.passwordHash)) return m;
   }
   return null;
+}
+
+/**
+ * Giriş için: kullanıcı adına göre üye (madde 36).
+ *
+ * Şifre BURADA karşılaştırılmıyor — çağıran yalnız BU üyenin özetiyle
+ * karşılaştırıyor. Bütün üyeleri gezen eski yolun aksine giriş maliyeti
+ * artık üye sayısından bağımsız: tek bcrypt.
+ */
+export async function findMemberByUsername(
+  treeId: string,
+  username: string
+): Promise<Member | null> {
+  const ad = normalizeUsername(username);
+  if (!ad) return null;
+  const data = await getTreeAccess(treeId);
+  if (isSoftDeleted(data)) return null;
+  return data.members.find((m) => normalizeUsername(m.username) === ad) ?? null;
 }
 
 export async function removeMember(treeId: string, memberId: string): Promise<void> {

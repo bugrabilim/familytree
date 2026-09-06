@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
     );
 
-  let body: { familyName?: string; password?: string };
+  let body: { familyName?: string; password?: string; username?: string };
   try {
     body = await req.json();
   } catch {
@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
   if (!familyName || !password)
     return NextResponse.json({ error: "Ağaç adı ve şifre gerekli." }, { status: 400 });
 
-  const user = await verifyLogin(familyName, password);
+  // Üye girişi (madde 36): boşsa kurucu yolu, doluysa yalnız o üye.
+  const user = await verifyLogin(familyName, password, (body.username ?? "").trim());
   if (!user) return NextResponse.json({ error: "Ağaç adı veya şifre hatalı." }, { status: 401 });
 
   const token = await signMobileToken({

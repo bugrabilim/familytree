@@ -74,7 +74,17 @@ const kodu = (src: string) =>
 
 /* ══ 2. Giriş: kurucu da üye de giremez ════════════════════════════════ */
 {
-  const src = kodu(read("../lib/credentials.ts"));
+  const dosya = kodu(read("../lib/credentials.ts"));
+  /*
+   * İddialar `verifyLogin` GÖVDESİNE bakıyor, dosyanın tamamına değil.
+   *
+   * Dosyada artık gövdenin DIŞINDA da bir `compare(password…)` var (zaman
+   * sızıntısına karşı sahte özet karşılaştırması) ve o, işlevden önce
+   * geliyor. Dosya çapında arayan iddia onu buluyor ve "denetim şifre
+   * karşılaştırmasından sonra" diye sahte kırmızıya düşüyordu — kural
+   * doğruydu, iddia yanlış yere bakıyordu.
+   */
+  const src = dosya.slice(dosya.indexOf("export async function verifyLogin"));
   const i = src.indexOf("isSoftDeleted(user)");
   check(i > 0, "giriş silinmekte olan hesabı reddediyor");
   /*
@@ -82,6 +92,8 @@ const kodu = (src: string) =>
    * davetlisi girebilirdi — ağaç "silinmiş" görünürken yaşamaya devam ederdi.
    */
   check(i > 0 && i < src.indexOf("findMemberByPassword("), "denetim ÜYE girişinden de önce");
+  /* Kullanıcı adıyla giren üye de aynı kapının arkasında. */
+  check(i > 0 && i < src.indexOf("findMemberByUsername("), "denetim ADLA girişten de önce");
   check(i > 0 && i < src.indexOf("compare(password"), "denetim şifre karşılaştırmasından önce");
 }
 
