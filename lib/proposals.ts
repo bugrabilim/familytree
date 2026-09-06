@@ -42,6 +42,15 @@ export const MAX_CHANGES = 30;
 export const MAX_NOTE = 1000;
 /** Tek bir alan değerinin metin uzunluğu. */
 export const MAX_VALUE = 4000;
+/**
+ * "icerik" önerisinin toplam boyutu (JSON, karakter).
+ *
+ * Alan alan sınırlamak burada işe yaramıyor: tarif gövdesi iç içe diziler
+ * taşıyor ve depo kendi kurallarını onay anında zaten uyguluyor. Buradaki
+ * sınırın işi farklı — öneri KUYRUĞUNU korumak: kuyruk tek bir dosya ve
+ * 300 kayıt tutuyor, sınırsız bir gövde onu tek başına şişirebilirdi.
+ */
+export const MAX_CONTENT = 40_000;
 
 /**
  * Önerinin durumu.
@@ -114,7 +123,27 @@ export type ProposalKind =
   /** Yeni kişi ekle. */
   | "ekleme"
   /** Var olan kaydı sil. */
-  | "silme";
+  | "silme"
+  /** Ağaç dışı bir koleksiyona kayıt ekle (tarif / etkinlik / mektup). */
+  | "icerik";
+
+/**
+ * ÖNERİ MOTORUNUN KAPSADIĞI, KİŞİ DIŞI KOLEKSİYONLAR (madde 37).
+ *
+ * Rol modeli "üyenin her değişikliği onaydan geçer" diyordu ama motor yalnız
+ * KİŞİ kayıtlarını taşıyordu; bu üç depoya ekleme doğrudan yazma olarak açık
+ * bırakılmıştı — bilinçli bir boşluk olarak, çünkü kapatmak üyenin tarif
+ * ekleme yeteneğini yerine bir şey koymadan yok ederdi. Bu tür o boşluğu
+ * kapatıyor.
+ */
+export const CONTENT_STORES = ["recipes", "gatherings", "letters"] as const;
+export type ContentStore = (typeof CONTENT_STORES)[number];
+
+/** "icerik" önerisinin taşıdığı kayıt: hangi depoya, ne eklenecek. */
+export interface ProposedContent {
+  store: ContentStore;
+  item: Record<string, unknown>;
+}
 
 /** Yeni kişi önerisinde, kişinin hangi kayda bağlanacağı. */
 export interface ProposedRelation {
@@ -147,6 +176,8 @@ export interface Proposal {
   person?: Record<string, unknown>;
   /** "ekleme" türünde kişinin bağlanacağı kayıt. */
   relation?: ProposedRelation;
+  /** "icerik" türünde eklenecek kayıt ve hangi depoya gideceği. */
+  content?: ProposedContent;
   note?: string;
   /** Öneriyi yazan (`ctx.authorId`). */
   by: string;
@@ -325,6 +356,32 @@ export function buildNewPerson(
 }
 
 /**
+ * "icerik" önerisinin gövdesini kurar.
+ *
+ * Derin doğrulama BİLEREK yok: her deponun kendi kuralları var (tarifin adı,
+ * mektubun açılış tarihi, etkinliğin yeri) ve onları burada kopyalamak, iki
+ * kuralın zamanla ayrışması demekti. Onay anında deponun KENDİ ekleme
+ * işlevi çağrılıyor; reddederse onay 409 ile düşüyor ve öneri kuyrukta
+ * kalıyor.
+ *
+ * Burada bakılan üç şey var ve üçü de kuyruğun kendisini koruyor: depo adı
+ * bilinen mi, gövde gerçekten bir nesne mi, ve boyutu kuyruğu şişirecek
+ * kadar büyük mü.
+ */
+export function buildContent(
+  store: unknown,
+  raw: unknown
+): { ok: true; content: ProposedContent } | { ok: false; fail: BuildFail | "depo-yok" } {
+  if (typeof store !== "string" || !(CONTENT_STORES as readonly string[]).includes(store))
+    return { ok: false, fail: "depo-yok" };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, fail: "degisiklik-yok" };
+  const item = raw as Record<string, unknown>;
+  if (Object.keys(item).length === 0) return { ok: false, fail: "degisiklik-yok" };
+  if (JSON.stringify(item).length > MAX_CONTENT) return { ok: false, fail: "cok-uzun" };
+  return { ok: true, content: { store: store as ContentStore, item } };
+}
+
+/**
  * Önerinin türü — alan yoksa "alan".
  *
  * Tek yerden okunuyor ki her çağıran `p.kind ?? "alan"` yazmak zorunda
@@ -344,6 +401,15 @@ export function kindOf(p: Pick<Proposal, "kind">): ProposalKind {
  */
 export function isCoherent(p: Proposal): boolean {
   switch (kindOf(p)) {
+    case "icerik":
+      /*
+       * İçerik önerisi bir KİŞİYE bağlı değil: `personId` taşırsa onay
+       * anında hangi kod yolunun çalışacağı belirsizleşir.
+       */
+      return !p.personId && !p.person && !p.relation
+        && Object.keys(p.changes ?? {}).length === 0
+        && !!p.content && !!p.content.store
+        && !!p.content.item && Object.keys(p.content.item).length > 0;
     case "ekleme":
       return !p.personId && !!p.person && Object.keys(p.person).length > 0
         && Object.keys(p.changes ?? {}).length === 0;

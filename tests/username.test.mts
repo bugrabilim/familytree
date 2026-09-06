@@ -39,7 +39,7 @@ check(checkUsername("a".repeat(USERNAME_MAX)).ok, "üst sınır dâhil");
 check(checkUsername("abc").ok, "alt sınır dâhil");
 
 const fails = (u: string) => { const r = checkUsername(u); return r.ok ? "GEÇTİ" : r.fail; };
-eq(fails("ab"), "kisa", "kısa ad reddediliyor");
+eq(fails("a".repeat(USERNAME_MIN - 1)), "kisa", "kısa ad reddediliyor");
 eq(fails("a".repeat(USERNAME_MAX + 1)), "uzun", "uzun ad reddediliyor");
 eq(fails("Ayse"), "gecersiz", "büyük harf reddediliyor (normalleştirilmemiş girdi)");
 eq(fails("ayşe"), "gecersiz", "Türkçe harf reddediliyor");

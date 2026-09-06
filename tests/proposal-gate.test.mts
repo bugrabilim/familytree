@@ -21,6 +21,10 @@ const store = kodu(read("../lib/proposal-store.ts"));
 const cek = kodu(read("../app/api/family/proposals/withdraw/route.ts"));
 const uygula = kodu(read("../lib/proposal-apply.ts"));
 const geri = kodu(read("../app/api/family/proposals/undo/route.ts"));
+const icerik = kodu(read("../lib/proposal-content.ts"));
+const depolar = ["recipes", "gatherings", "letters"].map((d) => [d, kodu(read(`../app/api/family/${d}/route.ts`))] as const);
+const gorunumler = ["RecipesView", "LettersView"].map((c) => [c, kodu(read(`../components/${c}.tsx`))] as const)
+  .concat([["GatheringsDialog", kodu(read("../components/GatheringsDialog.tsx"))]]);
 const dialog = kodu(read("../components/ProposalsDialog.tsx")).replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 /* --- 1. Kim ne yapabilir ------------------------------------------------- */
@@ -290,8 +294,12 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
    * çiziyordu; o iki türde alan boş olduğu için karar veren, neyi
    * onayladığını bilmeden onaylıyordu.
    */
-  check(/p\.kind === "ekleme" \? t\("proposal\.kindAdd"\)/.test(dialog), "ekleme önerisi etiketleniyor");
-  check(/Object\.entries\(p\.person \?\? \{\}\)/.test(dialog), "önerilen yeni kişinin alanları çiziliyor");
+  check(/p\.kind === "ekleme"\s*\?\s*t\("proposal\.kindAdd"\)/.test(dialog), "ekleme önerisi etiketleniyor");
+  check(/p\.person \?\? \{\}/.test(dialog), "önerilen yeni kişinin alanları çiziliyor");
+  /* İçerik önerisi de kartta görünüyor: hangi depoya ne ekleneceği. */
+  check(/t\("proposal\.kindContent"\)/.test(dialog), "içerik önerisi etiketleniyor");
+  check(/proposal\.store\.\$\{p\.content\?\.store/.test(dialog), "hangi koleksiyon olduğu yazıyor");
+  check(/p\.content\?\.item \?\? \{\}/.test(dialog), "önerilen kaydın alanları çiziliyor");
 }
 
 /* --- 10. Toplu onay (madde 35/E) ----------------------------------------- */
@@ -498,6 +506,81 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
     check(/onApplied\?\.\(\)/.test(govde), "ağaç görünümü tazeleniyor");
     check(/mutationHeaders\(\)/.test(govde), "taban sürüm başlığı gönderiliyor");
   }
+}
+
+/* --- 14. İçerik önerileri (madde 37) ------------------------------------- */
+
+/*
+ * BOŞLUK KAPANDI. Tarif/etkinlik/mektup EKLEME üyeye doğrudan yazma olarak
+ * açıktı — "üyenin her değişikliği onaydan geçer" kuralının tek istisnası.
+ * Öneri motoru bu depoları da taşıdığına göre gerekçe kalktı.
+ */
+for (const [ad, src] of depolar) {
+  check(!/canPropose/.test(src), `${ad}: doğrudan yazma yolu kapandı`);
+  check(/seviye === "oku" \? true : canEdit\(ctx\.role\)/.test(src), `${ad}: okuma dışı her şey canEdit`);
+  /* POST hâlâ "ekle" seviyesini soruyor: rotanın ne yaptığı okunur kalsın. */
+  const post = src.slice(src.indexOf("export async function POST"), src.indexOf("export async function PUT"));
+  check(/guard\("ekle"\)/.test(post), `${ad}: POST kapıdan geçiyor`);
+}
+
+/* Üye artık formu doldurup 403 yemiyor: ekleme öneriye yönleniyor. */
+for (const [ad, src] of gorunumler) {
+  check(/if \(method === "POST" && authority\.proposes\)/.test(src), `${ad}: üyede ekleme öneriye gidiyor`);
+  check(/await proposeContent\("/.test(src), `${ad}: ortak öneri yardımcısı kullanılıyor`);
+  /*
+   * YALNIZ EKLEME dallanıyor. Güncelleme/silme zaten yöneticinin ve onları
+   * da öneriye yönlendirmek, var olmayan bir yeteneği varmış gibi
+   * göstermek olurdu.
+   */
+  const i = src.indexOf('if (method === "POST" && authority.proposes)');
+  const dal = i > -1 ? src.slice(i, src.indexOf("return;", i)) : "";
+  check(!/PUT|DELETE/.test(dal), `${ad}: yalnız ekleme dallanıyor`);
+}
+
+/*
+ * UYGULAMA AYRI: içerik önerisi AĞACA değil kendi deposuna yazıyor.
+ * `applyToTree` senkron ve yazma yapmıyor; çağıran sonunda tek bir
+ * `saveFamilyData` yapıyor. İkisi tek işleve sığdırılsaydı senkron
+ * uygulayıcı asenkron olur ve "ağaç değişti mi" sorusu bulanıklaşırdı.
+ */
+check(/export async function applyContent/.test(icerik), "içerik uygulayıcısı ayrı");
+check(/addRecipe\(treeId/.test(icerik) && /addGathering\(treeId/.test(icerik) && /addLetter\(treeId/.test(icerik),
+  "her depo KENDİ ekleme işleviyle yazılıyor");
+/*
+ * Derin doğrulama kopyalanmıyor: depo `null` dönerse onay reddediliyor.
+ * Kopyalansaydı iki kural zamanla ayrışır ve kullanıcının kendi eklediğinde
+ * geçen bir kayıt, öneriyle eklendiğinde reddedilirdi.
+ */
+check(!/MAX_RECIPES|MAX_LETTERS|normalizeRecipe/.test(icerik), "depo kuralları buraya kopyalanmadı");
+check((icerik.match(/ok: false, error:/g) ?? []).length >= 3, "her depo için ret gerekçesi var");
+
+{
+  const patch = rota.slice(rota.indexOf("export async function PATCH"));
+  check(/kindOf\(p\) === "icerik"/.test(patch), "onay içerik türünü ayırıyor");
+  const i = patch.indexOf('kindOf(p) === "icerik"');
+  const dal = patch.slice(i, patch.indexOf("if (karar === \"onaylandi\") {", i));
+  check(/await applyContent\(ctx\.treeId, p\)/.test(dal), "içerik deposuna yazılıyor");
+  /*
+   * İçerik onayı `agacDegisti` işaretlemiyor: ağaç dosyasına dokunulmadığı
+   * hâlde yeni bir sürüm damgası üretilseydi, açık olan her düzenleme
+   * ekranına gereksiz bir çakışma düşerdi.
+   */
+  check(!/agacDegisti/.test(dal), "içerik onayı ağacı DEĞİŞTİ saymıyor");
+
+  /*
+   * Kilit de yalnız ağaca dokunan onaylarda. Uygulansaydı bir tarifi
+   * onaylamak, araya başka birinin kişi düzenlemesi girdiği için "ağaç
+   * başka bir yerde değişti" diye reddedilebilirdi — hiçbir çakışma
+   * olmadığı hâlde.
+   */
+  check(/const agacaDokunan = ids\.some/.test(patch), "ağaca dokunan öneri var mı diye bakılıyor");
+  check(/karar === "onaylandi" && agacaDokunan/.test(patch), "ağaç yalnız gerekiyorsa okunuyor");
+}
+
+{
+  const post = rota.slice(rota.indexOf("export async function POST"), rota.indexOf("export async function PATCH"));
+  check(/buildContent\(body\.store, body\.item\)/.test(post), "içerik gövdesi saf katmanda kuruluyor");
+  check(/body\.kind === "icerik"/.test(post), "tür kabul ediliyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
