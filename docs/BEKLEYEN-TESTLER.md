@@ -40,3 +40,29 @@ gitti mi; Supabase Auth kullanıcısı gitti mi; geriye yetim satır kaldı mı.
 ⋮ → Paylaş → "Paylaş (herkese açık)" bir bağlantı + **QR kod** üretir. Bağlantı
 `/g/<token>` sayfasını açar; **şifre istemez** ve `publicView` ile **salt-okunur**
 gelir (düzenleme kapalı). Ayrıca yaşayanları gizleme sahibin tercihine kilitlenir.
+
+## Bu turda eklenen, kullanıcının henüz denemediği akışlar (2026-09-06)
+
+Hepsi canlıda. Sıralama, bir aksaklığın en çok can sıkacağı yerden başlıyor.
+
+- **Üye kullanıcı adı** (#292). Giriş formunda "Kullanıcı adı (üyeler
+  için)" alanı çıktı. Ağacı kuran kişi burayı BOŞ bırakıp eskisi gibi
+  giriyor. Yeni davetliler katılırken kendi adlarını seçiyor; bu alandan
+  önce katılmış üyeler eski yoldan (yalnız şifre) girmeye devam ediyor.
+  Denenecek: kurucu girişi bozulmadı mı, yeni davetli katılıp girebiliyor
+  mu, yönetici "Üyeler ve davetler" ekranında `@ad` görüyor mu.
+- **Öneri kuyruğu** (#279–#285, #288–#290, #293). Üye artık kişi
+  ekleme/düzenleme/silme VE tarif/etkinlik/mektup eklemeyi önererek
+  yapıyor. Denenecek: bir üye hesabıyla öneri açmak, yöneticiyle kuyrukta
+  onaylamak, toplu onay, onayı geri almak, öneriyi geri çekmek.
+- **Paylaşım kapsamı** (#291). Yeni paylaşım bağlantısı açarken 14
+  görünümün kutuları çıkıyor, hepsi işaretli geliyor. Denenecek: bir
+  görünümü kapatıp bağlantıyı açmak — o sekme görünmemeli. Eski
+  bağlantıların davranışı DEĞİŞMEDİ (hepsi açık).
+- **Ağaç/hesap silme** (#283). Bekleme süresi 30 gün. Aşağıdaki misafir
+  hesabı üzerinde denenmesi bekleniyor.
+
+## Sürüm damgası (#287) — arka planda, ekranda görünmez
+
+Silinen bir kişinin "dirilmesi" hatası düzeltildi. Kullanıcının yapacağı
+bir test yok; not, hatanın bir daha aranmaması için.
