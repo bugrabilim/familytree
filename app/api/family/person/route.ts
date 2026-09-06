@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canEdit } from "@/lib/roles";
+import { canContribute } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 import { buildPersonFields } from "@/lib/person-fields";
@@ -11,7 +11,14 @@ export type RelationType = "parent" | "child" | "spouse" | "sibling" | "associat
 export async function POST(req: NextRequest) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
-  if (!canEdit(ctx.role))
+  /*
+   * EKLEME kapısı (madde 35) — `canEdit` değil `canContribute`.
+   *
+   * Katkı vericinin yapabildiği tek doğrudan yazma işi bu: yeni kayıt
+   * açmak. Var olana dokunmak (PUT/DELETE) hâlâ `canEdit` istiyor; oraya
+   * onun yolu değişiklik önerisinden geçiyor.
+   */
+  if (!canContribute(ctx.role))
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const userId = ctx.treeId;
@@ -38,6 +45,13 @@ export async function POST(req: NextRequest) {
   const person: Person = {
     id: crypto.randomUUID(),
     code: nextCode(data.people),
+    /*
+     * EKLEYEN kayda yazılıyor. Katkı verici kendi eklediğini sonradan
+     * düzeltebilsin diye; `buildPersonFields`ten SONRA değil ÖNCE de
+     * yazılabilirdi ama sıra önemli değil: alan kayıt defterinde yok, yani
+     * gövdeden gelen bir değer buraya hiç ulaşmıyor.
+     */
+    addedBy: ctx.authorId,
     ...buildPersonFields(body as Record<string, unknown>),
     // Ad/soyad her zaman bulunur (boş da olsa) ve kırpılır.
     firstName: ((body.firstName as string) ?? "").trim(),

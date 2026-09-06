@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canEdit } from "@/lib/roles";
+import { canContribute, canEdit } from "@/lib/roles";
 import {
   addRecipe,
   deleteRecipe,
@@ -16,15 +16,24 @@ export const dynamic = "force-dynamic";
  * Aile tarif defteri — ağaç başına ayrı koleksiyon.
  *
  *  GET    → tarifler (görüntüleyen de okuyabilir)
- *  POST   → yeni tarif        (düzenleyici)
+ *  POST   → yeni tarif        (katkı verici)
  *  PUT    → tarifi güncelle   (düzenleyici)
  *  DELETE → tarifi sil        (düzenleyici)
  */
 
-async function guard(edit: boolean) {
+/**
+ * ÜÇ SEVİYE (madde 35) — eskiden `edit: boolean` ile iki seviye vardı.
+ *
+ * İkili bayrak, "eklemek" ile "var olanı değiştirmek"i aynı kapıya
+ * koyuyordu; katkı vericiye ekleme açmak istediğimiz anda güncelleme ve
+ * silme de açılırdı. Üçüncü seviye tam olarak bu ayrımı taşıyor.
+ */
+async function guard(seviye: "oku" | "ekle" | "duzenle") {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status }) };
-  if (edit && !canEdit(ctx.role))
+  const yeter =
+    seviye === "oku" ? true : seviye === "ekle" ? canContribute(ctx.role) : canEdit(ctx.role);
+  if (!yeter)
     return {
       error: NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 }),
     };
@@ -40,13 +49,14 @@ async function body(req: NextRequest): Promise<RecipeInput & { id?: string }> {
 }
 
 export async function GET() {
-  const g = await guard(false);
+  const g = await guard("oku");
   if ("error" in g) return g.error;
   return NextResponse.json({ recipes: await listRecipes(g.treeId) });
 }
 
 export async function POST(req: NextRequest) {
-  const g = await guard(true);
+  // EKLEME — katkı verici de yapabilir; güncelleme/silme aşağıda "duzenle".
+  const g = await guard("ekle");
   if ("error" in g) return g.error;
   const input = await body(req);
   const recipe = await addRecipe(g.treeId, input);
@@ -67,7 +77,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const g = await guard(true);
+  const g = await guard("duzenle");
   if ("error" in g) return g.error;
   const input = await body(req);
   if (!input.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });
@@ -77,7 +87,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const g = await guard(true);
+  const g = await guard("duzenle");
   if ("error" in g) return g.error;
   const input = await body(req);
   if (!input.id) return NextResponse.json({ error: "id gerekli" }, { status: 400 });

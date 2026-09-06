@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { mergePersonFields } from "@/lib/person-fields";
-import { canEdit } from "@/lib/roles";
+import { canContribute, canEdit } from "@/lib/roles";
 import { deleteBondsOfPerson } from "@/lib/bond-store";
 import { scrubDeleted } from "@/lib/scrub";
 
@@ -21,7 +21,18 @@ export async function PUT(
 ) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
-  if (!canEdit(ctx.role)) return forbidden();
+  /*
+   * KAPI İKİ AŞAMALI (madde 35).
+   *
+   * Birinci aşama roldür ve burada: katkı vericinin altındaki hiç kimse
+   * (viewer) bu uca giremez. İkinci aşama SAHİPLİKTİR ve kaydı bulduktan
+   * sonra gelir — çünkü "kendi eklediği mi?" sorusu ancak kayıt elde
+   * olunca sorulabilir.
+   *
+   * Sıra bu yüzden ters çevrilemez; ama tek aşamalı bırakılsaydı katkı
+   * verici HERKESİN kaydını düzenlerdi.
+   */
+  if (!canContribute(ctx.role)) return forbidden();
 
   const userId = ctx.treeId;
   const { id } = await params;
@@ -32,6 +43,19 @@ export async function PUT(
   const index = data.people.findIndex((p) => p.id === id);
   if (index === -1)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  /*
+   * İKİNCİ AŞAMA. Editor ve üstü her kaydı düzenler; katkı verici YALNIZ
+   * kendi eklediğini.
+   *
+   * `addedBy` yoksa (rolden önce eklenmiş eski kayıtlar) sahiplik
+   * KURULAMAZ ve karşılaştırma başarısız olur — yani eski kayıtların hepsi
+   * katkı vericiye kapalı. Boşluğun güvenli yöne düşmesi bilinçli:
+   * `undefined === undefined` gibi bir eşleşmeye izin verilseydi, kimliği
+   * çözülemeyen bir katkı verici bütün eski ağacı düzenleyebilirdi.
+   */
+  if (!canEdit(ctx.role) && data.people[index].addedBy !== ctx.authorId)
+    return forbidden();
 
   /*
    * Alanlar KAYIT DEFTERİNDEN birleştirilir (`lib/person-fields.ts`).
@@ -120,6 +144,15 @@ export async function DELETE(
 ) {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Unauthorized" }, { status: ctx.status });
+  /*
+   * SİLME katkı vericiye AÇILMADI — kendi eklediği kayıt için bile.
+   *
+   * Düzenleme ile silme burada simetrik değil: bir kaydı ekledikten sonra
+   * başkaları onun üstüne bir şey kurmuş olabilir (çocuk bağlamış, fotoğraf
+   * eklemiş, hikâye yazmış). Ekleyenin "benim kaydım" demesi o andan sonra
+   * doğru değil ve silme, düzenlemenin aksine başkasının emeğini de götürür.
+   * Katkı verici silmek istiyorsa yolu öneriden geçiyor.
+   */
   if (!canEdit(ctx.role)) return forbidden();
 
   const userId = ctx.treeId;

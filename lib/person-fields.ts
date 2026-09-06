@@ -138,6 +138,8 @@ export const EXCLUDED_FIELDS: Readonly<Record<string, string>> = {
   code: "Sunucu üretir (`lib/code.ts`); gövdeden kabul edilmez.",
   placeholder: "Türetilmiş bayrak; ad girilince sunucuda düşer.",
   entrySource: "Kaydın nereden geldiği (içe aktarma/AI); kullanıcı alanı değil.",
+  addedBy:
+    "Kaydı ekleyeni SUNUCU yazar. Gövdeden yazılabilseydi katkı verici, başkasının kaydına kendi kimliğini geçirip onu düzenlenebilir hâle getirirdi (madde 35).",
   parentIds: "İlişki grafiği — kendi akışı var (eş/ebeveyn karşılıklılığı).",
   parentLinks: "İlişki grafiği; `parentIds` ile birlikte yürür.",
   spouseIds: "İlişki grafiği — karşı tarafı da güncellenir.",

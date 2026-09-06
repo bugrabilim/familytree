@@ -96,6 +96,22 @@ export interface Person {
   /** Yakın çevre bağları — aile-dışı yakınlarla (drawer'da çift yönlü gösterilir). */
   associations?: Association[];
   /**
+   * Kaydı EKLEYEN kişinin kimliği (`ctx.authorId`) — madde 35.
+   *
+   * Katkı verici rolü var olan kaydı değiştiremiyor ama KENDİ eklediğini
+   * düzeltebiliyor; bu alan o ayrımın tek dayanağı. Olmasaydı, kişiyi henüz
+   * ekleyen kişi adındaki bir harf hatasını bile düzeltemez, onun için
+   * öneri açmak zorunda kalırdı.
+   *
+   * SUNUCU yazar, istemciden kabul edilmez (`lib/person-fields.ts`
+   * EXCLUDED_FIELDS): gövdeden yazılabilseydi, katkı verici başkasının
+   * kaydına kendi kimliğini yazıp onu düzenlenebilir hâle getirirdi.
+   *
+   * Eski kayıtlarda YOK — o kayıtlar kimsenin "kendi eklediği" sayılmaz,
+   * yani yokluğu güvenli yöne düşüyor.
+   */
+  addedBy?: string;
+  /**
    * İnsan-okur benzersiz kimlik: 6 haneli, "289" ile başlar (289001…).
    * Kartlarda gösterilir. İç `id`'den ayrıdır; kalıcı ve paylaşılabilir.
    */
