@@ -30,6 +30,7 @@ import {
 } from "@/lib/date";
 import {
   createPerson,
+  proposeChanges,
   updatePerson,
   uploadPhoto,
   uploadVideo,
@@ -39,6 +40,8 @@ import {
 } from "@/lib/actions";
 import { useT } from "@/lib/i18n";
 import ContactSection from "./ContactSection";
+import { useAuthority } from "./AuthorityContext";
+import { PERSON_FIELDS } from "@/lib/person-fields";
 import PlaceInput from "./PlaceInput";
 import { fullName } from "@/lib/name";
 
@@ -103,6 +106,16 @@ export default function PersonForm({
   onSaved,
 }: Props) {
   const t = useT();
+  /*
+   * ÖNERİ MODU (madde 35). Katkı verici, düzenleyemediği bir kaydı
+   * doğrudan kaydedemiyor — kaydet düğmesi "değişiklik öner"e dönüşüyor.
+   * Kural `lib/roles.ts`teki `canEditPerson`; sunucu kapısı da AYNI işlevi
+   * çağırıyor, yani arayüzün gösterdiği ile sunucunun kabul ettiği
+   * ayrışamıyor.
+   */
+  const authority = useAuthority();
+  const oneriModu = !!personId && !authority.canEditPerson(initial);
+  const [oneriNotu, setOneriNotu] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
@@ -547,6 +560,27 @@ export default function PersonForm({
     }
 
     try {
+      /*
+       * ÖNERİ MODU: kayıt yazılmıyor, TALEP açılıyor.
+       *
+       * Gövde `PERSON_FIELDS` defterine göre süzülüyor. Süzülmeseydi
+       * `relation`, `parentIds`, `spouseIds` gibi defterde olmayan alanlar
+       * gider ve sunucu isteğin TAMAMINI reddederdi — kullanıcı, yazdığı
+       * geçerli değişikliklerin neden gitmediğini anlayamazdı.
+       *
+       * Bunun bir bedeli var ve bilinçli: ilişki değişiklikleri (ebeveyn/eş
+       * bağı) ÖNERİLEMİYOR, çünkü onlar karşılıklılık akışıyla yürüyor ve
+       * tek yönlü bir "şu alan şu olsun" ifadesine sığmıyor.
+       */
+      if (oneriModu) {
+        const izinli = new Set(PERSON_FIELDS.map((f) => String(f.key)));
+        const changes: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(payload as unknown as Record<string, unknown>))
+          if (izinli.has(k)) changes[k] = v;
+        await proposeChanges(personId!, changes, oneriNotu.trim() || undefined);
+        onCancel();
+        return;
+      }
       const saved = personId
         ? await updatePerson(personId, payload)
         : await createPerson(payload);
@@ -1684,13 +1718,43 @@ export default function PersonForm({
         </div>
       )}
 
+      {/*
+        ÖNERİ MODU AÇIKÇA SÖYLENİYOR.
+        Söylenmeseydi kullanıcı "Kaydet"e basıp değişikliğin hemen geçtiğini
+        sanır, ağaçta göremeyince de hata sanırdı. Ne olacağını önceden
+        bilmek, sonradan açıklamaktan iyidir.
+      */}
+      {oneriModu && (
+        <div className="space-y-2 border border-border rounded-xl px-3 py-2.5">
+          <p className="text-[11px] text-text-subtle leading-relaxed">{t("proposal.hint")}</p>
+          <label className="text-xs font-medium block" htmlFor="oneri-notu">
+            {t("proposal.noteLabel")}
+          </label>
+          <textarea
+            id="oneri-notu"
+            className="w-full text-sm px-3 py-2 rounded-xl bg-surface border border-border h-20 resize-none leading-relaxed"
+            value={oneriNotu}
+            onChange={(e) => setOneriNotu(e.target.value)}
+            placeholder={t("proposal.notePlaceholder")}
+          />
+        </div>
+      )}
+
       {errors.form && (
         <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{errors.form}</p>
       )}
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={saving || uploading || galleryUploading || mediaUploading !== null} full>
-          {saving ? "Kaydediliyor…" : personId ? "Güncelle" : "Kaydet"}
+          {saving
+            ? oneriModu
+              ? t("proposal.sending")
+              : "Kaydediliyor…"
+            : oneriModu
+              ? t("proposal.submit")
+              : personId
+                ? "Güncelle"
+                : "Kaydet"}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel}>
           İptal

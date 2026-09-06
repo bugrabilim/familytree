@@ -120,11 +120,16 @@ for (const r of ASLA) {
    * İkinci aşama olmadan birinci aşama TEK BAŞINA felaket: katkı verici
    * herkesin kaydını düzenlerdi. Karşılaştırmanın kendisi aranıyor.
    */
-  check(/!canEdit\(ctx\.role\) && data\.people\[index\]\.addedBy !== ctx\.authorId/.test(src),
+  /*
+   * Kural TEK YERDE (`canEditPerson`): arayüz de aynı işlevi çağırıyor.
+   * İkiye bölünseydi ayrışırlardı ve ayrışmanın yönü kötü olurdu — arayüz
+   * "kaydet" gösterir, sunucu 403 döner, kullanıcı ne olduğunu anlamaz.
+   */
+  check(/canEditPerson\(ctx\.role, ctx\.authorId, data\.people\[index\]\)/.test(src),
     "ikinci aşama: editor değilse SAHİPLİK isteniyor");
   {
     const iRol = src.indexOf("if (!canContribute(ctx.role)) return forbidden();");
-    const iSahip = src.indexOf("addedBy !== ctx.authorId");
+    const iSahip = src.indexOf("canEditPerson(ctx.role");
     check(iRol > -1 && iSahip > iRol, "sahiplik denetimi rol denetiminden sonra (kayıt elde olunca)");
   }
 

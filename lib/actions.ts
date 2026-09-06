@@ -183,3 +183,25 @@ export async function uploadDocument(file: File): Promise<string> {
   const { url } = await res.json();
   return url;
 }
+
+/**
+ * DEĞİŞİKLİK ÖNERİSİ (madde 35).
+ *
+ * Katkı verici, düzenleyemediği bir kaydı bu uçtan değiştirmeyi ÖNERİYOR.
+ * Gövde yalnız alan → yeni değer eşlemesi taşıyor; önerinin dayandığı ESKİ
+ * değeri sunucu kayıttan okuyor. İstemci yazabilseydi, onay anındaki
+ * bayatlık denetimi (arada başkası aynı alanı değiştirdi mi?) kendi kendini
+ * iptal ederdi.
+ */
+export async function proposeChanges(
+  personId: string,
+  changes: Record<string, unknown>,
+  note?: string
+): Promise<void> {
+  const res = await fetch("/api/family/proposals", {
+    method: "POST",
+    headers: mutationHeaders(),
+    body: JSON.stringify({ personId, changes, note }),
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Öneri gönderilemedi."));
+}

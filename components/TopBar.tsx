@@ -105,6 +105,16 @@ interface Props {
   onOpenShare: () => void;
   /** ⋮ → Kişiler hub'ı (içe/dışa aktar, tablo, tüm kişileri sil). Verilmezse gizli. */
   onOpenPeople?: () => void;
+  /** Değişiklik önerileri kuyruğu (madde 35). */
+  onOpenProposals?: () => void;
+  /**
+   * Bekleyen öneri sayısı — YALNIZ karar verebilene gönderiliyor.
+   *
+   * Rozet, bu özelliğin işe yarayıp yaramamasını belirleyen şey: kuyruk
+   * görünmezse kimse açmaz, açılmayan kuyrukta bekleyen katkı da hiç
+   * yazılmamış sayılır.
+   */
+  proposalCount?: number;
   /** ⋮ menüsündeki "Yazdır" — açık görünümü yazdırır (Madde 8). */
   onPrintView: () => void;
   /** Yapay zekâ soru-cevap penceresini açar (düzenleyici + AI bağlıysa). */
@@ -126,6 +136,8 @@ export default function TopBar({
   onOpenSettings,
   onOpenShare,
   onOpenPeople,
+  onOpenProposals,
+  proposalCount = 0,
   onPrintView,
   onAiChat,
   peopleCount,
@@ -255,13 +267,24 @@ export default function TopBar({
               onClick={() => setMenuOpen((o) => !o)}
               aria-label={t("topbar.menu")}
               aria-expanded={menuOpen}
-              className="w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+              /* `relative`: bekleyen öneri noktası bu düğmeye göre konumlanıyor. */
+              className="relative w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <circle cx="12" cy="5" r="1.7" />
                 <circle cx="12" cy="12" r="1.7" />
                 <circle cx="12" cy="19" r="1.7" />
               </svg>
+              {/*
+                Menü KAPALIYKEN de görünen tek işaret. Sayı içeride yazıyor
+                ama menüyü açmayan biri kuyruğun dolduğunu asla öğrenemezdi.
+              */}
+              {proposalCount > 0 && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary"
+                  aria-label={`${proposalCount} ${t("proposal.pending")}`}
+                />
+              )}
             </button>
 
             {menuOpen && (
@@ -282,6 +305,18 @@ export default function TopBar({
                       label={t("menu.people")}
                       onClick={() => { setMenuOpen(false); onOpenPeople(); }}
                       icon={<path d="M16 20v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 18.5V20M10 11.5a3.25 3.25 0 100-6.5 3.25 3.25 0 000 6.5zM20 20v-1.5a3.5 3.5 0 00-2.7-3.4M15.5 5.2a3.25 3.25 0 010 6.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+                    />
+                  )}
+                  {/*
+                    ÖNERİ KUYRUĞU. Sayı etikette: rozet ayrı bir işaret
+                    olsaydı menüyü açmadan görünmezdi, oysa asıl mesele
+                    kuyruğun VAR OLDUĞUNU fark ettirmek.
+                  */}
+                  {onOpenProposals && (
+                    <MenuBtn
+                      label={proposalCount > 0 ? `${t("proposal.title")} (${proposalCount})` : t("proposal.title")}
+                      onClick={() => { setMenuOpen(false); onOpenProposals(); }}
+                      icon={<path d="M9 12l2 2 4-4M12 3l7 4v5c0 4.4-3 8.3-7 9-4-0.7-7-4.6-7-9V7l7-4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
                     />
                   )}
                   <MenuBtn

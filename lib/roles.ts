@@ -45,3 +45,26 @@ export function canEdit(role: TreeRole | undefined | null): boolean {
 export function canManage(role: TreeRole | undefined | null): boolean {
   return roleAtLeast(role, "admin");
 }
+
+/**
+ * Bu kişiyi DOĞRUDAN düzenleyebilir mi? (madde 35)
+ *
+ * Kural TEK YERDE: hem sunucu kapısı (`/api/family/person/[id]` PUT) hem de
+ * arayüz (öner düğmesi mi, kaydet düğmesi mi) bunu çağırıyor. İkiye
+ * bölünseydi ayrışırlardı ve ayrışmanın yönü kötü olurdu: arayüz "kaydet"
+ * gösterir, sunucu 403 döner — kullanıcı ne yaptığını anlamaz.
+ *
+ * `addedBy` YOKSA sahiplik kurulamaz. Boşluğun güvenli yöne düşmesi bilinçli:
+ * `undefined === undefined` gibi bir eşleşmeye izin verilseydi, kimliği
+ * çözülemeyen bir katkı verici rolden önce eklenmiş bütün eski ağacı
+ * düzenleyebilirdi.
+ */
+export function canEditPerson(
+  role: TreeRole | undefined | null,
+  authorId: string | undefined | null,
+  person: { addedBy?: string } | undefined | null
+): boolean {
+  if (canEdit(role)) return true;
+  if (!canContribute(role)) return false;
+  return !!authorId && !!person?.addedBy && person.addedBy === authorId;
+}
