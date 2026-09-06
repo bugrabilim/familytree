@@ -5,6 +5,7 @@ import {
   dbDeletePeople,
   dbGetFamilyData,
   dbReplacePeople,
+  dbSetTreeUpdatedAt,
   dbUpsertPeople,
 } from "@/lib/db";
 import { diffPeople } from "@/lib/people-diff";
@@ -269,6 +270,23 @@ export async function saveFamilyData(
   try {
     await withTimeout(
       (async () => {
+        /*
+         * SÜRÜM DAMGASI ÖNCE.
+         *
+         * Jeton artık `trees.updated_at` ile kişi damgalarının büyüğü
+         * (`lib/version-stamp.ts`). Damgayı kişilerden ÖNCE yazıyoruz,
+         * çünkü ayna yarıda kalabilir ve iki yarım durumun sonuçları eşit
+         * değil:
+         *
+         * · damga yazıldı, kişiler yazılamadı → jeton veriden İLERİDE:
+         *   elinde eski jeton olan istemci 409 alır, yenilemesi istenir.
+         * · kişiler yazıldı, damga yazılamadı → jeton kişilerden türeyen
+         *   değerle yine ilerler (büyüğü alınıyor), kayıp yok.
+         *
+         * Ters sıra üçüncü bir durum üretirdi: kişiler silinmiş ama jeton
+         * eski — yani düzeltmeye çalıştığımız dirilme hatasının ta kendisi.
+         */
+        await dbSetTreeUpdatedAt(userId, data.updatedAt);
         if (freshOldJson) {
           const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
           const { changed, removed } = diffPeople(oldPeople, data.people);

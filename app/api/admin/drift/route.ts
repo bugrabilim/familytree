@@ -7,6 +7,7 @@ import { readFamilyFromBlob } from "@/lib/blob";
 import { listTrees } from "@/lib/trees";
 import {
   dbDeletePeople,
+  dbSetTreeUpdatedAt,
   dbGetPeopleRows,
   dbGetTreeRow,
   dbUpsertPeople,
@@ -183,6 +184,16 @@ export async function POST() {
       for (const p of blobPeople) if (istenen.has(p.id)) teklestir.set(p.id, p);
       const yazildi = await dbUpsertPeople(t.treeId, [...teklestir.values()]);
       const silindi = await dbDeletePeople(t.treeId, plan.delete);
+      /*
+       * Onarım veriyi değiştirdiyse ağacın sürüm damgasını da ilerlet.
+       * Silme, kişilerden türeyen jetonu GERİYE götürüyor
+       * (`lib/version-stamp.ts`); damgalamazsak onarımdan hemen önce
+       * okumuş bir istemci, çakışma görmeden eski listesini yazabilir ve
+       * onarımın sildiği kayıtları geri getirir.
+       */
+      if (yazildi > 0 || silindi > 0) {
+        await dbSetTreeUpdatedAt(t.treeId, new Date().toISOString());
+      }
 
       // Onarımdan SONRA yeniden denetle — "yaptım" demek yetmez, gösterilir.
       const { drift: sonra } = await denetle(t, 20);
