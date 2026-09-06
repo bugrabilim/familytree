@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { mutationHeaders } from "@/lib/actions";
+import { mutationHeaders, setBaseVersion } from "@/lib/actions";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import { useAuthority } from "./AuthorityContext";
@@ -126,6 +126,13 @@ export default function ProposalsDialog({ onClose, onApplied }: {
         if (Array.isArray(d?.stale)) setStale((s) => ({ ...s, [id]: d.stale as string[] }));
         throw new Error(d?.error ?? "İşlem başarısız.");
       }
+      /*
+       * TABAN SÜRÜM hemen güncelleniyor. `router.refresh()` beklenmiyor ve
+       * beklenemez de; onaylar arka arkaya veriliyor ve ikinci tıklama, kendi
+       * az önceki onayının değiştirdiği sürüm yüzünden "başka bir yerde
+       * değişti" 409'u yiyordu. Kuyruğun asıl kullanımı arka arkaya onay.
+       */
+      if (typeof d?.version === "string") setBaseVersion(d.version);
       if (decision === "onaylandi") onApplied?.();
       await yukle();
     } catch (e) {
@@ -176,7 +183,8 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               <p className="text-[11px] text-danger bg-danger-soft px-3 py-2 rounded-xl leading-relaxed">
                 {t("proposal.stale")}
                 <br />
-                {t("proposal.staleFields")}: {stale[p.id].join(", ")}
+                {/* Aynı ekranda iki dil olmasın: üstteki liste zaten çevriliyor. */}
+                {t("proposal.staleFields")}: {stale[p.id].map((k) => alanAdi(t, k)).join(", ")}
               </p>
             )}
 

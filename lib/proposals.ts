@@ -84,11 +84,42 @@ export function proposableKeys(): Set<string> {
 /* ── Değer normalleştirme ─────────────────────────────────────────────────── */
 
 /**
+ * Alan BOŞ mu? — bu dosyanın en pahalı dersinin karşılığı.
+ *
+ * Depoda "boş" beş ayrı şekilde duruyor: alan hiç yok (`undefined`), `null`,
+ * boş dize, boş dizi, ve `false` (isteğe bağlı bayraklar yokken false
+ * demektir). Beşi de AYNI şeyi anlatıyor ama JavaScript'te birbirine eşit
+ * değil.
+ *
+ * İlk sürüm yalnız `undefined`/`null`ı boş sayıyordu ve sonucu şuydu:
+ * istemci öneri gövdesinde her zaman `[]`/`false` gönderdiği için, kayıtta o
+ * alanlar hiç YOKKEN "değişmiş" sayılıyorlardı. Tek alan değiştiren bir
+ * öneri on bir alanlık çıkıyor; daha kötüsü, o kişi için BİR öneri
+ * onaylandığı anda kalan bütün öneriler — hiç dokunulmamış on alan gerekçe
+ * gösterilerek — kalıcı olarak "bayat" oluyor ve bir daha asla
+ * onaylanamıyordu. Özelliğin çekirdek akışı buydu.
+ *
+ * SAYILAR BOŞ SAYILMIYOR — `0` geçerli bir değer (`siblingOrder: 0` gerçek
+ * bir sıra). Boolean'da ise yokluk `false` demek; ikisi farklı davranıyor
+ * çünkü veri modeli farklı.
+ */
+export function bosMu(v: unknown): boolean {
+  if (v === undefined || v === null) return true;
+  if (typeof v === "string") return v.trim() === "";
+  if (typeof v === "boolean") return v === false;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "object") return Object.keys(v as object).length === 0;
+  return false;
+}
+
+/**
  * Karşılaştırma ve saklama için değeri sadeleştirir.
  *
- * `undefined` ile `""` ile `null` aynı şeyi anlatıyor (alan boş) ama üçü
- * birbirine eşit değil. Normalleştirilmeseydi "boş alanı boş yapan" bir
- * öneri değişiklik sayılır, bayatlık denetimi de durduk yere tetiklenirdi.
+ * Nesnelerde ANAHTARLAR SIRALANIYOR: karşılaştırma `JSON.stringify` ile
+ * yapılıyor ve o, anahtar sırasına duyarlı. Sıralanmasaydı içerikçe aynı iki
+ * nesne — örneğin GEDCOM'dan `{id,type,title,date,place}` sırasıyla gelen bir
+ * olay ile formun `{id,date,type,title,place}` sırasıyla yeniden kurduğu aynı
+ * olay — "değişmiş" görünürdü.
  */
 export function normalizeValue(v: unknown): unknown {
   if (v === undefined || v === null) return "";
@@ -97,21 +128,41 @@ export function normalizeValue(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(normalizeValue);
   if (typeof v === "object") {
     const out: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(v as Record<string, unknown>))
-      out[k] = normalizeValue(val);
+    for (const k of Object.keys(v as Record<string, unknown>).sort())
+      out[k] = normalizeValue((v as Record<string, unknown>)[k]);
     return out;
   }
   return "";
 }
 
-/** İki değer aynı mı? (normalleştirilmiş karşılaştırma) */
+/**
+ * İki değer aynı mı?
+ *
+ * İkisi de boşsa AYNI — biri `undefined`, öbürü `[]` olsa bile. Bu denklik
+ * olmadan öneri akışı kendi kendini kilitliyordu (bkz. `bosMu`).
+ */
 export function sameValue(a: unknown, b: unknown): boolean {
+  if (bosMu(a) && bosMu(b)) return true;
   return JSON.stringify(normalizeValue(a)) === JSON.stringify(normalizeValue(b));
+}
+
+/**
+ * Alana özgü denklikler — kayıt defterinin dışında kalan tek kural.
+ *
+ * `kind` alanında `"uye"` VARSAYILAN: kişi rotaları gövdeden geleni
+ * `body.kind === "cevre" ? "cevre" : undefined` diye çeviriyor, yani
+ * `"uye"` ile "alan yok" aynı kayda düşüyor. Öneri yolu bu çeviriyi
+ * atlarsa, hiç kimsenin değiştirmediği `kind` her öneride "değişmiş"
+ * görünür.
+ */
+function alanDegeri(key: string, v: unknown): unknown {
+  if (key === "kind" && v === "uye") return undefined;
+  return v;
 }
 
 /* ── Öneri kurma ──────────────────────────────────────────────────────────── */
 
-export type BuildFail = "alan-yok" | "degisiklik-yok" | "cok-alan";
+export type BuildFail = "alan-yok" | "degisiklik-yok" | "cok-alan" | "cok-uzun";
 
 /**
  * İstemciden gelen "şu alanlar şu olsun" isteğinden öneri gövdesi kurar.
@@ -131,10 +182,20 @@ export function buildChanges(
     // Defterde olmayan alan SESSİZCE atılmıyor: istek reddediliyor ki
     // öneren, yazdığı şeyin kaybolduğunu sanmasın.
     if (!izinli.has(k)) return { ok: false, fail: "alan-yok" };
-    const mevcut = (person as unknown as Record<string, unknown>)[k];
+    const mevcut = alanDegeri(k, (person as unknown as Record<string, unknown>)[k]);
+    const yeni = alanDegeri(k, v);
     // Zaten aynıysa değişiklik değil.
-    if (sameValue(mevcut, v)) continue;
-    changes[k] = { from: normalizeValue(mevcut), to: normalizeValue(v) };
+    if (sameValue(mevcut, yeni)) continue;
+    /*
+     * KIRPMA YOK, RET VAR. Eskiden `normalizeValue` uzun metni sessizce
+     * kırpıyordu: katkı verici 4500 karakterlik bir biyografi öneriyor,
+     * düzenleyici tam metni gördüğünü sanarak onaylıyor ve 500 karakter
+     * kayboluyordu — üstelik aynı metni düzenleyici doğrudan kaydetseydi
+     * sınır hiç yoktu. Sessiz kayıp yerine gürültülü ret.
+     */
+    if (typeof yeni === "string" && yeni.trim().length > MAX_VALUE)
+      return { ok: false, fail: "cok-uzun" };
+    changes[k] = { from: normalizeValue(mevcut), to: normalizeValue(yeni) };
   }
 
   const sayi = Object.keys(changes).length;
@@ -191,13 +252,36 @@ export function applyProposal(
 ): { ok: true; person: Person } | { ok: false; stale: string[] } {
   const stale: string[] = [];
   for (const [k, c] of Object.entries(p.changes)) {
-    const mevcut = (person as unknown as Record<string, unknown>)[k];
-    if (!sameValue(mevcut, c.from)) stale.push(k);
+    const mevcut = alanDegeri(k, (person as unknown as Record<string, unknown>)[k]);
+    if (sameValue(mevcut, c.from)) continue;
+    /*
+     * ZATEN UYGULANMIŞSA bayat değil.
+     *
+     * Onay yolu iki adımlı: önce ağaç yazılıyor, sonra öneri damgalanıyor.
+     * İkinci adım düşerse değişiklik ağaçta DURUYOR ama öneri "bekliyor"
+     * kalıyor. Bu ayrım olmadan o öneri bir daha asla onaylanamazdı —
+     * `mevcut` artık `to`ya eşit, `from`a değil — yani kurtarılamaz bir
+     * duruma düşerdi.
+     */
+    if (sameValue(mevcut, c.to)) continue;
+    stale.push(k);
   }
   if (stale.length) return { ok: false, stale };
 
   const out = { ...person } as unknown as Record<string, unknown>;
-  for (const [k, c] of Object.entries(p.changes)) out[k] = c.to;
+  for (const [k, c] of Object.entries(p.changes)) {
+    /*
+     * BOŞ DEĞER ALANI SİLİYOR, `""` YAZMIYOR — kayıt defterinin
+     * (`mergeValue`) semantiği bu ve iki yol ayrışamaz.
+     *
+     * Ayrıştığında sessiz yanlış çıktı üretiyordu: doğum tarihi PUT ile
+     * temizlenen kardeş sıralamada en sona düşerken (`a.birthDate ?? "9999"`),
+     * ÖNERİ ile temizlenen `""` olduğu için `??` devreye girmiyor ve kardeş
+     * en BAŞA düşüyordu. Aynı kalıp defin yeri haritasında da var.
+     */
+    if (bosMu(c.to)) delete out[k];
+    else out[k] = c.to;
+  }
   return { ok: true, person: out as unknown as Person };
 }
 

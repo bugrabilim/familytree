@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { canContribute } from "@/lib/roles";
+import { canContribute, canEdit } from "@/lib/roles";
 import { nextCode } from "@/lib/code";
 import type { Person } from "@/types/family";
 import { buildPersonFields } from "@/lib/person-fields";
@@ -61,8 +61,20 @@ export async function POST(req: NextRequest) {
     kind: body.kind === "cevre" ? "cevre" : undefined,
     parentIds: Array.isArray(body.parentIds) ? body.parentIds.slice(0, 2) : [],
     parentLinks: body.parentLinks && typeof body.parentLinks === "object" ? body.parentLinks : undefined,
-    spouseIds: Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
-    formerSpouseIds: Array.isArray(body.formerSpouseIds) ? [...body.formerSpouseIds] : [],
+    /*
+     * İLİŞKİ DİZİLERİ TAM YETKİDE — katkı vericide `relation` tek yol.
+     *
+     * Bu diziler aşağıda VAR OLAN kişilerin kayıtlarına yazıyor
+     * (`spouse.spouseIds.push`). Gövdeden serbest bırakıldığında katkı
+     * verici tek istekle ağaçtaki her kaydın eş listesine kendi eklediği
+     * kişiyi sokabiliyordu — üstelik silme yetkisi olmadığı için geri de
+     * alamıyordu. `relation` tek bir hedefe bağlıyor ve kendi denetimleri
+     * var; katkı vericiye kalan yol o.
+     */
+    spouseIds: canEdit(ctx.role) && Array.isArray(body.spouseIds) ? [...body.spouseIds] : [],
+    // Eş dizisiyle aynı gerekçe: karşı tarafın kaydına yazıyor.
+    formerSpouseIds:
+      canEdit(ctx.role) && Array.isArray(body.formerSpouseIds) ? [...body.formerSpouseIds] : [],
     // #6 — Köken/iz: elle eklenen kart (istemci başka bir kaynak bildirmediyse).
     entrySource: typeof body.entrySource === "string" && body.entrySource.trim() ? body.entrySource.trim() : "manuel",
   };

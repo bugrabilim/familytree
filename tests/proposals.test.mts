@@ -1,6 +1,6 @@
 import {
-  applyProposal, buildChanges, decide, normalizeValue, pendingCount, planProposal,
-  proposableKeys, sameValue, visibleTo, MAX_CHANGES, MAX_PROPOSALS,
+  applyProposal, bosMu, buildChanges, decide, normalizeValue, pendingCount, planProposal,
+  proposableKeys, sameValue, visibleTo, MAX_CHANGES, MAX_PROPOSALS, MAX_VALUE,
   type Proposal,
 } from "../lib/proposals.ts";
 import type { Person } from "../types/family.ts";
@@ -40,8 +40,42 @@ eq(normalizeValue(["  a", null]), ["a", ""], "dizi öğe öğe normalleşiyor");
 check(sameValue(undefined, ""), "undefined ile boş dize aynı");
 check(sameValue(null, ""), "null ile boş dize aynı");
 check(sameValue("  x ", "x"), "boşluk farkı önemsiz");
-check(!sameValue(0, ""), "sıfır boş DEĞİL");
-check(!sameValue(false, ""), "false boş DEĞİL");
+
+/*
+ * BU İDDİA DEĞİŞTİ — ve değiştirilme sebebi, önceki hâlinin bir HATAYI
+ * doğru diye kilitlemesiydi.
+ *
+ * Eskiden "false boş DEĞİL" ve "boş dizi boş DEĞİL" yazıyordu. İstemci
+ * öneri gövdesinde her zaman `[]`/`false` gönderdiği için, kayıtta o alanlar
+ * hiç YOKKEN "değişmiş" sayılıyorlardı: tek alan değiştiren bir öneri on bir
+ * alanlık çıkıyordu. Daha kötüsü, o kişi için bir öneri onaylandığı anda
+ * kalan bütün öneriler kalıcı olarak "bayat" olup bir daha onaylanamıyordu.
+ *
+ * Test yeşildi çünkü yanlış olanı kanıtlıyordu.
+ */
+check(bosMu(undefined) && bosMu(null) && bosMu("") && bosMu("   "), "yokluk ve boş dize boş");
+check(bosMu([]) && bosMu({}), "boş dizi ve boş nesne de boş");
+check(bosMu(false), "false boş (isteğe bağlı bayrakta yokluk = false)");
+check(sameValue(undefined, []), "alan yok ile boş dizi AYNI");
+check(sameValue(undefined, false), "alan yok ile false AYNI");
+/*
+ * SAYILAR boş sayılmıyor: `siblingOrder: 0` gerçek bir sıra. Boolean'la
+ * farklı davranmaları veri modelinden geliyor, tutarsızlıktan değil.
+ */
+check(!bosMu(0), "sıfır boş DEĞİL");
+check(!sameValue(0, ""), "sıfır ile boş aynı DEĞİL");
+check(!sameValue(true, ""), "true ile boş aynı değil");
+check(!sameValue(["a"], []), "dolu dizi ile boş dizi aynı değil");
+
+/*
+ * ANAHTAR SIRASI. Karşılaştırma `JSON.stringify` ile yapılıyor ve o sıraya
+ * duyarlı. Depoda gerçek bir üretici çifti var: GEDCOM olayları
+ * `{id,type,title,date,place}` sırasıyla yazıyor, form `{id,date,type,...}`
+ * sırasıyla yeniden kuruyor — sıralanmasaydı içerikçe aynı olay "değişmiş"
+ * görünürdü.
+ */
+check(sameValue({ lat: 1, lng: 2 }, { lng: 2, lat: 1 }), "nesnede anahtar sırası önemsiz");
+check(sameValue([{ a: 1, b: 2 }], [{ b: 2, a: 1 }]), "dizi içindeki nesnelerde de");
 
 /* ── Önerilebilir alanlar ─────────────────────────────────────────────────── */
 {
@@ -97,6 +131,19 @@ check(!sameValue(false, ""), "false boş DEĞİL");
   for (const k of [...proposableKeys()].slice(0, MAX_CHANGES + 5)) cok[k] = "x";
   const r = buildChanges(kisi(), cok);
   check(!r.ok && r.fail === "cok-alan", `en fazla ${MAX_CHANGES} alan`);
+}
+
+{
+  /*
+   * SESSİZ KIRPMA YOK. Eskiden 4500 karakterlik bir biyografi önerisi 4000'e
+   * kırpılıyor, düzenleyici tam metni gördüğünü sanarak onaylıyor ve 500
+   * karakter kayboluyordu — üstelik aynı metni düzenleyici doğrudan
+   * kaydetseydi sınır hiç yoktu.
+   */
+  const r = buildChanges(kisi(), { bio: "x".repeat(MAX_VALUE + 500) });
+  check(!r.ok && r.fail === "cok-uzun", "çok uzun değer REDDEDİLİYOR, kırpılmıyor");
+  const r2 = buildChanges(kisi(), { bio: "x".repeat(MAX_VALUE) });
+  check(r2.ok, "sınırdaki değer kabul ediliyor");
 }
 
 /* ── Karar ────────────────────────────────────────────────────────────────── */
@@ -164,6 +211,82 @@ check(!sameValue(false, ""), "false boş DEĞİL");
   applyProposal(k, oneri());
   check((k as unknown as Record<string, unknown>).birthDate === undefined,
     "özgün kayıt değişmiyor (kopya üstünde çalışılıyor)");
+}
+
+/* ── GERÇEK İSTEMCİ GÖVDESİ — bu özelliği kilitleyen hata ────────────────── */
+/*
+ * Bu blok, testlerin ilk hâlindeki KÖR NOKTANIN karşılığı. Eskiden
+ * `buildChanges` her yerde tek anahtarlı bir istekle çağrılıyordu
+ * (`{ birthDate: "1943" }`), oysa form gövdenin TAMAMINI gönderiyor ve
+ * doldurulmamış alanlar için `[]`/`false`/`"uye"` yolluyor. Gerçek gövde hiç
+ * denenmediği için hata görünmüyordu.
+ */
+{
+  const eski = kisi({ birthDate: "1943" } as Partial<Person>);
+  // Formun gönderdiği gövde: yalnız doğum tarihi değişti, gerisi boş.
+  const govde: Record<string, unknown> = {
+    firstName: "Ayşe", lastName: "Yılmaz", gender: "female",
+    birthDate: "1945",
+    nickname: "", patronymic: "", lineage: "",
+    photos: [], videos: [], documents: [], events: [], sources: [],
+    memories: [], associations: [], privateFields: [],
+    kind: "uye", confidential: false,
+  };
+  const r = buildChanges(eski, govde);
+  if (!r.ok) { fail++; console.log("✗ öneri kurulmalıydı"); }
+  else eq(Object.keys(r.changes), ["birthDate"], "yalnız GERÇEKTEN değişen alan öneriye giriyor");
+
+  /*
+   * BAYAT ÇIĞI. İki katkı verici aynı kişi için AYRI alanlarda öneri
+   * açıyor; düzenleyici birincisini onaylıyor. Boş denkliği olmadan
+   * ikincisi, katkı vericinin hiç dokunmadığı on alan gerekçe gösterilerek
+   * KALICI olarak onaylanamaz hâle geliyordu.
+   */
+  const r2 = buildChanges(eski, { ...govde, birthDate: "1943", occupation: "Demirci" });
+  if (r.ok && r2.ok) {
+    const a1 = applyProposal(eski, oneri({ changes: r.changes }));
+    check(a1.ok, "birinci öneri uygulanıyor");
+    if (a1.ok) {
+      const a2 = applyProposal(a1.person, oneri({ id: "o2", changes: r2.changes }));
+      check(a2.ok, "birincisi onaylandıktan sonra İKİNCİSİ de onaylanabiliyor");
+    }
+  }
+}
+{
+  // `kind: "uye"` varsayılan; kayıtta alan hiç yokken "değişmiş" sayılmamalı.
+  const r = buildChanges(kisi(), { kind: "uye" });
+  check(!r.ok && r.fail === "degisiklik-yok", "varsayılan `kind` değişiklik değil");
+  const r2 = buildChanges(kisi(), { kind: "cevre" });
+  check(r2.ok, "gerçek `kind` değişikliği öneriye giriyor");
+}
+
+/* ── İdempotentlik ve temizleme ──────────────────────────────────────────── */
+{
+  /*
+   * ZATEN UYGULANMIŞ öneri bayat DEĞİL. Onay iki adımlı: önce ağaç yazılıyor,
+   * sonra öneri damgalanıyor. İkinci adım düşerse değişiklik ağaçta duruyor
+   * ama öneri "bekliyor" kalıyor — bu ayrım olmadan o öneri bir daha ASLA
+   * onaylanamaz, kurtarılamaz bir duruma düşerdi.
+   */
+  const uygulanmis = kisi({ birthDate: "1943" } as Partial<Person>);
+  const r = applyProposal(uygulanmis, oneri({ changes: { birthDate: { from: "", to: "1943" } } }));
+  check(r.ok, "zaten uygulanmış öneri yeniden onaylanabiliyor (idempotent)");
+}
+{
+  /*
+   * BOŞ DEĞER ALANI SİLİYOR, `""` YAZMIYOR — kayıt defterinin semantiği bu.
+   * Ayrıştığında sessiz yanlış çıktı üretiyordu: doğum tarihi öneriyle
+   * temizlenen kardeş, `a.birthDate ?? "9999"` sıralamasında en sona değil
+   * en BAŞA düşüyordu.
+   */
+  const dolu = kisi({ birthDate: "1943" } as Partial<Person>);
+  const r = applyProposal(dolu, oneri({ changes: { birthDate: { from: "1943", to: "" } } }));
+  check(r.ok, "temizleme önerisi uygulanıyor");
+  if (r.ok) {
+    const kayit = r.person as unknown as Record<string, unknown>;
+    check(!("birthDate" in kayit), "temizlenen alan KAYITTAN SİLİNİYOR");
+    check(kayit.birthDate !== "", "boş dize yazılmıyor");
+  }
 }
 
 /* ── Liste ve tavan ───────────────────────────────────────────────────────── */
