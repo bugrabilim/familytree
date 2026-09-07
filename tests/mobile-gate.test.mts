@@ -122,5 +122,48 @@ check(/hideLiving \}/.test(menu), "paylaşım kullanıcının gizlilik tercihini
 check(/canEdit\(role\) && \(/.test(menu), "düğme yalnız yöneticide görünüyor");
 check(!/API_BASE_URL/.test(menu), "kök adres artık paylaşılmıyor");
 
+/* ══ 5. ÇEVRİMDIŞI KUYRUK: sessiz üzerine yazma YOK ════════════════════ */
+/*
+ * Kuyruğun kararları `tests/outbox.test.mts`te birim testi ediliyor. Buradaki
+ * iddialar BAĞLANTIYI koruyor: saf mantık doğru olsa bile yanlış bağlanırsa
+ * (tüm gövde kuyruğa girerse, bayat damga gönderilirse, her hata kuyruğa
+ * alınırsa) tasarım çöker.
+ */
+{
+  const outbox = kodu(read("../apps/mobile/src/lib/outbox.ts"));
+  const depo = kodu(read("../apps/mobile/src/lib/outbox-store.tsx"));
+  const form = kodu(read("../apps/mobile/src/components/PersonForm.tsx"));
+  const layout = kodu(read("../apps/mobile/app/(app)/_layout.tsx"));
+
+  /*
+   * ÜÇ YÖNLÜ BİRLEŞTİRME. Sunucunun kilidi ağacın TAMAMININ damgasına
+   * dayanıyor; saatler sonra gönderilen her yazma 409 alırdı ve kullanıcı
+   * ilgisiz çakışmaları tıklamayı öğrenirdi — yani koruma ortadan kalkardı.
+   */
+  check(/if \(ayniDeger\(sunucu, taban\)\)/.test(outbox), "dokunulmamış alan temiz uygulanıyor");
+  check(/if \(ayniDeger\(sunucu, benim\)\) continue;/.test(outbox),
+    "başkası aynı düzeltmeyi yaptıysa çakışma sayılmıyor");
+  check(/cakisan\.push\(\{ alan, taban, benim, sunucu \}\)/.test(outbox),
+    "gerçek çakışma üç değeriyle kullanıcıya taşınıyor");
+
+  /* Damga DÜŞÜRÜLMÜYOR: sunucu başlık yokken çakışma denetimini hiç yapmıyor. */
+  check(/const veri = await refresh\(\);/.test(depo), "gönderim turu TAZE veriyle başlıyor");
+  check(/await gonderTek\(it, karar\.gonderilecek, damga\);/.test(depo),
+    "yazma taze damgayla gönderiliyor (iyimser kilit devrede)");
+
+  /*
+   * YALNIZ AĞ HATASI kuyruğa giriyor. 403/400/409 sunucunun VERDİĞİ karardır;
+   * onları kuyruğa almak reddedilmiş bir yazmayı sonsuza kadar denemek olurdu.
+   */
+  check(/e instanceof ApiError && e\.status === 0/.test(form), "yalnız bağlantı hatası yakalanıyor");
+  check(/const \{ alanlar, taban \} = alanFarki\(/.test(form),
+    "kuyruğa TÜM gövde değil değişen alanlar giriyor");
+
+  /* Gönderim taze ağaç verisi ve damga istiyor; ikisi de aile bağlamından. */
+  check(layout.indexOf("<FamilyProvider>") < layout.indexOf("<OutboxProvider>"),
+    "kuyruk sağlayıcısı aile bağlamının İÇİNDE");
+}
+
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

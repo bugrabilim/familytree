@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { useOutbox } from "@/lib/outbox-store";
 import { apiFetch } from "@/lib/api";
 import { canEdit, roleLabel } from "@/lib/roles";
 import { colors } from "@/lib/theme";
@@ -14,6 +15,7 @@ import { BrandMark } from "@/lib/BrandMark";
 export default function Menu() {
   const { user, role, token, signOut } = useAuth();
   const { people, hideLiving, setHideLiving, trees, activeTreeId, switchTree } = useFamily();
+  const { kuyruk: bekleyenYazmalar } = useOutbox();
   const router = useRouter();
   const [paylasimHata, setPaylasimHata] = useState("");
   const [paylasiliyor, setPaylasiliyor] = useState(false);
@@ -178,6 +180,20 @@ export default function Menu() {
           </View>
         )}
 
+        {/*
+          ÇEVRİMDIŞI KUYRUK (madde 44). Ana ekrandaki şerit yalnız kuyrukta
+          bir şey varken çiziliyor; burası kalıcı kapısı — kullanıcı "acaba
+          bir şey bekliyor mu?" diye bakabilmeli.
+        */}
+        <NavButton
+          label={
+            bekleyenYazmalar.length > 0
+              ? `📥 Bekleyen yazmalar (${bekleyenYazmalar.length})`
+              : "📥 Bekleyen yazmalar"
+          }
+          to="/(app)/outbox"
+          router={router}
+        />
         <NavButton label="🌳 Ağaç görünümü" to="/(app)/tree" router={router} />
         <NavButton label="📍 Yerler / harita" to="/(app)/map" router={router} />
         <NavButton label="📖 Aile kitabı" to="/(app)/book" router={router} />

@@ -23,6 +23,8 @@ import {
   updatePerson,
   type RelationType,
 } from "@/lib/api";
+import { useOutbox } from "@/lib/outbox-store";
+import { alanFarki, type OutboxKind } from "@/lib/outbox";
 import { canEdit as rolCanEdit } from "@/lib/roles";
 import { displayToStored, storedToDisplay } from "@/lib/format";
 import { colors } from "@/lib/theme";
@@ -44,6 +46,7 @@ export function PersonForm({
 }) {
   const { token, role } = useAuth();
   const { refresh, baseVersion } = useFamily();
+  const { yakala } = useOutbox();
   const router = useRouter();
   const editing = !!initial;
 
@@ -114,6 +117,51 @@ export function PersonForm({
     setSaving(false);
   };
 
+  /**
+   * ÇEVRİMDIŞI YAKALAMA (madde 44).
+   *
+   * İstek AĞ yüzünden düştüyse (`ApiError` durum `0` — yanıt hiç gelmedi)
+   * kullanıcının yazdığı ÇÖPE ATILMIYOR, cihazdaki kuyruğa alınıyor ve
+   * bağlantı gelince gönderiliyor (`src/lib/outbox.ts`).
+   *
+   * YALNIZ durum `0`: 403 "yetkin yok", 400 "geçersiz" ya da 409 "çakıştı"
+   * gibi cevaplar sunucunun VERDİĞİ karardır ve onları kuyruğa almak,
+   * reddedilmiş bir yazmayı sonsuza kadar yeniden denemek olurdu.
+   *
+   * Güncellemede kuyruğa TÜM GÖVDE değil YALNIZ DEĞİŞEN ALANLAR giriyor —
+   * çakışma çözümünün şartı bu: dokunulmamış alanları "benim değerim"
+   * saymak, saatler sonra gönderildiğinde başkasının düzeltmesini ezerdi.
+   */
+  const cevrimdisiYakala = (
+    kind: OutboxKind,
+    alanlar: Record<string, unknown>,
+    taban: Record<string, unknown>
+  ): boolean =>
+    yakala({
+      kind,
+      personId: initial?.id,
+      etiket: `${firstName} ${lastName}`.trim() || "Adsız kayıt",
+      alanlar,
+      taban,
+      relation: relation ? { type: relation.type, targetId: relation.targetId } : undefined,
+      oneri: oneriMi,
+      yakalananSurum: baseVersion,
+    });
+
+  /** Kuyruğa alındı / alınamadı — ikisi de kullanıcıya AÇIKÇA söyleniyor. */
+  const yakalandiBildir = (alindi: boolean, mesaj: string) => {
+    setSaving(false);
+    if (!alindi) {
+      setError(
+        "Bağlantı yok ve bekleyen yazma kuyruğu dolu. Bağlan ve kuyruğu boşalt, sonra tekrar dene."
+      );
+      return;
+    }
+    Alert.alert("Çevrimdışısın — cihazda saklandı", mesaj, [
+      { text: "Tamam", onPress: () => router.back() },
+    ]);
+  };
+
   const save = async () => {
     if (!token) return;
     if (!firstName.trim()) {
@@ -127,23 +175,22 @@ export function PersonForm({
     setError("");
     setConflict(false);
     setSaving(true);
+    const payload: Record<string, unknown> = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      gender,
+      nickname: nickname.trim(),
+      patronymic: patronymic.trim(),
+      birthDate: displayToStored(birth),
+      deathDate: displayToStored(death),
+      birthPlace: birthPlace.trim(),
+      burialPlace: deceased ? burialPlace.trim() : "",
+      occupation: occupation.trim(),
+      bio: bio.trim(),
+      photo: photo ?? "",
+    };
+    const bag = relation ? { type: relation.type, targetId: relation.targetId } : undefined;
     try {
-      const payload: Record<string, unknown> = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        gender,
-        nickname: nickname.trim(),
-        patronymic: patronymic.trim(),
-        birthDate: displayToStored(birth),
-        deathDate: displayToStored(death),
-        birthPlace: birthPlace.trim(),
-        burialPlace: deceased ? burialPlace.trim() : "",
-        occupation: occupation.trim(),
-        bio: bio.trim(),
-        photo: photo ?? "",
-      };
-      const bag = relation ? { type: relation.type, targetId: relation.targetId } : undefined;
-
       if (oneriMi) {
         /*
          * ÜYENİN YOLU. Kişi uçları `canEdit` istiyor ve üyeye 403 dönüyor;
@@ -172,6 +219,35 @@ export function PersonForm({
       await refresh();
       router.back();
     } catch (e) {
+      if (e instanceof ApiError && e.status === 0) {
+        if (editing) {
+          const { alanlar, taban } = alanFarki(
+            initial as unknown as Record<string, unknown>,
+            payload
+          );
+          if (Object.keys(alanlar).length === 0) {
+            /* Hiçbir şey değişmemiş: kuyruğa boş bir yazma koymak, bağlantı
+               gelince hiçbir işe yaramayan bir istek göndermek olurdu. */
+            setSaving(false);
+            router.back();
+            return;
+          }
+          yakalandiBildir(
+            cevrimdisiYakala("guncelle", alanlar, taban),
+            oneriMi
+              ? "Önerin cihazda bekliyor; bağlantı gelince yöneticiye gönderilecek."
+              : "Değişikliklerin cihazda bekliyor; bağlantı gelince ağaca yazılacak."
+          );
+          return;
+        }
+        yakalandiBildir(
+          cevrimdisiYakala("ekle", payload, {}),
+          oneriMi
+            ? "Önerin cihazda bekliyor; bağlantı gelince yöneticiye gönderilecek."
+            : "Yeni kişi cihazda bekliyor; bağlantı gelince ağaca eklenecek."
+        );
+        return;
+      }
       if (e instanceof ApiError && e.status === 409) setConflict(true);
       setError(e instanceof Error ? e.message : "Kaydedilemedi.");
       setSaving(false);
@@ -207,6 +283,23 @@ export function PersonForm({
             await refresh();
             router.replace("/(app)/home");
           } catch (e) {
+            if (e instanceof ApiError && e.status === 0) {
+              /*
+               * Silme niyetinde TABAN kaydın TAMAMI. Gönderim anında kayıt
+               * aradan değiştiyse (biri fotoğraf eklemiş, hikâyeyi yazmış)
+               * silme sessizce uygulanmıyor, kullanıcıya soruluyor —
+               * silme geri alınamaz.
+               */
+              yakalandiBildir(
+                cevrimdisiYakala("sil", {}, {
+                  ...(initial as unknown as Record<string, unknown>),
+                }),
+                oneriMi
+                  ? "Silme önerin cihazda bekliyor; bağlantı gelince gönderilecek."
+                  : "Silme isteğin cihazda bekliyor; bağlantı gelince uygulanacak."
+              );
+              return;
+            }
             if (e instanceof ApiError && e.status === 409) setConflict(true);
             setError(e instanceof Error ? e.message : "Silinemedi.");
             setSaving(false);
