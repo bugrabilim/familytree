@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
    * `false` döner, yani başlığı göndermeyen çağıranlar (mobil, betikler)
    * etkilenmez.
    */
-  if (versionMismatch(req, data.updatedAt))
+  if (versionMismatch(req, data.updatedAt, ctx.treeId))
     return NextResponse.json(
       { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

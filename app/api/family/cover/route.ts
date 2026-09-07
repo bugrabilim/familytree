@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!url) return NextResponse.json({ error: "Geçerli bir görsel bağlantısı gerekli." }, { status: 400 });
 
   const data = await getFamilyData(ctx.treeId, { skipCache: true });
-  if (versionMismatch(req, data.updatedAt)) return conflict();
+  if (versionMismatch(req, data.updatedAt, ctx.treeId)) return conflict();
   data.coverPhoto = url;
   /*
    * `by` GEÇİLMİYOR ve bu bilinçli: `saveFamilyData` geçmişe yalnız kişi
@@ -61,7 +61,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Bu işlem için düzenleme yetkiniz yok." }, { status: 403 });
 
   const data = await getFamilyData(ctx.treeId, { skipCache: true });
-  if (versionMismatch(req, data.updatedAt)) return conflict();
+  if (versionMismatch(req, data.updatedAt, ctx.treeId)) return conflict();
   /*
    * `delete` DEĞİL, açıkça `undefined`.
    *

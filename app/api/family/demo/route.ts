@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
    * döner, yani başlığı göndermeyen çağıranlar (mobil, betikler) etkilenmez.
    */
   const mevcut = await getFamilyData(ctx.treeId, { skipCache: true });
-  if (versionMismatch(req, mevcut.updatedAt))
+  if (versionMismatch(req, mevcut.updatedAt, ctx.treeId))
     return NextResponse.json(
       { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

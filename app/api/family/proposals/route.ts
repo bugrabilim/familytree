@@ -315,7 +315,7 @@ export async function PATCH(req: NextRequest) {
      * bu yazma onun değişikliğini de ezerdi. İki denetim farklı şeylere
      * bakıyor ve ikisi de gerekli.
      */
-    if (versionMismatch(req, data.updatedAt))
+    if (versionMismatch(req, data.updatedAt, ctx.treeId))
       return NextResponse.json(
         { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
         { status: 409 }

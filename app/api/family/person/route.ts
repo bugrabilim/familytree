@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const userId = ctx.treeId;
   const body = await req.json();
   const data = await getFamilyData(userId, { skipCache: true });
-  if (versionMismatch(req, data.updatedAt)) {
+  if (versionMismatch(req, data.updatedAt, ctx.treeId)) {
     return NextResponse.json(
       { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

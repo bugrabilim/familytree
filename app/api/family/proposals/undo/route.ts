@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
    * dosya ve okuma ile yazma arasında başkası başka bir kişiyi kaydettiyse
    * bu yazma onu ezerdi.
    */
-  if (versionMismatch(req, data.updatedAt))
+  if (versionMismatch(req, data.updatedAt, ctx.treeId))
     return NextResponse.json(
       { error: "Ağaç bu sırada başka bir yerde değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

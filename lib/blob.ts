@@ -235,19 +235,20 @@ export async function getFamilyData(
 /* ----------------------------------------------------------------------
  * Madde 9 — İyimser kilitleme (optimistic locking).
  *
- * "Giriş yapan herkes düzenler" ve akış `oku→değiştir→yaz` olduğundan, iki
- * kişi aynı anda düzenlerse biri diğerinin değişikliğini eziyordu
- * (last-write-wins). İstemci, düzenlemeye başladığı sürümü (`updatedAt`)
- * `x-base-version` başlığıyla gönderir; sunucudaki güncel sürümle uyuşmuyorsa
- * yazma reddedilir (409) ve kullanıcıdan yenilemesi istenir.
+ * Kilidin gövdesi `lib/version-lock.ts`e taşındı ve buradan aynı adla
+ * yeniden dışa aktarılıyor: rotalar hâlâ `@/lib/blob`dan içe aktardığı için
+ * on yedi dosyada tek bir satır bile değişmedi.
+ *
+ * Taşımanın iki sebebi var. (1) Kilit artık demo ağacını tanıyor ve bunun
+ * için demo KİMLİĞİNİ bilmesi gerekiyor; kimliğin evi olan
+ * `lib/demo-account.ts` ise `saveFamilyData` için bu dosyayı içe aktarıyor —
+ * gerekçesi `lib/demo-id.ts` başında yazılı bir döngü. (2) Bu dosya çalışma
+ * zamanında `@/…` içe aktarıyor, yani birim testi koşulamıyor; kilit ise
+ * artık bir KARAR veriyor ("bu ağaç muaf mı") ve o kararın testsiz kalması
+ * kabul edilemezdi. Bağımsız dosya `tests/demo-lock-gate.test.mts` içinde
+ * doğrudan çağrılabiliyor.
  * -------------------------------------------------------------------- */
-export function versionMismatch(
-  req: { headers: { get(k: string): string | null } },
-  current: string
-): boolean {
-  const base = req.headers.get("x-base-version");
-  return !!base && base !== current;
-}
+export { versionMismatch } from "@/lib/version-lock";
 
 export async function saveFamilyData(
   userId: string,
