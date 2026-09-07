@@ -79,11 +79,16 @@ Tam liste ve açıklamalar: `.env.local.example`.
 
 - [ ] `scripts/backup.mjs` çalıştığını doğrula; günlük yedeği planla.
 - [ ] Supabase otomatik yedeği açık mı (plan gerektirir).
-- [ ] **Geri yükleme tatbikatı yapıldı mı?** Denenmemiş yedek, yedek değildir —
-      ve bunu öğrenmek için en kötü an gerçek bir kayıp anıdır. Adımlar ve
-      sonuç tablosu `docs/YEDEKLEME.md` > "Tatbikat".
-- [ ] **Harici hedef** kararı verildi mi? Depo içindeki kopya, deponun
-      tamamının kaybına karşı korumaz.
+- [x] **Harici hedef kararı verildi — hedef açılmayacak** (2026-09-07, ürün
+      sahibi). Ayrı bir S3/R2 kovası yerine **kullanıcının kendi cihazındaki
+      tek dosyalık HTML yedeği** (#318) geçti. Gerekçe: kova kiralamak bir
+      kimlik bilgisi daha yönetmek demek ve deponun tamamı gitse bile veriyi
+      elinde tutan kişi ailenin kendisi olduğunda koruma daha sağlam.
+- [ ] **Geri yükleme tatbikatı — kapsamı 5 senaryodan 1'e indi.** "Yanlış ağacı
+      sildim / yanlış kişiyi sildim / hesabımı sildim / kendi kopyamı istiyorum"
+      senaryolarının dördü de uygulamanın kendi düğmeleriyle deneniyor, betik
+      ya da kimlik bilgisi istemiyor. Tatbikat yükümlülüğü yalnız **"deponun
+      tamamı gitti"** satırı için anlamlı. Tablo: `docs/YEDEKLEME.md` > "Tatbikat".
 - [ ] `/api/health` bir izleme aracına bağlandı mı?
       `curl -H "Authorization: Bearer $CRON_SECRET" https://<alan>/api/health`
       → 200 ve `"healthy": true`. Oturum gerektirmeyen tek yol bu.

@@ -3,6 +3,13 @@
 > Kullanıcı notu (2026-08): "Yapay zekâda çok problem var, bunu başka bir zaman
 > ele alacağız, benim için notları tut, sonra sorunca söylersin."
 > Bu dosya o notların kaydıdır. **Bu maddeler henüz YAPILMADI.**
+>
+> **Teyit (2026-09-07):** ürün sahibine kalan işler listelendiğinde yanıt
+> "YZ işlerine sonra bakacağız, notlarda kalsın" oldu. Yani A1–A8 bilinçli
+> olarak **beklemede**; unutulmuş değil, sıraya alınmamış. Kalan işler
+> bitmeden bu bloğa başlanmayacak. Tek parça olarak ele alınmalı — A1–A5
+> aynı kökten geliyor (araç çağırmalı mimari yok), tek tek yamamak
+> yanlış olur.
 
 ## A. Bildirilen sorunlar
 

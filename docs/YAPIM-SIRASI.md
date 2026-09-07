@@ -95,7 +95,7 @@ ama **canlıya almadan önce senin bakman** doğru olur.
 | 41 | Supabase Faz 3d — misafir giriş | E | Kimliksiz hesap türü `isFounder`/`treeId` çözümünün her dalını etkiler | ❌ kaldırıldı — ürün sahibi istemedi
 | 42 | Supabase Faz 3e — e-posta ile kalıcılaştırma | E | Çalışan hesapların kimlik anahtarını yerinde değiştirmek | ✅
 | 43 | Blob ↔ Supabase kayma denetimi | E | İki kaynağın ayrışmadığını gösteren araç yok. **45'in gerçek ön koşulu** | ✅
-| 44 | Çevrimdışı yakalama + senkron | E | **Yalnız mobilde.** İyimser kilitle (`x-base-version`) çakışıyor. 29'a bağlı |
+| 44 | Çevrimdışı yakalama + senkron | E | **Yalnız mobilde.** İyimser kilitle (`x-base-version`) çakışıyor. 29'a bağlı. 🔸 **Ayrı bir not (2026-09-07, ürün sahibi):** "sistemi tamamen çevrimdışı çalıştırma" ayrı ve çok daha büyük bir iştir, sonra değerlendirilecek. 44 bunu KAPSAMIYOR: 44, çevrimdışıyken **yazma niyetini cihazda sıraya alıp** bağlantı gelince göndermektir; ağaç okuma, arama, harita, kitap hâlâ ağ ister. Tam çevrimdışı çalışma, ağacın tamamının cihaza inmesi + yerel bir okuma katmanı + gizlilik katmanının cihazda uygulanması demek — kapsamı 44'ün birkaç katı |
 | 45 | Supabase Faz 4 — bcrypt + `users.json` emekliye | E | **Tek geri dönüşü olmayan iş.** 43, 46 ve 51 olmadan yapılmaz |
 
 ## K5 — Ortak: kod bende, anahtar sende (46–53)
@@ -110,26 +110,39 @@ Her satırda **ben ne teslim ederim** ve **senden ne gerekir** ayrı yazıldı.
 | 49 | Dışa dönük soru/istem motoru | gönderim + girişsiz yanıt + **onay kuyruğu** | ✅ **çalışıyor** — depo, girişsiz yanıt sayfası ve ağaç sahibinin onay kuyruğu |
 | 50 | Hikâye talebi | 49'un ikinci yüzü, aynı boru hattı | ✅ **çalışıyor** — 49 ile aynı boru hattı |
 | 51 | E-posta ile şifre sıfırlama | akış + jeton + test | ✅ **çalışıyor** — elle test edildi; kurtarma kodu yolu da artık ağaç adı istemiyor (#262) |
-| 52 | Fotoğraf zenginleştirme | yalnız deterministik dönüşüm (`e_improve`/`e_sharpen`/`e_upscale`) | Cloudinary eklenti/kota kararı |
-| 53 | Toplu fotoğraf tarama/restorasyon | toplu yükleme hattı | kota/maliyet onayı |
+| 52 | Fotoğraf zenginleştirme | — | ❌ **İPTAL** (2026-09-07, ürün sahibi): "bu bizim işimiz değil". Fotoğraf onarımı ayrı bir ürünün işi; biz ağaç tutuyoruz. Cloudinary kota kararı da böylece düştü |
+| 53 | Toplu fotoğraf tarama/restorasyon | — | ❌ **İPTAL** (2026-09-07, ürün sahibi) — 52 ile aynı gerekçe |
 
 **Kural (49 için):** girişsiz yanıt kayda **doğrudan yazmaz**, jeton başına sınırlı bir
 **onay kuyruğuna** düşer. Bu karar verilmezse iş bir bant yukarı çıkar.
 
 ## K6 — Senin işin, ben yapamam (54–64)
 
+> **2026-09-07 — ürün sahibi karar turu.** Bu banttaki bekleyen kararların hepsi
+> tek seferde cevaplandı. Sonuç: **52, 53, 58, 63 iptal**; **59, 60, 61 evet**
+> (üçü de benim "hayır" önerimin aksine — kayda geçsin ki ileride "neden
+> yapılmış?" diye sorulduğunda gerekçe aranmasın: bu bir ürün kararı, teknik
+> bir zorunluluk değil); **62 "sınırsız + her an tam dışa aktarım"**;
+> **57 öncelikli, sıraya alındı**; **64 hâlâ açık**.
+>
+> "Evet" alan üç iş bu bantta KALMIYOR — karar bandından çıkıp yapım bandına
+> geçtiler ve satırlarında hangi banda düştükleri yazıyor. 60 tek başına
+> istisna: 54 gibi **ortak** iş, çünkü numara tahsisi bizim yazabileceğimiz
+> bir şey değil.
+
+
 | # | İş | Neden bende değil |
 |---|---|---|
 | 54 | **E-posta sağlayıcısı hesabı + gönderen alan adı + API anahtarı** | Hesap açma, alan adı doğrulama, ödeme. Kod zaten yazılı. **8 işi açıyor (47–51 dâhil)** | ✅ **yapıldı** (2026-09-05) — Resend + `soylus.com` doğrulandı, uçtan uca test edildi |
 | 65 | Gelen posta (`bilgi@soylus.com`) | — | ✅ **çalışıyor** (2026-09-06) — **uygulama dışında**: MX → ImprovMX (ücretsiz) → Gmail; cevaplar Gmail'den Resend SMTP ile `bilgi@soylus.com` adından çıkıyor. Uygulama içindeki gelen kutusu (webhook + depo + `/admin/posta`) **kaldırıldı** — hazır hizmetin ücretsiz çözdüğü bir işi elde yazmak yanlıştı. Kurulum: `docs/LANSMAN-CHECKLIST.md` |
-| 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | Apple/Google geliştirici hesabı, imzalama anahtarları, senin makinen. Aşama 0–8 bitmiş |
-| 58 | **Index Anatolicus lisans görüşmesi** | 🔹 **isteğe bağlı** — artık hiçbir işi kilitlemiyor. 37 ve 38 açık kaynaklarla yapıldı; lisans gelirse üstüne zenginleştirme katmanı olur |
-| 59 | Karar: aile meclisi / fon kapsamı | Para hareketi = finansal düzenleme. Öneri: **hayır** |
-| 60 | Karar: telefonla hikâye kaydı (BTK/operatör) | Numara tahsisi araştırması. Öneri: **hayır** — 30 aynı ihtiyacı karşılıyor |
-| 61 | Karar: kuşak adı/rütbesi terminolojisi | Türkçede karşılığı var mı? Öneri: **yok, alan eklenmesin** — 27'ye erir |
-| 62 | Karar: tek seferlik kalıcı arşiv (ürün/hukuk/ödeme) | Süre taahhüdü + saklama garantisi. Öneri: "sonsuza dek" yerine **"X yıl + her an tam dışa aktarım"** |
-| 63 | Karar: yüz tanıma (KVKK) | Yüz verisi **özel nitelikli kişisel veri**. Öneri: **yapılmasın** |
-| 64 | Karar: şifreli belge kasası | Anahtar kaybı = kalıcı veri kaybı. Öneri: yerine **imzalı, süreli erişim** |
+| 57 | **Mobil Aşama 9** — mağaza derlemesi + imzalama + push sertifikaları | ⭐ **ÖNCELİKLİ — yapılacak** (2026-09-07, ürün sahibi). Bekleme sebebi kararsızlık değil, sıra: önce kalan küçük işler bitecek, sonra mağaza turu başlayacak. Apple/Google geliştirici hesabı, imzalama anahtarları ve ürün sahibinin makinesi gerekiyor. Aşama 0–8 bitmiş; çıkmadan önce `docs/LANSMAN-CHECKLIST.md` §8 kutuları işaretlenmeli |
+| 58 | **Index Anatolicus lisans görüşmesi** | ❌ **İPTAL** (2026-09-07, ürün sahibi): "neye gerek var?". Doğru soru — 37 (yer sözlüğü) ve 38 (göç yolu katmanı) açık kaynaklarla yapıldı ve bitti, yani lisans bir işi kilitlemiyordu; yalnızca üstüne bir zenginleştirme katmanı olurdu. Bedelli bir görüşmeyi hiçbir işi açmayan bir katman için yürütmek yanlış sıralama |
+| 59 | Aile meclisi / fon kapsamı | ✅ **EVET** (2026-09-07, ürün sahibi — önerimin aksine). Artık karar değil **iş**. Uyarı kayda geçsin: uygulama içinde gerçek para hareketi (toplama/aktarma/saklama) finansal düzenlemeye girer ve ödeme kuruluşu lisansı ister. Bu yüzden kapsam **para taşımayan** kurguyla açılacak: aidat/katkı **kaydı**, borç-alacak defteri, karar ve oylama tutanağı — para transferi kullanıcının kendi bankası/IBAN'ı üzerinden, biz yalnız **kaydını** tutarız. Bant: C (yeni rota + görünüm) |
+| 60 | Telefonla hikâye kaydı | ✅ **EVET** (2026-09-07, ürün sahibi — önerimin aksine). Artık karar değil **iş**, ama **54 gibi ortak iş**: kodu ben yazarım, numarayı ve hesabı ürün sahibi açar. Türkiye'de numara tahsisi + çağrı kaydı BTK kapsamındadır; kayıt öncesi **sesli rıza anonsu** zorunlu tasarım şartıdır. Teknik yol: bulut telefon sağlayıcısı (numara + webhook) → gelen ses → mevcut Gemini deşifre hattı (`lib/ai-*`) → 49/50'nin **onay kuyruğuna** düşer, kayda doğrudan yazmaz. Bant: K5 |
+| 61 | Kuşak adı/rütbesi terminolojisi | ✅ **EVET** (2026-09-07, ürün sahibi — önerimin aksine). Artık karar değil **iş**. Türkçe kuşak adlandırması (ör. "yedi göbek" hattındaki basamak adları) kişiye **yazılan bir alan olarak değil, hesaplanan bir etiket olarak** üretilecek — `lib/relations.ts` zaten kan derecesi ve Türkçe akrabalık adı türetiyor, etiket oradan çıkar. Elle girilen alan eklenmez: elle girilen kuşak adı ilk ağaç düzenlemesinde yanlışa döner. Bant: B (saf lib + görünüm) |
+| 62 | Kalıcı arşiv taahhüdü | ✅ **KARAR: "sınırsız + her an tam dışa aktarım"** (2026-09-07, ürün sahibi). Önerim "X yıl" idi; ürün sahibi süre sınırı koymamayı seçti. Taahhüdün ayakta durmasını sağlayan şey #318 ile gelen **tek dosyalık HTML yedeği**: veri kullanıcının kendi cihazında da durduğu için "sınırsız", altyapımızın ömrüne bağlı bir söz olmaktan çıkıyor. Metne geçirilecek yer: Kullanım Şartları + `docs/YEDEKLEME.md` |
+| 63 | Karar: yüz tanıma (KVKK) | ❌ **HAYIR** (2026-09-07, ürün sahibi — önerimle aynı yönde). Yüz verisi KVKK m.6 kapsamında **özel nitelikli kişisel veri**; ayrı açık rıza rejimi, ağır saklama yükümlülüğü. Kapandı |
+| 64 | Karar: şifreli belge kasası | ⏳ **AÇIK — karar bekliyor** (2026-09-07: ürün sahibi açıklama istedi, cevap verildi). Sorulan şey: tapu/vasiyet/nüfus kaydı gibi belgeleri **bizim de açamayacağımız** biçimde, kullanıcının anahtarıyla şifreleyip saklamak. Kırılma noktası: anahtar kaybolursa belge kalıcı gider — kurtarabiliyorsak zaten şifreli değildir, kurtaramıyorsak aile ürününde kesin kayıp demektir. Öneri değişmedi: yerine **imzalı, süreli erişim bağlantısı** (belge normal saklanır, bağlantı X saat sonra ölür) — "bunu herkes görmesin" ihtiyacını karşılar, kalıcı kayıp riski getirmez |
 
 ---
 
