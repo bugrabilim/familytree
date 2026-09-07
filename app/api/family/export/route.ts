@@ -5,6 +5,35 @@ import { exportGedcom } from "@/lib/gedcom";
 import { EXPORT_META, exportCsv, exportJson, type ExportFormat } from "@/lib/import";
 import { exportXlsx } from "@/lib/export-xlsx";
 import { makeGedzip } from "@/lib/gedzip";
+import { exportHtml } from "@/lib/export-html";
+import { auth } from "@/auth";
+import { listTrees } from "@/lib/trees";
+
+/**
+ * Belgenin başlığına yazılacak ağaç adı — "en iyi çaba".
+ *
+ * Yalnız HTML aktarımında çağrılıyor: öteki biçimlerin başlığı yok, onlara
+ * fazladan bir oturum + kayıt okuması yüklemek anlamsız olurdu. Ad
+ * bulunamazsa boş döner ve belge genel başlığıyla ("Aile Ağacı Arşivi")
+ * yetinir — bu yüzden hata YÜKSELTMİYOR: adı bilinmeyen bir yedek, hiç
+ * indirilemeyen bir yedekten iyidir.
+ */
+async function agacAdi(accountId: string, treeId: string): Promise<string> {
+  let ev = "";
+  try {
+    const session = await auth();
+    ev = session?.user?.treeName ?? session?.user?.name ?? "";
+  } catch {
+    /* Bearer ile gelen mobil istekte oturum yok; ad da yok. */
+  }
+  if (treeId === accountId) return ev;
+  try {
+    const hepsi = await listTrees(accountId, ev);
+    return hepsi.find((t) => t.treeId === treeId)?.name ?? ev;
+  } catch {
+    return ev;
+  }
+}
 
 export async function GET(req: NextRequest) {
   const ctx = await resolveActiveTree();
@@ -12,6 +41,22 @@ export async function GET(req: NextRequest) {
 
   const q = (req.nextUrl.searchParams.get("format") ?? "gedcom").toLowerCase();
   const { people } = await getFamilyData(ctx.treeId);
+
+  /*
+   * HTML (.html) — tek dosyalık arşiv. Ham veri belgenin İÇİNDE gömülü
+   * olduğundan bu biçim hem "aç ve bak" hem de geri yüklenebilir bir yedek;
+   * bkz. `lib/export-html.ts`.
+   */
+  if (q === "html") {
+    const lang = req.nextUrl.searchParams.get("lang") === "en" ? "en" : "tr";
+    const body = exportHtml(people, { treeName: await agacAdi(ctx.accountId, ctx.treeId), lang });
+    return new NextResponse(body, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Disposition": `attachment; filename="aile-agaci.html"`,
+      },
+    });
+  }
 
   // Excel (.xlsx) — ikili çalışma kitabı.
   if (q === "xlsx" || q === "excel") {

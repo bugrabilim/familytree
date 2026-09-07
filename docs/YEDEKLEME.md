@@ -110,11 +110,14 @@ Neden ayrı bir tarama: `/admin/drift` yalnız **elle**, yalnız giriş yapmış
 founder'ın **kendi** ağaçları için çalışıyordu ve o düğmeyi kimse görmüyordu.
 Yani ayrışma varsa da kimsenin haberi olmuyordu.
 
-### Harici hedef (henüz yok)
+### Harici hedef — kapatıldı, yerine kullanıcı yedeği
 
-Deponun tamamının kaybına karşı korunmak için `scripts/backup.mjs` çıktısını
-bir CI işinde özel bir S3/R2 kovasına yükleyin. Bu karar (hedef + kimlik
-bilgileri) **sizde**; kod tarafı hazır.
+Ayrı bir S3/R2 kovası düşünülmüştü; **yapılmayacak.** Yerine geçen çözüm
+"3) Kullanıcı tarafı dışa aktarım" başlığındaki **tek dosyalık HTML yedeği**:
+her ailenin tam kaydı, kendi cihazında, bizim altyapımızdan bağımsız.
+Deponun tamamı kaybolsa bile veriyi elinde tutan kişi ailenin kendisi olur —
+bir kovanın kimlik bilgilerini yönetmeye kıyasla hem daha ucuz hem daha
+sağlam bir yer.
 
 ### Geri yükleme
 
@@ -147,25 +150,29 @@ Postgres aynası bu yazımdan haberdar olmaz. Geri yükledikten sonra
 `/admin/drift` sayfasından onarım çalıştırın; yoksa okuma yolu (önce
 Postgres) eski veriyi göstermeye devam eder.
 
-### Tatbikat — yılda en az bir kez
+### Tatbikat — kapsamı daraltıldı
 
-**Denenmemiş yedek, yedek değildir.** Yukarıdaki komut hiç çalıştırılmadıysa
-çalışacağını kimse bilmiyor demektir; ve bunu öğrenmek için en kötü an, gerçek
-bir kayıp anıdır.
+**Denenmemiş yedek, yedek değildir** — bu hâlâ doğru. Ama yukarıdaki Blob
+geri yükleme komutu, günlük işleyişte beklenen kayıp senaryosu DEĞİL:
 
-Tatbikat, canlı veriye dokunmadan yapılabilir:
+| senaryo | kurtaran mekanizma | tatbikat gerekir mi |
+|---|---|---|
+| yanlış ağacı sildim | 30 günlük bekleme süresi + "Geri getir" | hayır, uygulama içinde denenebilir |
+| yanlış kişiyi sildim | geçmiş (`HistoryDialog`) → geri al | hayır |
+| hesabımı sildim | 30 gün, girişte geri alma | hayır |
+| kendi kopyamı istiyorum | HTML yedeği indir | hayır |
+| deponun tamamı gitti | Blob görüntüsü + Supabase PITR | evet, ama nadir |
 
-1. Bir test hesabı açın, birkaç kişi ekleyin.
-2. Ertesi gün (yedek koştuktan sonra) o hesapta bir kişiyi silin.
-3. Yukarıdaki komutla o ağacın bir önceki günkü görüntüsünü geri yükleyin.
-4. `/admin/drift` → onarım.
-5. Silinen kişi geri geldi mi?
+İlk dördü uygulamanın kendi akışları; hepsi düğmeye basılarak denenebiliyor
+ve bir betik/kimlik bilgisi gerektirmiyor. Yıllık tatbikat yükümlülüğü bu
+yüzden **yalnız son satır** için anlamlı; ve o senaryoda kullanıcı elindeki
+HTML yedeğiyle zaten yalnız değil.
 
-Sonucu bu dosyaya tarihiyle not edin. Geçmiş tatbikatlar:
+Bir tatbikat yapılırsa sonucu tarihiyle buraya not edin:
 
 | tarih | sonuç | not |
 |---|---|---|
-| — | henüz yapılmadı | ilk tatbikat bekleniyor |
+| — | — | — |
 
 ## 2) Supabase — veritabanı aynası
 
@@ -173,15 +180,45 @@ Sonucu bu dosyaya tarihiyle not edin. Geçmiş tatbikatlar:
 ücretli planlarda **otomatik günlük yedek** ve PITR sunar (panel > Database >
 Backups). Manuel anlık görüntü için `pg_dump` kullanılabilir.
 
-## 3) Kullanıcı tarafı dışa aktarım
+## 3) Kullanıcı tarafı dışa aktarım — asıl yedek katmanı
 
-Her kullanıcı kendi ağacını uygulama içinden **GEDCOM / CSV / JSON** olarak dışa
-aktarabilir (üç-nokta menü > İçe/dışa aktar). Bu, kişisel bir yedek katmanıdır.
+Her kullanıcı kendi ağacını uygulama içinden dışa aktarabiliyor (üç-nokta menü
+> İçe/dışa aktar): **HTML (yedek)**, GEDCOM 5.5.1 / 7 / GEDZIP, CSV, JSON,
+Excel, Aile Kitabı.
+
+**Varsayılan HTML ve sebebi var.** Öteki biçimlerin hepsi bir okuyucu istiyor:
+GEDCOM bir soy ağacı programı, CSV bir hesap tablosu, JSON bir yazılımcı.
+Kullanıcı dosyayı indirip klasöre attığında hiçbiri "aç ve bak" değil — ve
+açılamayan bir dosya, kullanıcı için yedek sayılmıyor. HTML her işletim
+sisteminde, her telefonda, kurulumsuz açılıyor.
+
+Dosya aynı zamanda **geri yüklenebilir**: tam JSON, belgenin içinde
+`<script type="application/json" id="soyagaci-veri">` bloğunda gömülü duruyor.
+Tarayıcı bu türü çalıştırmadığı ve ekrana basmadığı için görünümü bozmuyor;
+içe aktarma ucu ise aynı bloğu geri okuyor. Yani aynı dosya hem bakılan hem
+geri yüklenen yedek. Üretim ve okuma tek dosyada (`lib/export-html.ts`) —
+ayrı dosyalara düşselerdi biri değişince öteki sessizce kırılırdı.
+
+Kapsam ve sınırlar:
+
+- **Maskeleme yok.** `lib/privacy.ts` görüntü katmanı uygulanmıyor: maskeli
+  bir yedekten maskeli bir ağaç geri gelir, yaşayanların tarihleri bir daha
+  bulunamaz. Dosya zaten ağacı görebilen birinin eline geçiyor.
+- **Fotoğraflar bağlantı olarak.** Cloudinary adresleri yazılıyor, gömülmüyor:
+  yüzlerce görseli `data:` olarak gömmek dosyayı yüz megabaytlara çıkarır ve
+  sunucusuz işlevin süresini aşar. Ağsız açıldığında metnin tamamı yerinde,
+  eksik olan yalnız görseller.
+- **Boyut**: 366 kişilik demo ağaç ≈ 690 KB.
+
+Denetim: `tests/export-html.test.mts` (üretici + gidiş-dönüş + kaçış),
+`tests/export-html-gate.test.mts` (uçtan uca zincir).
 
 ## Öneri
 
 - **Günlük**: `scripts/backup.mjs` (Blob) + Supabase otomatik yedek.
 - **Sürüm öncesi**: elle bir anlık yedek al.
+- **Kullanıcıya**: HTML yedeğini ara sıra indirmesini söyleyin. Kurumsal
+  yedeğin ulaşamadığı tek yer — kullanıcının kendi cihazı — burada kapanıyor.
 - Medya (Cloudinary) için sağlayıcının kendi yedek/çoğaltma seçeneklerine bakın.
 
 ## Silme ile ilişkisi

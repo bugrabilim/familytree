@@ -24,7 +24,7 @@ export const tr: Dict = {
   "common.addPerson": "Kişi ekle",
   "common.gedcom": "İçe / dışa aktar",
   "common.export.formatLabel": ".ged / .csv / .json",
-  "common.import.formatsNote": "Her türlü dosyanızı yapay zekâ ile tanıyıp içeri aktarabiliriz. Başka sitelerden ya da e-Devlet'ten aldığınız soy ağacını da ekleyebilirsiniz.",
+  "common.import.formatsNote": "Her türlü dosyanızı yapay zekâ ile tanıyıp içeri aktarabiliriz. Buradan indirdiğiniz HTML yedeğini, başka sitelerden ya da e-Devlet'ten aldığınız soy ağacını da ekleyebilirsiniz.",
   "common.noPeopleToShow": "Görüntülenecek kişi yok",
 
   /* --- Dil değiştirici --- */
@@ -1837,6 +1837,8 @@ export const tr: Dict = {
   "gedcom.exportTitle": "Dışa aktar",
   "gedcom.exportBody2": "{count} kişilik ağacını seçtiğin biçimde dışa aktar.",
   "gedcom.export": "Dışa aktar",
+  "gedcom.fmtHtml": "HTML (yedek)",
+  "gedcom.htmlNote": "HTML tek dosyalık bir yedektir: bilgisayarda, telefonda, programsız açılır ve ağacın tamamını içinde taşır. Aynı dosyayı buradan içe aktararak ağacı geri yükleyebilirsin.",
   "gedcom.fmtExcel": "Excel",
   "gedcom.fmtBook": "Aile Kitabı",
   "gedcom.exportBodyBefore": "{count} kişilik ağacını",
@@ -2236,7 +2238,7 @@ export const en: Dict = {
   "common.addPerson": "Add person",
   "common.gedcom": "Import / export",
   "common.export.formatLabel": ".ged / .csv / .json",
-  "common.import.formatsNote": "We can recognize and import any of your files with AI. You can also add a family tree taken from other sites or from e-Devlet.",
+  "common.import.formatsNote": "We can recognize and import any of your files with AI. You can also add an HTML backup downloaded here, or a family tree taken from other sites or from e-Devlet.",
   "common.noPeopleToShow": "No one to show",
 
   /* --- Language switch --- */
@@ -4030,6 +4032,8 @@ export const en: Dict = {
   "gedcom.exportTitle": "Export",
   "gedcom.exportBody2": "Export your {count}-person tree in the format you choose.",
   "gedcom.export": "Export",
+  "gedcom.fmtHtml": "HTML (backup)",
+  "gedcom.htmlNote": "HTML is a single-file backup: it opens on any computer or phone without extra software and carries the whole tree inside it. You can restore the tree by importing the same file here.",
   "gedcom.fmtExcel": "Excel",
   "gedcom.fmtBook": "Family Book",
   "gedcom.exportBodyBefore": "Download your {count}-person tree as a",

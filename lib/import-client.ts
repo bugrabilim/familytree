@@ -2,7 +2,8 @@
  * Tek dosya seçimiyle "her dosyayı içeri al" istemci mantığı (2B/2C).
  *
  * Dosya türüne göre doğru uca yönlendirir:
- *  · Yapısal soy dosyaları (.ftz / GEDCOM / CSV / JSON / TSV / TXT) → /api/family/import
+ *  · Yapısal soy dosyaları (.ftz / GEDCOM / CSV / JSON / TSV / TXT / HTML
+ *    arşivi) → /api/family/import
  *  · PDF → önce e-Devlet ayrıştırıcısı (/api/family/import); kişi çıkmazsa yapay
  *    zekâ (/api/ai/extract)'e düşer.
  *  · Görsel / Excel / Word / diğer → yapay zekâ (/api/ai/extract).
@@ -58,7 +59,7 @@ async function postAiExtract(file: File, mode: string, lang: string): Promise<At
   return { ok: res.ok, count: data?.count ?? 0, status: res.status, error: data?.error };
 }
 
-const STRUCTURED = /\.(ftz|ged|gedcom|csv|tsv|json|txt)$/i;
+const STRUCTURED = /\.(ftz|ged|gedcom|csv|tsv|json|txt|html?)$/i;
 
 export interface ImportOptions {
   mode: "merge" | "replace";
