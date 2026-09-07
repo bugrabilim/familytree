@@ -29,15 +29,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * Ayrı bir sağlayıcı olması bilinçli: normal giriş yolunda şifre
      * denetimini gevşetmek yerine, demo tamamen kendi kapısından geçer.
      * Yalnızca sunucu tarafından `signIn("demo")` ile çağrılabilir.
+     *
+     * Bu kapı KİMLİK DEPOSUNA HİÇ UĞRAMIYOR: demo bir hesap değil, bir
+     * vitrin — oturumun bütün alanları koddaki sabitten gelir, doğrulanacak
+     * bir şey yoktur. Gerekçesi `lib/demo-account.ts`in başında; oradaki
+     * kararı bozmadan buraya bir kullanıcı araması eklenemez.
      */
     Credentials({
       id: "demo",
       name: "demo",
       credentials: {},
       async authorize() {
-        const user = await prepareDemoAccount();
-        // Demo ortak oyun alanı: ziyaretçiler serbestçe ekler/düzenler → yönetici.
-        return { id: user.id, name: user.familyName, role: "yonetici", treeName: user.familyName, isFounder: true };
+        // Ağacı başlangıç hâline döndürür ve sabit demo oturumunu verir.
+        return await prepareDemoAccount();
       },
     }),
   ],

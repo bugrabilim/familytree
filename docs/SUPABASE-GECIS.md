@@ -219,7 +219,7 @@ aile adı rapora **girmez** — yalnız kimliği.
 | `ayna-eksik` | engel | Bir ağacın Postgres'teki kişi sayısı Blob'unkinden az, ya da ağaç hiç göç etmemiş. Faz 4 Blob'u bırakıyor → eksik kişiler **kalıcı** kaybolur. |
 | `kayma-var` | engel | Alan düzeyi kayma temiz değil (`lib/drift.ts`). Sayı eşitliği eşitlik değildir. |
 | `auth-eksik` | engel | `auth.users`ta karşılığı olmayan hesap var → bcrypt yedeği kalkınca bir daha giremez. |
-| `demo-acikta` | engel | Demo hesabının Auth kaydı yok ama kimliği `users.json`da duruyor. |
+| `demo-acikta` | engel | Demo **hâlâ `users.json`da bir hesap satırı** olarak duruyor. Demo bir hesap değil, bir vitrin (aşağıya bak); emekliye ayrılan depoda kimlik kalıntısı bırakılmaz. |
 | `giris-denenmemis` | engel | Hiçbir hesap Supabase Auth ile giriş yapmamış (`last_sign_in_at` boş). Faz 4 sonrası **tek** giriş yolu bu olacak. |
 | `damga-yok` | uyarı | `trees.updated_at` boş. Veri kaybettirmiyor (sürüm jetonu kişi damgalarına düşüyor); yazma yolunun o ağaçta henüz işlemediğini gösterir. |
 | `olculemedi` | değişken | Olgu **ölçülemedi**. Ölçülemeyen olgunun ağırlığı, o olgunun en kötü olası değerinin ağırlığıdır. |
@@ -242,17 +242,69 @@ baştan araştırmasın:
 | # | engel | ölçülen |
 |---|---|---|
 | 1 | `ayna-eksik` | `accounts` 3 · `trees` 3 · `people` 373 (demo 366, misafir 7, **Pirci 0**) · `tree_members` 0. Kurucunun kendi ağacı Postgres'te boş. |
-| 2 | `demo-acikta` | `demo-hesap` için `auth.users` kaydı **yok**; `lib/demo-account.ts` onu şifreli normal hesap olarak `users.json`'a yazıyor. Kimliği UUID olmadığı için `importAccountToAuth` de onu 1:1 eşlemiyor. |
+| 2 | `demo-acikta` | `demo-hesap` için `auth.users` kaydı **yok**; `lib/demo-account.ts` onu şifreli normal hesap olarak `users.json`'a yazıyor. Kimliği UUID olmadığı için `importAccountToAuth` de onu 1:1 eşlemiyor. — **Bu engelin ANLAMI o günden sonra değişti; aşağıdaki "Demo kimlik sisteminin dışında" bölümüne bak.** |
 | 3 | `giris-denenmemis` | `auth.users` 2 kayıt, **ikisinin de** `last_sign_in_at` = `null` → Supabase Auth ile üretimde hiç giriş yapılmamış; `SUPABASE_AUTH_LOGIN` bayrağı kapalı. |
 
 Ayrıca uyarı: üç ağacın da `trees.updated_at` değeri `null` (`damga-yok`) —
 damga bir SONRAKİ kaydetmede oluşuyor, Faz 4'ü durdurmuyor.
 
 **Sıra:** (1) `/api/admin/migrate` ile hesapları ve ağaçları Auth + Postgres'e
-taşı → (2) `/api/admin/drift` temiz dönene kadar onar → (3) demo hesabının
-kimliğine karar ver (Auth'a aktar ya da demo girişini `users.json`dan tamamen
-ayır) → (4) `SUPABASE_AUTH_LOGIN=1` açıp bir süre koştur, `last_sign_in_at`
-dolsun → (5) `GET /api/admin/phase4` → `hazir: true` → ancak o zaman Faz 4.
+taşı → (2) `/api/admin/drift` temiz dönene kadar onar → (3) demo satırını
+`users.json`dan elle sil (karar verildi ve kod tarafı bitti — aşağıya bak) →
+(4) `SUPABASE_AUTH_LOGIN=1` açıp bir süre koştur, `last_sign_in_at` dolsun →
+(5) `GET /api/admin/phase4` → `hazir: true` → ancak o zaman Faz 4.
+
+### Demo kimlik sisteminin dışında (madde 45 hazırlığı)
+
+Yukarıdaki üç engelden ikincisi (`demo-acikta`) için ürün sahibine iki seçenek
+sunuldu: demoyu Supabase Auth'a taşımak, ya da demoyu kimlik sisteminden
+tamamen çıkarmak. **İkincisi seçildi** — gerekçesi tek cümlede: *demo bir
+hesap değil, bir vitrindir.* Herkesin bildiği bir giriş yolunu kimlik
+altyapısının içinde tutmak da, sahibi olmayan bir vitrine gerçek kimlik
+(Auth kaydı, kurtarma kodu, şifre sıfırlama) taşıtmak da savunulamıyordu.
+
+**Kod tarafı bitti.** `lib/demo-account.ts` artık `users.json`a hiç yazmıyor
+ve oradan hiç okumuyor; demo oturumunun bütün alanları koddaki `DEMO_SESSION`
+sabitinden geliyor (`signIn("demo")` yolu, ağaç sıfırlama, ekstra ağaç
+temizliği, kapak fotoğrafı aynen duruyor). Gerekçenin uzun hâli o dosyanın
+başında; kararı koruyan testler `tests/demo-identity-gate.test.mts` ve
+`tests/phase4-readiness.test.mts`.
+
+Bunun doğal sonuçları — hepsi istenen davranış:
+
+- Demo `users.json`, `accounts` ve `auth.users`ın hiçbirinde yok.
+- Normal giriş formundan demoya girilemez: `findUserByFamilyName(demo)` artık
+  `null`. (Eskiden bunu sağlayan şey rastgele bir şifreydi — bir tesadüf;
+  şimdi kapı testle kilitli.)
+- Demo şifre sıfırlamaya, kurtarma koduna, kimlik e-postasına ve cron
+  postalarına hiç girmiyor. Kayıp değil: demonun sahibi yok.
+- Demo silinemezliği bozulmadı — o kapılar `users.json` satırına değil
+  **kimliğe** (`DEMO_USER_ID`) bakıyor.
+- Demo artık günlük ayna taramasına (`lib/mirror-scan.ts`) girmiyor; o tarama
+  hesap envanterini geziyor. Demo ağacı zaten her girişte sıfırlanan oyuncak
+  veri, kaymasının bir anlamı yok. Blob yedeği etkilenmiyor (yedek blob'ları
+  geziyor, hesapları değil).
+- Demonun adı artık **kodda** rezerve (`isDemoFamilyName`, iki kayıt ucunda):
+  rezervi eskiden `users.json` satırının kendisi tutuyordu.
+
+**Üretimdeki satır kendiliğinden GİTMEZ — elle silinecek.** Kod artık ona
+dayanmıyor, ama `users.json`da bugün hâlâ bir `demo-hesap` satırı var (ve
+Postgres `accounts` tablosunda onun aynası). Bu tur üretim verisine hiç
+dokunmadı; bir "temizlik göçü" de yazılmadı, çünkü tek satırlık, tek seferlik
+ve geri dönüşü olan bir iş için kalıcı kod bırakmak, kodun kendisini bir
+kalıntıya çevirirdi. Silinecek iki şey:
+
+1. `users.json` → `users[]` içinden `id === "demo-hesap"` satırı,
+2. Postgres → `delete from accounts where id = 'demo-hesap';`
+
+`trees` satırı ve demo ağacının kişileri **KALIR**: onlar kimlik değil veri,
+ve `people.tree_id` yabancı anahtarı o satıra bağlı (`prepareDemoAccount`
+girişte kendisi de idempotent olarak açıyor).
+
+Satır durduğu sürece `GET /api/admin/phase4` `demo-acikta` engelini vermeye
+devam eder — bilerek: kapı artık "demo Auth'ta yok mu" değil, "demo hâlâ
+kimlik deposunda mı" diye soruyor, ve engel silindiği anda kendiliğinden
+düşer.
 
 ---
 

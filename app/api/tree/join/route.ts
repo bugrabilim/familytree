@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { acceptInvite, findValidInvite } from "@/lib/members";
 import { checkUsername, normalizeUsername, USERNAME_MAX, USERNAME_MIN } from "@/lib/username";
 import { getUsersData } from "@/lib/users";
+import { demoTreeName } from "@/lib/demo-account";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 /**
@@ -27,6 +28,14 @@ import { rateLimitShared } from "@/lib/rate-limit";
  * çözmemesi — bu bir kimlik modeli değişikliği ve ürün sahibinin kararı.
  */
 async function treeNameOf(treeId: string): Promise<string | null> {
+  /*
+   * DEMO'NUN KİMLİK KAYDI YOK (`lib/demo-account.ts`): bir hesap değil, bir
+   * vitrin — `users.json`da satırı yok ve olmamalı. Ziyaretçi demo ağacında
+   * davet bağlantısı üretebiliyor; ad yalnız depodan aransaydı o bağlantı
+   * "davet geçersiz" (404) verirdi, oysa davet gayet geçerli.
+   */
+  const vitrin = demoTreeName(treeId);
+  if (vitrin) return vitrin;
   const { users } = await getUsersData();
   return users.find((u) => u.id === treeId)?.familyName ?? null;
 }

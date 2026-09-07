@@ -247,6 +247,16 @@ export async function GET() {
        */
       .filter((u) => !isSoftDeleted(u))
       .map((u) => {
+        /*
+         * Demonun BURADA GÖRÜNMESİ başlı başına bulgu.
+         *
+         * Demo bir hesap değil, bir vitrin (`lib/demo-account.ts`) ve kimlik
+         * deposuna hiç yazılmıyor. Yani sağlıklı bir kurulumda bu döngü demo
+         * satırına HİÇ rastlamaz. Rastlıyorsa, o satır koddan önce yazılmış
+         * bir kalıntıdır ve kapı bunu `demo-acikta` engeliyle bildirir —
+         * ölçüm bu yüzden kaldırılmadı: yokluğu kanıtlamanın tek yolu, varsa
+         * göstermek.
+         */
         const demo = u.id === DEMO_USER_ID;
         const eslesme = authListesi ? authEslesmesi(u, authIdler, authEpostalar) : undefined;
         return {

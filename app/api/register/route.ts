@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
+import { isDemoFamilyName } from "@/lib/demo-account";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 function ipOf(req: NextRequest): string {
@@ -42,7 +43,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Şifre en az 6 karakter olmalı." }, { status: 400 });
     }
 
-    const existing = await findUserByFamilyName(familyName.trim());
+    /*
+     * DEMONUN ADI REZERVE — ve rezervi artık KOD tutuyor, depo değil.
+     *
+     * Demonun `users.json` satırı vardı ve aşağıdaki "bu ad zaten var mı"
+     * denetimi onu da yakalıyordu. Demo kimlik deposundan çıkınca
+     * (`lib/demo-account.ts`) o yan etki kayboldu: biri demonun adıyla
+     * gerçek bir ağaç açabilir, giriş formunda o ada şifre koyabilir ve
+     * tanıtım sayfasının vitriniyle karıştırılabilirdi. Ad sahipsiz;
+     * korunacağı yer de bu satır.
+     */
+    const existing =
+      isDemoFamilyName(familyName) || (await findUserByFamilyName(familyName.trim()));
     if (existing) {
       return NextResponse.json(
         { error: "Bu adla zaten bir hesap var." },

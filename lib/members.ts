@@ -334,6 +334,12 @@ export async function acceptInvite(
       if (await compare(plainPassword, m.passwordHash))
         return { yaz: false, sonuc: { error: "sifre-dolu" } };
     }
+    /*
+     * Kurucu kaydı OLMAYABİLİR ve bu bir hata değil: demo ağacının kimlik
+     * satırı yok (`lib/demo-account.ts` — demo bir hesap değil, bir vitrin).
+     * O ağaçta çakışacak bir kurucu şifresi de yok, dolayısıyla denetimi
+     * atlamak doğru davranış.
+     */
     const kurucu = await findUserById(treeId);
     if (kurucu && (await compare(plainPassword, kurucu.passwordHash)))
       return { yaz: false, sonuc: { error: "sifre-dolu" } };

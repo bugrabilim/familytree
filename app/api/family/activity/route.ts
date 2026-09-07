@@ -4,6 +4,7 @@ import { getFamilyData } from "@/lib/blob";
 import { readSnapshotsForActivity } from "@/lib/history";
 import { getTreeAccess } from "@/lib/members";
 import { findUserById } from "@/lib/users";
+import { demoTreeName } from "@/lib/demo-account";
 import { buildActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
@@ -50,12 +51,21 @@ export async function GET() {
   } catch {
     /* ad çözülemezse akış yine döner */
   }
-  try {
-    const founder = await findUserById(ctx.treeId);
-    if (founder) names[ctx.treeId] = founder.familyName;
-  } catch {
-    /* kurucu adı çözülemezse yalnız o giriş "biri" kalır */
-  }
+  /*
+   * DEMO'NUN KİMLİK KAYDI YOK (`lib/demo-account.ts`): bir hesap değil, bir
+   * vitrin. `findUserById(demo)` bilerek `null` döner, o yüzden adı sabitten
+   * alınıyor — yoksa demo ağacındaki her kurucu katkısı "biri" görünürdü ve
+   * ziyaretçi akışın çalışmadığını sanırdı.
+   */
+  const vitrin = demoTreeName(ctx.treeId);
+  if (vitrin) names[ctx.treeId] = vitrin;
+  else
+    try {
+      const founder = await findUserById(ctx.treeId);
+      if (founder) names[ctx.treeId] = founder.familyName;
+    } catch {
+      /* kurucu adı çözülemezse yalnız o giriş "biri" kalır */
+    }
 
   return NextResponse.json({ items, names });
 }

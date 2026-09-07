@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { getUsersData, updateUserNotify } from "@/lib/users";
+import { DEMO_USER_ID } from "@/lib/demo-account";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,24 @@ export async function POST(req: NextRequest) {
   const email = typeof body.notifyEmail === "string" ? body.notifyEmail.trim() : undefined;
   if (email && !EMAIL_RE.test(email))
     return NextResponse.json({ error: "Geçerli bir e-posta girin." }, { status: 400 });
+
+  /*
+   * DEMOYA BİLDİRİM AYARI YAZILMAZ.
+   *
+   * Demo herkese açık ORTAK bir vitrin (`lib/demo-account.ts`): burada
+   * saklanan bir adres ziyaretçinin değil, PAYLAŞILAN kaydın alanı olurdu —
+   * bir sonraki ziyaretçi onu ayarlar ekranında görür, günlük cron da her
+   * sabah o adrese yabancı bir ağacın doğum günlerini yollardı.
+   *
+   * Kapı KİMLİĞE bakıyor: demonun kimlik satırı zaten yok, dolayısıyla
+   * aşağıdaki yazma "Hesap bulunamadı" (404) ile düşerdi — doğru sonuç,
+   * yanlış gerekçe. Bu bir arıza değil, bir karar.
+   */
+  if (ctx.accountId === DEMO_USER_ID)
+    return NextResponse.json(
+      { error: "Demo hesabında bildirim ayarı saklanmaz." },
+      { status: 403 }
+    );
 
   const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
   const ok = await updateUserNotify(ctx.accountId, {
