@@ -3,6 +3,20 @@ import { auth } from "@/auth";
 import { DEMO_USER_ID } from "@/lib/demo-account";
 import { getPlatformStats } from "@/lib/db";
 import Landing from "@/components/Landing";
+import type { Metadata } from "next";
+
+/**
+ * Kök sayfanın BAŞLIĞI bilerek verilmiyor: kök yerleşimdeki
+ * `title.default` ("Soy Ağacı — Ailenin hikâyesi") zaten tam olarak bu
+ * sayfanın başlığı; burada tekrarlamak iki yerde bakım demek olurdu.
+ * Şablon (`%s · Soy Ağacı`) yalnız ALT sayfalarda devreye giriyor.
+ *
+ * Kanonik açıkça yazılıyor: aynı içerik `/tanitim` adresinde de duruyor ve
+ * ikisi de sitemap'te (bkz. `app/tanitim/page.tsx`).
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * Kök (`/`):

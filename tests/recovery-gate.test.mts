@@ -33,7 +33,7 @@ const users = kodu(read("../lib/users.ts"));
 const lib = kodu(read("../lib/recovery-code.ts"));
 const kayit = kodu(read("../app/api/register/route.ts"));
 const mobil = kodu(read("../app/api/mobile/register/route.ts"));
-const sayfa = kodu(read("../app/forgot-password/page.tsx"));
+const sayfa = kodu(read("../app/forgot-password/ForgotForm.tsx"));
 const tipler = read("../types/user.ts");
 
 /* --- 1. İki katman: indeks bulur, bcrypt doğrular --------------------- */

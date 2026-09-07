@@ -655,3 +655,22 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/*
+ * Klavye odağı — `appearance: none` tarayıcının kendi odak halkasını da
+ * götürüyor. Halkasız bir kutuda Tab ile gezen kullanıcı nerede olduğunu
+ * göremez; hedefin büyütülmesi bu boşluğu kapatmıyordu.
+ */
+.ui-check:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+/*
+ * Eksik ZORUNLU onay: hata metni tek başına yeterli değil — kutu ile mesaj
+ * arasındaki bağı yalnız ekran okuyucu (aria-describedby) kuruyordu, gören
+ * kullanıcı ekranın neresine bakacağını bilmiyordu.
+ */
+.ui-check[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}

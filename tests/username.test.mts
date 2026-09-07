@@ -77,7 +77,7 @@ const cred = kodu(read("../lib/credentials.ts"));
 const members = kodu(read("../lib/members.ts"));
 const join = kodu(read("../app/api/tree/join/route.ts"));
 const auth = kodu(read("../auth.ts"));
-const login = kodu(read("../app/login/page.tsx"));
+const login = kodu(read("../app/login/LoginForm.tsx"));
 const joinUi = kodu(read("../app/join/[token]/page.tsx"));
 const access = kodu(read("../app/api/tree/access/route.ts"));
 

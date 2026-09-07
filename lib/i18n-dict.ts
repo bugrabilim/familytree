@@ -557,6 +557,19 @@ export const tr: Dict = {
   "register.signingIn": "Giriş yapılıyor…",
   "register.recoveryWarning": "Bu sayfayı kapatınca kod bir daha gösterilmez.",
 
+  /* --- Sayfa bulunamadı (404) ve beklenmedik hata --- */
+  "notfound.code": "404",
+  "notfound.title": "Bu sayfayı bulamadık",
+  "notfound.body":
+    "Aradığın bağlantı taşınmış, yanlış yazılmış ya da hiç var olmamış olabilir. Ağacın ve bilgilerin yerinde duruyor — buradan devam edebilirsin.",
+  "notfound.home": "Ana sayfaya dön",
+  "notfound.login": "Giriş yap",
+  "crash.title": "Bir şeyler ters gitti",
+  "crash.body":
+    "Bu sayfa açılırken beklenmedik bir sorun oldu. Tekrar denemek çoğu zaman yetiyor; sürerse birazdan yeniden bak.",
+  "crash.retry": "Tekrar dene",
+  "crash.home": "Ana sayfaya dön",
+
   "forgot.title": "Şifreni sıfırla",
   "forgot.subtitle": "Kayıt sırasında verilen kurtarma kodunu kullan",
   "forgot.backToLogin": "Giriş sayfasına dön",
@@ -2809,6 +2822,19 @@ export const en: Dict = {
   "register.goToTree": "Go to my tree",
   "register.signingIn": "Signing in…",
   "register.recoveryWarning": "Once you close this page the code won’t be shown again.",
+
+  /* --- Page not found (404) and unexpected errors --- */
+  "notfound.code": "404",
+  "notfound.title": "We couldn’t find that page",
+  "notfound.body":
+    "The link you followed may have moved, been mistyped, or never existed. Your tree and your data are untouched — you can carry on from here.",
+  "notfound.home": "Back to home",
+  "notfound.login": "Sign in",
+  "crash.title": "Something went wrong",
+  "crash.body":
+    "An unexpected problem came up while opening this page. Trying again usually helps; if it keeps happening, come back in a little while.",
+  "crash.retry": "Try again",
+  "crash.home": "Back to home",
 
   "forgot.title": "Reset your password",
   "forgot.subtitle": "Use the recovery code you got when signing up",
