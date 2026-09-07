@@ -44,10 +44,23 @@ export interface DamgaliKutu {
 
 export type Degisiklik<T> = { yaz: boolean; sonuc: T };
 
+/**
+ * Değiştirici SENKRON ya da ASENKRON olabilir.
+ *
+ * Çoğu depo için senkron yeter. Erişim kaydı (`lib/members.ts`) ise karar
+ * verirken `await` istiyor: davet kabulünde şifre çakışması `bcrypt.compare`
+ * ile, kurucunun şifresi ayrı bir okumayla denetleniyor.
+ *
+ * Asenkron gövde çakışma penceresini GENİŞLETMİYOR: doğrulama okuması
+ * gövdeden SONRA, yazmadan hemen önce yapılıyor. Gövde ne kadar sürerse
+ * sürsün, karşılaştırılan damga her zaman yazmanın hemen öncesinden.
+ */
+export type Degistirici<B, T> = (kutu: B) => Degisiklik<T> | Promise<Degisiklik<T>>;
+
 export async function mutateStore<B extends DamgaliKutu, T>(
   oku: () => Promise<B>,
   yaz: (kutu: B) => Promise<void>,
-  degistir: (kutu: B) => Degisiklik<T>,
+  degistir: Degistirici<B, T>,
   /** Denemeler tükendiğinde kullanıcıya gösterilecek ad ("tarif", "mektup"…). */
   etiket: string,
   deneme: number = CAKISMA_DENEME
@@ -55,7 +68,7 @@ export async function mutateStore<B extends DamgaliKutu, T>(
   for (let i = 0; i < deneme; i++) {
     const kutu = await oku();
     const damga = kutu.updatedAt;
-    const r = degistir(kutu);
+    const r = await degistir(kutu);
     /*
      * YAZMA YOKSA ÇAKIŞMA DA YOK. "Bulunamadı" ya da "değişiklik yok" gibi
      * sonuçlar tek okumayla dönüyor; onları da yeniden denemek, hiçbir şey

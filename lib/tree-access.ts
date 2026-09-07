@@ -39,7 +39,7 @@ export function hasTreeAccess(accountId: string, treeId: string, ownedIds: strin
  * ------------------------------------------------------------------------ */
 
 /** Okunan erişim kaydını eksiksiz hâle getirir (alan DÜŞÜRMEZ). */
-export function normalizeAccess(data: TreeAccess): TreeAccess {
+export function normalizeAccess(data: TreeAccess): TreeAccess & { updatedAt: string } {
   return {
     members: data.members ?? [],
     invites: data.invites ?? [],
@@ -53,6 +53,13 @@ export function normalizeAccess(data: TreeAccess): TreeAccess {
      * ağacın paylaşım bağlantıları ilk yazmada yeniden açılırdı.
      */
     ...(data.deletedAt ? { deletedAt: data.deletedAt } : {}),
+    /*
+     * Damga her zaman BİR DEĞER: `mutateStore` iki okumayı karşılaştırıyor ve
+     * `undefined === undefined` her eski dosyayı "değişmemiş" gösterirdi —
+     * yani koruma tam da en eski ağaçlarda çalışmazdı. Sabit başlangıç
+     * değeri ilk yazmada gerçek damgayla değişiyor.
+     */
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date(0).toISOString(),
   };
 }
 

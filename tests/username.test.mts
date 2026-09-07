@@ -145,9 +145,22 @@ const access = kodu(read("../app/api/tree/access/route.ts"));
   check(/if \(!ad && plainPassword\)/.test(govde), "şifre çakışması denetimi adsız katılıma özel");
   check(/usernameTaken\(data\.members, ad\)/.test(govde), "ad çakışması denetleniyor");
   check(/\.\.\.\(ad \? \{ username: ad \} : \{\}\)/.test(govde), "ad normalleştirilmiş hâliyle saklanıyor");
+  /*
+   * Denetim YAZMADAN önce. Yazma artık doğrudan `saveTreeAccess` değil:
+   * davet kabulü ortak oku→değiştir→yaz sarmalayıcısından geçiyor
+   * (`lib/store-mutate.ts`) ve yazma kararı `{ yaz: true }` ile veriliyor.
+   * Kilitlenen kural değişmedi — ad çakışması, üye listeye eklenmeden
+   * denetlenmeli.
+   */
   const iAdDenetim = govde.indexOf("usernameTaken(");
-  const iYaz = govde.indexOf("saveTreeAccess(");
+  const iYaz = govde.indexOf("data.members.push(member)");
   check(iAdDenetim > -1 && iYaz > iAdDenetim, "denetim yazmadan ÖNCE");
+  /*
+   * Ve ad doluysa YAZILMIYOR: `{ yaz: false }` dönüyor. Sarmalayıcı bunu
+   * gördüğünde diske hiç dokunmuyor.
+   */
+  check(/usernameTaken\(data\.members, ad\)\)\s*\n?\s*return \{ yaz: false/.test(govde),
+    "ad doluysa hiç yazılmıyor");
 }
 
 /*
