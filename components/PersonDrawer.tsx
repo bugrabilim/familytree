@@ -1,7 +1,7 @@
 "use client";
 
 import { userMessage } from "@/lib/error-text";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   EDUCATION_LEVELS,
   LIFE_EVENT_TYPES,
@@ -32,7 +32,7 @@ import {
 } from "@/lib/relations";
 import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions";
 import { useAuthority } from "./AuthorityContext";
-import { moveInList, siblingGroup } from "@/lib/siblings";
+import { dropIndex, moveInList, moveToIndex, siblingGroup } from "@/lib/siblings";
 import { useRouter } from "next/navigation";
 import { fullName } from "@/lib/name";
 import { entrySourceLabel } from "@/lib/entry-source";
@@ -96,21 +96,119 @@ export default function PersonDrawer({
 
   // Kardeş grubu HAM veriden (siblingOrder maskede taşınmaz) — sıralama doğru olsun.
   const orderGroup = useMemo(() => siblingGroup(rawPerson, people), [rawPerson, people]);
-  const orderIndex = orderGroup.findIndex((p) => p.id === rawPerson.id);
+  const orderById = useMemo(() => new Map(orderGroup.map((p) => [p.id, p])), [orderGroup]);
+  const groupIds = useMemo(() => orderGroup.map((p) => p.id), [orderGroup]);
+  const groupKey = groupIds.join(",");
 
-  const moveSibling = async (dir: -1 | 1) => {
-    const cur = orderGroup.map((p) => p.id);
-    const newIds = moveInList(cur, rawPerson.id, dir);
-    if (newIds === cur) return; // sınırda: değişiklik yok
+  /*
+   * İYİMSER SIRA (`pending`).
+   *
+   * Kalıcı durum yalnız sunucudan geliyor: yazma bitince `router.refresh()`
+   * `people` propunu tazeliyor. Ama o tazelenme bir gidiş-dönüş sürüyor ve
+   * arada liste ESKİ sırayı gösterirdi — bırakılan satır parmağın altından
+   * geri fırlardı. `pending` yalnız o boşluğu dolduran bir GÖRÜNTÜ kopyası.
+   *
+   * Ne zaman düşeceği EFEKTLE değil TÜRETMEYLE karar veriliyor: kopya,
+   * yazmadan önceki sunucu sırasını (`baseKey`) ve ait olduğu kişiyi
+   * taşıyor; sunucudaki sıra o temelden ayrıldığı anda (bizim yazımız indi
+   * ya da başkası değiştirdi) kopya görmezden geliniyor. Böylece "sunucu
+   * yanıtı gelince" kuralı tek bir karşılaştırmada duruyor, senkron
+   * tutulması gereken ikinci bir durum doğmuyor.
+   */
+  const [pending, setPending] = useState<{ personId: string; baseKey: string; ids: string[] } | null>(null);
+  const pendingFresh = !!pending && pending.personId === rawPerson.id && pending.baseKey === groupKey;
+  const shownIds = pendingFresh ? pending!.ids : groupIds;
+
+  const orderIndex = shownIds.indexOf(rawPerson.id);
+
+  /** Yeni sırayı tek yazıda kaydeder (iyimser göster → sunucu → hata olursa geri al). */
+  const commitOrder = async (newIds: string[]) => {
+    setPending({ personId: rawPerson.id, baseKey: groupKey, ids: newIds });
     setReordering(true);
+    setError("");
     try {
       await reorderSiblings(newIds);
       router.refresh();
     } catch (e) {
+      setPending(null); // eski (sunucudaki) sıraya dön
       setError(userMessage(e, t("err.generic")));
     } finally {
       setReordering(false);
     }
+  };
+
+  const moveSibling = (dir: -1 | 1) => {
+    const newIds = moveInList(shownIds, rawPerson.id, dir);
+    if (newIds === shownIds) return; // sınırda: değişiklik yok
+    void commitOrder(newIds);
+  };
+
+  /*
+   * SÜRÜKLEYEREK SIRALAMA — neden İŞARETÇİ (pointer) olayları, HTML5
+   * `draggable` değil:
+   *
+   *  1. HTML5 sürükleme dokunmatikte HİÇ çalışmıyor. iOS Safari ve Android
+   *     Chrome parmak için `dragstart` üretmez; `draggable` ile yazsaydık
+   *     özellik telefonda tümüyle YOK olurdu — oysa bu uygulamanın ağırlığı
+   *     telefonda. İşaretçi olayları fare/parmak/kalem için aynı akışı verir.
+   *  2. `setPointerCapture` sayesinde parmak satırdan taşsa da olaylar
+   *     tutamaçta kalıyor; HTML5'te bırakma hedefini `dragover`la kovalamak
+   *     ve tarayıcıya göre değişen "hayalet görüntü" ile uğraşmak gerekirdi.
+   *  3. Dokunmada kaydırma çakışması: sürükleme YALNIZ tutamaçtan başlıyor ve
+   *     `touch-action: none` (Tailwind `touch-none`) yalnız o 28px'lik
+   *     tutamaca konuyor. Böylece parmak listenin geri kalanında kaydırmaya,
+   *     tutamaçta sıralamaya yarıyor — ikisi birbirini yemiyor.
+   *
+   * Sürükleme yine de ERİŞİLEBİLİR YOL DEĞİL (klavye ve ekran okuyucu onu
+   * göremez); ok düğmeleri bu yüzden duruyor ve durmaya devam edecek.
+   */
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  /** Sürüklenen satırın düşeceği EKLEME konumu (0..n) — iyimser gösterge. */
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  /** İşaretçinin ekran y'sinden ekleme konumu — satır kutuları DOM'dan ölçülür. */
+  const insertAtY = (y: number): number => {
+    const rows = listRef.current?.querySelectorAll<HTMLElement>("[data-sib-row]");
+    if (!rows || rows.length === 0) return 0;
+    const mids = Array.from(rows, (r) => {
+      const b = r.getBoundingClientRect();
+      return b.top + b.height / 2;
+    });
+    return dropIndex(mids, y);
+  };
+
+  const dragStart = (e: React.PointerEvent<HTMLElement>, id: string) => {
+    if (reordering) return; // yazma sürerken yeni sürükleme başlatma
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Dokunmada kaydırmayı/uzun-basma menüsünü, farede metin seçimini keser.
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragId(id);
+    setDropAt(shownIds.indexOf(id));
+  };
+  const dragMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!dragId) return;
+    setDropAt(insertAtY(e.clientY));
+  };
+  const dragEnd = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    const id = dragId;
+    const at = dropAt;
+    setDragId(null);
+    setDropAt(null);
+    if (!id || at === null) return;
+    const newIds = moveToIndex(shownIds, id, at);
+    if (newIds === shownIds) return; // aynı yere bırakıldı: yazma yok
+    void commitOrder(newIds);
+  };
+  const dragCancel = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    setDragId(null);
+    setDropAt(null);
   };
   // Maskeleme yalnızca gösterimi etkiler; ilişki dizileri korunduğu için
   // akrabalık hesapları maskeli kişiyle de doğru çalışır.
@@ -333,10 +431,18 @@ export default function PersonDrawer({
             )}
           </div>
 
-          {/* Kardeş sırası — aynı ebeveynli ≥2 kardeş varken (düzenleme modunda) */}
-          {!readOnly && orderGroup.length >= 2 && orderIndex >= 0 && (
-            <div className="flex items-center gap-2 mt-3 text-xs text-text-muted">
-              <span>{t("drawer.siblingOrder", { pos: orderIndex + 1, total: orderGroup.length })}</span>
+          {/*
+            Kardeş sırası — aynı ebeveynli ≥2 kardeş varken.
+
+            `authority.canEditAll`: bu sıra `/api/family/reorder` ile
+            yazılıyor ve o uç `canEdit(role)` istiyor. Katkı vericiye burayı
+            göstermek, basınca 403 yiyeceği bir düğme vaat etmek olurdu —
+            silme düğmesindeki gerekçenin aynısı.
+          */}
+          {!readOnly && authority.canEditAll && shownIds.length >= 2 && orderIndex >= 0 && (
+            <div className="mt-3">
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <span>{t("drawer.siblingOrder", { pos: orderIndex + 1, total: shownIds.length })}</span>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => moveSibling(-1)}
@@ -351,7 +457,7 @@ export default function PersonDrawer({
                 </button>
                 <button
                   onClick={() => moveSibling(1)}
-                  disabled={reordering || orderIndex === orderGroup.length - 1}
+                  disabled={reordering || orderIndex === shownIds.length - 1}
                   aria-label={t("drawer.siblingDown")}
                   title={t("drawer.siblingDown")}
                   className="w-7 h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -360,7 +466,89 @@ export default function PersonDrawer({
                     <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
+                {/*
+                  Liste KAPALI başlıyor. Sıralama nadir bir bakım işi ve
+                  başlık bölümü `shrink-0`: her açılışta 5-6 satır eklemek,
+                  telefonda gövdeden (asıl içerikten) o kadar yer çalardı.
+                */}
+                <button
+                  onClick={() => setReorderOpen((v) => !v)}
+                  aria-expanded={reorderOpen}
+                  title={t("drawer.siblingReorder")}
+                  className="h-7 px-2 rounded-lg border border-border text-[11px] font-medium text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                >
+                  {t("drawer.siblingReorder")}
+                </button>
               </div>
+            </div>
+
+            {reorderOpen && (
+              <>
+                <ul
+                  ref={listRef}
+                  aria-label={t("drawer.siblingList")}
+                  className={`mt-2 max-h-44 overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface-2 p-1 ${
+                    dragId ? "select-none" : ""
+                  } ${reordering ? "opacity-60" : ""}`}
+                >
+                  {shownIds.map((id, i) => {
+                    const raw = orderById.get(id);
+                    if (!raw) return null;
+                    // Gizlilik: liste HAM sıradan geliyor ama ekrana basılan ad view()'dan.
+                    const sib = view(raw);
+                    const me = id === rawPerson.id;
+                    const dragging = id === dragId;
+                    return (
+                      <li
+                        key={id}
+                        data-sib-row
+                        className={`relative flex items-center gap-1.5 px-1 py-1 rounded-lg text-xs ${
+                          me ? "bg-surface-3 text-text" : "text-text-muted"
+                        } ${dragging ? "opacity-40" : ""}`}
+                      >
+                        {/* Satırın NEREYE düşeceğini gösteren çizgi (yalnız görüntü). */}
+                        {dragId && dropAt === i && (
+                          <span className="absolute left-1 right-1 -top-px h-0.5 rounded bg-primary" aria-hidden />
+                        )}
+                        {dragId && dropAt === shownIds.length && i === shownIds.length - 1 && (
+                          <span className="absolute left-1 right-1 -bottom-px h-0.5 rounded bg-primary" aria-hidden />
+                        )}
+                        {/*
+                          Tutamaç ekran okuyucuya KAPALI (`aria-hidden`) ve
+                          odaklanılabilir değil: sürükleme klavyeyle
+                          yapılamıyor, odaklanan ama hiçbir şey yapmayan bir
+                          düğme koymak boş bir vaat olurdu. Erişilebilir yol
+                          yukarıdaki ok düğmeleri.
+                        */}
+                        <span
+                          aria-hidden
+                          title={t("drawer.siblingDrag")}
+                          onPointerDown={(e) => dragStart(e, id)}
+                          onPointerMove={dragMove}
+                          onPointerUp={dragEnd}
+                          onPointerCancel={dragCancel}
+                          className="shrink-0 grid place-items-center w-7 h-7 rounded-lg text-text-subtle hover:text-text hover:bg-surface-3 touch-none cursor-grab active:cursor-grabbing"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                            <circle cx="4" cy="2.5" r="1" />
+                            <circle cx="8" cy="2.5" r="1" />
+                            <circle cx="4" cy="6" r="1" />
+                            <circle cx="8" cy="6" r="1" />
+                            <circle cx="4" cy="9.5" r="1" />
+                            <circle cx="8" cy="9.5" r="1" />
+                          </svg>
+                        </span>
+                        <span className="w-4 shrink-0 text-right tabular-nums text-text-subtle">{i + 1}</span>
+                        <span className="truncate">{fullName(sib)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-1 text-[10px] text-text-subtle leading-snug">
+                  {t("drawer.siblingDragHint")}
+                </p>
+              </>
+            )}
             </div>
           )}
           {error && <p className="text-[11px] text-danger mt-2">{error}</p>}

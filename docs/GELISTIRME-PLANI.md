@@ -350,8 +350,9 @@ dönüştürür; üçüncüsü çok kullanıcılı olgunluğu getirir. Sırayla 
   olmadan da geçerliliğini koruyor.
 
 ### 🌿 Rakipten çıkan diğer farklar (bizde eksik / kısıtlı)
-- **Manuel kardeş sıralaması** — kardeşlerin görüntü sırasını sürükle-bırak ile
-  elle değiştirme. Bizde sıra tamamen dagre'ye bağlı (en düşük eforlu kazanç).
+- ~~**Manuel kardeş sıralaması**~~ ✅ `siblingOrder` + `lib/siblings.ts`; kişi
+  panelinde sürükle-bırak (işaretçi olaylarıyla, kütüphanesiz) **ve** erişilebilir
+  yedek yol olarak yukarı/aşağı düğmeleri. Tek yazı: `POST /api/family/reorder`.
 - **Çoklu ağaç** — bir kişinin birden çok (ör. tarihsel) ağaç tutması. Auth
   yeniden mimarisi gerektirdiğinden ertelendi (bkz. §5-madde 17).
 - **Cihaz-arası / offline-first paylaşım** — telefondan telefona doğrudan
