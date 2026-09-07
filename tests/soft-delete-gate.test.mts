@@ -122,10 +122,29 @@ const kodu = (src: string) =>
 
   /* Damga yazımı ve okuması. */
   check(/export async function markTreeDeleted\(/.test(src), "damga yazan tek işlev var");
-  check(/getTreeAccess\(treeId, \{ strict: true \}\)/.test(govde("markTreeDeleted")),
-    "damga yazılırken okuma hatası yutulmuyor (yoksa üyeler/davetler boş kayıtla ezilir)");
-  check(/strict: true/.test(govde("isTreeDeleted")),
-    "silinmişlik sorgusu okuma hatasında HATA yükseltiyor (kapı kapalı düşsün)");
+  /*
+   * KORUMA ARTIK BAYRAKTA DEĞİL, `getTreeAccess`İN KENDİSİNDE.
+   *
+   * Eskiden iddia iki çağrı yerinde `strict: true` arıyordu. Kural doğruydu
+   * ama korumanın kendisi eksikti: bayrak yalnız `catch` dalına bakıyor,
+   * "yanıt geldi ama 200 değil" dalı bayrağı hiç sormadan boş kayıt
+   * dönüyordu — yani `strict: true` yazan çağıran bile korunmuyordu. Üstelik
+   * bayrağı geçirmeyi unutan yedi işlev (davet oluştur/kabul et/iptal et,
+   * üye çıkar, paylaşımları sıfırla, eşleştirme oluştur/kabul et) hiç
+   * korunmuyordu ve bu iddia onları göremiyordu.
+   *
+   * Bayrak kaldırıldı; okuma artık HER çağıran için fırlatıyor. İddia da
+   * bunu, tek doğru yerde sınıyor.
+   */
+  {
+    const g = govde("getTreeAccess");
+    check(/if \(blobs\.length === 0\) return empty\(\);/.test(g), "dosya GERÇEKTEN yoksa boş");
+    check(/statusCode !== 200\)\s*\n?\s*throw new Error\(/.test(g),
+      "yanıt 200 değilse HATA (boş kayıt DÖNMÜYOR)");
+    check(!/return empty\(\);\s*\n\s*\}\s*\n\s*catch/.test(g) && (g.match(/return empty\(\)/g) ?? []).length === 1,
+      "gövdede tek bir boş dönüş var, o da 'dosya yok' dalında");
+    check(!/strict/.test(g), "tolerans bayrağı kalmadı (unutulabilecek bir kapı yok)");
+  }
 }
 
 /* ══ 4. Ağacı KİMLİĞİNDEN açan girişsiz uçlar ══════════════════════════ */

@@ -8,6 +8,19 @@ import { isSoftDeleted } from "@/lib/retention";
 
 const USERS_PATHNAME = "users.json";
 
+/**
+ * OKUNAMAYAN DOSYA, BOŞ DOSYA DEĞİLDİR — ve burası bu kuralın en pahalı yeri.
+ *
+ * `users.json` bütün hesapların kimliğini tutuyor. Geçici bir okuma
+ * hatasında boş liste dönmek, çağıranların çoğu için "hiç hesap yok"
+ * demekti; kayıt/güncelleme yolları listeyi okuyup üstüne yazdığı için de
+ * bir sonraki yazma BÜTÜN HESAPLARI silerdi. Hata mesajı yok, uyarı yok.
+ *
+ * Kural: dosya GERÇEKTEN yoksa (`blobs.length === 0`) boş — ilk kurulumda
+ * doğru olan bu. "Var ama okuyamadım" ise HATA ve yükselir: giriş 500
+ * verir, ki şifreyi doğrulayamadığımızda söylenecek doğru şey de budur —
+ * "böyle bir hesap yok" değil.
+ */
 export async function getUsersData(): Promise<UsersData> {
   const { blobs } = await list({ prefix: USERS_PATHNAME });
   if (blobs.length === 0) return { users: [] };
@@ -15,7 +28,8 @@ export async function getUsersData(): Promise<UsersData> {
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
   )[0];
   const result = await get(latest.pathname, { access: "private", useCache: false });
-  if (!result || result.statusCode !== 200) return { users: [] };
+  if (!result || result.statusCode !== 200)
+    throw new Error(`hesap kaydı okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
   return await new Response(result.stream).json();
 }
 
