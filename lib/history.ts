@@ -38,21 +38,36 @@ export interface HistoryEntry {
   by?: string;
 }
 
+/**
+ * Günlüğü okur.
+ *
+ * OKUNAMAYAN DOSYA, BOŞ DOSYA DEĞİL.
+ *
+ * İlk hâli her arızada `emptyHistory()` dönüyordu: HTTP hatası, bozuk JSON,
+ * ağ kesintisi — hepsi "bu ağacın hiç geçmişi yok" diye okunuyordu. Ve
+ * `pushHistorySnapshot` okuduğunun üstüne yazdığı için sonuç yalnız yanlış
+ * bir liste değil, KALICI KAYIPTI: bir sonraki kaydetmede o boş dosya diske
+ * iniyor ve elli anlık görüntünün tamamı — kullanıcının bütün geri alma
+ * hakkı — tek bir geçici okuma hatasıyla siliniyordu.
+ *
+ * Aynı tuzak bu depoda `users.json`, `tree-access-*` ve `family-data-*`ta da
+ * vardı (denetim A1–A3) ve orada da aynı yönde çözüldü: fırlat.
+ *
+ * DOSYA YOKSA (`blobs.length === 0`) boş dönmek DOĞRU — o gerçekten "hiç
+ * geçmiş yok" demek, bir arıza değil.
+ */
 async function readHistory(treeId: string): Promise<HistoryFileV2> {
-  try {
-    const { blobs } = await list({ prefix: historyPath(treeId) });
-    if (blobs.length === 0) return emptyHistory();
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return emptyHistory();
-    // `parseHistory` eski biçimi de kabul eder: geçiş YERİNDE olur, bir
-    // sonraki yazmada dosya yeni biçimde diske iner. Ayrı taşıma betiği yok.
-    return parseHistory(JSON.parse(await new Response(result.stream).text()));
-  } catch {
-    return emptyHistory();
-  }
+  const { blobs } = await list({ prefix: historyPath(treeId) });
+  if (blobs.length === 0) return emptyHistory();
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const result = await get(latest.pathname, { access: "private", useCache: false });
+  if (!result || result.statusCode !== 200)
+    throw new Error(`geçmiş okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
+  // `parseHistory` eski biçimi de kabul eder: geçiş YERİNDE olur, bir
+  // sonraki yazmada dosya yeni biçimde diske iner. Ayrı taşıma betiği yok.
+  return parseHistory(JSON.parse(await new Response(result.stream).text()));
 }
 
 async function writeHistory(treeId: string, file: HistoryFileV2): Promise<void> {

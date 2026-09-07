@@ -211,9 +211,23 @@ export async function sweepExpired(now: Date = new Date()): Promise<SweepSummary
     // 1) Süresi dolmuş HESAP → her şeyiyle gider; ağaçlarına ayrıca bakmaya
     //    gerek yok (hepsi bu silmenin içinde).
     if (isSoftDeleted(u) && isPurgeDue(u.deletedAt!, now)) {
-      const r = await purgeAccount(u);
-      ozet.purgedAccounts++;
-      ozet.failed.push(...r.failed);
+      /*
+       * TEK HESABIN HATASI BÜTÜN KOŞUYU DÜŞÜRMESİN. `purgeAccount` içindeki
+       * `allTreeIds` artık ağaç kaydı okunamazsa fırlatıyor (yetim ağaç
+       * bırakmamak için) — doğru yön, ama sarmalanmazsa o hesabın arızası
+       * SONRAKİ hesapların temizliğini de engellerdi.
+       *
+       * Fırlatan hesap silinmemiş kalıyor ve damgası duruyor: bir sonraki
+       * koşu yeniden deneyecek. Silmemek, yarım silmekten iyi.
+       */
+      try {
+        const r = await purgeAccount(u);
+        ozet.purgedAccounts++;
+        ozet.failed.push(...r.failed);
+      } catch (e) {
+        console.warn(`[temizlik] hesap silinemedi (${u.id}):`, (e as Error).message);
+        ozet.failed.push(`hesap:${u.id}:${(e as Error).message}`);
+      }
       continue;
     }
 
