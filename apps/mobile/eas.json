@@ -8,20 +8,20 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soyagaci.app"
+        "EXPO_PUBLIC_API_URL": "https://soylus.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": { "simulator": true },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soyagaci.app"
+        "EXPO_PUBLIC_API_URL": "https://soylus.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://soyagaci.app"
+        "EXPO_PUBLIC_API_URL": "https://soylus.com"
       }
     }
   },

@@ -2,7 +2,9 @@ import { useMemo } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { canEdit, canPropose } from "@/lib/roles";
 import { colors } from "@/lib/theme";
 import { calcAge, formatLong, fullName, isRainbow, lifeSpan } from "@/lib/format";
 import type { Person } from "@/lib/types";
@@ -11,7 +13,22 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 export default function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { byId, people, loading } = useFamily();
+  const { role } = useAuth();
   const router = useRouter();
+  /*
+   * ÜYE de bu ekrandan katkı yapabiliyor ama yolu farklı: kaydettiği şey
+   * öneri kuyruğuna gidiyor (`PersonForm`). Düğmeler üyeden GİZLENMİYOR,
+   * ADI değişiyor — gizleseydik üye mobilde salt-okunur bir vitrinde kalırdı;
+   * "Düzenle" deseydik bastığı yerin ne yaptığını yanlış anlatırdık.
+   */
+  const yazabilir = canEdit(role);
+  /*
+   * Katkı düğmeleri `canPropose`a bağlı, `canEdit`e değil: üye de katkı
+   * verebiliyor (öneri olarak). Kademe eklenirse — önermeye bile yetkisi
+   * olmayan bir rol — düğmeler kendiliğinden kaybolur; `!yazabilir` diye
+   * yazsaydık o rol formu açar ve gönderdiği şey 403'e çarpardı.
+   */
+  const katkiVerebilir = yazabilir || canPropose(role);
   const person = id ? byId.get(id) : undefined;
 
   const rel = useMemo(() => {
@@ -59,11 +76,14 @@ export default function PersonScreen() {
           headerShown: true,
           title: fullName(person),
           headerBackTitle: "Geri",
-          headerRight: () => (
-            <Pressable onPress={() => router.push(`/(app)/person/edit/${person.id}`)} hitSlop={10}>
-              <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>Düzenle</Text>
-            </Pressable>
-          ),
+          headerRight: () =>
+            katkiVerebilir ? (
+              <Pressable onPress={() => router.push(`/(app)/person/edit/${person.id}`)} hitSlop={10}>
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 15 }}>
+                  {yazabilir ? "Düzenle" : "Öner"}
+                </Text>
+              </Pressable>
+            ) : null,
         }}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
@@ -127,10 +147,10 @@ export default function PersonScreen() {
         <RelGroup title="Eş(ler)" list={rel.spouses} onTap={(pid) => router.push(`/(app)/person/${pid}`)} />
         <RelGroup title="Çocuklar" list={rel.children} onTap={(pid) => router.push(`/(app)/person/${pid}`)} />
 
-        {/* İlişki ekle */}
-        <View style={{ marginTop: 24 }}>
+        {/* İlişki ekle / öner */}
+        <View style={{ marginTop: 24, display: katkiVerebilir ? "flex" : "none" }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.textSubtle, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
-            Bağlı kişi ekle
+            {yazabilir ? "Bağlı kişi ekle" : "Bağlı kişi öner"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             <AddChip label="+ Ebeveyn" onPress={() => addRelation("parent")} />

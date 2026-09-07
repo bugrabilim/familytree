@@ -8,7 +8,7 @@ import { styles } from "@/lib/styles";
 import { BrandMark } from "@/lib/BrandMark";
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, sessionNote, clearSessionNote } = useAuth();
   const router = useRouter();
   const [familyName, setFamilyName] = useState("");
   /* Üye girişi (madde 36): boşsa kurucu yolu. */
@@ -41,6 +41,32 @@ export default function Login() {
           <BrandMark />
           <Text style={styles.title}>Tekrar hoş geldin</Text>
           <Text style={styles.subtitle}>Ağacına giriş yap</Text>
+
+          {/*
+            OTURUM KENDİLİĞİNDEN DÜŞTÜYSE SEBEBİNİ SÖYLÜYORUZ.
+            Sunucudan 401 gelince `AuthProvider` jetonu temizliyor ve kullanıcı
+            bu ekrana düşüyor. Not olmasaydı kendini sebepsiz yere giriş
+            ekranında bulurdu — hesabını silmiş ya da ağaçtan çıkarılmış
+            olabilir; ikisi de açıklanmaya değer.
+          */}
+          {sessionNote ? (
+            <Pressable
+              onPress={clearSessionNote}
+              style={{
+                marginTop: 4,
+                marginBottom: 4,
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              }}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 19 }}>
+                {sessionNote}
+              </Text>
+            </Pressable>
+          ) : null}
 
           <Text style={styles.label}>Ağaç adı</Text>
           <TextInput

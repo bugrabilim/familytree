@@ -16,14 +16,72 @@ export class ApiError extends Error {
   }
 }
 
+/* ── Oturumu düşüren 401 ──────────────────────────────────────────────────── */
+
+/**
+ * Sunucu "bu jeton artık geçerli değil" dediğinde çağrılacak kanca.
+ *
+ * `AuthProvider` açılışta kendi `signOut`unu buraya bağlıyor. Modül düzeyinde
+ * tek bir kanca, çünkü `apiFetch` bir React bileşeni değil ve bağlamı
+ * göremiyor; her çağrı yerine ayrı 401 denetimi yazmak ise onu unutulacak
+ * yirmi yer hâline getirirdi.
+ *
+ * ## Neden gerekiyor
+ *
+ * Korumalı yığın YALNIZ jeton yokken girişe atıyordu (`app/(app)/_layout.tsx`).
+ * Sunucudan 401 gelince hiçbir şey olmuyordu: hesabını silen (`deletedAt`
+ * damgası → `resolveActiveTree` 401) ya da ağaçtan çıkarılan kullanıcı ana
+ * ekranda ortada kırmızı "Unauthorized" ve altında "Yeniden dene" görüyordu;
+ * bastıkça aynı hata. Uygulama onu giriş ekranına HİÇ göndermiyordu, çıkış
+ * yolunu Menü → Çıkış yap'tan kendi bulması gerekiyordu.
+ */
+type UnauthorizedHandler = (mesaj: string) => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null): void {
+  unauthorizedHandler = fn;
+}
+
+/**
+ * 401'i oturum sonu sayıp kancayı çağırır — AMA yalnız jetonlu istekte.
+ *
+ * Girişin kendisi de 401 dönüyor ("Ağaç adı veya şifre hatalı"), o yüzden
+ * ayrım şart: yanlış şifre yazan birinin oturumu "sona erdi" diye
+ * temizlenseydi, giriş ekranında hiç var olmamış bir oturumun uyarısını
+ * görürdü.
+ */
+function oturumDustu(status: number, tokenluMu: boolean): void {
+  if (status !== 401 || !tokenluMu) return;
+  unauthorizedHandler?.(
+    "Oturumun sona erdi ya da bu ağaca erişimin kaldırıldı. Lütfen tekrar giriş yap."
+  );
+}
+
 /** Bearer jetonuyla JSON isteği. `token` verilirse Authorization eklenir. */
 export async function apiFetch<T>(
   path: string,
-  opts: { method?: string; body?: unknown; token?: string | null; treeId?: string } = {}
+  opts: {
+    method?: string;
+    body?: unknown;
+    token?: string | null;
+    treeId?: string;
+    /**
+     * İYİMSER KİLİT (madde 9) — ekrandaki verinin dayandığı sürüm damgası.
+     *
+     * Sunucu bu başlık YOKSA çakışma denetimi hiç yapmıyor
+     * (`lib/blob.ts` → `versionMismatch`: `!!base && base !== current`).
+     * Mobil hiç göndermediği için kilit mobilde tümüyle kapalıydı ve bayat
+     * bir ekrandan kaydetmek, web'de yapılmış düzeltmeleri uyarısız geri
+     * alıyordu — form bütün alanları gövdeye koyduğu için eski değerlerle
+     * birlikte.
+     */
+    baseVersion?: string | null;
+  } = {}
 ): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
   if (opts.treeId) headers["x-tree-id"] = opts.treeId;
+  if (opts.baseVersion) headers["x-base-version"] = opts.baseVersion;
 
   let res: Response;
   try {
@@ -39,6 +97,7 @@ export async function apiFetch<T>(
   const text = await res.text();
   const data = text ? safeJson(text) : null;
   if (!res.ok) {
+    oturumDustu(res.status, !!opts.token);
     const msg = (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) || `Hata (${res.status})`;
     throw new ApiError(String(msg), res.status);
   }
@@ -89,27 +148,90 @@ export type RelationType = "parent" | "child" | "spouse" | "sibling";
 export function createPerson(
   token: string,
   payload: Record<string, unknown>,
-  relation?: { type: RelationType; targetId: string }
+  relation?: { type: RelationType; targetId: string },
+  baseVersion?: string | null
 ) {
   return apiFetch<{ id: string }>("/api/family/person", {
     method: "POST",
     token,
+    baseVersion,
     body: relation ? { ...payload, relation } : payload,
   });
 }
 
-export function updatePerson(token: string, id: string, payload: Record<string, unknown>) {
+export function updatePerson(
+  token: string,
+  id: string,
+  payload: Record<string, unknown>,
+  baseVersion?: string | null
+) {
   return apiFetch<{ id: string }>(`/api/family/person/${id}`, {
     method: "PUT",
     token,
+    baseVersion,
     body: payload,
   });
 }
 
-export function deletePerson(token: string, id: string) {
+export function deletePerson(token: string, id: string, baseVersion?: string | null) {
   return apiFetch<{ success: boolean }>(`/api/family/person/${id}`, {
     method: "DELETE",
     token,
+    baseVersion,
+  });
+}
+
+/* ── Değişiklik önerileri (üyenin yazma yolu) ─────────────────────────────── */
+
+/**
+ * ÜYE (`uye`) kişi uçlarından geçemiyor — orası `canEdit` istiyor ve 403
+ * dönüyor. Onun yolu öneri kuyruğu: `POST /api/family/proposals` (`canPropose`).
+ * Mobil bu ucu hiç bilmiyordu; sonuç, üyenin formu doldurup Kaydet'e basması
+ * ve 403 yemesiydi.
+ *
+ * Sürüm damgası GÖNDERİLMİYOR ve bu bilinçli: öneri ağacı değiştirmiyor, bir
+ * talebi kuyruğa yazıyor. Bayatlık denetimi ONAY anında yapılıyor
+ * (`lib/proposals.ts` — her değişiklik `{from, to}` çifti olarak saklanıyor,
+ * arada başkası aynı alanı değiştirdiyse onay reddediliyor). Buradan
+ * `x-base-version` göndermek, ağacın herhangi bir yerindeki her değişiklikte
+ * öneri yazmayı engellerdi.
+ */
+export interface ProposalResult {
+  ok: boolean;
+}
+
+/** Var olan kaydın alanları için öneri. Sunucu değişmeyenleri kendi eliyor. */
+export function proposeFields(
+  token: string,
+  personId: string,
+  changes: Record<string, unknown>
+) {
+  return apiFetch<ProposalResult>("/api/family/proposals", {
+    method: "POST",
+    token,
+    body: { kind: "alan", personId, changes },
+  });
+}
+
+/** Yeni kişi önerisi; bağ verilirse hedefe bağlanacak şekilde kuyruğa girer. */
+export function proposeNewPerson(
+  token: string,
+  person: Record<string, unknown>,
+  relation?: { type: RelationType; targetId: string }
+) {
+  return apiFetch<ProposalResult>("/api/family/proposals", {
+    method: "POST",
+    token,
+    body: relation ? { kind: "ekleme", person, relation } : { kind: "ekleme", person },
+  });
+}
+
+/** Kaydın silinmesi önerisi. */
+export function proposeDelete(token: string, personId: string) {
+  return apiFetch<ProposalResult>("/api/family/proposals", {
+    method: "POST",
+    token,
+    body: { kind: "silme", personId },
   });
 }
 
@@ -140,6 +262,9 @@ export async function uploadPhoto(token: string, uri: string): Promise<string> {
   const text = await res.text();
   const data = text ? safeJson(text) : null;
   if (!res.ok) {
+    // Bu uç `apiFetch`ten geçmiyor (multipart), o yüzden 401 kancası burada da
+    // elle çağrılıyor — yoksa oturum yalnız bu istekte sessizce ölürdü.
+    oturumDustu(res.status, true);
     const msg =
       (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) ||
       `Yükleme hatası (${res.status})`;

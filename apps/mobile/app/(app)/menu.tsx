@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { roleLabel } from "@/lib/roles";
 import { API_BASE_URL } from "@/lib/config";
 import { colors } from "@/lib/theme";
 import { styles } from "@/lib/styles";
@@ -10,7 +11,7 @@ import { BrandMark } from "@/lib/BrandMark";
 
 /** Hesap / ağaç bilgisi ve oturum işlemleri. */
 export default function Menu() {
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const { people } = useFamily();
   const router = useRouter();
 
@@ -33,7 +34,14 @@ export default function Menu() {
             gap: 6,
           }}
         >
-          <Row label="Rol" value={user?.isFounder ? "Kurucu" : user?.role ?? "—"} />
+          {/*
+            HAM ROL DİZGESİ BASILMIYOR. Buradaki eski satır üyeye küçük harfle
+            "uye" yazıyordu (kurucuya "Kurucu"); rol adları artık Türkçe
+            kelimeler olduğu için ham değeri basmak yarım çevrilmiş bir sistem
+            izlenimi veriyordu. Ayrıca çeviri `lib/roles.ts`ten geçiyor, yani
+            telefonda duran eski ad ("admin") da doğru yazılıyor.
+          */}
+          <Row label="Rol" value={roleLabel(role, !!user?.isFounder)} />
           <Row label="Kişi sayısı" value={String(people.length)} />
         </View>
 

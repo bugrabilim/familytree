@@ -82,6 +82,20 @@ Tam liste ve açıklamalar: `.env.local.example`.
 - [ ] Paylaşım linki + salt-okunur görünüm.
 - [ ] `/robots.txt`, `/sitemap.xml`, `/manifest.webmanifest`, `/opengraph-image.png` açılıyor.
 
+## 8) Mağazaya mobil derleme çıkmadan önce
+
+- [ ] **API adresi doğru mu?** `apps/mobile/src/lib/config.ts`, `app.json` ve
+      `eas.json` (üç profil) aynı alan adını göstermeli ve o alan adı canlıda
+      olmalı. Bu satır bir bulgudan doğdu: mağaza yapılandırması aylarca
+      `soyagaci.app`ı gösterdi, oysa doğrulanmış alan adı `soylus.com`.
+      Üretim derlemesi açılışta "Bağlantı kurulamadı" ile ölürdü ve bunu
+      hiçbir test yakalayamazdı — `apps/` kök tsconfig ve eslint dışında.
+- [ ] Bir KURUCU hesabıyla giriş: kişi ekle/düzenle/sil çalışıyor mu?
+- [ ] Bir ÜYE hesabıyla giriş: düğmeler "Öneri gönder" diyor mu, gönderilen
+      öneri web'deki kuyrukta görünüyor mu?
+- [ ] Ağacı web'de değiştirip mobilde bayat ekrandan kaydetmeyi dene:
+      "ağaç başka bir yerde değişti" uyarısı çıkmalı (`x-base-version`).
+
 ## Gelecek (opsiyonel)
 
 - E-posta ile hesap kurtarma; Supabase Auth göçünün devamı (Faz 3d/3e/4);
