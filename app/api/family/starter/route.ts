@@ -28,6 +28,6 @@ export async function POST() {
     people[i] = { ...people[i], code: nextCode(people.slice(0, i)), entrySource: "iskelet" };
   }
 
-  await saveFamilyData(ctx.treeId, { people, updatedAt: new Date().toISOString() });
+  await saveFamilyData(ctx.treeId, { people, updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   return NextResponse.json({ count: people.length });
 }

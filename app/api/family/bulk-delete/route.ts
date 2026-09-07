@@ -3,6 +3,7 @@ import { scrubDeleted } from "@/lib/scrub";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
+import { forgetPeople } from "@/lib/person-forget";
 
 /**
  * Seçilen kişileri toplu siler (çoktan-seçmeli). Yalnız düzenleyici. Silinen
@@ -44,5 +45,16 @@ export async function POST(req: NextRequest) {
   data.people = scrubDeleted(data.people, del);
 
   await saveFamilyData(ctx.treeId, { people: data.people, updatedAt: new Date().toISOString() }, { by: ctx.authorId });
+
+  /*
+   * AĞACIN DIŞINDA KALANLAR — tekli silme ile AYNI işlev
+   * (`lib/person-forget.ts`). Bu yol o depolara hiç uğramıyordu: yirmi kişi
+   * silindiğinde yirmi kişinin bütün duygusal bağları ve onlar hakkındaki
+   * açık hikâye talepleri olduğu gibi kalıyordu. Talebin kalması yalnız ölü
+   * veri değil, dışarıda dolaşan CANLI bir bağlantı: artık var olmayan biri
+   * hakkında yeni katkı toplamaya devam ediyordu.
+   */
+  await forgetPeople(ctx.treeId, ids);
+
   return NextResponse.json({ ok: true, deleted: ids.length, count: data.people.length });
 }

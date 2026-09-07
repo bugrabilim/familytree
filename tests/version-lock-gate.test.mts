@@ -20,13 +20,29 @@ function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; cons
  * eklendiğinde ya kilidi koyacaksınız ya da buraya bir cümle yazacaksınız.
  */
 
+/*
+ * İKİ MUAFİYET KALDIRILDI — gerekçeleri yanlıştı.
+ *
+ * `family/cover` için yazılan gerekçe şuydu: "Kapak URL'si kişileri hiç
+ * değiştirmiyor." Bu, NİYET için doğru ama YAZMA için yanlıştı: rota
+ * `getFamilyData` ile ağacın tamamını okuyup üstünde tek alanı değiştirip
+ * `saveFamilyData`ya olduğu gibi veriyor. Yani okuma ile yazma arasında biri
+ * kişi eklemişse, o iş kapak değişikliğiyle birlikte siliniyordu. Kilit
+ * değişen alanın büyüklüğüne göre değil, YAZILAN alanın büyüklüğüne göre
+ * gerekiyor.
+ *
+ * `family/demo` için gerekçe "zaten mevcut veriyi değiştir demek ve arayüz
+ * onay alıyor" idi. Kullanıcının onayladığı şey EKRANDA GÖRDÜĞÜ ağacın
+ * üzerine yazmaktı; o sırada başka birinin eklediği kişiler onayın kapsamında
+ * değil. Üstelik bu, depodaki en yıkıcı yazma — ağacın tamamını sabit bir
+ * listeyle eziyor. Tek kişilik bir düzenleme korunurken bu işlemin
+ * korunmaması ters bir öncelikti (aynı ters öncelik `bulk-delete` ve
+ * `merge-all`da da vardı ve orada da düzeltilmişti).
+ *
+ * Bir muafiyet listesinin asıl riski bu: gerekçe bir kez yazılıyor, sonra
+ * kimse okumuyor ve liste "kilitsiz olması NORMAL" diye okunmaya başlıyor.
+ */
 const MUAF: Record<string, string> = {
-  "family/cover":
-    "Kapak URL'si kişileri hiç değiştirmiyor; sürüm çakışması diye reddetmek, " +
-    "ilgisiz bir düzenleme yüzünden kapak değiştirmeyi engellemek olurdu.",
-  "family/demo":
-    "Demo yükleme zaten 'mevcut veriyi değiştir' demek ve arayüz onay alıyor; " +
-    "hedefi olan şey üzerine yazmak.",
   "family/starter":
     "İskelet YALNIZ ağaç boşken çalışıyor (kendi denetimi var); dolu ağaçta " +
     "hiç yazmıyor, dolayısıyla ezecek bir şey yok.",

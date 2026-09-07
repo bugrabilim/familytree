@@ -61,6 +61,6 @@ export async function POST(req: NextRequest) {
   if (added === 0 && linked === 0)
     return NextResponse.json({ ok: true, added: 0, linked: 0 });
 
-  await saveFamilyData(ctx.treeId, { people: ensureCodes(people), updatedAt: new Date().toISOString() });
+  await saveFamilyData(ctx.treeId, { people: ensureCodes(people), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   return NextResponse.json({ ok: true, added, linked });
 }

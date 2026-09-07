@@ -141,9 +141,30 @@ export async function deleteBond(treeId: string, id: string): Promise<boolean> {
  * çalışmalı.
  */
 export async function deleteBondsOfPerson(treeId: string, personId: string): Promise<number> {
+  return deleteBondsOfPeople(treeId, [personId]);
+}
+
+/**
+ * Aynı iş, birden çok kişi için — TEK okuma, TEK yazma.
+ *
+ * Toplu silme yolu (`/api/family/bulk-delete`) bu depoya hiç uğramıyordu:
+ * yirmi kişi silindiğinde yirmi kişinin bütün duygusal bağları diskte
+ * kalıyordu. Tekli silme baştan beri temizliyordu, yani iki yol ayrı düşmüştü
+ * — bu depoda birkaç kez görülen desen (`scrubDeleted` de aynı sebeple ortak
+ * bir işleve çekilmişti).
+ *
+ * Kişi başına çağırmak yerine toplu: yirmi kişi yirmi oku-yaz turu demekti ve
+ * turlar arasında her biri diğerinin yazdığını eziyordu.
+ */
+export async function deleteBondsOfPeople(
+  treeId: string,
+  personIds: readonly string[]
+): Promise<number> {
+  const gidenler = new Set(personIds);
+  if (gidenler.size === 0) return 0;
   const box = await getBox(treeId);
   const before = box.bonds.length;
-  box.bonds = box.bonds.filter((x) => x.a !== personId && x.b !== personId);
+  box.bonds = box.bonds.filter((x) => !gidenler.has(x.a) && !gidenler.has(x.b));
   const silinen = before - box.bonds.length;
   if (silinen) await saveBox(treeId, box);
   return silinen;

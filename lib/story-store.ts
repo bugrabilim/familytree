@@ -172,6 +172,32 @@ export async function createRequest(
 }
 
 /** Ağaç sahibi talebi elle kapatır — süreden bağımsız. */
+/**
+ * Silinen kişiler hakkındaki AÇIK talepleri kapatır — tek okuma, tek yazma.
+ *
+ * SİLMİYOR, kapatıyor. Talebe gelmiş katkılar dışarıdan yazılmış aile
+ * hikâyeleri: geri getirilemezler ve kişinin ağaçtan çıkması onları
+ * geçersiz kılmıyor. Kapatmanın yaptığı, hâlâ dolaşımda olan bağlantıya
+ * yeni katkı gelmesini durdurmak — artık var olmayan biri hakkında soru
+ * sormaya devam eden canlı bir uç bırakmamak.
+ */
+export async function closeRequestsOfPeople(
+  treeId: string,
+  personIds: readonly string[]
+): Promise<number> {
+  const gidenler = new Set(personIds);
+  if (gidenler.size === 0) return 0;
+  const box = await getBox(treeId);
+  let kapatilan = 0;
+  for (const r of box.requests) {
+    if (r.closed || !gidenler.has(r.personId)) continue;
+    r.closed = true;
+    kapatilan++;
+  }
+  if (kapatilan) await saveBox(treeId, box);
+  return kapatilan;
+}
+
 export async function closeRequest(treeId: string, id: string): Promise<boolean> {
   const box = await getBox(treeId);
   const r = box.requests.find((x) => x.id === id);

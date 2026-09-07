@@ -85,7 +85,14 @@ export async function answerWithToken(
   if (!matchesHash(p.proof, kisi.contactTokenHash)) return { ok: false, error: "gecersiz" };
 
   r.data.people[r.index] = { ...kisi, ...applyAnswer(kisi, answer) };
-  await saveFamilyData(p.treeId, r.data);
+  /*
+   * GEÇMİŞE YAZILMIYOR: bu, kullanıcının bir düzenlemesi değil — postadaki
+   * bağlantıya tıklayan ÜÇÜNCÜ BİR KİŞİNİN kendi onayı. Günlüğe girseydi
+   * sınırlı geri alma yuvasını tüketip kullanıcının gerçek bir
+   * düzenlemesini ringden düşürür, ve akışta hiç yapılmamış bir
+   * "düzenleme" gösterirdi.
+   */
+  await saveFamilyData(p.treeId, r.data, { skipHistory: true });
   return { ok: true, name: kisi.firstName };
 }
 
@@ -106,6 +113,7 @@ export async function unsubscribeWithToken(
   if (!r) return { ok: false, error: "bulunamadi" };
   const kisi = r.data.people[r.index];
   r.data.people[r.index] = { ...kisi, ...applyUnsubscribe(kisi) };
-  await saveFamilyData(loc.treeId, r.data);
+  // Aynı gerekçe (yukarıda): abonelikten çıkmak bir ağaç düzenlemesi değil.
+  await saveFamilyData(loc.treeId, r.data, { skipHistory: true });
   return { ok: true, name: kisi.firstName };
 }

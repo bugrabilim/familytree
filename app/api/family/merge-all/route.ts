@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const { people } = veri;
   const { people: mergedPeople, merged } = applyBulkMerge(people, pairs);
   if (merged > 0)
-    await saveFamilyData(ctx.treeId, { people: mergedPeople, updatedAt: new Date().toISOString() });
+    await saveFamilyData(ctx.treeId, { people: mergedPeople, updatedAt: new Date().toISOString() }, { by: ctx.authorId });
 
   return NextResponse.json({ ok: true, merged, count: mergedPeople.length });
 }

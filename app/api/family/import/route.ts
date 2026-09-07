@@ -98,10 +98,15 @@ export async function POST(req: NextRequest) {
     await saveFamilyData(ctx.treeId, { people: ensureCodes(imported), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   } else {
     const existing = mevcutVeri.people;
+    /*
+     * `by` BURADA DA. Aynı rotanın iki kipi vardı ve yalnız "değiştir"
+     * kipinde yazar geçiriliyordu: aynı kullanıcının aynı düğmeyle yaptığı
+     * iş, kipe göre akışta ya adıyla ya "biri" olarak görünüyordu.
+     */
     await saveFamilyData(ctx.treeId, {
       people: ensureCodes([...existing, ...imported]),
       updatedAt: new Date().toISOString(),
-    });
+    }, { by: ctx.authorId });
   }
 
   return NextResponse.json({ count: imported.length, format });

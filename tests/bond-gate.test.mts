@@ -77,15 +77,30 @@ for (const yol of DISA_ACIK) {
 }
 
 /* --- Kişi silinince bağı da silinmeli ----------------------------------- */
-{
-  const silme = oku("app/api/family/person/[id]/route.ts");
-  check(silme !== null, "kişi silme rotası var");
+/*
+ * İDDİA HER İKİ SİLME YOLUNU DA GEZİYOR.
+ *
+ * Önceki hâli yalnız TEKLİ silme rotasına bakıyordu ve orada temizlik
+ * baştan beri vardı — yani test yeşildi. Toplu silme (`bulk-delete`) ise bu
+ * depoya hiç uğramıyordu: yirmi kişi silindiğinde yirmi kişinin bütün
+ * bağları diskte kalıyordu ve hiçbir iddia bunu görmüyordu. Bir kuralın tek
+ * bir çağrı yerinde kanıtlanması, kuralın kendisini kanıtlamıyor.
+ *
+ * İki yol artık ortak `forgetPeople` işlevini çağırıyor (`lib/person-forget.ts`)
+ * ve iddia o çağrıyı ikisinde de arıyor.
+ */
+for (const [ad, yol, imza] of [
+  ["tekli", "app/api/family/person/[id]/route.ts", "export async function DELETE"],
+  ["toplu", "app/api/family/bulk-delete/route.ts", "export async function POST"],
+] as const) {
+  const silme = oku(yol);
+  check(silme !== null, `${ad} silme rotası var`);
   if (silme) {
-    const i = silme.indexOf("export async function DELETE");
+    const i = silme.indexOf(imza);
     const govde = silme.slice(i);
     check(
-      i >= 0 && govde.includes("deleteBondsOfPerson"),
-      "kişi silinince o kişinin bağları da siliniyor"
+      i >= 0 && govde.includes("forgetPeople("),
+      `${ad} silmede kişinin bağları da siliniyor`
     );
   }
 }

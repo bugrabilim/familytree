@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
     );
 
   data.people = people;
-  await saveFamilyData(ctx.treeId, data);
+  await saveFamilyData(ctx.treeId, data, { by: ctx.authorId });
   return NextResponse.json({ ok: true, count: people.length });
 }
