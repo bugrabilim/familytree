@@ -19,6 +19,7 @@ import {
   relativesByGeneration,
 } from "@/lib/relations";
 import { completeness, lineLabelKey, MAX_DEPTH } from "@/lib/completeness";
+import { describeGeneration } from "@/lib/generation";
 import { aggregateConditions, traceCondition } from "@/lib/heredity";
 import { fullName } from "@/lib/name";
 import { isAssociate, isMember } from "@/lib/associates";
@@ -1464,22 +1465,42 @@ function SevenGenerations({
 
           {/* Göbek göbek */}
           <div className="space-y-1">
-            {result.generations.map((g) => (
-              <div key={g.generation} className="flex items-center gap-2.5">
-                <span className="w-16 shrink-0 text-[11px] text-text-subtle tabular-nums">
-                  {t("sevenGen.generation", { count: g.generation })}
-                </span>
-                <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
-                  <div
-                    className="h-full bg-primary/70"
-                    style={{ width: `${(g.known / g.total) * 100}%` }}
-                  />
+            {/*
+              Her göbeğin SAYISI yanına ADI da yazılıyor (yol haritası md. 61).
+              Bu ad kişilere yazılmış bir alan değil, mesafeden türetiliyor —
+              `describeGeneration` yalnızca "kaç göbek yukarı" bilgisini alıyor,
+              hiçbir kişi kaydına bakmıyor. Bu satırda kişi verisi geçmediği
+              için gizlilik açısından da nötr: gösterilen şey ölçeğin kendisi,
+              kimsenin bilgisi değil.
+            */}
+            {result.generations.map((g) => {
+              const rank = describeGeneration(g.generation);
+              return (
+                <div key={g.generation} className="flex items-center gap-2.5">
+                  <span className="w-24 sm:w-32 shrink-0 leading-tight">
+                    <span className="block text-[11px] text-text-subtle tabular-nums">
+                      {t("sevenGen.generation", { count: g.generation })}
+                    </span>
+                    <span
+                      className="block text-[10px] text-text-subtle/70 truncate"
+                      title={t(rank.key, rank.params)}
+                    >
+                      {t(rank.key, rank.params)}
+                    </span>
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary/70"
+                      style={{ width: `${(g.known / g.total) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-14 shrink-0 text-right text-[11px] text-text-subtle tabular-nums">
+                    {g.known}/{g.total}
+                  </span>
                 </div>
-                <span className="w-14 shrink-0 text-right text-[11px] text-text-subtle tabular-nums">
-                  {g.known}/{g.total}
-                </span>
-              </div>
-            ))}
+              );
+            })}
+            <p className="pt-1 text-[10px] text-text-subtle/80">{t("generation.computed")}</p>
           </div>
 
           {/* Eksikler — sayıyı işe çeviren kısım */}

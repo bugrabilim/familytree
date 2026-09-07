@@ -30,6 +30,7 @@ import {
   getSpouses,
   indexPeople,
 } from "@/lib/relations";
+import { generationRank } from "@/lib/generation";
 import { deletePerson, reorderSiblings, type RelationType } from "@/lib/actions";
 import { useAuthority } from "./AuthorityContext";
 import { dropIndex, moveInList, moveToIndex, siblingGroup } from "@/lib/siblings";
@@ -231,6 +232,30 @@ export default function PersonDrawer({
     return describeRelation(referenceId, person.id, people, idx);
   }, [referenceId, person.id, people, idx]);
 
+  /*
+   * KUŞAK RÜTBESİ — hesaplanan etiket, `Person`'da böyle bir alan YOK ve
+   * olmamalı (gerekçe: `lib/generation.ts` başındaki uzun not).
+   *
+   * GİZLİLİK: hesap, ham listeden değil `view()`'dan geçmiş kopyalardan
+   * yapılıyor. Bugün sonucu değiştirmiyor — `maskPerson` ağaç çizilebilsin
+   * diye `parentIds`/`spouseIds`'i bilerek taşıyor — ama bağlayıcı olan da
+   * bu: maskeleme ileride sıkılaştırılıp ilişki dizileri düşerse rozet
+   * KENDİLİĞİNDEN kaybolur, "gizlemeyi delen tek yüzey" olarak kalmaz.
+   *
+   * Maskeli kişide etiketi göstermek bilinçli bir karar: kuşak mesafesi
+   * yalnızca ebeveyn bağlarından türüyor, yani hemen yanındaki akrabalık
+   * rozetinin ("Anneanne") zaten söylediğinin daha azını söylüyor. Yapı
+   * bilgisinin kendisi gizlenecekse doğru yer `maskPerson` — rozet başına
+   * konacak bir istisna değil; öyle bir istisna gizliliği düzeltmez, yalnız
+   * düzeltilmiş gibi gösterir.
+   */
+  const viewedPeople = useMemo(() => people.map(view), [people, view]);
+  const viewedIdx = useMemo(() => indexPeople(viewedPeople), [viewedPeople]);
+  const generation = useMemo(() => {
+    if (!referenceId || referenceId === person.id) return null;
+    return generationRank(referenceId, person.id, viewedPeople, viewedIdx);
+  }, [referenceId, person.id, viewedPeople, viewedIdx]);
+
   const referencePerson = referenceId ? idx.get(referenceId) : undefined;
   const age = calcAge(person.birthDate, person.deathDate);
   /*
@@ -361,10 +386,31 @@ export default function PersonDrawer({
                   )}
                 </p>
               )}
-              {kinship && referencePerson && (
-                <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-lg bg-accent-soft text-accent text-[11px] font-medium">
-                  {genitive(referencePerson.firstName)} {possessive(kinship.toLocaleLowerCase("tr"))}
-                </span>
+              {(kinship || generation) && referencePerson && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {kinship && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent-soft text-accent text-[11px] font-medium">
+                      {genitive(referencePerson.firstName)} {possessive(kinship.toLocaleLowerCase("tr"))}
+                    </span>
+                  )}
+                  {/*
+                    Kuşak rozeti bilerek SOLUK ve çerçeveli: yanındaki akrabalık
+                    rozetiyle aynı ağırlıkta olsaydı girilmiş bir bilgi gibi
+                    okunurdu. Altındaki tek satırlık not "hesaplanır" diyor —
+                    ipucu balonuna bırakılmadı, çünkü dokunmatikte balon yok.
+                  */}
+                  {generation && (
+                    <span
+                      title={t("generation.computed")}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface-2 text-text-subtle text-[11px]"
+                    >
+                      {t(generation.key, generation.params)}
+                    </span>
+                  )}
+                </div>
+              )}
+              {generation && referencePerson && (
+                <p className="mt-1 text-[10px] text-text-subtle/80">{t("generation.computed")}</p>
               )}
             </div>
           </div>

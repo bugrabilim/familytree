@@ -279,7 +279,18 @@ export function findRelationPath(
 
 const ATA_ADI = ["", "", "büyük", "büyük büyük", "büyük büyük büyük"];
 
-function ordinalAta(up: number, gender: Person["gender"]): string {
+/**
+ * Ata merdiveninde ADI OLAN en derin kuşak. Ötesi sayısal biçime düşer
+ * ("5. kuşak dede"). Değer elle yazılmıyor, `ATA_ADI`'dan türetiliyor:
+ * merdivene yeni bir "büyük" eklendiği anda sınır kendiliğinden kayar,
+ * yoksa iki yer (burası ve `lib/generation.ts`) sessizce ayrışırdı.
+ */
+export const NAMED_ANCESTOR_DEPTH = ATA_ADI.length - 1;
+
+/** Torun merdiveninde adı olan en derin kuşak: 3 = "torun çocuğu". */
+export const NAMED_DESCENDANT_DEPTH = 3;
+
+export function ordinalAta(up: number, gender: Person["gender"]): string {
   // up >= 2
   const taban = gender === "female" ? "nine" : gender === "male" ? "dede" : "ata";
   /*
@@ -295,16 +306,16 @@ function ordinalAta(up: number, gender: Person["gender"]): string {
    */
   const kaydirma = taban === "ata" ? 1 : 0;
   if (up === 2 && !kaydirma) return taban;
-  if (up + kaydirma <= 4) return `${ATA_ADI[up - 1 + kaydirma]} ${taban}`.trim();
+  if (up + kaydirma <= NAMED_ANCESTOR_DEPTH) return `${ATA_ADI[up - 1 + kaydirma]} ${taban}`.trim();
   // "N. kuşak" = kişiden kaç kuşak uzakta (kuşak görüntüleyicideki kutu adıyla
   // aynı sayım): 5. kuşak ata "5. kuşak dede" olur, "4." değil.
   return `${up}. kuşak ${taban}`;
 }
 
-function ordinalTorun(down: number): string {
+export function ordinalTorun(down: number): string {
   if (down === 1) return "çocuk";
   if (down === 2) return "torun";
-  if (down === 3) return "torun çocuğu";
+  if (down === NAMED_DESCENDANT_DEPTH) return "torun çocuğu";
   // "N. kuşak torun" = kişiden N kuşak aşağıda (kutu adıyla aynı): 4 kuşak
   // aşağıdaki soy "4. kuşak torun" olur, "3." değil.
   return `${down}. kuşak torun`;
