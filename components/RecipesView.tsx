@@ -25,13 +25,16 @@ import { proposeContent } from "@/lib/actions";
 export default function RecipesView({
   people,
   onSelect,
+  initial,
 }: {
   people: Person[];
   onSelect: (id: string) => void;
+  /** Sunucudan gelen liste (paylaşım bağlantısı). Verilirse uca gidilmez. */
+  initial?: Recipe[];
 }) {
   const t = useT();
   const { readOnly } = useReadOnly();
-  const [recipes, setRecipes] = useState<Recipe[] | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[] | null>(initial ?? null);
   const [error, setError] = useState("");
   const authority = useAuthority();
   /** Öneri gönderildi bilgisi — hata değil, bu yüzden ayrı. */
@@ -41,7 +44,20 @@ export default function RecipesView({
   const [grouping, setGrouping] = useState<"person" | "occasion">("person");
   const [editing, setEditing] = useState<Recipe | "new" | null>(null);
 
+  /**
+   * PAYLAŞIM BAĞLANTISINDA VERİ SUNUCUDAN GELİR, UÇTAN DEĞİL.
+   *
+   * Bu görünüm verisini oturum isteyen bir uçtan okuyordu. `/g/<token>`
+   * ziyaretçisinin oturumu yok: istek 401 dönüyor ve sekme hata gösteriyordu.
+   * Yani paylaşım kapsamı listesinde seçilebilen bu sekme, seçildiğinde
+   * ÇALIŞMIYORDU — tutulamayan bir söz.
+   *
+   * Sunucu tarafı ayrıca bir gizlilik sınırı: kapsam dışıysa veri sayfanın
+   * RSC yüküne HİÇ girmiyor. "Getir ama gösterme" demek, veriyi sayfa
+   * kaynağında bırakmak olurdu (taziye şeridinde aynı gerekçe yazılı).
+   */
   useEffect(() => {
+    if (initial) return;
     let alive = true;
     (async () => {
       try {
@@ -55,7 +71,7 @@ export default function RecipesView({
       }
     })();
     return () => { alive = false; };
-  }, [t]);
+  }, [t, initial]);
 
   const call = async (method: "POST" | "PUT" | "DELETE", body: unknown) => {
     setBusy(true);

@@ -8,6 +8,8 @@ import Workspace from "@/app/tree/Workspace";
 import MemorialPage from "@/components/MemorialPage";
 import PublicObituaries from "@/components/PublicObituaries";
 import { readPublicObituaries } from "@/lib/obituary-store";
+import { listRecipes } from "@/lib/recipe-store";
+import { readLetters } from "@/lib/letter-store";
 import { translate } from "@/lib/i18n-dict";
 import Invalid from "./Invalid";
 import { allows, needsPeople, scopeOrAll } from "@/lib/share-scope";
@@ -144,6 +146,43 @@ export default async function SharePage({
   const obits = allows(valid.share.scope, "taziye")
     ? await readPublicObituaries(valid.treeId).catch(() => [])
     : [];
+
+  /*
+   * YAN KOLEKSİYONLAR DA SUNUCUDA OKUNUYOR.
+   *
+   * "tarifler", "mektup" ve "taziye" sekmeleri verisini oturum isteyen
+   * uçlardan (`/api/family/recipes` vb.) okuyordu. Bu sayfanın ziyaretçisinin
+   * oturumu YOK: istek 401 dönüyor ve sekme hata gösteriyordu. Yani paylaşım
+   * kapsamı listesinde seçilebilen üç sekme, seçildiğinde çalışmıyordu —
+   * kapsam listesi tutulamayan bir söz veriyordu.
+   *
+   * Okuma KAPSAMA BAĞLI ve bu bir gizlilik sınırı: kapsam dışıysa veri hiç
+   * okunmuyor, prop geçilmiyor ve sayfanın RSC yüküne girmiyor. Taziye
+   * şeridinde yazılı olan kural aynen geçerli — "getir ama gösterme" demek,
+   * veriyi sayfa kaynağında bırakmaktır.
+   *
+   * Hata yutuluyor (`catch`): bir yan koleksiyonun okunamaması, paylaşılan
+   * AĞACIN hiç açılmamasına dönüşmemeli. O sekme boş görünür, ötekiler
+   * çalışır.
+   */
+  const tarifler = allows(valid.share.scope, "tarifler")
+    ? await listRecipes(valid.treeId).catch(() => [])
+    : undefined;
+  /*
+   * `readLetters` kilitli mektubun GÖVDESİNİ çıkarıyor — yani açılma tarihi
+   * gelmemiş bir mektubun metni bu sayfaya hiç gelmiyor. Uçtan okurken de
+   * aynı işlev kullanılıyor; iki yol ayrışmıyor.
+   */
+  const mektuplar = allows(valid.share.scope, "mektup")
+    ? await readLetters(valid.treeId).catch(() => [])
+    : undefined;
+  /*
+   * Sekme, şeritle AYNI kümeyi gösteriyor: `readPublicObituaries`, yani
+   * ailenin yayımlamayı seçtikleri. Yayımlanmamış bir duyuru ziyaretçiye
+   * hiçbir yüzeyden ulaşmıyor.
+   */
+  const taziyeler = allows(valid.share.scope, "taziye") ? obits : undefined;
+
   const L = (k: string) => translate("tr", k);
 
   return (
@@ -169,6 +208,9 @@ export default async function SharePage({
         publicView
         hideLivingForced={valid.share.hideLiving}
         allowedViews={allowedViews}
+        publicRecipes={tarifler}
+        publicLetters={mektuplar}
+        publicObituaries={taziyeler}
       />
     </>
   );

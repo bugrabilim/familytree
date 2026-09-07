@@ -302,5 +302,57 @@ eq(shared.formerSpouseIds, ["eski"], "ham formerSpouseIds bozulmadı");
 const viewed = viewPerson(shared, true);
 check(viewed.parentIds !== shared.parentIds, "viewPerson maskeleyince de ayrı dizi");
 
+/* ── Paylaşımda yan koleksiyonlar: kapsam dışıysa RSC yüküne HİÇ girmiyor ── */
+const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+/** Yorumları ayıkla: kuralı ANLATAN metin, kuralın kanıtı değildir. */
+const kodu = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/^\s*\/\/.*$/gm, "");
+/*
+ * "tarifler", "mektup" ve "taziye" sekmeleri verisini oturum isteyen
+ * uçlardan okuyordu ve `/g/<token>` ziyaretçisinin oturumu yok: istek 401
+ * dönüyor, sekme hata gösteriyordu. Kapsam listesinde SEÇİLEBİLEN üç sekme,
+ * seçildiğinde çalışmıyordu.
+ *
+ * Veri artık sunucuda okunuyor — ama YALNIZ kapsam izin veriyorsa. "Getir
+ * ama gösterme" demek, veriyi sayfa kaynağında bırakmak olurdu; taziye
+ * şeridinde de aynı gerekçe yazılı ve orada baştan doğru yapılmıştı.
+ */
+{
+  const sayfa = kodu(read("../app/g/[token]/page.tsx"));
+  for (const [kapsam, cagri] of [
+    ["tarifler", "listRecipes(valid.treeId)"],
+    ["mektup", "readLetters(valid.treeId)"],
+  ] as const) {
+    const i = sayfa.indexOf(`allows(valid.share.scope, "${kapsam}")`);
+    check(i > -1, `${kapsam}: kapsam soruluyor`);
+    const dal = sayfa.slice(i, i + 220);
+    check(dal.includes(cagri), `${kapsam}: veri kapsam KOŞULUNUN içinde okunuyor`);
+    check(/: undefined;/.test(dal), `${kapsam}: kapsam dışında prop hiç geçilmiyor`);
+  }
+  /* Taziye sekmesi şeritle AYNI kümeyi kullanıyor: yayımlanmış olanlar. */
+  check(/const taziyeler = allows\(valid\.share\.scope, "taziye"\) \? obits : undefined;/.test(sayfa),
+    "taziye sekmesi şeritle aynı yayımlanmış kümeden besleniyor");
+  check(/readPublicObituaries\(/.test(sayfa) && !/readObituaries\(/.test(sayfa),
+    "yayımlanmamış duyuru hiçbir yüzeyden geçmiyor");
+  /* Ve proplar gerçekten geçiliyor — okunup kullanılmadan bırakılmıyor. */
+  for (const prop of ["publicRecipes={tarifler}", "publicLetters={mektuplar}", "publicObituaries={taziyeler}"])
+    check(sayfa.includes(prop), `prop geçiliyor: ${prop.split("=")[0]}`);
+}
+{
+  /*
+   * Ve görünümler propu ALDIKLARINDA uca GİTMİYOR: gitselerdi 401 yiyip
+   * hata gösterirlerdi ve düzeltme yalnız yarım olurdu.
+   */
+  for (const [ad, dosya] of [
+    ["tarifler", "../components/RecipesView.tsx"],
+    ["mektup", "../components/LettersView.tsx"],
+    ["taziye", "../components/ObituaryView.tsx"],
+  ] as const) {
+    const src = kodu(read(dosya));
+    check(/if \(initial\) return;/.test(src), `${ad}: prop varken uca gidilmiyor`);
+    check(/useState<[^>]+>\(initial \?\? null\)/.test(src), `${ad}: ilk durum proptan`);
+  }
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
