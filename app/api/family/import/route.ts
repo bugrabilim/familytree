@@ -3,7 +3,7 @@ import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { importGedcom } from "@/lib/gedcom";
-import { detectFormat, parseNonGedcom } from "@/lib/import";
+import { detectFormat, parseNonGedcom, unwrapArchive } from "@/lib/import";
 import { parseFttText } from "@/lib/ftz";
 import { extractNodeFtt } from "@/lib/ftz-unzip";
 import { parseEdevletText } from "@/lib/edevlet";
@@ -62,12 +62,26 @@ export async function POST(req: NextRequest) {
       }
       format = "edevlet";
     } else {
-      const text = await file.text();
+      const ham = await file.text();
+      /*
+       * HTML arşivi (`lib/export-html.ts`) içinde ham JSON'u taşır; burada
+       * açılıyor ki `detectFormat` onu normal bir JSON dosyası gibi görsün.
+       * Arşiv olmayan HTML açıkça reddediliyor — gelişigüzel bir sayfanın
+       * "CSV" sanılıp ağaca saçma kayıt eklemesindense hata iyidir.
+       */
+      const acilan = unwrapArchive(file.name || "", ham);
+      if (!acilan.ok) {
+        return NextResponse.json(
+          { error: "Bu HTML dosyası bir aile ağacı arşivi değil (gömülü veri yok)." },
+          { status: 400 }
+        );
+      }
+      const text = acilan.text;
       // Çok-biçimli: GEDCOM / CSV / JSON (uzantı + içerik sezgisiyle belirlenir).
       const detected = detectFormat(file.name || "", text);
       if (!detected) {
         return NextResponse.json(
-          { error: "Dosya biçimi tanınamadı (GEDCOM, CSV, JSON veya .ftz bekleniyor)." },
+          { error: "Dosya biçimi tanınamadı (GEDCOM, CSV, JSON, HTML arşivi veya .ftz bekleniyor)." },
           { status: 400 }
         );
       }

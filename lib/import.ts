@@ -1,26 +1,50 @@
 import type { Gender, Person } from "@/types/family";
 import { nanoid } from "nanoid";
+import { extractEmbedded } from "./export-html.ts";
 
 /**
  * Çok-biçimli içe/dışa aktarımın SAF çekirdeği (CSV + JSON) ve biçim algılama.
  *
  * GEDCOM'un kendi ayrıştırıcısı `lib/gedcom` içindedir; rotalar `detectFormat`
  * ile biçimi belirleyip GEDCOM'u oraya, CSV/JSON'u buraya yönlendirir. Bu dosya
- * bilerek yalnız `Person` TÜR'ünü (import type → çalıştırmada silinir) ve
- * `nanoid`'i alır → hiçbir uygulama-içi runtime bağımlılığı yok, Node ile
- * doğrudan test edilebilir. Yeni biçim = bir ayrıştırıcı + `detectFormat` dalı.
+ * bilerek yalnız `Person` TÜR'ünü (import type → çalıştırmada silinir),
+ * `nanoid`'i ve aynı kısıtı taşıyan `./export-html.ts`i alır → çerçeveye
+ * bağlı hiçbir runtime bağımlılığı yok, Node ile doğrudan test edilebilir.
+ * Yeni biçim = bir ayrıştırıcı + `detectFormat` dalı.
  */
 
 export type ImportFormat = "gedcom" | "csv" | "json";
 export type ExportFormat = "gedcom" | "csv" | "json";
 
-export const SUPPORTED_IMPORT_EXT = [".ged", ".gedcom", ".csv", ".tsv", ".json", ".txt"] as const;
+export const SUPPORTED_IMPORT_EXT = [".ged", ".gedcom", ".csv", ".tsv", ".json", ".txt", ".html", ".htm"] as const;
 
 export const EXPORT_META: Record<ExportFormat, { ext: string; mime: string }> = {
   gedcom: { ext: "ged", mime: "text/plain; charset=utf-8" },
   csv: { ext: "csv", mime: "text/csv; charset=utf-8" },
   json: { ext: "json", mime: "application/json; charset=utf-8" },
 };
+
+/**
+ * HTML ARŞİVİNİ AÇ — `exportHtml`in ürettiği dosyayı geri okunabilir hâle
+ * getirir (bkz. `lib/export-html.ts`).
+ *
+ * Üç durumlu, çünkü ikisi yetmiyordu:
+ *  · HTML DEĞİL      → metin olduğu gibi geçer, akış değişmez.
+ *  · Bizim arşivimiz → gömülü JSON döner, `detectFormat` onu "json" görür.
+ *  · HTML ama bizim değil → `bos`. Bu dalı ELEMEK bir hataydı: gelişigüzel
+ *    bir web sayfası `detectFormat`e girseydi, içindeki virgüller yüzünden
+ *    "CSV" sanılır ve kullanıcı "biçim tanınamadı" yerine ağacına saçma
+ *    kayıtlar eklerdi. Sessiz bozulma yerine açık hata.
+ */
+export type Unwrapped = { ok: true; text: string } | { ok: false; reason: "html-bos" };
+
+export function unwrapArchive(filename: string, text: string): Unwrapped {
+  const ext = filename.toLowerCase().split(".").pop() ?? "";
+  const htmlMi = ext === "html" || ext === "htm" || /^\s*(<!doctype\s+html|<html[\s>])/i.test(text);
+  if (!htmlMi) return { ok: true, text };
+  const gomulu = extractEmbedded(text);
+  return gomulu ? { ok: true, text: gomulu } : { ok: false, reason: "html-bos" };
+}
 
 /** Uzantı + içerik sezgisiyle biçim belirle. Bilinmiyorsa null. */
 export function detectFormat(filename: string, text: string): ImportFormat | null {

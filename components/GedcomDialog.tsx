@@ -7,7 +7,7 @@ import Button from "./ui/Button";
 import { useLang, useT } from "@/lib/i18n";
 import { importAnyFile } from "@/lib/import-client";
 
-type ExportChoice = "gedcom" | "gedcom7" | "gedzip" | "csv" | "json" | "xlsx" | "book";
+type ExportChoice = "html" | "gedcom" | "gedcom7" | "gedzip" | "csv" | "json" | "xlsx" | "book";
 
 interface Props {
   peopleCount: number;
@@ -22,7 +22,13 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
   const { lang } = useLang();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [exportFmt, setExportFmt] = useState<ExportChoice>("gedcom");
+  /*
+     VARSAYILAN HTML. Öteki biçimlerin hepsi bir okuyucu istiyor (GEDCOM bir
+     soy ağacı programı, CSV bir hesap tablosu, JSON bir yazılımcı); indirip
+     klasöre atan kullanıcı için hiçbiri "aç ve bak" değil. Yedek olarak
+     anlamlı tek varsayılan, kurulumsuz açılan biçim.
+  */
+  const [exportFmt, setExportFmt] = useState<ExportChoice>("html");
   const [busy, setBusy] = useState<"" | "export" | "import">("");
   const [error, setError] = useState("");
 
@@ -35,7 +41,9 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
     setBusy("export");
     setError("");
     try {
-      const res = await fetch(`/api/family/export?format=${exportFmt}`);
+      // HTML belgesinin İÇİNDEKİ etiketler de çevriliyor; dil sunucuya taşınmalı.
+      const qs = exportFmt === "html" ? `format=html&lang=${lang === "en" ? "en" : "tr"}` : `format=${exportFmt}`;
+      const res = await fetch(`/api/family/export?${qs}`);
       if (!res.ok) throw new Error(t("gedcom.exportFailed"));
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") ?? "";
@@ -104,8 +112,9 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
           <p className="text-xs text-text-muted leading-relaxed mb-3">
             {t("gedcom.exportBody2", { count: peopleCount })}
           </p>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
             {([
+              { v: "html", l: t("gedcom.fmtHtml") },
               { v: "gedcom", l: "GEDCOM 5.5.1" },
               { v: "gedcom7", l: "GEDCOM 7" },
               { v: "gedzip", l: "GEDZIP" },
@@ -126,6 +135,9 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
               </button>
             ))}
           </div>
+          {exportFmt === "html" && (
+            <p className="text-[11px] text-text-subtle leading-relaxed mb-3">{t("gedcom.htmlNote")}</p>
+          )}
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={busy !== ""}>
             {busy === "export" ? t("gedcom.preparing") : t("gedcom.export")}
           </Button>
