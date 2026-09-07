@@ -150,5 +150,44 @@ check(/t\("stories\.approve"\)/.test(pencere), "onay düğmesi var");
 check(/people\.map\(maskView\)[\s\S]{0,80}StoriesDialog|StoriesDialog[\s\S]{0,400}people\.map\(maskView\)/.test(ws),
   "kişi listesi görüntü katmanından geçiyor");
 
+/* --- ONAY SIRASI: önce ağaç, sonra damga -------------------------------- */
+/*
+ * Ters sıradaydı ve dışarıdan gelen bir aile hikâyesini GERİ GETİRİLEMEZ
+ * biçimde kaybediyordu: `decideContribution` durumu "onaylandi" yapıp
+ * KAYDEDİYOR, ondan sonra kişi aranıyordu. Kişi arada silinmişse (ya da ağaç
+ * yazması düşerse) uç hata dönüyor ama katkı kuyrukta "onaylandı" görünüyor
+ * — ve bir daha uygulanamıyor, çünkü `applyApproval` yalnız "bekliyor"
+ * durumunu kabul ediyor.
+ *
+ * Dosyanın kendi yorumu iyimser kilidin karardan önce olması gerektiğini
+ * zaten anlatıyordu: tehlike görülmüş ama yalnız YARISI düzeltilmişti.
+ */
+{
+  const rota = kodu(read("../app/api/family/stories/route.ts"));
+  const i = rota.indexOf("export async function PATCH");
+  const patch = i > -1 ? rota.slice(i) : rota;
+
+  /* Karar vermeden ÖNCE okuyan bir yol olmalı. */
+  check(/findContribution\(g\.ctx\.treeId, id\)/.test(patch), "katkı önce YALNIZ OKUNUYOR");
+  check(/c\.status !== "bekliyor"/.test(patch), "karara bağlanmış katkı reddediliyor");
+
+  /* Sıra: ağaç yazması, damgadan ÖNCE. */
+  const iOnay = patch.indexOf('karar === "reddet"');
+  const iAgac = patch.indexOf("await saveFamilyData(");
+  const iDamga = patch.indexOf('decideContribution(g.ctx.treeId, id, "onayla")');
+  check(iAgac > -1 && iDamga > iAgac, "ağaç yazması, katkı damgasından ÖNCE");
+  check(iOnay > -1 && iOnay < iAgac, "ret dalı ağaca hiç dokunmadan çıkıyor");
+
+  /* Damga düşerse kullanıcıya ne olduğu SÖYLENİYOR — "bulunamadı" denmiyor. */
+  check(/applied: true/.test(patch), "ağaca yazıldıysa istemciye bildiriliyor");
+
+  /*
+   * Anı kimliği KARARLI olmalı: damga düşünce katkı "bekliyor" kalıyor ve
+   * tekrar onaylanabiliyor; rastgele kimlik o tekrarı yinelenmeye çevirirdi.
+   */
+  check(/memoryIdFor\(c\)/.test(patch), "anı kimliği katkıdan türetiliyor");
+  check(!/randomUUID\(\)/.test(patch), "rastgele anı kimliği kalmadı");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

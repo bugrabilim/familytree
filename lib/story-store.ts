@@ -253,6 +253,19 @@ export async function submitContribution(
  * basmak ya da isteğin ağ katmanında yinelenmesi aynı hikâyeyi iki kez
  * eklememeli.
  */
+/**
+ * Katkıyı YALNIZ OKUR — durumunu değiştirmez.
+ *
+ * Onay yolu artık önce ağaca yazıp sonra damgalıyor (yanlış sıra bir aile
+ * hikâyesini geri getirilemez biçimde kaybediyordu). O sıra için "karar
+ * vermeden önce katkıyı görebilmek" gerekiyor; `decideContribution` ise
+ * tanımı gereği kararı yazıp kaydediyor.
+ */
+export async function findContribution(treeId: string, id: string): Promise<Contribution | null> {
+  const box = await getBox(treeId);
+  return box.contributions.find((x) => x.id === id) ?? null;
+}
+
 export async function decideContribution(
   treeId: string,
   id: string,

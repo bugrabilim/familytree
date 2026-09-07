@@ -3,6 +3,7 @@ import {
   MAX_PER_TOKEN,
   MAX_TEXT,
   applyApproval,
+  memoryIdFor,
   planSubmit,
   publicRequest,
   toMemory,
@@ -182,6 +183,43 @@ check(applyApproval({ ...KISI, id: "baska" }, KATKI, "m1") === null,
   check(!anahtarlar.includes("expiresAt"), "son kullanma taşınmıyor");
   check(!anahtarlar.includes("sentTo"), "kime gönderildiği taşınmıyor");
   check(anahtarlar.length === 3, `yalnız üç alan (${anahtarlar.join(",")})`);
+}
+
+/* ── Anı kimliği KARARLI ve onay yinelenme üretmiyor ────────────────────── */
+
+/*
+ * Onay iki adımlı: önce ağaca yazılıyor, sonra katkı damgalanıyor. İkinci
+ * adım düşerse katkı "bekliyor" kalıyor ve TEKRAR onaylanabiliyor — ki
+ * kurtarılabilir olması için öyle kalması gerekiyor. Ama anı kimliği her
+ * seferinde rastgele üretilseydi o tekrar, aynı aile hikâyesini ikinci kez
+ * eklerdi: kurtarma yolu bir yinelenme makinesine dönerdi.
+ */
+{
+  const kimlik = memoryIdFor({ id: "k1" });
+  check(kimlik === memoryIdFor({ id: "k1" }), "aynı katkı hep aynı anı kimliğini veriyor");
+  check(kimlik !== memoryIdFor({ id: "k2" }), "farklı katkı farklı kimlik");
+  check(kimlik.includes("k1"), "kimlik katkıdan türüyor");
+}
+
+{
+  const c = {
+    id: "k1", personId: "p1", question: "Soru?", text: "Anı",
+    authorName: "Ayşe", at: "2026-09-07T00:00:00.000Z", status: "bekliyor",
+  } as Parameters<typeof applyApproval>[1];
+  const kisi = { id: "p1", firstName: "A", lastName: "B", gender: "unknown", parentIds: [], spouseIds: [] } as Parameters<typeof applyApproval>[0];
+
+  const bir = applyApproval(kisi, c, memoryIdFor(c));
+  check(!!bir && (bir.memories?.length ?? 0) === 1, "ilk onay anıyı ekliyor");
+
+  /* İKİNCİ onay (damga düşmüş, kullanıcı tekrar denedi) YİNELENME ÜRETMEMELİ. */
+  const iki = bir ? applyApproval(bir, c, memoryIdFor(c)) : null;
+  check(!!iki && (iki.memories?.length ?? 0) === 1, "ikinci onay ikinci kopyayı EKLEMİYOR");
+  check(iki === bir, "değişiklik yoksa aynı nesne dönüyor");
+
+  /* Rastgele kimlikle aynı çağrı yinelenme üretirdi — kuralın dayanağı bu. */
+  const rastgele = bir ? applyApproval(bir, c, "baska-kimlik") : null;
+  check(!!rastgele && (rastgele.memories?.length ?? 0) === 2,
+    "farklı kimlikle ikinci kopya oluşuyor (kararlı kimliğin neden gerektiği)");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

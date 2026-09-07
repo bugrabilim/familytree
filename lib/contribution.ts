@@ -162,6 +162,18 @@ export function toMemory(c: Contribution, id: string): Memory {
  *
  * Katkı ZATEN onaylanmışsa hiçbir şey yapılmıyor: onay düğmesine iki kez
  * basmak ya da aynı isteğin tekrarı, aynı hikâyeyi iki kez eklememeli.
+ *
+ * ## Aynı anıyı İKİ KEZ eklememek yalnız duruma bakmakla olmuyor
+ *
+ * Onay iki adımlı: önce ağaca yazılıyor, sonra katkı damgalanıyor. İkinci
+ * adım düşerse katkı "bekliyor" kalıyor ve tekrar onaylanabiliyor — ki
+ * kurtarılabilir olması için öyle kalması GEREKİYOR. Ama anı kimliği her
+ * seferinde yeniden üretilseydi, o tekrar denemesi aynı hikâyeyi ikinci kez
+ * eklerdi.
+ *
+ * Bu yüzden çağıran KATKI KİMLİĞİNDEN TÜRETİLMİŞ, kararlı bir kimlik
+ * veriyor ve burada o kimlik zaten varsa kayıt olduğu gibi dönüyor. Yani
+ * ikinci onay bir şey değiştirmiyor ama başarısız da olmuyor.
  */
 export function applyApproval(
   person: Person,
@@ -170,7 +182,19 @@ export function applyApproval(
 ): Person | null {
   if (c.status !== "bekliyor") return null;
   if (c.personId !== person.id) return null;
-  return { ...person, memories: [...(person.memories ?? []), toMemory(c, memoryId)] };
+  const mevcut = person.memories ?? [];
+  if (mevcut.some((m) => m.id === memoryId)) return person;
+  return { ...person, memories: [...mevcut, toMemory(c, memoryId)] };
+}
+
+/**
+ * Katkının anı kimliği — KARARLI, çünkü onay tekrar denenebiliyor.
+ *
+ * `randomUUID()` kullanılıyordu ve o, tekrar denemesini bir yinelenme
+ * makinesine çeviriyordu (yukarıdaki gerekçe).
+ */
+export function memoryIdFor(c: Pick<Contribution, "id">): string {
+  return `katki-${c.id}`;
 }
 
 /* ── Görünürlük ───────────────────────────────────────────────────────────── */
