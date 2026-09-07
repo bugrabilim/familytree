@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
@@ -71,44 +72,19 @@ async function save(treeId: string, book: ProposalBook): Promise<void> {
   });
 }
 
-/** Eşzamanlı yazma denemesi sayısı. */
-const CAKISMA_DENEME = 4;
-
 /**
- * OKU → DEĞİŞTİR → YAZ, çakışma denetimiyle.
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı.
  *
- * Kilit olmadan kayıp yazma gerçekti: iki katkı verici aynı anda öneri
- * açtığında ikisi de kitabı AYNI hâlde okuyor, sırayla yazıyor ve ikinci
- * yazma birincinin önerisini tamamen siliyordu. Öneren 200 alıyor, önerisi
- * hiç yok — sessiz kayıp.
- *
- * Blob'un koşullu yazması bu depoda kullanılamıyor (sürüm damgası yalnız
- * doğrudan `get` yolunda geliyor ve o yol her kurulumda çalışmıyor), o
- * yüzden korumanın dayanağı kitabın kendi `updatedAt` damgası: yazmadan
- * hemen önce yeniden okunuyor, damga değiştiyse işlem baştan alınıyor.
- * Pencereyi kapatmıyor ama DARALTIYOR; kapatan tek şey koşullu yazma
- * olurdu ve o burada yok.
+ * Kural ve gerekçesi artık ORTAK katmanda (`lib/store-mutate.ts`): koruma
+ * önce yalnız burada vardı ve öbür yedi depo korumasız kalmıştı. Kuralın tek
+ * bir yerde durması, "hangi depoda var" sorusunun bir daha sorulmaması
+ * demek.
  */
-async function mutate<T>(
+function mutate<T>(
   treeId: string,
   degistir: (book: ProposalBook) => { yaz: boolean; sonuc: T }
 ): Promise<T> {
-  for (let i = 0; i < CAKISMA_DENEME; i++) {
-    const book = await getProposalBook(treeId);
-    const damga = book.updatedAt;
-    const r = degistir(book);
-    if (!r.yaz) return r.sonuc;
-
-    const taze = await getProposalBook(treeId);
-    if (taze.updatedAt !== damga) continue; // araya biri girdi — baştan
-    await save(treeId, book);
-    return r.sonuc;
-  }
-  /*
-   * Denemeler tükendi: SESSİZCE BAŞARILI DÖNMÜYORUZ. Dönseydik öneri
-   * kaybolur ama öneren gönderdiğini sanırdı.
-   */
-  throw new Error("Öneri kuyruğu şu an çok yoğun; birazdan tekrar dene.");
+  return mutateStore(() => getProposalBook(treeId), (b) => save(treeId, b), degistir, "Öneri kuyruğu");
 }
 
 export async function listProposals(treeId: string): Promise<Proposal[]> {

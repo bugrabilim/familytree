@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
@@ -75,18 +76,30 @@ async function saveBook(treeId: string, book: RecipeBook): Promise<void> {
   });
 }
 
+/**
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`).
+ *
+ * Kilit yokken kayıp yazma gerçekti: iki kişi aynı anda tarif eklediğinde
+ * ikisi de defteri AYNI hâlde okuyor, sırayla yazıyor ve ikinci yazma
+ * birincinin tarifini siliyordu. Burada kaybolan şey geri getirilemez —
+ * ninenin tarifi kimsenin belleğinde ikinci bir kopyayla durmuyor.
+ */
+function mutate<T>(treeId: string, degistir: (book: RecipeBook) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getRecipeBook(treeId), (b) => saveBook(treeId, b), degistir, "Tarif");
+}
+
 export type RecipeInput = Partial<Recipe> & { ingredientsText?: string; stepsText?: string };
 
 /** Yeni tarif. Başlık yoksa ya da defter doluysa null. */
 export async function addRecipe(treeId: string, input: RecipeInput): Promise<Recipe | null> {
-  const book = await getRecipeBook(treeId);
-  if (book.recipes.length >= MAX_RECIPES) return null;
-  const recipe = normalizeRecipe(input, new Date().toISOString());
-  if (!recipe) return null;
-  recipe.id = randomUUID();
-  book.recipes.push(recipe);
-  await saveBook(treeId, book);
-  return recipe;
+  return mutate<Recipe | null>(treeId, (book) => {
+    if (book.recipes.length >= MAX_RECIPES) return { yaz: false, sonuc: null };
+    const recipe = normalizeRecipe(input, new Date().toISOString());
+    if (!recipe) return { yaz: false, sonuc: null };
+    recipe.id = randomUUID();
+    book.recipes.push(recipe);
+    return { yaz: true, sonuc: recipe };
+  });
 }
 
 /** Var olan tarifi günceller. Bulunamazsa null. */
@@ -95,24 +108,24 @@ export async function updateRecipe(
   id: string,
   input: RecipeInput
 ): Promise<Recipe | null> {
-  const book = await getRecipeBook(treeId);
-  const i = book.recipes.findIndex((r) => r.id === id);
-  if (i === -1) return null;
-  const next = normalizeRecipe(input, new Date().toISOString(), book.recipes[i]);
-  if (!next) return null;
-  book.recipes[i] = next;
-  await saveBook(treeId, book);
-  return next;
+  return mutate<Recipe | null>(treeId, (book) => {
+    const i = book.recipes.findIndex((r) => r.id === id);
+    if (i === -1) return { yaz: false, sonuc: null };
+    const next = normalizeRecipe(input, new Date().toISOString(), book.recipes[i]);
+    if (!next) return { yaz: false, sonuc: null };
+    book.recipes[i] = next;
+    return { yaz: true, sonuc: next };
+  });
 }
 
 /** Siler; silinen bulunduysa true. */
 export async function deleteRecipe(treeId: string, id: string): Promise<boolean> {
-  const book = await getRecipeBook(treeId);
-  const before = book.recipes.length;
-  book.recipes = book.recipes.filter((r) => r.id !== id);
-  if (book.recipes.length === before) return false;
-  await saveBook(treeId, book);
-  return true;
+  return mutate<boolean>(treeId, (book) => {
+    const before = book.recipes.length;
+    book.recipes = book.recipes.filter((r) => r.id !== id);
+    if (book.recipes.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /** Listeleme — başlığa göre Türkçe sıralı. */

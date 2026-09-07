@@ -410,5 +410,57 @@ export async function saveFamilyData(
     );
   } catch (e) {
     console.warn(`[cift-yazma] people→postgres (${userId}):`, (e as Error).message);
+    /*
+     * YARIM KALAN AYNA, GÜNCEL GÖRÜNMEMELİ.
+     *
+     * En tehlikeli yarım hâl şu: damga yazıldı, kişiler yazılamadı (zaman
+     * aşımı tam aradan kesti). O anda Postgres YENİ damgayı ve ESKİ kişileri
+     * taşıyor; Blob ise ikisini de yeni. Okuma yolunun "ayna geride" koruması
+     * iki sinyale bakıyor — Blob'un damgası daha yeni mi, Blob'da daha çok
+     * kişi var mı — ve burada İKİSİ DE yanmıyor: damgalar eşit (Blob'a da o
+     * damga yazıldı), sayı eşit (alan düzenlemesi kişi eklemiyor).
+     *
+     * Sonuç: Postgres kazanıyor ve kullanıcının az önce yazdığı alanlar ESKİ
+     * hâliyle okunuyor. Rota okuduğunu değiştirip Blob'a geri yazdığı için de
+     * o eski hâl KAYNAĞA geçiyor — düzenleme kalıcı olarak kayboluyor.
+     *
+     * Çözüm: yarım kalan aynanın damgasını GERİYE al. Böylece "Blob'un
+     * damgası daha yeni" sinyali yanıyor, okuma Blob'u seçiyor, günlüğe
+     * `[ayna-geride]` düşüyor ve günlük tarama da ayrışmayı görüyor. Bir
+     * sonraki başarılı kaydetme aynayı onarıyor.
+     *
+     * Yanlış alarm İHTİMALİ var ve kabul ediliyor: zaman aşımı yalnız
+     * BEKLEMEYİ kesiyor, asıl yazma arka planda sürüyor ve sonradan
+     * tamamlanabilir. O durumda ayna aslında doğru ama "geride" işaretli
+     * kalıyor — bedeli birkaç gürültülü günlük satırı ve bir sonraki
+     * kaydetmeye kadar Blob'dan okumak. Kaynak zaten Blob; yani yanlış
+     * alarmın maliyeti sıfıra yakın, kaçırmanın maliyeti kalıcı veri kaybı.
+     */
+    try {
+      /*
+       * ÖNCEKİ damgaya dönülüyor, damga SİLİNMİYOR. Silinen damga
+       * (`null`) okuma korumasını yine tetikler ama günlük tarama onu
+       * "damga okunamadı" diye görüp sessiz geçer (`lib/mirror-check.ts`);
+       * geriye alınmış bir damga ise açıkça "ayna geride" diyor.
+       */
+      const onceki = freshOldJson
+        ? ((JSON.parse(freshOldJson) as FamilyData).updatedAt ?? null)
+        : null;
+      await dbSetTreeUpdatedAt(userId, onceki);
+      console.warn(
+        `[cift-yazma] ${userId}: ayna damgası geri alındı (${onceki ?? "temizlendi"}) — ` +
+          `yarım ayna güncel görünmesin`
+      );
+    } catch (e2) {
+      /*
+       * Geri alma da düşerse elde kalan tek koruma sayı karşılaştırması ve
+       * günlük tarama. Sessiz geçilmiyor: bu, veri kaybı penceresinin açık
+       * kaldığı tek durum.
+       */
+      console.error(
+        `[cift-yazma] ${userId}: damga GERİ ALINAMADI — ayna yarım ve güncel görünüyor olabilir:`,
+        (e2 as Error).message
+      );
+    }
   }
 }

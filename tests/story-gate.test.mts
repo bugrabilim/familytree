@@ -44,7 +44,7 @@ check(!/box\.contributions\.push/.test(acik), "rota kuyruğa doğrudan yazmıyor
  */
 check(/tokenHash: sha256\(token\)/.test(store), "kayda özet yazılıyor");
 check(!/token,\s*$/m.test(store.split("createRequest")[1] ?? ""), "ham jeton kayda girmiyor");
-check(/return \{ request, token \}/.test(store), "ham jeton yalnız üretimde dönüyor");
+check(/sonuc: \{ request, token \}/.test(store), "ham jeton yalnız üretimde dönüyor");
 check(/link: `\$\{SITE_URL\}\/hikaye\//.test(sahip), "bağlantı yalnız oluşturma yanıtında");
 check(/tokenHash: undefined/.test(sahip), "listeleme özeti dışarı vermiyor");
 
@@ -123,7 +123,14 @@ check(/robots: \{ index: false, follow: false \}/.test(sayfa),
  * hikâyeyi iki kez eklememeli. İki katman birden: depo yalnız "bekliyor"
  * olanı işliyor, `applyApproval` da yalnız "bekliyor" olanı kabul ediyor.
  */
-check(/if \(!c \|\| c\.status !== "bekliyor"\) return null;/.test(store), "depo yalnız bekleyeni işliyor");
+/*
+ * İddia `return null` yerine SONUCA bakıyor: depo artık kararı ortak
+ * oku→değiştir→yaz sarmalayıcısından geçiriyor (`lib/store-mutate.ts`) ve
+ * "işlem yok" durumu `{ yaz: false, sonuc: null }` biçiminde dönüyor.
+ * Kilitlenen kural değişmedi — yalnız bekleyen katkı işleniyor.
+ */
+check(/if \(!c \|\| c\.status !== "bekliyor"\) return \{ yaz: false, sonuc: null \};/.test(store),
+  "depo yalnız bekleyeni işliyor");
 check(/applyApproval\(data\.people\[i\], c,/.test(sahip), "kayda yazma `applyApproval` üstünden");
 check(!/memories: \[/.test(sahip), "rota anıyı kendi elleriyle kurmuyor");
 
