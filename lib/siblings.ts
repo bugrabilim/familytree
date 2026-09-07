@@ -44,3 +44,38 @@ export function moveInList(ids: string[], movingId: string, dir: -1 | 1): string
   [copy[i], copy[j]] = [copy[j], copy[i]];
   return copy;
 }
+
+/**
+ * İşaretçi `y` konumuna göre EKLEME konumu (0..n): satır orta noktalarını
+ * geçtikçe bir sonraki aralığa düşer. `mids` yukarıdan aşağıya sıralı satır
+ * ORTA y değerleri (piksel).
+ *
+ * Ekleme konumu ("kaç öğe üstte kalıyor") kullanılıyor, satır dizini değil:
+ * listenin en altına bırakmak `n` ile ifade edilebilsin diye — satır
+ * diziniyle "son satırın üstü" ile "son satırın altı" ayırt edilemezdi.
+ */
+export function dropIndex(mids: number[], y: number): number {
+  let i = 0;
+  while (i < mids.length && y > mids[i]) i++;
+  return i;
+}
+
+/**
+ * `ids` listesinde `movingId`'yi `insertAt` EKLEME konumuna taşır.
+ * `insertAt`, öğe listeden ÇIKARILMADAN ÖNCEki konumlara göre verilir
+ * (`dropIndex`in döndürdüğü değer doğrudan buraya girer).
+ *
+ * Sıra değişmiyorsa liste AYNEN (aynı referansla) döner — `moveInList` ile
+ * aynı sözleşme; çağıran `next === cur` ile boş yazmayı eleyebiliyor.
+ */
+export function moveToIndex(ids: string[], movingId: string, insertAt: number): string[] {
+  const from = ids.indexOf(movingId);
+  if (from < 0) return ids;
+  // Öğe kendi konumundan çıkarılınca altındaki her şey bir yukarı kayar.
+  const to = insertAt > from ? insertAt - 1 : insertAt;
+  if (to === from || to < 0 || to >= ids.length) return ids;
+  const copy = [...ids];
+  copy.splice(from, 1);
+  copy.splice(to, 0, movingId);
+  return copy;
+}
