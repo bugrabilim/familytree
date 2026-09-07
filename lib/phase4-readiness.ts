@@ -52,7 +52,7 @@
  * | `ayna-eksik` | engel | Faz 4 Blob'u bırakıyor. Ayna eksikse eksik kişiler KALICI olarak kaybolur. |
  * | `kayma-var` | engel | Sessiz alan ayrışması sayıya yansımaz; okuma Postgres'e döndükten sonra geri dönüş yok. |
  * | `auth-eksik` | engel | bcrypt yedeği kalkınca Auth kaydı olmayan hesap bir daha GİREMEZ. |
- * | `demo-acikta` | engel | Demo, tanıtım sayfasının ana çağrısı; kimliği emekliye ayrılan depoda duruyor. |
+ * | `demo-acikta` | engel | Demo hâlâ `users.json`da bir HESAP olarak duruyor; emekliye ayrılan depoda kalıntı bırakmak. |
  * | `giris-denenmemis` | engel | Faz 4 sonrası TEK giriş yolu bu; üretimde hiç çalıştığı görülmemiş bir yolu tek yol yapmak paraşütü denemeden atlamaktır. |
  * | `damga-yok` | uyarı | `trees.updated_at` boş olması veri kaybetmiyor: sürüm jetonu kişi damgalarına düşüyor (`lib/version-stamp.ts`). Yazma yolunun o ağaçta henüz işlemediğini gösterir — bildirilmeli, ama Faz 4'ü durdurmaz. |
  *
@@ -95,7 +95,25 @@ export type EngelKodu =
   | "kayma-var" // alan düzeyi kayma (drift) temiz değil
   | "giris-denenmemis" // hiçbir hesap Supabase Auth ile giriş yapmamış
   | "damga-yok" // trees.updated_at null
-  | "demo-acikta" // demo hesabının Auth kaydı yok ama şifreli giriş yolu var
+  /**
+   * DEMO HÂLÂ KİMLİK DEPOSUNDA.
+   *
+   * Bu kodun ANLAMI TERSİNE ÇEVRİLDİ ve sebebi bir ürün kararı: demo bir
+   * hesap değil, bir vitrindir (`lib/demo-account.ts`). Eskiden bu engel
+   * "demonun `auth.users` karşılığı yok" diyordu — yani demoyu kimlik
+   * sistemine SOKMAYI öneriyordu. Karar bunun tersi oldu: demo kimlik
+   * sisteminin DIŞINDA olmalı, çünkü herkesin bildiği bir giriş yolunu
+   * kimlik altyapısında tutmanın da, sahibi olmayan bir vitrine gerçek
+   * kimlik (Auth kaydı, kurtarma kodu, şifre sıfırlama) taşıtmanın da
+   * savunması yok.
+   *
+   * Dolayısıyla artık sorulan soru "demonun Auth kaydı var mı" değil,
+   * "demo hâlâ `users.json`da bir hesap satırı olarak duruyor mu". Kod o
+   * satıra artık dayanmıyor; ama satır orada durduğu sürece Faz 4 emekliye
+   * ayrılan depoyu temiz devralmıyor demektir — ve bir sonraki okuyan
+   * demonun kimliği olduğunu sanıp aynı yanlışı tekrar kurar.
+   */
+  | "demo-acikta"
   /**
    * OLGU ÖLÇÜLEMEDİ. Görevin ilk taslağında bu kod yoktu ve eksikti: bir
    * ölçüm düştüğünde onu `ayna-eksik`/`auth-eksik` diye bildirmek YALAN
@@ -145,7 +163,13 @@ export interface HesapOlgusu {
    * maskeler (bkz. `app/api/admin/phase4/route.ts`).
    */
   label: string;
-  /** Herkese açık demo oynatma hesabı mı? */
+  /**
+   * Bu satır herkese açık demo vitrinine mi ait?
+   *
+   * `true` olması BAŞLI BAŞINA bulgudur: demonun kimlik deposunda hiç satırı
+   * olmamalı (`lib/demo-account.ts`). Ölçüm yine de yapılıyor, çünkü üretimde
+   * eski bir satır kalmış olabilir ve kapının işi tam da onu göstermek.
+   */
   isDemo: boolean;
   /** `users.json`da hâlâ bir bcrypt şifre satırı var mı? */
   hasPasswordHash: boolean;
@@ -309,6 +333,29 @@ function hesaplariDenetle(olgular: Olgular, engeller: Engel[]): void {
   }
 
   for (const h of hesaplar) {
+    /*
+     * DEMO, AUTH'TAN ÖNCE SORULUYOR — sıra önemli.
+     *
+     * Demo bir kimlik değil (`lib/demo-account.ts`), dolayısıyla onun için
+     * "Auth'ta var mı" sorusunun doğru cevabı YOK: olması da olmaması da
+     * kapının aradığı şey değil. Aranan tek şey, demonun kimlik deposunda
+     * bir hesap satırı bırakıp bırakmadığı. Denetim Auth dalının ALTINDA
+     * kalsaydı, Auth'a yanlışlıkla aktarılmış bir demo satırı `continue` ile
+     * sessizce geçilirdi — yani kalıntı, tam da onu görünür kılması gereken
+     * kapıdan kaçardı.
+     */
+    if (h.isDemo) {
+      engeller.push(
+        ENGEL(
+          "demo-acikta",
+          `${h.label}: demo HÂLÂ users.json'da bir hesap satırı olarak duruyor${
+            h.hasPasswordHash ? " (şifre karmasıyla)" : ""
+          }. Demo bir hesap değil vitrindir ve kod artık bu satıra dayanmıyor; satır ELLE silinmeli. Ayrıntı: docs/SUPABASE-GECIS.md.`
+        )
+      );
+      continue;
+    }
+
     if (!h.authUser.olculdu) {
       engeller.push(
         ENGEL("olculemedi", `${h.label}: Auth kaydı sorgulanamadı — ${h.authUser.neden}`)
@@ -316,25 +363,6 @@ function hesaplariDenetle(olgular: Olgular, engeller: Engel[]): void {
       continue;
     }
     if (h.authUser.deger) continue;
-
-    if (h.isDemo) {
-      /*
-       * DEMO AÇIKTA. Demo hesabı `lib/demo-account.ts` tarafından normal bir
-       * hesap gibi `users.json`a yazılıyor — yani kimliği tam da Faz 4'ün
-       * emekliye ayıracağı depoda duruyor — ve kimliği UUID olmadığı için
-       * Auth'a da hiç aktarılmamış. Faz 4 bugün basılsaydı tanıtım
-       * sayfasının ana çağrısı (herkese açık demo) sessizce çalışmaz olurdu.
-       */
-      engeller.push(
-        ENGEL(
-          "demo-acikta",
-          `${h.label}: demo hesabının auth.users kaydı yok${
-            h.hasPasswordHash ? ", ama users.json'da şifreli bir satırı var" : ""
-          }. Faz 4 users.json'ı emekliye ayırınca demo girişinin nereye dayanacağı belirsiz.`
-        )
-      );
-      continue;
-    }
 
     engeller.push(
       ENGEL(
@@ -344,7 +372,15 @@ function hesaplariDenetle(olgular: Olgular, engeller: Engel[]): void {
     );
   }
 
-  girisKanitiniDenetle(olgular, hesaplar, engeller);
+  /*
+   * GİRİŞ KANITI YALNIZ GERÇEK KİMLİKLERDEN SORULUYOR.
+   *
+   * Demo Supabase Auth'la hiç giriş yapmayacak — kendi sağlayıcısından,
+   * şifresiz geçiyor. Sayıya katılsaydı paydayı şişirir ("ölçülen 3 hesabın
+   * hiçbirinde…"), üstelik hiçbir zaman kanıt üretemeyeceği için raporu
+   * olduğundan karamsar gösterirdi.
+   */
+  girisKanitiniDenetle(olgular, hesaplar.filter((h) => !h.isDemo), engeller);
 }
 
 /**
@@ -359,7 +395,12 @@ function hesaplariDenetle(olgular: Olgular, engeller: Engel[]): void {
  * Tek gerçek kanıt, `auth.users.last_sign_in_at`in en az bir hesapta dolu
  * olmasıdır: birileri o yoldan GERÇEKTEN girmiş demektir.
  */
-function girisKanitiniDenetle(olgular: Olgular, hesaplar: HesapOlgusu[], engeller: Engel[]): void {
+function girisKanitiniDenetle(
+  olgular: Olgular,
+  /** YALNIZ gerçek kimlikler — demo bu listeye girmez (gerekçe çağıranda). */
+  hesaplar: HesapOlgusu[],
+  engeller: Engel[]
+): void {
   const kanit = hesaplar.filter((h) => h.lastSignInAt.olculdu && h.lastSignInAt.deger !== null);
   const olcumsuz = hesaplar.filter((h) => !h.lastSignInAt.olculdu);
 

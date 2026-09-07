@@ -13,6 +13,7 @@ import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
 import { rateLimitShared } from "@/lib/rate-limit";
+import { DEMO_USER_ID } from "@/lib/demo-account";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +52,30 @@ function ipOf(req: NextRequest): string {
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/**
+ * DEMONUN KİMLİK E-POSTASI OLAMAZ — çünkü demonun kimliği yok.
+ *
+ * Demo herkese açık ORTAK bir vitrin (`lib/demo-account.ts`): oturumu
+ * ziyaretçiye ait değil, ağaç her girişte sıfırlanıyor. Buraya bir adres
+ * yazılabilseydi, bir ziyaretçinin gerçek e-postası PAYLAŞILAN bir kayda
+ * düşer ve bir sonraki ziyaretçinin ayarlar ekranında görünürdü — üstelik
+ * kurtarma yolu olarak bir sahibi olmayan hesaba bağlanırdı.
+ *
+ * Kapı KİMLİĞE bakıyor, depodaki satıra değil: demo kimlik deposundan
+ * çıkarıldığı için satır zaten yok ve uç "Hesap bulunamadı" derdi — doğru
+ * sonuç, yanlış gerekçe. Ziyaretçiye bunun bir arıza değil bir karar olduğu
+ * söylenmeli.
+ */
+const DEMO_RET = () =>
+  NextResponse.json({ error: "Demo hesabına e-posta bağlanamaz." }, { status: 403 });
+
 export async function GET() {
   const ctx = await resolveActiveTree();
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
+  // 403 → bölüm ayarlar ekranında hiç çizilmiyor (bkz. AccountEmailSection).
+  if (ctx.accountId === DEMO_USER_ID) return DEMO_RET();
 
   const { users } = await getUsersData();
   const u = users.find((x) => x.id === ctx.accountId);
@@ -79,6 +99,7 @@ export async function POST(req: NextRequest) {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
+  if (ctx.accountId === DEMO_USER_ID) return DEMO_RET();
 
   /*
    * Sınırlı: her istek bir doğrulama postası tetikleyebiliyor, yani sınırsız

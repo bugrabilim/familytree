@@ -109,16 +109,26 @@ export async function issueRecoveryCode(): Promise<{ code: string; hash: string;
 }
 
 /**
- * Hesabı açar. `recoveryCodeIndex` isteğe bağlı: demo hesabının kurtarma kodu
- * kimsede olmadığı için indekslenmesinin anlamı yok; gerçek hesaplarda
- * `issueRecoveryCode` ile birlikte gelir.
+ * Hesabı açar.
+ *
+ * `recoveryCodeIndex` ZORUNLU. Eskiden isteğe bağlıydı ve tek sebebi demo
+ * hesabıydı: kurtarma kodu kimsede olmadığı için indekslenmesinin anlamı
+ * yoktu. Demo artık kimlik deposuna hiç yazılmıyor (bir hesap değil, bir
+ * vitrin — `lib/demo-account.ts`), dolayısıyla bu gevşekliğin bir çağıranı
+ * kalmadı. Zorunlu olması bir korumadır: indekssiz açılan bir hesap kendi
+ * kurtarma koduyla BULUNAMAZ (`findUserByRecoveryIndex`), yani sahibi
+ * şifresini unuttuğunda elindeki kod işe yaramaz — ve bu, ancak kod
+ * kullanılmaya çalışıldığında, aylar sonra fark edilirdi.
+ *
+ * Alanın kendisi `User` tipinde isteğe bağlı KALIYOR: indeks düzeninden önce
+ * açılmış hesaplarda yok (`tests/recovery-gate.test.mts`).
  */
 export async function createUser(
   id: string,
   familyName: string,
   passwordHash: string,
   recoveryCodeHash: string,
-  recoveryCodeIndex?: string
+  recoveryCodeIndex: string
 ): Promise<User> {
   const data = await getUsersData();
   const user: User = {

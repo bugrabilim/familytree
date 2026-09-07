@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
+import { isDemoFamilyName } from "@/lib/demo-account";
 import { isMobileTokenConfigured, signMobileToken } from "@/lib/mobile-token";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -45,7 +46,14 @@ export async function POST(req: NextRequest) {
   if (password.length < 6)
     return NextResponse.json({ error: "Şifre en az 6 karakter olmalı." }, { status: 400 });
 
-  if (await findUserByFamilyName(familyName))
+  /*
+   * Demonun adı REZERVE — gerekçesi web kaydıyla aynı ve orada uzun uzun
+   * yazılı (`app/api/register/route.ts`): demo kimlik deposundan çıktığı için
+   * "bu ad zaten var mı" denetimi onu artık yakalamıyor, rezervi kod tutuyor.
+   * Aynı kapı iki uçta: mobil kayıt web kaydını çağırmıyor, kendi yolundan
+   * hesap açıyor.
+   */
+  if (isDemoFamilyName(familyName) || (await findUserByFamilyName(familyName)))
     return NextResponse.json({ error: "Bu adla zaten bir hesap var." }, { status: 409 });
 
   const [passwordHash, kurtarma] = await Promise.all([hash(password, 12), issueRecoveryCode()]);

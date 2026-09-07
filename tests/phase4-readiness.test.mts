@@ -177,8 +177,20 @@ for (const [ad, agac] of [
     "gerekçe sonucu (kilitlenme) söylüyor");
 }
 
-/* ── 7. Demo açıkta ───────────────────────────────────────────────────────── */
+/* ── 7. Demo kimlik deposunda ─────────────────────────────────────────────── */
 
+/*
+ * ENGELİN ANLAMI TERSİNE ÇEVRİLDİ.
+ *
+ * Eskiden `demo-acikta` "demonun auth.users kaydı yok" demekti — yani demoyu
+ * kimlik sistemine SOKMAYI öneriyordu. Ürün kararı bunun tersi oldu: demo bir
+ * hesap değil, bir vitrin (`lib/demo-account.ts`); kimlik sisteminin DIŞINDA
+ * durmalı. Artık sorulan soru "demo hâlâ `users.json`da bir hesap satırı
+ * olarak duruyor mu".
+ *
+ * Bu blok o tersine çevrilmeyi kilitliyor: demoyu Auth'a eklemek engeli
+ * KALDIRMAMALI, satırın hiç olmaması ise kapıyı yeşile çevirmeli.
+ */
 {
   const demo = temizHesap({
     accountId: "demo-hesap",
@@ -189,18 +201,50 @@ for (const [ad, agac] of [
     lastSignInAt: olculdu(null),
   });
   const k = phase4Readiness(temiz({ accounts: olculdu([temizHesap(), demo]) }));
-  check(k.hazir === false, "demo açıktayken hazır DEĞİL");
+  check(k.hazir === false, "demo kimlik deposunda dururken hazır DEĞİL");
   check(engelKodlari(k.engeller).includes("demo-acikta"), "demo-acikta engeli var");
   check(!engelKodlari(k.engeller).includes("auth-eksik"),
     "demo, sıradan bir 'auth-eksik' olarak raporlanmıyor (ayrı sorun, ayrı çözüm)");
   const e = k.engeller.find((x) => x.kod === "demo-acikta")!;
-  check(/users\.json/.test(e.ayrinti), "gerekçe şifreli giriş yolunun nerede durduğunu söylüyor");
+  check(/users\.json/.test(e.ayrinti), "gerekçe kalıntının nerede durduğunu söylüyor");
+  check(/ELLE silinmeli/.test(e.ayrinti), "gerekçe NE YAPILACAĞINI söylüyor (satırı sil)");
 }
 {
-  // Demo Auth'ta VARSA sorun yok.
+  /*
+   * MUTASYON: demo Auth'a aktarılmış. Eski kural bunu "sorun çözüldü" sayardı;
+   * yeni kural için hiçbir şey değişmez — demo kalıntısı hâlâ depoda.
+   */
   const demo = temizHesap({ accountId: "demo-hesap", isDemo: true, authUser: olculdu(true) });
   const k = phase4Readiness(temiz({ accounts: olculdu([temizHesap(), demo]) }));
-  check(k.hazir === true, "Auth kaydı olan demo engel değil");
+  check(k.hazir === false, "demoyu Auth'a eklemek engeli KALDIRMIYOR (yanlış çözüm)");
+  check(engelKodlari(k.engeller).includes("demo-acikta"), "Auth kaydı olan demo satırı da engel");
+}
+{
+  /*
+   * DOĞRU ÇÖZÜM: demo satırı hiç yok. Kimliksiz demo, kapıya hiç görünmez —
+   * `lib/demo-account.ts` artık `users.json`a yazmadığı için beklenen durum bu.
+   */
+  const k = phase4Readiness(temiz({ accounts: olculdu([temizHesap()]) }));
+  check(k.hazir === true, "demo satırı yoksa kapı yeşil");
+  check(!kodlar(k.engeller).includes("demo-acikta"), "olmayan satır için engel üretilmiyor");
+}
+{
+  /*
+   * Demo, giriş KANITI sayımına girmiyor: Supabase Auth'la hiç girmeyecek,
+   * paydayı şişirmesi raporu olduğundan karamsar gösterirdi.
+   */
+  const demo = temizHesap({
+    accountId: "demo-hesap", isDemo: true,
+    authUser: olculdu(false), lastSignInAt: olculdu(null),
+  });
+  const k = phase4Readiness(temiz({ accounts: olculdu([temizHesap(), demo]) }));
+  check(!engelKodlari(k.engeller).includes("giris-denenmemis"),
+    "gerçek hesabın girişi kanıt sayılıyor, demo kanıtı bozmuyor");
+  const k2 = phase4Readiness(temiz({
+    accounts: olculdu([temizHesap({ lastSignInAt: olculdu(null) }), demo]),
+  }));
+  const e2 = k2.engeller.find((x) => x.kod === "giris-denenmemis")!;
+  check(/Ölçülen 1 hesabın/.test(e2.ayrinti), "sayım yalnız gerçek kimlikleri sayıyor (demo hariç)");
 }
 
 /* ── 8. Giriş hiç denenmemiş ──────────────────────────────────────────────── */
@@ -304,7 +348,7 @@ for (const [ad, agac] of [
   });
   check(k.hazir === false, "üretim durumu: Faz 4 HAZIR DEĞİL");
   const e = new Set(engelKodlari(k.engeller));
-  check(e.has("demo-acikta"), "üretim: demo Auth'ta yok");
+  check(e.has("demo-acikta"), "üretim: demo satırı hâlâ users.json'da (elle temizlenecek kalıntı)");
   check(e.has("giris-denenmemis"), "üretim: Supabase girişi hiç yapılmamış");
   check(k.sayim.uyari === 3, "üretim: üç ağacın damgası uyarı olarak düşüyor");
 }
