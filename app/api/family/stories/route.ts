@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
-import { applyApproval } from "@/lib/contribution";
+import { applyApproval, memoryIdFor } from "@/lib/contribution";
 import {
   closeRequest,
   createRequest,
   decideContribution,
   deleteContribution,
+  findContribution,
   readStories,
 } from "@/lib/story-store";
 import { SITE_URL } from "@/lib/site";
@@ -141,17 +141,66 @@ export async function PATCH(req: NextRequest) {
    */
   if (versionMismatch(req, data.updatedAt)) return conflict();
 
-  const c = await decideContribution(g.ctx.treeId, id, karar);
+  /*
+   * RET ağaca dokunmuyor: tek adım, doğrudan damga.
+   */
+  if (karar === "reddet") {
+    const r = await decideContribution(g.ctx.treeId, id, "reddet");
+    return r
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Katkı bulunamadı." }, { status: 404 });
+  }
+
+  /*
+   * ONAY: ÖNCE AĞAÇ, SONRA DAMGA.
+   *
+   * Ters sıradaydı ve dışarıdan gelen bir aile hikâyesini geri
+   * getirilemez biçimde kaybediyordu: `decideContribution` durumu
+   * "onaylandi" yapıp KAYDEDİYOR, ondan sonra kişi aranıyordu. Kişi arada
+   * silinmişse (ya da ağaç yazması düşerse) uç 404/500 dönüyor ama katkı
+   * kuyrukta "onaylandı" görünüyor — ve bir daha uygulanamıyor, çünkü
+   * `applyApproval` yalnız "bekliyor" durumunu kabul ediyor. Anı hiçbir
+   * kayda yazılmamış, kuyrukta da işlenmiş görünüyor.
+   *
+   * Dosyanın kendi yorumu iyimser kilidin karardan önce olması gerektiğini
+   * zaten anlatıyordu — yani tehlike görülmüş ama yalnız YARISI
+   * düzeltilmişti. Öneri motoru (`/api/family/proposals`) doğru sırayı
+   * uyguluyor; bu uç ondan ayrışmıştı.
+   */
+  const c = await findContribution(g.ctx.treeId, id);
   if (!c) return NextResponse.json({ error: "Katkı bulunamadı." }, { status: 404 });
-  if (karar === "reddet") return NextResponse.json({ ok: true });
+  if (c.status !== "bekliyor")
+    return NextResponse.json({ error: "Bu katkı zaten karara bağlanmış." }, { status: 409 });
 
   const i = data.people.findIndex((p) => p.id === c.personId);
   if (i === -1) return NextResponse.json({ error: "Kişi bulunamadı." }, { status: 404 });
-  const yeni = applyApproval(data.people[i], c, randomUUID());
+  /*
+   * Anı kimliği KATKI KİMLİĞİNDEN türetiliyor, rastgele değil: damga adımı
+   * düşerse katkı "bekliyor" kalıyor ve tekrar onaylanabiliyor — rastgele
+   * kimlikle o tekrar, aynı hikâyeyi ikinci kez eklerdi.
+   */
+  const yeni = applyApproval(data.people[i], c, memoryIdFor(c));
   if (!yeni) return NextResponse.json({ error: "Katkı uygulanamadı." }, { status: 409 });
 
   data.people[i] = yeni;
   await saveFamilyData(g.ctx.treeId, data, { by: g.ctx.authorId });
+
+  const damga = await decideContribution(g.ctx.treeId, id, "onayla");
+  if (!damga)
+    /*
+     * Anı AĞACA YAZILDI ama katkı damgalanamadı. "Bulunamadı" demek
+     * yanıltıcı olurdu: kullanıcı hiçbir şey olmadığını sanır, oysa hikâye
+     * kayda geçti. Katkı "bekliyor" kalıyor ve tekrar onaylandığında
+     * yinelenme ÜRETMİYOR (kararlı anı kimliği) — yani durum
+     * kurtarılabilir; söylenmesi gereken tek şey ne olduğu.
+     */
+    return NextResponse.json(
+      {
+        error: "Hikâye kayda eklendi ama katkı damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin.",
+        applied: true,
+      },
+      { status: 500 }
+    );
   return NextResponse.json({ ok: true });
 }
 
