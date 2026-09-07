@@ -80,13 +80,13 @@ export default function EmptyState({ onAdd, onStarter, starterLoading, onImport 
             <Button size="lg" full onClick={onImport}>
               {t("empty.edevlet")}
             </Button>
-            <p className="mt-2.5 text-xs text-text-subtle leading-relaxed">
+            <p className="mt-2.5 text-xs text-text-muted leading-relaxed">
               {t("empty.edevletHint")}
             </p>
 
             <div className="flex items-center gap-3 my-4">
               <span className="h-px flex-1 bg-border" />
-              <span className="text-[11px] text-text-subtle">{t("empty.or")}</span>
+              <span className="text-[11px] text-text-muted">{t("empty.or")}</span>
               <span className="h-px flex-1 bg-border" />
             </div>
 
@@ -98,7 +98,7 @@ export default function EmptyState({ onAdd, onStarter, starterLoading, onImport 
                 {t("empty.haveGedcom")}
               </Button>
             </div>
-            <p className="mt-2.5 text-xs text-text-subtle leading-relaxed">
+            <p className="mt-2.5 text-xs text-text-muted leading-relaxed">
               {t("empty.starterHint")}
             </p>
             <button

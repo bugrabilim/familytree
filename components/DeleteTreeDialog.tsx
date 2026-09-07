@@ -149,7 +149,7 @@ export default function DeleteTreeDialog({ tree, onClose, onDeleted }: Props) {
         {/* Ne gideceği ÖNCEDEN yazıyor: kullanıcı neyi kaybettiğini sonradan
             öğrenmemeli. */}
         <section className="rounded-xl border border-border bg-surface-2/60 p-3 space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("treeDelete.scopeTitle")}
           </h4>
           <DeleteScopeList />
@@ -157,7 +157,7 @@ export default function DeleteTreeDialog({ tree, onClose, onDeleted }: Props) {
 
         {/* Yedek teklifi silme düğmesinden ÖNCE ve aynı ekranda. */}
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("treeDelete.backupTitle")}
           </h4>
           <p className="text-[12px] text-text-muted leading-snug">{t("treeDelete.backupHint")}</p>
@@ -177,9 +177,9 @@ export default function DeleteTreeDialog({ tree, onClose, onDeleted }: Props) {
             onChange={(e) => setOnay(e.target.value)}
             placeholder={t("treeDelete.confirmPlaceholder")}
             autoComplete="off"
-            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-danger"
+            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-danger"
           />
-          <p className="text-[11px] text-text-subtle leading-snug">{t("treeDelete.confirmHint")}</p>
+          <p className="text-[11px] text-text-muted leading-snug">{t("treeDelete.confirmHint")}</p>
         </section>
 
         {hata && <p className="text-[12px] text-danger">{hata}</p>}

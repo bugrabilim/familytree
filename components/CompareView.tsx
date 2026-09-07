@@ -95,7 +95,7 @@ export default function CompareView({
         <div className="rounded-2xl border border-border bg-surface p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-medium text-text">{t("compare.mergeAllTitle")}</p>
-            <p className="text-[11px] text-text-subtle">{t("compare.mergeAllHint")}</p>
+            <p className="text-[11px] text-text-muted">{t("compare.mergeAllHint")}</p>
           </div>
           {fullDone && typeof fullDone === "object" ? (
             <span className="text-xs text-primary">
@@ -121,7 +121,7 @@ export default function CompareView({
           </div>
         ) : (
           <ul className="space-y-2">
-            <li className="grid grid-cols-[1fr_auto_1fr] gap-3 px-3 text-[11px] font-medium text-text-subtle">
+            <li className="grid grid-cols-[1fr_auto_1fr] gap-3 px-3 text-[11px] font-medium text-text-muted">
               <span>{t("compare.mineCol")}</span>
               <span />
               <span className="text-right">{t("compare.peerCol", { peer: peerName })}</span>
@@ -137,7 +137,7 @@ export default function CompareView({
                   <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                     <Link href={`/tree?kisi=${encodeURIComponent(r.mine.id)}`} className="min-w-0 hover:opacity-80">
                       <p className="text-sm text-text truncate">{r.mine.name}</p>
-                      <p className="text-[11px] text-text-subtle tabular-nums">{r.mine.span || "—"}</p>
+                      <p className="text-[11px] text-text-muted tabular-nums">{r.mine.span || "—"}</p>
                     </Link>
                     <span
                       className="text-[10px] font-medium px-2 py-1 rounded-lg bg-primary-soft text-primary text-center whitespace-nowrap"
@@ -150,7 +150,7 @@ export default function CompareView({
                       className="min-w-0 text-right hover:opacity-80"
                     >
                       <p className="text-sm text-text truncate">{r.peer.name}</p>
-                      <p className="text-[11px] text-text-subtle tabular-nums">{r.peer.span || "—"}</p>
+                      <p className="text-[11px] text-text-muted tabular-nums">{r.peer.span || "—"}</p>
                     </Link>
                   </div>
                   {/* P3 — bu kişinin (karşı ağaçtaki) ata soyunu benim ağacıma ekle */}

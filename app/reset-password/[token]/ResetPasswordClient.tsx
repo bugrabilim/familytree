@@ -82,8 +82,9 @@ export default function ResetPasswordClient({ token }: { token: string }) {
           />
         </div>
 
+        {/* Şifre sıfırlama da bir kurtarma yolu — hatası duyurulmalı. */}
         {error && (
-          <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
+          <p role="alert" className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
         <Button type="submit" size="lg" full disabled={loading}>

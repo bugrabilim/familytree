@@ -123,7 +123,7 @@ export default function RegisterView() {
           {loading ? t("register.signingIn") : t("register.goToTree")}
         </Button>
 
-        <p className="text-[11px] text-text-subtle text-center mt-3.5 leading-relaxed">
+        <p className="text-[11px] text-text-muted text-center mt-3.5 leading-relaxed">
           {t("register.recoveryWarning")}
         </p>
       </AuthShell>
@@ -156,7 +156,7 @@ export default function RegisterView() {
             autoComplete="username"
             required
           />
-          <p className="text-[11px] text-text-subtle mt-1.5">
+          <p className="text-[11px] text-text-muted mt-1.5">
             {t("register.treeNameHelp")}
           </p>
         </div>

@@ -41,7 +41,7 @@ interface Props {
 
 const advLabel = "block text-[11px] font-medium text-text-muted mb-1";
 const advField =
-  "w-full h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary";
+  "w-full h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary";
 
 export default function ListView({ people: rawPeople, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState("");
@@ -146,7 +146,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
           <div className="relative flex-1 max-w-md">
             <svg
               width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
             >
               <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.9" />
               <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
@@ -155,7 +155,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("list.searchPlaceholder")}
-              className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
 
@@ -207,7 +207,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
               {f.l}
             </button>
           ))}
-          <span className="ml-auto text-xs text-text-subtle tabular-nums">
+          <span className="ml-auto text-xs text-text-muted tabular-nums">
             {t("common.peopleCount", { count: rows.length })}
           </span>
         </div>
@@ -258,7 +258,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
                   }
                   className={advField}
                 />
-                <span className="text-text-subtle">–</span>
+                <span className="text-text-muted">–</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -356,10 +356,10 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text truncate leading-tight">
                         {fullName(p)}
-                        {p.code && <span className="ml-1.5 text-[10px] font-mono text-text-subtle/70">#{p.code}</span>}
+                        {p.code && <span className="ml-1.5 text-[10px] font-mono text-text-muted/70">#{p.code}</span>}
                       </p>
                       {masked ? (
-                        <p className="text-xs text-text-subtle truncate leading-tight mt-0.5">
+                        <p className="text-xs text-text-muted truncate leading-tight mt-0.5">
                           {t("common.living")}
                         </p>
                       ) : (
@@ -369,12 +369,12 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
                         </p>
                       )}
                       {p.birthPlace && (
-                        <p className="text-[11px] text-text-subtle truncate leading-tight mt-0.5">
+                        <p className="text-[11px] text-text-muted truncate leading-tight mt-0.5">
                           📍 {p.birthPlace}
                         </p>
                       )}
                       {(p.congenitalCondition || p.healthCondition || p.deathCause) && (
-                        <p className="text-[11px] text-text-subtle truncate leading-tight mt-0.5">
+                        <p className="text-[11px] text-text-muted truncate leading-tight mt-0.5">
                           {p.congenitalCondition
                             ? `🧬 ${p.congenitalCondition}`
                             : p.healthCondition

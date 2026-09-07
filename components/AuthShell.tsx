@@ -7,7 +7,7 @@ import LanguageSwitch from "./LanguageSwitch";
 import { useT } from "@/lib/i18n";
 
 export const authField =
-  "w-full h-11 px-3.5 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-subtle " +
+  "w-full h-11 px-3.5 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-muted " +
   "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all";
 
 export const authLabel = "block text-xs font-medium text-text-muted mb-1.5";
@@ -133,7 +133,7 @@ export default function AuthShell({
           {/* Tanıtım (ana sayfa) sayfasına dön (Madde 8) */}
           <Link
             href="/tanitim"
-            className="inline-flex items-center gap-1.5 h-9 pl-2 pr-3 rounded-lg text-sm text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+            className="inline-flex items-center gap-1.5 h-11 lg:h-9 pl-2 pr-3 rounded-lg text-sm text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -165,7 +165,28 @@ export default function AuthShell({
               {children}
             </div>
 
-            {footer && <div className="mt-6 text-center text-sm text-text-muted">{footer}</div>}
+            {/*
+              Alt yuvadaki bağlantıların dokunma boyu BURADA veriliyor.
+
+              Ölçüm: "Şifremi unuttum" 98x18, "Hesap oluştur" 96x18, "Giriş
+              sayfasına dön" 131x18 — hepsi eşiğin çok altındaydı ve bunlar
+              kimlik ekranlarının ÇIKIŞ yolları (şifresini unutan kullanıcının
+              tek kurtarma bağlantısı da burada).
+
+              Kural sarmalayıcıya yazıldı, üç sayfaya ayrı ayrı değil: yuvayı
+              dolduran her sayfa (login / register / forgot / reset) aynı
+              ölçüyü kendiliğinden alsın, bir sonraki sayfa eklendiğinde
+              unutulmasın. `[&_a]` = "içimdeki her bağlantı".
+            */}
+            {footer && (
+              <div
+                className="mt-6 text-center text-sm text-text-muted
+                  [&_a]:inline-flex [&_a]:items-center [&_a]:min-h-11 [&_a]:-mx-2 [&_a]:px-2 [&_a]:rounded-lg
+                  lg:[&_a]:min-h-0 lg:[&_a]:mx-0 lg:[&_a]:px-0"
+              >
+                {footer}
+              </div>
+            )}
           </div>
         </div>
       </main>

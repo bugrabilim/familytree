@@ -56,7 +56,7 @@ export default function SettingsDialog({
       <div className="space-y-5">
         {/* Genel */}
         <section className="space-y-1">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle mb-1">{t("settings.general")}</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted mb-1">{t("settings.general")}</h3>
 
           <button
             onClick={() => setHideLiving(!hideLiving)}
@@ -84,7 +84,7 @@ export default function SettingsDialog({
           >
             <span className="min-w-0">
               {t("bond.layer")}
-              <span className="block text-[11px] text-text-subtle leading-snug">
+              <span className="block text-[11px] text-text-muted leading-snug">
                 {t("bond.layerHint")}
               </span>
             </span>

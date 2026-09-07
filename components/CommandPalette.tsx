@@ -98,7 +98,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
         className="relative z-10 w-full max-w-lg rounded-2xl bg-bg-elevated border border-border shadow-modal overflow-hidden animate-scale-in"
       >
         <div className="flex items-center gap-3 px-4 h-14 border-b border-border">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-subtle shrink-0">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted shrink-0">
             <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.9" />
             <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
           </svg>
@@ -110,9 +110,9 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
               setCursor(0);
             }}
             placeholder={t("palette.placeholder")}
-            className="flex-1 bg-transparent text-[15px] text-text placeholder:text-text-subtle focus:outline-none"
+            className="flex-1 bg-transparent text-[15px] text-text placeholder:text-text-muted focus:outline-none"
           />
-          <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-subtle shrink-0">
+          <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-muted shrink-0">
             ESC
           </kbd>
         </div>
@@ -152,7 +152,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
                       <p className="text-sm text-text truncate leading-tight">
                         {fullName(p)}
                       </p>
-                      <p className="text-[11px] text-text-subtle truncate leading-tight">
+                      <p className="text-[11px] text-text-muted truncate leading-tight">
                         {isMasked(p, hideLiving)
                           ? t("common.living")
                           : [lifeSpan(p.birthDate, p.deathDate), p.birthPlace]
@@ -161,7 +161,7 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
                       </p>
                     </div>
                     {i === cursor && (
-                      <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-subtle shrink-0">
+                      <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-surface text-text-muted shrink-0">
                         ↵
                       </kbd>
                     )}

@@ -101,9 +101,9 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
         <section>
           <h3 className="text-sm font-semibold text-text mb-2">{t("pair.linkedTitle")}</h3>
           {pairings === null ? (
-            <p className="text-sm text-text-subtle">{t("pair.loading")}</p>
+            <p className="text-sm text-text-muted">{t("pair.loading")}</p>
           ) : pairings.length === 0 ? (
-            <p className="text-sm text-text-subtle">{t("pair.none")}</p>
+            <p className="text-sm text-text-muted">{t("pair.none")}</p>
           ) : (
             <ul className="space-y-1.5">
               {pairings.map((p) => (
@@ -115,7 +115,7 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
                   <a href={`/p/${encodeURIComponent(p.peerTreeId)}`} className="text-[11px] font-medium text-primary hover:underline shrink-0">
                     {t("pair.view")}
                   </a>
-                  <button onClick={() => unpair(p.peerTreeId)} disabled={busy} className="text-[11px] text-text-subtle hover:text-danger shrink-0">
+                  <button onClick={() => unpair(p.peerTreeId)} disabled={busy} className="text-[11px] text-text-muted hover:text-danger shrink-0">
                     {t("pair.unpair")}
                   </button>
                 </li>
@@ -148,7 +148,7 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
                   {copied ? t("pair.copied") : t("pair.copy")}
                 </Button>
               </div>
-              <p className="text-[11px] text-text-subtle">{t("pair.newHint")}</p>
+              <p className="text-[11px] text-text-muted">{t("pair.newHint")}</p>
             </div>
           )}
         </section>

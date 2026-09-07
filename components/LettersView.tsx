@@ -149,11 +149,11 @@ export default function LettersView({
             {letters.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">
                 <p className="text-sm text-text">{t("letters.empty")}</p>
-                <p className="text-[11px] text-text-subtle mt-1">{t("letters.emptyHint")}</p>
+                <p className="text-[11px] text-text-muted mt-1">{t("letters.emptyHint")}</p>
               </div>
             ) : (
               <>
-                <p className="text-[11px] text-text-subtle">{t("letters.count", { count: letters.length })}</p>
+                <p className="text-[11px] text-text-muted">{t("letters.count", { count: letters.length })}</p>
                 {letters.map((l) => (
                   <LetterCard
                     key={l.id}
@@ -168,7 +168,7 @@ export default function LettersView({
                     }}
                   />
                 ))}
-                <p className="text-[11px] text-text-subtle">{t("letters.lockedNote")}</p>
+                <p className="text-[11px] text-text-muted">{t("letters.lockedNote")}</p>
               </>
             )}
           </>
@@ -207,7 +207,7 @@ function LetterCard({
             {acik ? "" : "🔒 "}
             {letter.title}
           </p>
-          <p className="text-[11px] text-text-subtle mt-0.5">
+          <p className="text-[11px] text-text-muted mt-0.5">
             {acik
               ? t("letters.openedOn", { date: formatLong(letter.opensOn) })
               : kalan !== null && kalan <= 60
@@ -227,14 +227,14 @@ function LetterCard({
             <button
               onClick={onEdit}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               {t("letters.edit")}
             </button>
             <button
               onClick={onDelete}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
             >
               {t("letters.delete")}
             </button>
@@ -292,7 +292,7 @@ function LetterForm({
    */
   if (body.trim()) input.body = body;
 
-  const field = "w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary";
+  const field = "w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -305,23 +305,23 @@ function LetterForm({
         </h1>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("letters.field.title")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("letters.field.title")}</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={field} autoFocus />
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("letters.field.from")}</span>
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("letters.field.from")}</span>
             <PersonPicker people={people} value={fromPersonId} onChange={setFrom} />
           </label>
           <label className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("letters.field.to")}</span>
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("letters.field.to")}</span>
             <PersonPicker people={people} value={toPersonId} onChange={setTo} />
           </label>
         </div>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("letters.field.opensOn")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("letters.field.opensOn")}</span>
           <input
             type="date"
             value={opensOn}
@@ -332,7 +332,7 @@ function LetterForm({
         </label>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("letters.field.body")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("letters.field.body")}</span>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -340,7 +340,7 @@ function LetterForm({
             className="w-full px-3 py-2 rounded-xl bg-surface-2 border border-border text-text text-sm focus:outline-none focus:border-primary"
           />
           {letter && !acik && (
-            <span className="text-[11px] text-text-subtle">{t("letters.bodyHiddenHint")}</span>
+            <span className="text-[11px] text-text-muted">{t("letters.bodyHiddenHint")}</span>
           )}
         </label>
 
@@ -354,7 +354,7 @@ function LetterForm({
             {t("letters.cancel")}
           </Button>
           {(!title.trim() || !gecerliTarih) && (
-            <span className="text-[11px] text-text-subtle">{t("letters.invalid")}</span>
+            <span className="text-[11px] text-text-muted">{t("letters.invalid")}</span>
           )}
         </div>
       </form>

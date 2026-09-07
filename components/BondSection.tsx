@@ -108,9 +108,9 @@ export default function BondSection({
   return (
     <div className="space-y-2">
       {bonds.loading && mine.length === 0 ? (
-        <p className="text-xs text-text-subtle">…</p>
+        <p className="text-xs text-text-muted">…</p>
       ) : mine.length === 0 ? (
-        <p className="text-xs text-text-subtle">{t("bond.empty")}</p>
+        <p className="text-xs text-text-muted">{t("bond.empty")}</p>
       ) : (
         <ul className="space-y-1">
           {mine.map((b) => {
@@ -128,11 +128,11 @@ export default function BondSection({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-text truncate leading-tight">{fullName(op)}</p>
                     {b.note && (
-                      <p className="text-[11px] text-text-subtle truncate leading-tight">{b.note}</p>
+                      <p className="text-[11px] text-text-muted truncate leading-tight">{b.note}</p>
                     )}
                   </div>
                   <StyleSample type={b.type} />
-                  <span className="text-[11px] font-medium text-text-subtle shrink-0">
+                  <span className="text-[11px] font-medium text-text-muted shrink-0">
                     {t(bondTypeKey(b.type))}
                   </span>
                 </button>
@@ -184,7 +184,7 @@ export default function BondSection({
         <div className="space-y-2 p-2.5 rounded-xl bg-surface-2 border border-border">
           {!form.id && (
             <label className="block">
-              <span className="text-[11px] text-text-subtle">{t("bond.other")}</span>
+              <span className="text-[11px] text-text-muted">{t("bond.other")}</span>
               <PersonPicker
                 people={secilebilir}
                 value={form.other}
@@ -193,7 +193,7 @@ export default function BondSection({
             </label>
           )}
           <label className="block">
-            <span className="text-[11px] text-text-subtle">{t("bond.type")}</span>
+            <span className="text-[11px] text-text-muted">{t("bond.type")}</span>
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as BondType })}
@@ -209,10 +209,10 @@ export default function BondSection({
           </label>
           <div className="flex items-center gap-2">
             <StyleSample type={form.type} />
-            <span className="text-[11px] text-text-subtle">{t(`${bondTypeKey(form.type)}.desc`)}</span>
+            <span className="text-[11px] text-text-muted">{t(`${bondTypeKey(form.type)}.desc`)}</span>
           </div>
           <label className="block">
-            <span className="text-[11px] text-text-subtle">{t("bond.note")}</span>
+            <span className="text-[11px] text-text-muted">{t("bond.note")}</span>
             <input
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -238,7 +238,7 @@ export default function BondSection({
         </div>
       )}
 
-      <p className="text-[11px] text-text-subtle leading-snug">{t("bond.private")}</p>
+      <p className="text-[11px] text-text-muted leading-snug">{t("bond.private")}</p>
     </div>
   );
 }

@@ -101,7 +101,7 @@ export default function ContactSection({ personId }: { personId: string }) {
       : durum.contactConsent === "red"
         ? { metin: t("contact.stateDeclined"), sinif: "text-text-muted" }
         : durum.contactConsent === "bekliyor"
-          ? { metin: t("contact.statePending"), sinif: "text-text-subtle" }
+          ? { metin: t("contact.statePending"), sinif: "text-text-muted" }
           : null;
 
   const degisti = adres.trim() !== (durum.contactEmail ?? "").trim();
@@ -112,7 +112,7 @@ export default function ContactSection({ personId }: { personId: string }) {
         <label className="text-xs font-medium block mb-1" htmlFor={`contact-${personId}`}>
           {t("contact.label")}
         </label>
-        <p className="text-[11px] text-text-subtle leading-snug mb-2">{t("contact.hint")}</p>
+        <p className="text-[11px] text-text-muted leading-snug mb-2">{t("contact.hint")}</p>
         <input
           id={`contact-${personId}`}
           type="email"
@@ -137,13 +137,13 @@ export default function ContactSection({ personId }: { personId: string }) {
         <p className="text-[11px] text-text-muted leading-snug">{t("contact.declinedNote")}</p>
       )}
 
-      <p className="text-[11px] text-text-subtle leading-snug">{t("contact.consentNote")}</p>
+      <p className="text-[11px] text-text-muted leading-snug">{t("contact.consentNote")}</p>
 
       <Button size="sm" onClick={kaydet} disabled={kaydediyor || yukleniyor || !degisti}>
         {kaydediyor ? t("contact.saving") : t("contact.save")}
       </Button>
 
-      {bilgi && <p className="text-[11px] text-text-subtle">{bilgi}</p>}
+      {bilgi && <p className="text-[11px] text-text-muted">{bilgi}</p>}
       {hata && <p className="text-xs text-danger bg-danger-soft px-3 py-2 rounded-xl">{hata}</p>}
     </section>
   );

@@ -80,7 +80,7 @@ export default function AiAssist({ person }: { person: Person }) {
         ))}
       </div>
 
-      {busy && <p className="text-[11px] text-text-subtle mt-3">{t("ai.story.generating")}</p>}
+      {busy && <p className="text-[11px] text-text-muted mt-3">{t("ai.story.generating")}</p>}
 
       {text && !busy && (
         <div className="mt-3">
@@ -93,7 +93,7 @@ export default function AiAssist({ person }: { person: Person }) {
               <button
                 onClick={() => run(mode)}
                 disabled={busy}
-                className="text-[11px] text-text-subtle hover:text-text disabled:opacity-50"
+                className="text-[11px] text-text-muted hover:text-text disabled:opacity-50"
               >
                 {t("ai.story.again")}
               </button>
@@ -103,7 +103,7 @@ export default function AiAssist({ person }: { person: Person }) {
       )}
 
       {error && <p className="text-[11px] text-danger mt-2">{error}</p>}
-      <p className="text-[10px] text-text-subtle mt-2">{t("ai.story.note")}</p>
+      <p className="text-[10px] text-text-muted mt-2">{t("ai.story.note")}</p>
     </div>
   );
 }

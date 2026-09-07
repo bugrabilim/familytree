@@ -2,6 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useT } from "@/lib/i18n";
+
 export const THEME_SCRIPT = `
 (function(){
   try {
@@ -62,13 +64,31 @@ export function setTheme(dark: boolean) {
 
 export default function ThemeToggle({ className = "" }: { className?: string }) {
   const dark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  /*
+   * `aria-label` ve `title` SÖZLÜKTEN geliyor, sabit Türkçe değil.
+   *
+   * Bu düğmenin ikon dışında metni yok: erişilebilir adı TEK adı. Sabit
+   * kodlanmışken EN dilinde yedi genel sayfanın hepsinde ekran okuyucu
+   * "Koyu temaya geç" diyordu — İngilizce oturumda anlaşılmaz bir dize.
+   * Anahtar hiç OLUŞTURULMADIĞI için i18n parite testi de bunu göremezdi
+   * (parite yalnız var olan anahtarların iki yarısını karşılaştırır);
+   * o boşluğu `tests/i18n-hardcode-gate.test.mts` kapatıyor.
+   */
+  const t = useT();
 
   return (
     <button
       onClick={() => setTheme(!dark)}
-      aria-label={dark ? "Açık temaya geç" : "Koyu temaya geç"}
-      title={dark ? "Açık tema" : "Koyu tema"}
-      className={`w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors ${className}`}
+      aria-label={dark ? t("theme.toLight") : t("theme.toDark")}
+      title={dark ? t("theme.light") : t("theme.dark")}
+      /*
+       * Dokunmada 44x44, farede (lg) eskisi gibi 36x36 — #307'de üst çubuk ve
+       * tuval denetimleri için kurulan kalıbın aynısı. Ölçülen hâli 36x36'ydı
+       * ve /login, /register, /privacy, /terms, /g sayfalarında tek başına
+       * duran bir ikon düğmesiydi (yanında yanlışlıkla basılacak bir komşusu
+       * bile yok, yani büyütmenin bedeli sıfır).
+       */
+      className={`w-11 h-11 lg:w-9 lg:h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors ${className}`}
     >
       {dark ? (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

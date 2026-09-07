@@ -209,13 +209,13 @@ function PersonNode({ data }: NodeProps) {
 
         <div className="min-w-0 w-full leading-tight">
           <p className={`font-semibold ${nameCls} ${
-            isPlaceholder ? "text-text-subtle italic font-medium" : "text-text"
+            isPlaceholder ? "text-text-muted italic font-medium" : "text-text"
           } line-clamp-2 break-words`}>
             {isPlaceholder ? t(`starter.role.${person.placeholder}`) : primaryName(person)}
             {!isPlaceholder && surname ? ` ${surname}` : ""}
           </p>
           {showYear && (
-            <p className="text-[11px] text-text-subtle mt-0.5 tabular-nums">{birthYear}</p>
+            <p className="text-[11px] text-text-muted mt-0.5 tabular-nums">{birthYear}</p>
           )}
         </div>
       </button>

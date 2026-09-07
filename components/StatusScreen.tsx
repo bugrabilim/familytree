@@ -62,7 +62,7 @@ export default function StatusScreen({
       <main className="flex-1 grid place-items-center px-5 py-16">
         <div className="w-full max-w-md text-center">
           {code && (
-            <p className="font-serif text-6xl sm:text-7xl font-semibold text-text-subtle/60 leading-none">
+            <p className="font-serif text-6xl sm:text-7xl font-semibold text-text-muted/60 leading-none">
               {code}
             </p>
           )}

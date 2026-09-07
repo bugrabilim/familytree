@@ -146,7 +146,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
             <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
               {t("ego.title")}
             </p>
-            <p className="text-[11px] leading-tight text-text-subtle truncate">
+            <p className="text-[11px] leading-tight text-text-muted truncate">
               {t("ego.centeredOn", { name: fullName(center) })}
             </p>
           </div>
@@ -178,7 +178,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="ml-auto lg:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+            className="ml-auto lg:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -266,7 +266,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
 
       {/* Alt ipucu */}
       <footer className="shrink-0 px-4 py-2 border-t border-border bg-bg-elevated/70 text-center">
-        <p className="text-[11px] text-text-subtle">{t("ego.hint")}</p>
+        <p className="text-[11px] text-text-muted">{t("ego.hint")}</p>
       </footer>
     </div>
   );
@@ -327,7 +327,7 @@ function EgoCard({
           {fullName(person)}
         </span>
         {subtitle && (
-          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : associate ? "text-accent/80" : "text-text-subtle"}`}>
+          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : associate ? "text-accent/80" : "text-text-muted"}`}>
             {subtitle}
           </span>
         )}

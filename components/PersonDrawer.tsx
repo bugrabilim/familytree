@@ -355,7 +355,7 @@ export default function PersonDrawer({
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="absolute right-3 top-3 sm:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+            className="absolute right-3 top-3 sm:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -369,10 +369,10 @@ export default function PersonDrawer({
                 {fullName(person)}
               </h2>
               {person.code && (
-                <p className="text-[11px] text-text-subtle tabular-nums font-mono mt-0.5">#{person.code}</p>
+                <p className="text-[11px] text-text-muted tabular-nums font-mono mt-0.5">#{person.code}</p>
               )}
               {masked && (
-                <p className="inline-flex items-center gap-1 mt-1 text-[11px] text-text-subtle">
+                <p className="inline-flex items-center gap-1 mt-1 text-[11px] text-text-muted">
                   {t("drawer.livingMasked")}
                 </p>
               )}
@@ -380,7 +380,7 @@ export default function PersonDrawer({
                 <p className="text-sm text-text-muted mt-0.5 tabular-nums">
                   {years}
                   {age !== null && (
-                    <span className="text-text-subtle">
+                    <span className="text-text-muted">
                       {" "}· {person.deathDate ? t("drawer.agePast", { age }) : t("drawer.ageNow", { age })}
                     </span>
                   )}
@@ -402,7 +402,7 @@ export default function PersonDrawer({
                   {generation && (
                     <span
                       title={t("generation.computed")}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface-2 text-text-subtle text-[11px]"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-surface-2 text-text-muted text-[11px]"
                     >
                       {t(generation.key, generation.params)}
                     </span>
@@ -410,7 +410,7 @@ export default function PersonDrawer({
                 </div>
               )}
               {generation && referencePerson && (
-                <p className="mt-1 text-[10px] text-text-subtle/80">{t("generation.computed")}</p>
+                <p className="mt-1 text-[10px] text-text-muted/80">{t("generation.computed")}</p>
               )}
             </div>
           </div>
@@ -573,7 +573,7 @@ export default function PersonDrawer({
                           onPointerMove={dragMove}
                           onPointerUp={dragEnd}
                           onPointerCancel={dragCancel}
-                          className="shrink-0 grid place-items-center w-7 h-7 rounded-lg text-text-subtle hover:text-text hover:bg-surface-3 touch-none cursor-grab active:cursor-grabbing"
+                          className="shrink-0 grid place-items-center w-7 h-7 rounded-lg text-text-muted hover:text-text hover:bg-surface-3 touch-none cursor-grab active:cursor-grabbing"
                         >
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
                             <circle cx="4" cy="2.5" r="1" />
@@ -584,13 +584,13 @@ export default function PersonDrawer({
                             <circle cx="8" cy="9.5" r="1" />
                           </svg>
                         </span>
-                        <span className="w-4 shrink-0 text-right tabular-nums text-text-subtle">{i + 1}</span>
+                        <span className="w-4 shrink-0 text-right tabular-nums text-text-muted">{i + 1}</span>
                         <span className="truncate">{fullName(sib)}</span>
                       </li>
                     );
                   })}
                 </ul>
-                <p className="mt-1 text-[10px] text-text-subtle leading-snug">
+                <p className="mt-1 text-[10px] text-text-muted leading-snug">
                   {t("drawer.siblingDragHint")}
                 </p>
               </>
@@ -620,22 +620,22 @@ export default function PersonDrawer({
                 <div className="flex items-start gap-2.5">
                   <span className="text-sm w-5 text-center shrink-0" aria-hidden>✨</span>
                   <div className="min-w-0 flex-1">
-                    <span className="text-[11px] text-text-subtle">{t("zodiac.label")}</span>
+                    <span className="text-[11px] text-text-muted">{t("zodiac.label")}</span>
                     <p className="text-sm text-text leading-tight">
                       {t(zodiacKey(zodiac.sign))}
-                      <span className="text-text-subtle"> · {t(elementKey(zodiac.element))}</span>
+                      <span className="text-text-muted"> · {t(elementKey(zodiac.element))}</span>
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {traitsOf(zodiac.sign).map((tr) => (
                         <span
                           key={tr}
-                          className="px-1.5 py-0.5 rounded bg-surface-2 border border-border text-[10px] text-text-subtle"
+                          className="px-1.5 py-0.5 rounded bg-surface-2 border border-border text-[10px] text-text-muted"
                         >
                           {t(traitKey(tr))}
                         </span>
                       ))}
                     </div>
-                    <p className="mt-1 text-[10px] text-text-subtle">{t("zodiac.traitsNote")}</p>
+                    <p className="mt-1 text-[10px] text-text-muted">{t("zodiac.traitsNote")}</p>
                   </div>
                 </div>
               )}
@@ -649,11 +649,11 @@ export default function PersonDrawer({
                 <div className="flex items-start gap-2.5">
                   <span className="text-sm w-5 text-center shrink-0" aria-hidden>🌅</span>
                   <div className="min-w-0 flex-1">
-                    <span className="text-[11px] text-text-subtle">{t("asc.label")}</span>
+                    <span className="text-[11px] text-text-muted">{t("asc.label")}</span>
                     {yukselen.certain && yukselen.sign ? (
                       <p className="text-sm text-text leading-tight">
                         {t(zodiacKey(yukselen.sign))}
-                        <span className="text-text-subtle">
+                        <span className="text-text-muted">
                           {" "}· {t("asc.degree", { deg: Math.floor(yukselen.candidates[0].degreeInSign) })}
                         </span>
                       </p>
@@ -662,7 +662,7 @@ export default function PersonDrawer({
                         <p className="text-sm text-text leading-tight">
                           {yukselen.candidates.map((c) => t(zodiacKey(c.sign))).join(" / ")}
                         </p>
-                        <p className="mt-1 text-[10px] text-text-subtle leading-snug">
+                        <p className="mt-1 text-[10px] text-text-muted leading-snug">
                           {t("asc.uncertain")}
                         </p>
                       </>
@@ -730,7 +730,7 @@ export default function PersonDrawer({
                   .filter(([, v]) => !!v)
                   .map(([k, v]) => (
                     <div key={k} className="flex items-baseline gap-2">
-                      <dt className="text-[11px] text-text-subtle w-24 shrink-0">{k}</dt>
+                      <dt className="text-[11px] text-text-muted w-24 shrink-0">{k}</dt>
                       <dd className="text-sm text-text leading-snug">{v}</dd>
                     </div>
                   ))}
@@ -743,13 +743,13 @@ export default function PersonDrawer({
               <SectionTitle>{t("drawer.health")}</SectionTitle>
               {person.congenitalCondition && (
                 <div>
-                  <p className="text-[11px] font-medium text-text-subtle">{t("drawer.congenital")}</p>
+                  <p className="text-[11px] font-medium text-text-muted">{t("drawer.congenital")}</p>
                   <p className="text-sm text-text-muted leading-relaxed">{person.congenitalCondition}</p>
                 </div>
               )}
               {person.healthCondition && (
                 <div>
-                  <p className="text-[11px] font-medium text-text-subtle">{t("drawer.acquired")}</p>
+                  <p className="text-[11px] font-medium text-text-muted">{t("drawer.acquired")}</p>
                   <p className="text-sm text-text-muted leading-relaxed">{person.healthCondition}</p>
                 </div>
               )}
@@ -868,7 +868,7 @@ export default function PersonDrawer({
                           <p className="text-sm text-text leading-tight break-words">{s.title}</p>
                         )}
                         {s.note && (
-                          <p className="text-[11px] text-text-subtle leading-snug mt-0.5 whitespace-pre-wrap">
+                          <p className="text-[11px] text-text-muted leading-snug mt-0.5 whitespace-pre-wrap">
                             {s.note}
                           </p>
                         )}
@@ -896,7 +896,7 @@ export default function PersonDrawer({
                         <Avatar person={op} size="sm" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-text truncate leading-tight">{fullName(op)}</p>
-                          {note && <p className="text-[11px] text-text-subtle truncate leading-tight">{note}</p>}
+                          {note && <p className="text-[11px] text-text-muted truncate leading-tight">{note}</p>}
                         </div>
                         <span className="text-[11px] font-medium text-accent shrink-0">
                           {ASSOCIATION_TYPES[type]?.icon ?? "•"} {ASSOCIATION_TYPES[type]?.label ?? type}
@@ -992,7 +992,7 @@ export default function PersonDrawer({
               )}
               {timeline.undated.length > 0 && (
                 <div className="mt-1">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-text-subtle mb-1 pl-[3.25rem]">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted mb-1 pl-[3.25rem]">
                     {t("drawer.undated")}
                   </p>
                   <ol>
@@ -1071,7 +1071,7 @@ export default function PersonDrawer({
 
           {/* #6 — Köken/iz: bu kart nasıl/hangi yöntemle eklendi? */}
           {person.entrySource && (
-            <p className="pt-1 text-[11px] text-text-subtle">
+            <p className="pt-1 text-[11px] text-text-muted">
               {t("drawer.entrySource")}: {entrySourceLabel(person.entrySource, t)}
             </p>
           )}
@@ -1142,7 +1142,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-text-subtle mb-2">
+    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">
       {children}
     </h3>
   );
@@ -1175,7 +1175,7 @@ function TimelineRow({
       {/* İçerik — sağda */}
       <div className={`min-w-0 pt-0.5 ${last ? "pb-0.5" : "pb-3"}`}>
         <p className="text-sm text-text leading-tight">{label}</p>
-        {sub && <p className="text-[11px] text-text-subtle leading-tight mt-0.5">{sub}</p>}
+        {sub && <p className="text-[11px] text-text-muted leading-tight mt-0.5">{sub}</p>}
       </div>
     </li>
   );
@@ -1197,7 +1197,7 @@ function Fact({
     <div className="flex items-center gap-2.5">
       <span className="text-sm w-5 text-center shrink-0" aria-hidden>{icon}</span>
       <div className="min-w-0 flex-1">
-        <span className="text-[11px] text-text-subtle">{label}</span>
+        <span className="text-[11px] text-text-muted">{label}</span>
         <p className="text-sm text-text leading-tight">{value}</p>
       </div>
       {gmapsQuery && <GMapsLink query={gmapsQuery} />}
@@ -1287,12 +1287,12 @@ function RelationGroup({
                     </span>
                   )}
                   {!badge && lifeSpan(p.birthDate, p.deathDate) && (
-                    <p className="text-[11px] text-text-subtle tabular-nums leading-tight">
+                    <p className="text-[11px] text-text-muted tabular-nums leading-tight">
                       {lifeSpan(p.birthDate, p.deathDate)}
                     </p>
                   )}
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-subtle shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted shrink-0">
                   <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>

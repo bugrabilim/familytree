@@ -35,7 +35,7 @@ export default function MilestonesView({
       {/* Aciliyet — en üstte, çünkü zamana bağlı tek bölüm bu. */}
       {acil.length > 0 && (
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("urgency.heading")}
           </h4>
           <ul className="space-y-1">
@@ -69,7 +69,7 @@ export default function MilestonesView({
       {/* Sıradaki hedefler */}
       {siradaki.length > 0 && (
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("milestone.next")}
           </h4>
           <ul className="space-y-2">
@@ -77,7 +77,7 @@ export default function MilestonesView({
               <li key={m.id} className="space-y-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-sm text-text">{t(m.key)}</span>
-                  <span className="text-[11px] tabular-nums text-text-subtle shrink-0">
+                  <span className="text-[11px] tabular-nums text-text-muted shrink-0">
                     {m.value}/{m.target}
                   </span>
                 </div>
@@ -95,11 +95,11 @@ export default function MilestonesView({
 
       {/* Ulaşılanlar */}
       <section className="space-y-1.5">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           {t("milestone.reached")}
         </h4>
         {ulasilan.length === 0 ? (
-          <p className="text-xs text-text-subtle">{t("milestone.none")}</p>
+          <p className="text-xs text-text-muted">{t("milestone.none")}</p>
         ) : (
           <ul className="flex flex-wrap gap-1.5">
             {/*

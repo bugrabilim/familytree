@@ -152,7 +152,7 @@ export default function RecipesView({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("recipes.search")}
-                className="flex-1 min-w-[12rem] h-9 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary"
+                className="flex-1 min-w-[12rem] h-9 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary"
               />
               <div className="flex gap-1">
                 {(["person", "occasion"] as const).map((g) => (
@@ -163,7 +163,7 @@ export default function RecipesView({
                     className={`text-[11px] px-2 py-1.5 rounded-lg border transition-colors ${
                       grouping === g
                         ? "border-accent bg-accent-soft text-accent"
-                        : "border-border text-text-subtle hover:bg-surface-2"
+                        : "border-border text-text-muted hover:bg-surface-2"
                     }`}
                   >
                     {t(g === "person" ? "recipes.groupPerson" : "recipes.groupOccasion")}
@@ -181,13 +181,13 @@ export default function RecipesView({
             {recipes.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">
                 <p className="text-sm text-text">{t("recipes.empty")}</p>
-                <p className="text-[11px] text-text-subtle mt-1">{t("recipes.emptyHint")}</p>
+                <p className="text-[11px] text-text-muted mt-1">{t("recipes.emptyHint")}</p>
               </div>
             ) : shown.length === 0 ? (
-              <p className="text-sm text-text-subtle">{t("recipes.noMatch")}</p>
+              <p className="text-sm text-text-muted">{t("recipes.noMatch")}</p>
             ) : (
               <>
-                <p className="text-[11px] text-text-subtle">{t("recipes.count", { count: shown.length })}</p>
+                <p className="text-[11px] text-text-muted">{t("recipes.count", { count: shown.length })}</p>
                 {groups.map((g) => (
                   <section key={g.key || "__yok"} className="grid gap-2">
                     <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export default function RecipesView({
                         </button>
                       )}
                       <h2 className="font-serif text-base font-semibold text-text">{g.label}</h2>
-                      <span className="text-[11px] text-text-subtle tabular-nums">{g.recipes.length}</span>
+                      <span className="text-[11px] text-text-muted tabular-nums">{g.recipes.length}</span>
                     </div>
                     {g.recipes.map((r) => (
                       <RecipeCard
@@ -235,21 +235,21 @@ function RecipeCard({
       <div className="flex items-start justify-between gap-2">
         <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-w-0 text-left flex-1">
           <p className="text-sm font-medium text-text">{recipe.title}</p>
-          {meta && <p className="text-[11px] text-text-subtle mt-0.5">{meta}</p>}
+          {meta && <p className="text-[11px] text-text-muted mt-0.5">{meta}</p>}
         </button>
         {!readOnly && (
           <div className="flex gap-1 shrink-0">
             <button
               onClick={onEdit}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               {t("recipes.edit")}
             </button>
             <button
               onClick={onDelete}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
             >
               {t("recipes.delete")}
             </button>
@@ -261,7 +261,7 @@ function RecipeCard({
         <div className="mt-3 grid gap-3 text-sm">
           {recipe.ingredients.length > 0 && (
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-text-subtle mb-1">
+              <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">
                 {t("recipes.field.ingredients")}
               </p>
               <ul className="list-disc pl-5 space-y-0.5 text-text">
@@ -271,7 +271,7 @@ function RecipeCard({
           )}
           {recipe.steps.length > 0 && (
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-text-subtle mb-1">
+              <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">
                 {t("recipes.field.steps")}
               </p>
               <ol className="list-decimal pl-5 space-y-0.5 text-text">
@@ -316,8 +316,8 @@ function RecipeForm({
     place, occasion, servings, ingredientsText, stepsText, note,
   };
 
-  const field = "w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary";
-  const area = "w-full px-3 py-2 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary";
+  const field = "w-full h-10 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary";
+  const area = "w-full px-3 py-2 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -330,12 +330,12 @@ function RecipeForm({
         </h1>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("recipes.field.title")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("recipes.field.title")}</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} className={field} autoFocus />
         </label>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("recipes.field.from")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("recipes.field.from")}</span>
           <PersonPicker people={people} value={fromPersonId} onChange={setFromPersonId} />
         </label>
 
@@ -346,7 +346,7 @@ function RecipeForm({
             [t("recipes.field.servings"), servings, setServings],
           ] as const).map(([label, value, set]) => (
             <label key={label} className="grid gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-text-subtle">{label}</span>
+              <span className="text-[11px] uppercase tracking-wide text-text-muted">{label}</span>
               <input value={value} onChange={(e) => set(e.target.value)} className={field} />
             </label>
           ))}
@@ -357,7 +357,7 @@ function RecipeForm({
           [t("recipes.field.steps"), stepsText, setSteps, 8],
         ] as const).map(([label, value, set, rows]) => (
           <label key={label} className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">
               {label} <span className="normal-case tracking-normal">· {t("recipes.linesHint")}</span>
             </span>
             <textarea value={value} onChange={(e) => set(e.target.value)} rows={rows} className={area} />
@@ -365,7 +365,7 @@ function RecipeForm({
         ))}
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("recipes.field.note")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("recipes.field.note")}</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className={area} />
         </label>
 
@@ -376,7 +376,7 @@ function RecipeForm({
           <Button type="button" variant="secondary" size="sm" onClick={onCancel} disabled={busy}>
             {t("recipes.cancel")}
           </Button>
-          {!title.trim() && <span className="text-[11px] text-text-subtle self-center">{t("recipes.titleRequired")}</span>}
+          {!title.trim() && <span className="text-[11px] text-text-muted self-center">{t("recipes.titleRequired")}</span>}
         </div>
       </form>
     </div>

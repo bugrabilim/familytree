@@ -186,14 +186,14 @@ export default function ShareDialog({
 
         {/* Yeni bağlantı oluştur */}
         <section className="rounded-2xl border border-border bg-surface p-3.5 space-y-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">{t("share.newTitle")}</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{t("share.newTitle")}</h3>
           <div>
             <input
               value={label}
               onChange={(e) => { setDokunuldu(true); setLabel(e.target.value); }}
               placeholder={t("share.labelPlaceholder")}
               aria-required
-              className={`w-full h-10 px-3 rounded-xl bg-surface-2 border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary ${labelWarn ? "border-amber-400 dark:border-amber-600" : "border-border"}`}
+              className={`w-full h-10 px-3 rounded-xl bg-surface-2 border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary ${labelWarn ? "border-amber-400 dark:border-amber-600" : "border-border"}`}
             />
             {labelWarn && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{t("share.labelRequired")}</p>}
           </div>
@@ -212,7 +212,7 @@ export default function ShareDialog({
                 placeholder="0"
                 className="w-16 h-9 px-2 rounded-lg bg-surface-2 border border-border text-text text-sm tabular-nums focus:outline-none focus:border-primary"
               />
-              <span className="text-text-subtle text-xs">{t("share.expiryDays")}</span>
+              <span className="text-text-muted text-xs">{t("share.expiryDays")}</span>
             </div>
           </div>
           {/* Tek kişilik bağlantı — mezar taşına basılan QR için. */}
@@ -224,7 +224,7 @@ export default function ShareDialog({
             {single && (
               <>
                 <PersonPicker people={people} value={personId} onChange={setPersonId} />
-                <p className="text-[11px] text-text-subtle">{t("share.singleHint")}</p>
+                <p className="text-[11px] text-text-muted">{t("share.singleHint")}</p>
               </>
             )}
           </div>
@@ -235,7 +235,7 @@ export default function ShareDialog({
           {!single && (
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   {t("share.scopeTitle")}
                 </span>
                 <button
@@ -257,7 +257,7 @@ export default function ShareDialog({
               {scopeEmpty && <p className="text-[11px] text-amber-700 dark:text-amber-300">{t("share.scopeEmpty")}</p>}
             </div>
           )}
-          <p className="text-[11px] text-text-subtle">{t("share.expiryHint")}</p>
+          <p className="text-[11px] text-text-muted">{t("share.expiryHint")}</p>
           {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
           {unlimitedExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.unlimitedWarn")}</p>}
@@ -270,7 +270,7 @@ export default function ShareDialog({
         {shares === null ? (
           <p className="text-sm text-text-muted">{t("share.loading")}</p>
         ) : shares.length === 0 ? (
-          <p className="text-sm text-text-subtle">{t("share.none")}</p>
+          <p className="text-sm text-text-muted">{t("share.none")}</p>
         ) : (
           <div className="space-y-3">
             {shares.map((s) => (
@@ -336,7 +336,7 @@ function ShareCard({
             * sonra elindeki bağlantının ne açtığını bilemezdi.
             */}
           {!s.personId && (
-            <span className="text-[11px] text-text-subtle">
+            <span className="text-[11px] text-text-muted">
               {s.scope.length >= SHARE_SCOPES.length
                 ? t("share.scopeAllOpen")
                 : t("share.scopeSome", { count: s.scope.length })}
@@ -347,13 +347,13 @@ function ShareCard({
               🪦 {personName ?? t("share.singleUnknown")}
             </p>
           )}
-          <p className="text-[11px] text-text-subtle">
+          <p className="text-[11px] text-text-muted">
             {s.expired ? <span className="text-danger">{t("share.expired")}</span>
               : s.expiresAt ? t("share.expiresOn", { date: fmt(s.expiresAt) })
               : t("share.noExpiry")}
           </p>
         </div>
-        <button onClick={onDelete} disabled={busy} title={t("share.delete")} className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors">✕</button>
+        <button onClick={onDelete} disabled={busy} title={t("share.delete")} className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors">✕</button>
       </div>
 
       {/* Bağlantı */}
@@ -394,7 +394,7 @@ function ShareCard({
 
       {showEmbed && !s.personId && (
         <div className="rounded-xl bg-surface-2 border border-border p-2.5 space-y-2">
-          <p className="text-[11px] text-text-subtle leading-snug">{t("embed.hint")}</p>
+          <p className="text-[11px] text-text-muted leading-snug">{t("embed.hint")}</p>
           <textarea
             readOnly
             value={embedCode}
@@ -419,13 +419,13 @@ function ShareCard({
       {showStats && (
         <div className="rounded-xl bg-surface-2 border border-border p-2.5">
           {s.visits.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">{t("share.noVisits")}</p>
+            <p className="text-[11px] text-text-muted">{t("share.noVisits")}</p>
           ) : (
             <ul className="space-y-1">
               {s.visits.map((v, i) => (
                 <li key={i} className="flex items-center justify-between gap-2 text-[11px] text-text-muted">
                   <span>{v.device ?? "—"}{(v.city || v.country) ? ` · ${[v.city, v.country].filter(Boolean).join(", ")}` : ""}</span>
-                  <span className="tabular-nums text-text-subtle">{fmtDT(v.at)}</span>
+                  <span className="tabular-nums text-text-muted">{fmtDT(v.at)}</span>
                 </li>
               ))}
             </ul>

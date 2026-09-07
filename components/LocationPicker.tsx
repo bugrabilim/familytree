@@ -179,7 +179,7 @@ export default function LocationPicker({
           onChange={(e) => { setQuery(e.target.value); setSearchMiss(false); }}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); search(); } }}
           placeholder={t("loc.searchPlaceholder")}
-          className="flex-1 h-8 px-2.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+          className="flex-1 h-8 px-2.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
         />
         <button
           type="button"
@@ -225,7 +225,7 @@ export default function LocationPicker({
             {t("burial.gmaps")}
           </a>
         )}
-        <span className="ml-auto text-[11px] tabular-nums text-text-subtle">
+        <span className="ml-auto text-[11px] tabular-nums text-text-muted">
           {coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : t("burial.noPin")}
         </span>
       </div>
@@ -268,7 +268,7 @@ export default function LocationPicker({
           <button type="button" onClick={() => zoomAt(1 / 1.6, 0.5, 0.5)} aria-label={t("map.zoomOut")}
             className="w-7 h-7 grid place-items-center rounded-lg bg-surface/90 border border-border text-text hover:bg-surface-2 text-base leading-none shadow-sm">−</button>
         </div>
-        <p className="absolute bottom-1.5 left-2 text-[10px] text-text-subtle bg-surface/70 rounded px-1.5 py-0.5 pointer-events-none">
+        <p className="absolute bottom-1.5 left-2 text-[10px] text-text-muted bg-surface/70 rounded px-1.5 py-0.5 pointer-events-none">
           {t("burial.hint")}
         </p>
       </div>

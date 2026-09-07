@@ -11,7 +11,7 @@ function authUserLabel(kind: "preview" | "migrate" | "", v: unknown) {
   if (kind === "preview") {
     if (v === true) return <span className="text-primary">✓ Auth&apos;a taşınmış</span>;
     if (v === false) return <span className="text-text-muted">henüz taşınmadı (Göçü başlat)</span>;
-    return <span className="text-text-subtle">belirsiz</span>;
+    return <span className="text-text-muted">belirsiz</span>;
   }
   if (v === "created") return <span className="text-primary">✓ Auth&apos;a aktarıldı</span>;
   if (v === "exists") return <span className="text-primary">✓ zaten Auth&apos;ta</span>;
@@ -98,7 +98,7 @@ export default function MigrateClient() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-text-subtle border-b border-border">
+                      <tr className="text-left text-text-muted border-b border-border">
                         <th className="py-1.5 pr-3 font-medium">Ağaç</th>
                         <th className="py-1.5 px-2 font-medium tabular-nums">Kişi (Blob)</th>
                         {kind === "preview" && (
@@ -113,7 +113,7 @@ export default function MigrateClient() {
                       {trees.map((t, i) => (
                         <tr key={i} className="border-b border-border/60 last:border-0">
                           <td className="py-1.5 pr-3">
-                            {String(t.tree)} {t.home ? <span className="text-[10px] text-text-subtle">(ana)</span> : null}
+                            {String(t.tree)} {t.home ? <span className="text-[10px] text-text-muted">(ana)</span> : null}
                           </td>
                           <td className="py-1.5 px-2 tabular-nums">{String(t.people ?? "—")}</td>
                           {kind === "preview" && (
@@ -150,7 +150,7 @@ export default function MigrateClient() {
 
                 {/* Faz 3b — hesabın Supabase Auth durumu (giriş bundan etkilenmez). */}
                 <div className="mt-3 pt-3 border-t border-border/60 text-sm">
-                  <span className="text-text-subtle">Supabase Auth hesabı: </span>
+                  <span className="text-text-muted">Supabase Auth hesabı: </span>
                   {authUserLabel(kind, result.authUser)}
                 </div>
               </>

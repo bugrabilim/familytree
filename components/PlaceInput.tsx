@@ -66,7 +66,7 @@ export default function PlaceInput({ id, value, onChange, className, placeholder
         söyleniyor. "Değiştir" demiyoruz — yalnız haritada nereye oturacağını.
       */}
       {ipucu && (
-        <p className="text-[11px] text-text-subtle mt-1 leading-relaxed">
+        <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
           {t("place.historicHint", { old: ipucu.typed, modern: ipucu.modern })}
         </p>
       )}
@@ -87,12 +87,12 @@ export default function PlaceInput({ id, value, onChange, className, placeholder
               >
                 <span className="block text-sm text-text">{o.name}</span>
                 {o.matchedAs && (
-                  <span className="block text-[11px] text-text-subtle">
+                  <span className="block text-[11px] text-text-muted">
                     {t("place.matchedAs", { old: o.matchedAs })}
                   </span>
                 )}
                 {!o.matchedAs && o.historic && o.historic.length > 0 && (
-                  <span className="block text-[11px] text-text-subtle">
+                  <span className="block text-[11px] text-text-muted">
                     {t("place.alsoKnown", { names: o.historic.slice(0, 3).join(", ") })}
                   </span>
                 )}

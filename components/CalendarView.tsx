@@ -110,17 +110,17 @@ export default function CalendarView({ people, onSelect }: Props) {
     if (ev.kind === "birthday") {
       const age = calcAge(ev.rawPerson.birthDate);
       subtext = masked ? (
-        <p className="text-[11px] text-text-subtle leading-tight">{t("common.living")}</p>
+        <p className="text-[11px] text-text-muted leading-tight">{t("common.living")}</p>
       ) : age !== null ? (
-        <p className="text-[11px] text-text-subtle leading-tight">
+        <p className="text-[11px] text-text-muted leading-tight">
           {t("panel.birthday.turning", { age: age + (ev.days > 0 ? 1 : 0) })}
         </p>
       ) : (
-        <p className="text-[11px] text-text-subtle leading-tight">{t("panel.birthday.generic")}</p>
+        <p className="text-[11px] text-text-muted leading-tight">{t("panel.birthday.generic")}</p>
       );
     } else {
       subtext = (
-        <p className="text-[11px] text-text-subtle leading-tight">
+        <p className="text-[11px] text-text-muted leading-tight">
           {ev.icon} {ev.label}
         </p>
       );
@@ -184,10 +184,10 @@ export default function CalendarView({ people, onSelect }: Props) {
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="font-serif text-base font-semibold text-text">{t("panel.card.upcoming")}</h2>
-            <span className="text-[11px] text-text-subtle shrink-0">{t("panel.card.upcomingHint")}</span>
+            <span className="text-[11px] text-text-muted shrink-0">{t("panel.card.upcomingHint")}</span>
           </div>
           {upcoming.length === 0 ? (
-            <p className="text-sm text-text-subtle py-2">{t("panel.card.upcomingEmpty")}</p>
+            <p className="text-sm text-text-muted py-2">{t("panel.card.upcomingEmpty")}</p>
           ) : (
             <ul className="space-y-1">
               {future.map((ev) => renderRow(ev, "future"))}
@@ -212,7 +212,7 @@ export default function CalendarView({ people, onSelect }: Props) {
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5 no-print">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="font-serif text-base font-semibold text-text">{t("cal.export.title")}</h2>
-            <span className="text-[11px] text-text-subtle shrink-0">{t("cal.export.hint")}</span>
+            <span className="text-[11px] text-text-muted shrink-0">{t("cal.export.hint")}</span>
           </div>
           <CalendarExport people={people} />
         </section>

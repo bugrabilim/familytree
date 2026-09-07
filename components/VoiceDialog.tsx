@@ -159,12 +159,12 @@ export default function VoiceDialog({
   return (
     <Modal title={t("voice.title")} onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-xs text-text-subtle leading-snug">{t("voice.subtitle")}</p>
+        <p className="text-xs text-text-muted leading-snug">{t("voice.subtitle")}</p>
 
         {step === "kayit" ? (
           <>
             <label className="block space-y-1">
-              <span className="text-[11px] text-text-subtle">{t("voice.subject")}</span>
+              <span className="text-[11px] text-text-muted">{t("voice.subject")}</span>
               <PersonPicker people={people} value={subjectId} onChange={(id) => {
                 setSubjectId(id);
                 setPromptId("");
@@ -173,7 +173,7 @@ export default function VoiceDialog({
 
             {subject && prompts.length > 0 && (
               <label className="block space-y-1">
-                <span className="text-[11px] text-text-subtle">{t("voice.question")}</span>
+                <span className="text-[11px] text-text-muted">{t("voice.question")}</span>
                 <select
                   value={promptId || prompts[0].id}
                   onChange={(e) => setPromptId(e.target.value)}
@@ -192,20 +192,20 @@ export default function VoiceDialog({
             {subject && (
               <div className="p-3 rounded-xl bg-surface-2 border border-border space-y-2">
                 <p className="text-sm text-text leading-snug">{question}</p>
-                <p className="text-[11px] text-text-subtle leading-snug">{t("voice.recordHint")}</p>
+                <p className="text-[11px] text-text-muted leading-snug">{t("voice.recordHint")}</p>
                 <AudioRecorder
                   onUploaded={setAudioUrl}
                   onFile={(f) => void gonder(f)}
                   disabled={busy}
                 />
-                {busy && <p className="text-xs text-text-subtle">{t("voice.transcribing")}</p>}
+                {busy && <p className="text-xs text-text-muted">{t("voice.transcribing")}</p>}
               </div>
             )}
           </>
         ) : (
           <>
             <section className="space-y-1">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("voice.transcript")}
               </h3>
               {/*
@@ -224,10 +224,10 @@ export default function VoiceDialog({
 
             {facts.length > 0 && (
               <section className="space-y-1.5">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   {t("voice.facts")}
                 </h3>
-                <p className="text-[11px] text-text-subtle leading-snug">{t("voice.factsHint")}</p>
+                <p className="text-[11px] text-text-muted leading-snug">{t("voice.factsHint")}</p>
                 <ul className="space-y-1.5">
                   {facts.map((f, i) => (
                     <li key={`${f.personRef}-${f.field}-${i}`}>
@@ -248,7 +248,7 @@ export default function VoiceDialog({
                             </span>
                           )}
                           {/* Alındığı cümle — "gerçekten söyledi mi" sorusunun yanıtı. */}
-                          <span className="block text-[11px] text-text-subtle italic leading-snug">
+                          <span className="block text-[11px] text-text-muted italic leading-snug">
                             “{f.quote}”
                           </span>
                         </span>
@@ -261,7 +261,7 @@ export default function VoiceDialog({
 
             {found.length > 0 && (
               <section className="space-y-1">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   {t("voice.mentioned")}
                 </h3>
                 {/*
@@ -270,12 +270,12 @@ export default function VoiceDialog({
                   şeklini değiştirir ve tek bir yanlış bağ tüm akrabalık
                   hesabını bozar — o karar kullanıcının, ağacın üstünde.
                 */}
-                <p className="text-[11px] text-text-subtle leading-snug">{t("voice.mentionedHint")}</p>
+                <p className="text-[11px] text-text-muted leading-snug">{t("voice.mentionedHint")}</p>
                 <ul className="text-sm text-text space-y-0.5">
                   {found.map((p) => (
                     <li key={p.ref}>
                       • {p.firstName} {p.lastName ?? ""}
-                      {p.relation ? <span className="text-text-subtle"> — {p.relation}</span> : null}
+                      {p.relation ? <span className="text-text-muted"> — {p.relation}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -290,7 +290,7 @@ export default function VoiceDialog({
                 {t("voice.again")}
               </Button>
               {subject && (
-                <span className="self-center text-[11px] text-text-subtle">
+                <span className="self-center text-[11px] text-text-muted">
                   {t("voice.savesTo", { name: fullName(subject) })}
                 </span>
               )}

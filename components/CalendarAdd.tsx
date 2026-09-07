@@ -49,7 +49,7 @@ export default function CalendarAdd({ event, className = "" }: { event: CalEvent
         title={t("cal.add")}
         aria-label={t("cal.add")}
         aria-expanded={open}
-        className={`w-7 h-7 grid place-items-center rounded-lg text-text-subtle hover:text-primary hover:bg-surface-2 transition-colors ${className}`}
+        className={`w-7 h-7 grid place-items-center rounded-lg text-text-muted hover:text-primary hover:bg-surface-2 transition-colors ${className}`}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
           <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
@@ -61,7 +61,7 @@ export default function CalendarAdd({ event, className = "" }: { event: CalEvent
           className="absolute right-0 top-8 z-30 w-40 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden py-1 animate-scale-in origin-top-right"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-subtle">
+          <p className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             {t("cal.add")}
           </p>
           <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" className={item} onClick={() => setOpen(false)}>

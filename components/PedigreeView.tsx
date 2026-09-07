@@ -114,7 +114,7 @@ export default function PedigreeView({
 
   if (!root) {
     return (
-      <div className="h-full grid place-items-center text-text-subtle text-sm">
+      <div className="h-full grid place-items-center text-text-muted text-sm">
         Görüntülenecek kişi yok
       </div>
     );
@@ -294,7 +294,7 @@ function PedigreeCard({
             {primaryName(person)}{surname ? ` ${surname}` : ""}
           </p>
           {birthYear && (
-            <p className="text-[10px] text-text-subtle tabular-nums mt-0.5">{birthYear}</p>
+            <p className="text-[10px] text-text-muted tabular-nums mt-0.5">{birthYear}</p>
           )}
         </div>
       </button>
@@ -305,7 +305,7 @@ function PedigreeCard({
           title={t("pedigree.setRoot")}
           className="
             ft-nub absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
-            grid place-items-center text-text-subtle hover:text-primary hover:border-primary
+            grid place-items-center text-text-muted hover:text-primary hover:border-primary
             opacity-0 group-hover:opacity-100 transition-all
           "
         >

@@ -47,7 +47,7 @@ function Row({ label, onClick }: { label: string; onClick: () => void }) {
       className="w-full flex items-center justify-between gap-3 py-2.5 text-sm text-text hover:text-primary transition-colors text-left"
     >
       <span>{label}</span>
-      <span className="text-text-subtle">›</span>
+      <span className="text-text-muted">›</span>
     </button>
   );
 }

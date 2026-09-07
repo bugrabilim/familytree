@@ -76,13 +76,13 @@ export default function ContactAnswerClient({
         <p className="text-sm text-text leading-relaxed">
           {t("contactAsk.intro", { name, family })}
         </p>
-        <p className="text-[11px] text-text-subtle leading-relaxed">{t("contactAsk.what")}</p>
+        <p className="text-[11px] text-text-muted leading-relaxed">{t("contactAsk.what")}</p>
         {/*
           Sessizliğin ne anlama geldiği AÇIKÇA yazıyor: hiçbir şey yapmamak da
           geçerli bir yanıt ve sonucu "hiçbir posta gelmez". Yazılmasaydı,
           kullanıcı "onaylamazsam yine de gelir mi?" diye düşünürdü.
         */}
-        <p className="text-[11px] text-text-subtle leading-relaxed">{t("contactAsk.silence")}</p>
+        <p className="text-[11px] text-text-muted leading-relaxed">{t("contactAsk.silence")}</p>
 
         <div className="flex gap-2 pt-1">
           <Button size="sm" onClick={() => yanitla("onayla")} disabled={durum === "calisiyor"}>
@@ -98,7 +98,7 @@ export default function ContactAnswerClient({
           </Button>
         </div>
 
-        {durum === "hata" && <p className="text-xs text-danger">{mesaj}</p>}
+        {durum === "hata" && <p role="alert" className="text-xs text-danger">{mesaj}</p>}
       </div>
     </AuthShell>
   );

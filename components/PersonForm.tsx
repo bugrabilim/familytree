@@ -79,7 +79,7 @@ interface SourceRow {
 }
 
 const field =
-  "w-full h-10 px-3 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-subtle " +
+  "w-full h-10 px-3 rounded-xl bg-surface border border-border text-text text-sm placeholder:text-text-muted " +
   "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all";
 const label = "block text-xs font-medium text-text-muted mb-1.5";
 
@@ -750,7 +750,7 @@ export default function PersonForm({
           </div>
 
           {form.photos.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">
+            <p className="text-[11px] text-text-muted">
               {t("form.galleryEmpty")}
             </p>
           ) : (
@@ -817,7 +817,7 @@ export default function PersonForm({
             </Button>
           </div>
           {form.videos.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">{t("form.videosEmpty")}</p>
+            <p className="text-[11px] text-text-muted">{t("form.videosEmpty")}</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {form.videos.map((src) => (
@@ -850,7 +850,7 @@ export default function PersonForm({
             </Button>
           </div>
           {form.documents.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">{t("form.documentsEmpty")}</p>
+            <p className="text-[11px] text-text-muted">{t("form.documentsEmpty")}</p>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
               {form.documents.map((src) => {
@@ -910,7 +910,7 @@ export default function PersonForm({
         </div>
         <div>
           <label className={label} htmlFor="pf-soyad">
-            Soyad {form.patronymic.trim() ? <span className="text-text-subtle font-normal">(baba adı var — opsiyonel)</span> : "*"}
+            Soyad {form.patronymic.trim() ? <span className="text-text-muted font-normal">(baba adı var — opsiyonel)</span> : "*"}
           </label>
           <input
             id="pf-soyad"
@@ -968,7 +968,7 @@ export default function PersonForm({
               {form.deathDate ? `${age} yaşında vefat etti` : `${age} yaşında`}
             </p>
           ) : (
-            <p className="text-[11px] text-text-subtle mt-1">Sadece yıl da olur</p>
+            <p className="text-[11px] text-text-muted mt-1">Sadece yıl da olur</p>
           )}
         </div>
         <div>
@@ -999,7 +999,7 @@ export default function PersonForm({
           value={form.birthTime}
           onChange={(e) => set("birthTime", e.target.value)}
         />
-        <p className="text-[11px] text-text-subtle mt-1">{t("form.birthTimeHint")}</p>
+        <p className="text-[11px] text-text-muted mt-1">{t("form.birthTimeHint")}</p>
       </div>
 
       {/* Nüfusa göre (resmi) doğum tarihi — eski kuşaklarda gerçekten farklı olur */}
@@ -1016,7 +1016,7 @@ export default function PersonForm({
         {errors.officialBirthDate ? (
           <p className="text-[11px] text-danger mt-1">{errors.officialBirthDate}</p>
         ) : (
-          <p className="text-[11px] text-text-subtle mt-1">{t("form.officialBirthDateHint")}</p>
+          <p className="text-[11px] text-text-muted mt-1">{t("form.officialBirthDateHint")}</p>
         )}
       </div>
 
@@ -1075,12 +1075,12 @@ export default function PersonForm({
           <details className="mt-2 rounded-xl border border-border overflow-hidden group">
             <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
               <span className="text-xs font-medium text-text">{t("birthloc.title")}</span>
-              <span className="text-[11px] text-text-subtle">
+              <span className="text-[11px] text-text-muted">
                 {form.birthCoords ? `${form.birthCoords.lat.toFixed(3)}, ${form.birthCoords.lng.toFixed(3)}` : t("birthloc.optional")}
               </span>
             </summary>
             <div className="p-3 bg-surface">
-              <p className="text-[11px] text-text-subtle mb-2">{t("birthloc.hint")}</p>
+              <p className="text-[11px] text-text-muted mb-2">{t("birthloc.hint")}</p>
               <LocationPicker
                 coords={form.birthCoords}
                 onChange={(c) => set("birthCoords", c)}
@@ -1095,7 +1095,7 @@ export default function PersonForm({
       <details className="rounded-xl border border-border overflow-hidden group">
         <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
           <span className="text-xs font-medium text-text">Köken bilgileri</span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           <div className="grid grid-cols-2 gap-3">
@@ -1181,7 +1181,7 @@ export default function PersonForm({
             <input id="pf-sulale" className={field} value={form.lineage}
               onChange={(e) => set("lineage", e.target.value)}
               placeholder={t("form.lineagePlaceholder")} />
-            <p className="mt-1 text-[11px] text-text-subtle leading-snug">{t("form.lineageHint")}</p>
+            <p className="mt-1 text-[11px] text-text-muted leading-snug">{t("form.lineageHint")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1197,7 +1197,7 @@ export default function PersonForm({
                 placeholder="Bel fıtığı, diyabet, çocuk felci…" />
             </div>
           </div>
-          <p className="text-[11px] text-text-subtle -mt-1">
+          <p className="text-[11px] text-text-muted -mt-1">
             Kalıtsal ve sonradan gelen durumları izlemek isteyen aileler için. Boş bırakabilirsin.
           </p>
         </div>
@@ -1210,11 +1210,11 @@ export default function PersonForm({
             Yaşam olayları
             {events.length > 0 && <span className="ml-1.5 text-primary">· {events.length}</span>}
           </span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {events.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">
+            <p className="text-[11px] text-text-muted">
               Evlilik, mezuniyet, göç, askerlik… ömrün dönüm noktalarını ekle. Zaman
               çizelgesinde sıralı gösterilir.
             </p>
@@ -1244,7 +1244,7 @@ export default function PersonForm({
                     type="button"
                     onClick={() => removeEvent(ev.id)}
                     aria-label="Olayı kaldır"
-                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
                       <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1291,11 +1291,11 @@ export default function PersonForm({
             Kaynaklar
             {sources.length > 0 && <span className="ml-1.5 text-primary">· {sources.length}</span>}
           </span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {sources.length === 0 ? (
-            <p className="text-[11px] text-text-subtle">
+            <p className="text-[11px] text-text-muted">
               Bu bilgiyi nereden biliyoruz? Belge, nüfus kaydı, fotoğraf, mezar
               taşı, kitap, sözlü anlatım… Kaynağı ekleyip kişi panelinde gösterebilirsin.
             </p>
@@ -1317,7 +1317,7 @@ export default function PersonForm({
                     type="button"
                     onClick={() => removeSource(s.id)}
                     aria-label="Kaynağı kaldır"
-                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                    className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
                       <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1369,10 +1369,10 @@ export default function PersonForm({
             {t("memory.section")}
             {memories.length > 0 && <span className="ml-1.5 text-primary">· {memories.length}</span>}
           </span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
-          <p className="text-[11px] text-text-subtle">{t("memory.hint")}</p>
+          <p className="text-[11px] text-text-muted">{t("memory.hint")}</p>
 
           {/* Rehberli soru çipleri — tıklayınca o soruyla bir anı ekler */}
           <div className="flex flex-wrap gap-1.5">
@@ -1402,7 +1402,7 @@ export default function PersonForm({
                   type="button"
                   onClick={() => removeMemory(m.id)}
                   aria-label={t("memory.remove")}
-                  className="w-9 h-9 shrink-0 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                  className="w-9 h-9 shrink-0 grid place-items-center rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
                     <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1422,7 +1422,7 @@ export default function PersonForm({
                   <button
                     type="button"
                     onClick={() => updateMemory(m.id, { audio: undefined })}
-                    className="text-[11px] text-text-subtle hover:text-danger"
+                    className="text-[11px] text-text-muted hover:text-danger"
                   >
                     {t("memory.removeAudio")}
                   </button>
@@ -1454,12 +1454,12 @@ export default function PersonForm({
             {kind === "cevre" && <span className="ml-1.5 text-accent">· {t("assoc.isAssociate")}</span>}
             {associations.length > 0 && <span className="ml-1.5 text-primary">· {associations.length}</span>}
           </span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {/* Kişi türü */}
           <div>
-            <p className="text-[11px] text-text-subtle mb-1.5">{t("assoc.kindHint")}</p>
+            <p className="text-[11px] text-text-muted mb-1.5">{t("assoc.kindHint")}</p>
             <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
               <button type="button" onClick={() => setKind("uye")}
                 className={`px-3 py-1.5 transition-colors ${kind === "uye" ? "bg-primary text-primary-text" : "text-text-muted hover:text-text"}`}>
@@ -1470,12 +1470,12 @@ export default function PersonForm({
                 {t("assoc.kindAssociate")}
               </button>
             </div>
-            {kind === "cevre" && <p className="text-[11px] text-text-subtle mt-1.5">{t("assoc.associateHint")}</p>}
+            {kind === "cevre" && <p className="text-[11px] text-text-muted mt-1.5">{t("assoc.associateHint")}</p>}
           </div>
 
           {/* Bağlar */}
           <div>
-            <p className="text-[11px] text-text-subtle mb-1.5">{t("assoc.listHint")}</p>
+            <p className="text-[11px] text-text-muted mb-1.5">{t("assoc.listHint")}</p>
             <datalist id="pf-assoc-types">
               {Object.values(ASSOCIATION_TYPES).map((v) => <option key={v.label} value={v.label} />)}
             </datalist>
@@ -1506,7 +1506,7 @@ export default function PersonForm({
                     className="h-8 flex-1 min-w-[6rem] px-2 rounded-lg bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary"
                   />
                   <button type="button" onClick={() => removeAssociation(a.id)} aria-label={t("common.remove")}
-                    className="h-8 w-8 grid place-items-center rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors">
+                    className="h-8 w-8 grid place-items-center rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors">
                     ×
                   </button>
                 </div>
@@ -1531,7 +1531,7 @@ export default function PersonForm({
               </span>
             )}
           </span>
-          <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           <label className="flex items-start gap-2.5 cursor-pointer">
@@ -1543,7 +1543,7 @@ export default function PersonForm({
             />
             <span className="min-w-0">
               <span className="block text-sm text-text">{t("private.confidential")}</span>
-              <span className="block text-[11px] text-text-subtle leading-snug">{t("private.confidentialHint")}</span>
+              <span className="block text-[11px] text-text-muted leading-snug">{t("private.confidentialHint")}</span>
             </span>
           </label>
 
@@ -1551,7 +1551,7 @@ export default function PersonForm({
              `confidential` her yerde maskeler; bu yalnız dışarısı içindir, o
              yüzden ayrı bir seçim. */}
           <div className={confidential ? "opacity-40 pointer-events-none" : ""}>
-            <p className="text-[11px] text-text-subtle mb-1.5">{t("private.publicShareHint")}</p>
+            <p className="text-[11px] text-text-muted mb-1.5">{t("private.publicShareHint")}</p>
             <div className="flex flex-wrap gap-1.5">
               {([
                 ["", "private.pubVisible"],
@@ -1573,7 +1573,7 @@ export default function PersonForm({
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-text-subtle mt-1.5 leading-snug">
+            <p className="text-[11px] text-text-muted mt-1.5 leading-snug">
               {t(
                 publicVisibility === "gizli"
                   ? "private.pubHiddenNote"
@@ -1585,7 +1585,7 @@ export default function PersonForm({
           </div>
 
           <div className={confidential ? "opacity-40 pointer-events-none" : ""}>
-            <p className="text-[11px] text-text-subtle mb-1.5">{t("private.fieldsHint")}</p>
+            <p className="text-[11px] text-text-muted mb-1.5">{t("private.fieldsHint")}</p>
             <div className="flex flex-wrap gap-1.5">
               {PRIVATE_GROUPS.map((g) => {
                 const on = privateFields.includes(g);
@@ -1608,7 +1608,7 @@ export default function PersonForm({
               })}
             </div>
           </div>
-          <p className="text-[11px] text-text-subtle -mt-1">{t("private.note")}</p>
+          <p className="text-[11px] text-text-muted -mt-1">{t("private.note")}</p>
         </div>
       </details>
 
@@ -1623,7 +1623,7 @@ export default function PersonForm({
         <details className="rounded-xl border border-border overflow-hidden group">
           <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
             <span className="text-xs font-medium text-text">{t("contact.section")}</span>
-            <span className="text-[11px] text-text-subtle">isteğe bağlı</span>
+            <span className="text-[11px] text-text-muted">isteğe bağlı</span>
           </summary>
           <div className="p-3 bg-surface">
             <ContactSection personId={initial.id} />
@@ -1755,7 +1755,7 @@ export default function PersonForm({
       */}
       {oneriModu && (
         <div className="space-y-2 border border-border rounded-xl px-3 py-2.5">
-          <p className="text-[11px] text-text-subtle leading-relaxed">{t("proposal.hint")}</p>
+          <p className="text-[11px] text-text-muted leading-relaxed">{t("proposal.hint")}</p>
           <label className="text-xs font-medium block" htmlFor="oneri-notu">
             {t("proposal.noteLabel")}
           </label>
@@ -1812,7 +1812,7 @@ function LinkPicker({
     <div>
       <p className="text-[11px] font-medium text-text-muted mb-1.5">
         {title}
-        {hint && <span className="text-text-subtle font-normal"> ({hint})</span>}
+        {hint && <span className="text-text-muted font-normal"> ({hint})</span>}
       </p>
       <div className="max-h-36 overflow-y-auto space-y-0.5 pr-0.5">
         {people.map((p) => {

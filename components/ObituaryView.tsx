@@ -135,11 +135,11 @@ export default function ObituaryView({
             {error ? null : list.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">
                 <p className="text-sm text-text">{t("obit.empty")}</p>
-                <p className="text-[11px] text-text-subtle mt-1">{t("obit.emptyHint")}</p>
+                <p className="text-[11px] text-text-muted mt-1">{t("obit.emptyHint")}</p>
               </div>
             ) : (
               <>
-                <p className="text-[11px] text-text-subtle">{t("obit.count", { count: list.length })}</p>
+                <p className="text-[11px] text-text-muted">{t("obit.count", { count: list.length })}</p>
                 {list.map((o) => (
                   <ObituaryCard
                     key={o.id}
@@ -169,7 +169,7 @@ function Row({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex gap-3 py-1 border-b border-border/60 last:border-0">
-      <span className="text-[11px] uppercase tracking-wide text-text-subtle w-32 shrink-0 pt-0.5">{label}</span>
+      <span className="text-[11px] uppercase tracking-wide text-text-muted w-32 shrink-0 pt-0.5">{label}</span>
       <span className="text-sm text-text flex-1 min-w-0">{value}</span>
     </div>
   );
@@ -195,7 +195,7 @@ function ObituaryCard({
             <p className="text-sm font-medium text-text">{o.personName}</p>
           )}
           {o.diedOn && (
-            <p className="text-[11px] text-text-subtle mt-0.5">{formatLong(o.diedOn)}</p>
+            <p className="text-[11px] text-text-muted mt-0.5">{formatLong(o.diedOn)}</p>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -207,11 +207,11 @@ function ObituaryCard({
           {!readOnly && (
             <>
               <button onClick={onEdit} disabled={busy}
-                className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors">
+                className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">
                 {t("obit.edit")}
               </button>
               <button onClick={onDelete} disabled={busy}
-                className="text-[11px] px-2 py-1 rounded-lg text-text-subtle hover:text-danger hover:bg-danger-soft transition-colors">
+                className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors">
                 {t("obit.delete")}
               </button>
             </>
@@ -274,7 +274,7 @@ function ObituaryForm({
         </h1>
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("obit.field.person")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("obit.field.person")}</span>
           <PersonPicker people={people} value={personId} onChange={(id) => {
             setPersonId(id);
             // Öneriyi yalnız kutu BOŞKEN doldur: elle yazılmış bir tarihi ezmeyelim.
@@ -285,11 +285,11 @@ function ObituaryForm({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("obit.field.diedOn")}</span>
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("obit.field.diedOn")}</span>
             <input type="date" value={diedOn} onChange={(e) => setDiedOn(e.target.value)} className={field} />
           </label>
           <label className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("obit.field.serviceOn")}</span>
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("obit.field.serviceOn")}</span>
             <input type="date" value={serviceOn} onChange={(e) => setServiceOn(e.target.value)} className={field} />
           </label>
         </div>
@@ -300,16 +300,16 @@ function ObituaryForm({
           [t("obit.field.condolenceAt"), condolenceAt, setCondolenceAt],
         ] as const).map(([label, value, set]) => (
           <label key={label} className="grid gap-1">
-            <span className="text-[11px] uppercase tracking-wide text-text-subtle">{label}</span>
+            <span className="text-[11px] uppercase tracking-wide text-text-muted">{label}</span>
             <input value={value} onChange={(e) => set(e.target.value)} className={field} />
           </label>
         ))}
 
         <label className="grid gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("obit.field.message")}</span>
+          <span className="text-[11px] uppercase tracking-wide text-text-muted">{t("obit.field.message")}</span>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5}
             className="w-full px-3 py-2 rounded-xl bg-surface-2 border border-border text-text text-sm focus:outline-none focus:border-primary" />
-          <span className="text-[11px] text-text-subtle">{t("obit.messageHint")}</span>
+          <span className="text-[11px] text-text-muted">{t("obit.messageHint")}</span>
         </label>
 
         <div className="rounded-xl border border-border bg-surface-2/50 p-3">
@@ -318,7 +318,7 @@ function ObituaryForm({
               className="ui-check mt-0.5" />
             <span>
               {t("obit.public")}
-              <span className="block text-[11px] text-text-subtle mt-0.5">{t("obit.publicNote")}</span>
+              <span className="block text-[11px] text-text-muted mt-0.5">{t("obit.publicNote")}</span>
             </span>
           </label>
         </div>
@@ -330,8 +330,8 @@ function ObituaryForm({
           <Button type="button" variant="secondary" size="sm" onClick={onCancel} disabled={busy}>
             {t("obit.cancel")}
           </Button>
-          {!personId && <span className="text-[11px] text-text-subtle">{t("obit.invalid")}</span>}
-          {oneri && !diedOn && <span className="text-[11px] text-text-subtle">·</span>}
+          {!personId && <span className="text-[11px] text-text-muted">{t("obit.invalid")}</span>}
+          {oneri && !diedOn && <span className="text-[11px] text-text-muted">·</span>}
         </div>
       </form>
     </div>

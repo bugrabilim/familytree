@@ -154,7 +154,7 @@ export default function ForgotPasswordView() {
             <Button variant="secondary" full onClick={koduKopyala} className="mb-2.5">
               {kopyalandi ? t("register.copied") : t("register.copyCode")}
             </Button>
-            <p className="text-[11px] text-text-subtle leading-relaxed mb-3.5">
+            <p className="text-[11px] text-text-muted leading-relaxed mb-3.5">
               {t("forgot.newCodeNote")}
             </p>
           </>
@@ -173,8 +173,11 @@ export default function ForgotPasswordView() {
         type="button"
         onClick={() => yolDegistir(y)}
         aria-pressed={secili}
-        className={`flex-1 text-xs font-medium py-2 rounded-lg transition-colors ${
-          secili ? "bg-surface shadow-card text-text" : "text-text-subtle hover:text-text"
+        /* 108-143 x **32px**'ti. İki sekme YAN YANA ve aralarında boşluk yok;
+           yanlış kurtarma yolunu seçmek tek parmak kaymasıydı. Dokunmada 44px,
+           farede (lg) eski 32px (py-2 + 12px satır yüksekliği). */
+        className={`flex-1 text-xs font-medium min-h-11 lg:min-h-0 lg:py-2 rounded-lg transition-colors ${
+          secili ? "bg-surface shadow-card text-text" : "text-text-muted hover:text-text"
         }`}
       >
         {etiket}
@@ -197,7 +200,7 @@ export default function ForgotPasswordView() {
         autoComplete="username"
         required={yol === "eposta"}
       />
-      <p className="text-[11px] text-text-subtle mt-1.5 leading-relaxed">
+      <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
         {yol === "kod" ? t("forgot.nameOptionalNote") : t("forgot.emailNeedsName")}
       </p>
     </div>
@@ -220,7 +223,7 @@ export default function ForgotPasswordView() {
         {sekme("eposta", t("forgot.methodEmail"))}
       </div>
 
-      <p className="text-[11px] text-text-subtle leading-relaxed mb-1.5">
+      <p className="text-[11px] text-text-muted leading-relaxed mb-1.5">
         {yol === "kod" ? t("forgot.codeNote") : t("forgot.emailNote")}
       </p>
       <p className="text-[11px] text-text-muted leading-relaxed mb-4">
@@ -286,11 +289,21 @@ export default function ForgotPasswordView() {
           </>
         )}
 
+        {/*
+          Hata `alert`, bilgi `status`.
+
+          İkisi de sessizce beliriyordu; burada fark özellikle ağır çünkü
+          e-posta yolu HER DURUMDA aynı cümleyi döndürüyor (bkz. yukarıdaki
+          numaralandırma yorumu) — o cümle duyulmazsa kullanıcı düğmeye
+          bastığını bile doğrulayamıyor. `alert` sözü keser (acil), `status`
+          sırasını bekler (nazik): şifre kurtaran birinin hatayı hemen, bilgiyi
+          akış içinde duyması doğru sıralama.
+        */}
         {error && (
-          <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
+          <p role="alert" className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
         {mailInfo && (
-          <p className="text-[11px] text-text-subtle leading-relaxed border border-border px-3 py-2.5 rounded-xl">
+          <p role="status" className="text-[11px] text-text-muted leading-relaxed border border-border px-3 py-2.5 rounded-xl">
             {mailInfo}
           </p>
         )}

@@ -157,7 +157,7 @@ export default function CalendarExport({ people }: Props) {
   };
 
   if (availableTypes.length === 0) {
-    return <p className="text-sm text-text-subtle py-2">{t("cal.export.empty")}</p>;
+    return <p className="text-sm text-text-muted py-2">{t("cal.export.empty")}</p>;
   }
 
   const allTypesOn = selTypes === null;
@@ -207,7 +207,7 @@ export default function CalendarExport({ people }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("cal.export.searchPlaceholder")}
-          className="w-full h-9 px-3 mb-2 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+          className="w-full h-9 px-3 mb-2 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
         />
         <ul className="max-h-64 overflow-y-auto space-y-0.5 pr-0.5">
           {filteredPeople.map((p) => (
@@ -221,19 +221,19 @@ export default function CalendarExport({ people }: Props) {
                 />
                 <Avatar person={p} size="xs" />
                 <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(p)}</span>
-                {p.birthDate && <span className="text-[11px] text-text-subtle tabular-nums shrink-0">{p.birthDate.slice(0, 4)}</span>}
+                {p.birthDate && <span className="text-[11px] text-text-muted tabular-nums shrink-0">{p.birthDate.slice(0, 4)}</span>}
               </label>
             </li>
           ))}
           {filteredPeople.length === 0 && (
-            <li className="text-sm text-text-subtle py-2 text-center">{t("panel.rf.noMatch")}</li>
+            <li className="text-sm text-text-muted py-2 text-center">{t("panel.rf.noMatch")}</li>
           )}
         </ul>
       </div>
 
       {/* Dışa aktar */}
       <div className="flex items-center justify-between gap-3 pt-1">
-        <p className="text-[11px] text-text-subtle">{t("cal.export.count", { count: chosen.length })}</p>
+        <p className="text-[11px] text-text-muted">{t("cal.export.count", { count: chosen.length })}</p>
         <button
           type="button"
           onClick={exportIcs}

@@ -333,7 +333,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="font-serif text-base font-semibold text-text">{t("panel.numbers")}</h2>
-            <span className="text-[11px] text-text-subtle shrink-0">{t("panel.summary")}</span>
+            <span className="text-[11px] text-text-muted shrink-0">{t("panel.summary")}</span>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
             <MiniStat label={t("panel.stats.people")} value={stats.total}
@@ -476,7 +476,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                             {fullName(p)}
                           </p>
                           {!masked && p.birthPlace && (
-                            <p className="text-[11px] text-text-subtle truncate leading-tight">
+                            <p className="text-[11px] text-text-muted truncate leading-tight">
                               {p.birthPlace}
                             </p>
                           )}
@@ -517,7 +517,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <Button size="sm" onClick={mergeSelected} disabled={bulkBusy}>
                           {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
                         </Button>
-                        <button onClick={() => setSelConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-subtle hover:text-text">
+                        <button onClick={() => setSelConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-muted hover:text-text">
                           {t("merge.cancel")}
                         </button>
                       </>
@@ -529,7 +529,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         >
                           {t("panel.dup.mergeSelected", { count: selPairs.size })}
                         </button>
-                        <button onClick={() => setSelPairs(new Set())} className="text-[11px] text-text-subtle hover:text-text">
+                        <button onClick={() => setSelPairs(new Set())} className="text-[11px] text-text-muted hover:text-text">
                           {t("history.clearSelection")}
                         </button>
                       </>
@@ -545,7 +545,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <Button size="sm" onClick={mergeAll} disabled={bulkBusy}>
                           {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
                         </Button>
-                        <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-subtle hover:text-text">
+                        <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-muted hover:text-text">
                           {t("merge.cancel")}
                         </button>
                       </>
@@ -587,12 +587,12 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <button onClick={() => onSelect(a.id)} className="text-text hover:text-primary hover:underline">
                           {fullName(view(a))}
                         </button>
-                        <span className="text-text-subtle"> · </span>
+                        <span className="text-text-muted"> · </span>
                         <button onClick={() => onSelect(b.id)} className="text-text hover:text-primary hover:underline">
                           {fullName(view(b))}
                         </button>
                       </span>
-                      <span className="text-[11px] text-text-subtle shrink-0">{t(`panel.dup.${d.reason}`)}</span>
+                      <span className="text-[11px] text-text-muted shrink-0">{t(`panel.dup.${d.reason}`)}</span>
                       {!readOnly && (
                         <>
                           <button
@@ -603,7 +603,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                           </button>
                           <button
                             onClick={() => ignorePair(d.aId, d.bId)}
-                            className="text-[11px] text-text-subtle hover:text-text shrink-0"
+                            className="text-[11px] text-text-muted hover:text-text shrink-0"
                           >
                             {t("panel.dup.ignore")}
                           </button>
@@ -613,7 +613,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                   );
                 })}
                 {duplicates.length > 10 && (
-                  <li className="px-2 pt-1 text-[11px] text-text-subtle">
+                  <li className="px-2 pt-1 text-[11px] text-text-muted">
                     {t("panel.card.issuesMore", { count: duplicates.length - 10 })}
                   </li>
                 )}
@@ -741,7 +741,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface-3 text-xs text-text transition-colors"
                 >
                   {s.name}
-                  <span className="text-text-subtle tabular-nums">{s.count}</span>
+                  <span className="text-text-muted tabular-nums">{s.count}</span>
                 </button>
               ))}
             </div>
@@ -798,7 +798,7 @@ function MiniStat({
 }) {
   const inner = (
     <>
-      <dt className={`text-[11px] leading-tight ${onClick ? "text-primary/70 group-hover:text-primary" : "text-text-subtle"}`}>
+      <dt className={`text-[11px] leading-tight ${onClick ? "text-primary/70 group-hover:text-primary" : "text-text-muted"}`}>
         {label}
       </dt>
       <dd className="text-lg font-semibold text-text tabular-nums leading-tight truncate">{value}</dd>
@@ -846,7 +846,7 @@ function LongestLived({
         {t("panel.longest.livingOnly")}
       </label>
       {shown.length === 0 ? (
-        <p className="text-sm text-text-subtle py-2">{t("panel.card.noDated")}</p>
+        <p className="text-sm text-text-muted py-2">{t("panel.card.noDated")}</p>
       ) : (
         <AgeList rows={shown} onSelect={onSelect} />
       )}
@@ -873,7 +873,7 @@ function AgeList({
             <Avatar person={p} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="text-sm text-text truncate leading-tight">{fullName(p)}</p>
-              <p className="text-[11px] text-text-subtle tabular-nums leading-tight">
+              <p className="text-[11px] text-text-muted tabular-nums leading-tight">
                 {lifeSpan(p.birthDate, p.deathDate)}
               </p>
             </div>
@@ -924,7 +924,7 @@ function AgeRangeFinder({
           <input type="number" inputMode="numeric" min={0} max={130} value={min}
             onChange={(e) => setMin(e.target.value)} className={inputCls} />
         </label>
-        <span className="pb-2 text-text-subtle">–</span>
+        <span className="pb-2 text-text-muted">–</span>
         <label className="flex-1 min-w-0">
           <span className="block text-[11px] text-text-muted mb-1">{t("panel.ageRange.max")}</span>
           <input type="number" inputMode="numeric" min={0} max={130} value={max}
@@ -936,9 +936,9 @@ function AgeRangeFinder({
           className="ui-check" />
         {t("panel.ageRange.livingOnly")}
       </label>
-      <p className="text-[11px] text-text-subtle">{t("panel.ageRange.count", { count: matches.length })}</p>
+      <p className="text-[11px] text-text-muted">{t("panel.ageRange.count", { count: matches.length })}</p>
       {matches.length === 0 ? (
-        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.ageRange.empty")}</p>
+        <p className="text-sm text-text-muted py-2 text-center">{t("panel.ageRange.empty")}</p>
       ) : (
         <div className="max-h-72 overflow-y-auto pr-0.5">
           <AgeList rows={matches} onSelect={onSelect} />
@@ -1064,7 +1064,7 @@ function MiniDonut({
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
       <h3 className="font-serif text-base font-semibold text-text mb-3">{title}</h3>
       {total === 0 ? (
-        <p className="text-sm text-text-subtle py-2">{t("panel.chart.empty")}</p>
+        <p className="text-sm text-text-muted py-2">{t("panel.chart.empty")}</p>
       ) : (
         <div className="flex items-center gap-5">
           <svg viewBox="0 0 100 100" className="w-24 h-24 shrink-0" role="img" aria-label={title}>
@@ -1136,10 +1136,10 @@ function BarChart({
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h3 className="font-serif text-base font-semibold text-text">{title}</h3>
-        {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}
+        {hint && <span className="text-[11px] text-text-muted shrink-0">{hint}</span>}
       </div>
       {bars.length === 0 || max === 0 ? (
-        <p className="text-sm text-text-subtle py-2">{t("panel.chart.empty")}</p>
+        <p className="text-sm text-text-muted py-2">{t("panel.chart.empty")}</p>
       ) : (
         <ul className="space-y-2">
           {bars.map((b) => {
@@ -1194,10 +1194,10 @@ function VBarChart({
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h3 className="font-serif text-base font-semibold text-text">{title}</h3>
-        {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}
+        {hint && <span className="text-[11px] text-text-muted shrink-0">{hint}</span>}
       </div>
       {bars.length === 0 || max === 0 ? (
-        <p className="text-sm text-text-subtle py-2">{t("panel.chart.empty")}</p>
+        <p className="text-sm text-text-muted py-2">{t("panel.chart.empty")}</p>
       ) : (
         // Çubuk alanına SABİT yükseklik (flex-1 yerine) — yüzde yükseklikler
         // ekranda ve yazdırmada aynı, güvenilir hesaplanır (yazdırmada çubuklar
@@ -1217,7 +1217,7 @@ function VBarChart({
                   <span className="block w-full rounded-t-md bg-primary" style={{ height: `${pct}%` }} />
                 </span>
                 {/* Kova etiketi (yaş aralığı) */}
-                <span className="text-[10px] text-text-subtle leading-none mt-1.5 h-6 flex items-start justify-center text-center">
+                <span className="text-[10px] text-text-muted leading-none mt-1.5 h-6 flex items-start justify-center text-center">
                   {b.label}
                 </span>
               </>
@@ -1328,9 +1328,9 @@ function RelativesFinder({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={t("panel.rf.filterPlaceholder")}
-            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
           />
-          <p className="text-[11px] text-text-subtle">{t("panel.rf.found", { count: relatives.length })}</p>
+          <p className="text-[11px] text-text-muted">{t("panel.rf.found", { count: relatives.length })}</p>
           <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
             {shown.map(({ person, relation }) => (
               <li key={person.id}>
@@ -1345,7 +1345,7 @@ function RelativesFinder({
               </li>
             ))}
             {shown.length === 0 && (
-              <li className="text-sm text-text-subtle py-2 text-center">{t("panel.rf.noMatch")}</li>
+              <li className="text-sm text-text-muted py-2 text-center">{t("panel.rf.noMatch")}</li>
             )}
           </ul>
         </>
@@ -1405,7 +1405,7 @@ function SevenGenerations({
       <PersonPicker people={people} value={personId} onChange={setPersonId} />
 
       {!result ? (
-        <p className="text-sm text-text-subtle py-2">{t("sevenGen.empty")}</p>
+        <p className="text-sm text-text-muted py-2">{t("sevenGen.empty")}</p>
       ) : (
         <div className="space-y-5">
           {/* Başlık sayısı */}
@@ -1415,11 +1415,11 @@ function SevenGenerations({
                 <span className="text-4xl font-semibold tabular-nums text-primary">
                   {result.unbrokenDepth}
                 </span>
-                <span className="text-lg text-text-subtle tabular-nums">/ {MAX_DEPTH}</span>
+                <span className="text-lg text-text-muted tabular-nums">/ {MAX_DEPTH}</span>
               </div>
-              <p className="text-xs text-text-subtle mt-0.5">{t("sevenGen.unbroken")}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t("sevenGen.unbroken")}</p>
             </div>
-            <div className="text-xs text-text-subtle space-y-0.5">
+            <div className="text-xs text-text-muted space-y-0.5">
               <p>{t("sevenGen.deepest", { count: result.deepestChain })}</p>
               <p className="tabular-nums">
                 {t("sevenGen.ancestors", { known: result.known, total: result.total })}
@@ -1445,13 +1445,13 @@ function SevenGenerations({
                       <span className="text-xs font-medium text-text">
                         {key ? t(key) : line.path}
                       </span>
-                      <span className="text-xs tabular-nums text-text-subtle">
+                      <span className="text-xs tabular-nums text-text-muted">
                         {line.known}/{line.total}
                       </span>
                     </div>
                     <div className="mt-2 h-1.5 rounded-full bg-surface-3 overflow-hidden">
                       <div
-                        className={weak ? "h-full bg-primary" : "h-full bg-text-subtle/40"}
+                        className={weak ? "h-full bg-primary" : "h-full bg-text-muted/40"}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -1478,11 +1478,11 @@ function SevenGenerations({
               return (
                 <div key={g.generation} className="flex items-center gap-2.5">
                   <span className="w-24 sm:w-32 shrink-0 leading-tight">
-                    <span className="block text-[11px] text-text-subtle tabular-nums">
+                    <span className="block text-[11px] text-text-muted tabular-nums">
                       {t("sevenGen.generation", { count: g.generation })}
                     </span>
                     <span
-                      className="block text-[10px] text-text-subtle/70 truncate"
+                      className="block text-[10px] text-text-muted/70 truncate"
                       title={t(rank.key, rank.params)}
                     >
                       {t(rank.key, rank.params)}
@@ -1494,13 +1494,13 @@ function SevenGenerations({
                       style={{ width: `${(g.known / g.total) * 100}%` }}
                     />
                   </div>
-                  <span className="w-14 shrink-0 text-right text-[11px] text-text-subtle tabular-nums">
+                  <span className="w-14 shrink-0 text-right text-[11px] text-text-muted tabular-nums">
                     {g.known}/{g.total}
                   </span>
                 </div>
               );
             })}
-            <p className="pt-1 text-[10px] text-text-subtle/80">{t("generation.computed")}</p>
+            <p className="pt-1 text-[10px] text-text-muted/80">{t("generation.computed")}</p>
           </div>
 
           {/* Eksikler — sayıyı işe çeviren kısım */}
@@ -1592,12 +1592,12 @@ function ActivityFeed({
     [data, gizli]
   );
 
-  if (!data) return <p className="text-sm text-text-subtle py-2">…</p>;
+  if (!data) return <p className="text-sm text-text-muted py-2">…</p>;
   if (items.length === 0) {
     return (
       <div className="py-2">
-        <p className="text-sm text-text-subtle">{t("activity.empty")}</p>
-        <p className="text-[11px] text-text-subtle mt-0.5">{t("activity.emptyHint")}</p>
+        <p className="text-sm text-text-muted">{t("activity.empty")}</p>
+        <p className="text-[11px] text-text-muted mt-0.5">{t("activity.emptyHint")}</p>
       </div>
     );
   }
@@ -1638,7 +1638,7 @@ function ActivityFeed({
                 )}{" "}
                 <span className="text-text-muted">{ne(i)}</span>
               </p>
-              <p className="text-[11px] text-text-subtle leading-tight">
+              <p className="text-[11px] text-text-muted leading-tight">
                 {t("activity.byLine", {
                   who: (i.by && data.names[i.by]) || t("activity.someone"),
                   when: formatLong(i.at.slice(0, 10)),
@@ -1734,7 +1734,7 @@ function ResearchView({
   const görünen = showAll ? tasks.slice(0, 60) : tasks.slice(0, 12);
 
   if (tasks.length === 0) {
-    return <p className="text-sm text-text-subtle py-2">{t("research.empty")}</p>;
+    return <p className="text-sm text-text-muted py-2">{t("research.empty")}</p>;
   }
 
   return (
@@ -1767,7 +1767,7 @@ function ResearchView({
                 <Avatar person={person} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-text truncate leading-tight">{fullName(person)}</p>
-                  <p className="text-[11px] text-text-subtle leading-tight">
+                  <p className="text-[11px] text-text-muted leading-tight">
                     {task.severity === "error" ? "⚠️ " : ""}
                     {t(taskKey(task.kind))}
                     {task.kind === "eksikEbeveyn" && task.reach > 0
@@ -1782,7 +1782,7 @@ function ResearchView({
                 // `title` erişilebilir ad OLMAZ: düğmenin metni "✓" olduğu için
                 // ekran okuyucu onu okur ve ne yaptığı anlaşılmaz.
                 aria-label={t("research.markDone")}
-                className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-subtle hover:text-accent hover:bg-accent-soft transition-colors"
+                className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-muted hover:text-accent hover:bg-accent-soft transition-colors"
               >
                 ✓
               </button>
@@ -1792,7 +1792,7 @@ function ResearchView({
       </ul>
 
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] text-text-subtle">
+        <p className="text-[11px] text-text-muted">
           {t("research.showing", { shown: görünen.length, total: tasks.length })}
         </p>
         {tasks.length > görünen.length && !showAll && (
@@ -1813,7 +1813,7 @@ function ResearchView({
                 /* yoksay */
               }
             }}
-            className="text-[11px] text-text-subtle hover:text-text"
+            className="text-[11px] text-text-muted hover:text-text"
           >
             {t("research.resetDone", { count: done.size })}
           </button>
@@ -1821,7 +1821,7 @@ function ResearchView({
       </div>
 
       {/* İşaretler bu cihazda kalır — ortak bir liste değil. */}
-      <p className="text-[11px] text-text-subtle">{t("research.localNote")}</p>
+      <p className="text-[11px] text-text-muted">{t("research.localNote")}</p>
     </div>
   );
 }
@@ -1859,7 +1859,7 @@ function HeredityView({
   };
 
   if (conditions.length === 0) {
-    return <p className="text-sm text-text-subtle py-2">{t("heredity.empty")}</p>;
+    return <p className="text-sm text-text-muted py-2">{t("heredity.empty")}</p>;
   }
 
   const agg = conditions.find((c) => c.key === active);
@@ -1885,7 +1885,7 @@ function HeredityView({
 
       {trace && agg && (
         <div className="rounded-xl border border-border bg-surface-2 p-3 space-y-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-subtle">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
             <span>{t("heredity.affected", { count: trace.affected.length })}</span>
             <span>{t("heredity.generations", { count: trace.generationsSpanned })}</span>
             <span>{t("heredity.links", { count: trace.links.length })}</span>
@@ -1893,17 +1893,17 @@ function HeredityView({
 
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
             {agg.congenital > 0 && (
-              <span className="text-text-subtle">
+              <span className="text-text-muted">
                 {t("heredity.congenital")}: <span className="text-text tabular-nums">{agg.congenital}</span>
               </span>
             )}
             {agg.acquired > 0 && (
-              <span className="text-text-subtle">
+              <span className="text-text-muted">
                 {t("heredity.acquired")}: <span className="text-text tabular-nums">{agg.acquired}</span>
               </span>
             )}
             {agg.fatal > 0 && (
-              <span className="text-text-subtle">
+              <span className="text-text-muted">
                 {t("heredity.fatal")}: <span className="text-text tabular-nums">{agg.fatal}</span>
               </span>
             )}
@@ -1923,7 +1923,7 @@ function HeredityView({
                     >
                       {nameOf(l.parentId)}
                     </button>
-                    <span className="text-text-subtle" aria-hidden>→</span>
+                    <span className="text-text-muted" aria-hidden>→</span>
                     <button
                       type="button"
                       onClick={() => onSelect(l.childId)}
@@ -1936,7 +1936,7 @@ function HeredityView({
               </ul>
             </div>
           ) : (
-            <p className="text-[11px] text-text-subtle">{t("heredity.noChain")}</p>
+            <p className="text-[11px] text-text-muted">{t("heredity.noChain")}</p>
           )}
 
           <div>
@@ -1958,7 +1958,7 @@ function HeredityView({
       )}
 
       {/* Sözleşme kullanıcıya da görünür olmalı */}
-      <p className="text-[10px] text-text-subtle">{t("heredity.noRisk")}</p>
+      <p className="text-[10px] text-text-muted">{t("heredity.noRisk")}</p>
     </div>
   );
 }
@@ -2026,7 +2026,7 @@ function GenerationSpread({
     <div className="space-y-3">
       <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setGen(2); }} />
       {personId && maxGen === 0 && (
-        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.gs.onlySelf")}</p>
+        <p className="text-sm text-text-muted py-2 text-center">{t("panel.gs.onlySelf")}</p>
       )}
       {personId && maxGen > 0 && (
         <>
@@ -2048,7 +2048,7 @@ function GenerationSpread({
               <div key={f.depth} className="shrink-0 w-44 rounded-xl bg-surface-2 border border-border p-2.5">
                 <h3 className="text-xs font-semibold text-text mb-2 leading-tight">
                   {f.depth === 0 ? t("panel.gv.self") : t("panel.gv.genOption", { g: f.depth })}{" "}
-                  <span className="text-text-subtle tabular-nums">({f.people.length})</span>
+                  <span className="text-text-muted tabular-nums">({f.people.length})</span>
                 </h3>
                 <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
                   {f.people.map(({ person: rawP, relation }) => {
@@ -2069,7 +2069,7 @@ function GenerationSpread({
                                 {relation}
                               </span>
                             )}
-                            <span className="block text-[11px] text-text-subtle truncate leading-tight">
+                            <span className="block text-[11px] text-text-muted truncate leading-tight">
                               {masked ? t("common.living") : lifeSpan(p.birthDate, p.deathDate) || (p.birthPlace ?? "")}
                             </span>
                           </span>
@@ -2078,7 +2078,7 @@ function GenerationSpread({
                     );
                   })}
                   {f.people.length === 0 && (
-                    <li className="text-[11px] text-text-subtle py-1 text-center">{t("panel.gs.none")}</li>
+                    <li className="text-[11px] text-text-muted py-1 text-center">{t("panel.gs.none")}</li>
                   )}
                 </ul>
               </div>
@@ -2145,7 +2145,7 @@ function DegreeViewer({
       <PersonPicker people={people} value={personId} onChange={(id) => { setPersonId(id); setActiveDeg(null); }} />
 
       {personId && rings.length === 0 && (
-        <p className="text-sm text-text-subtle py-2 text-center">{t("panel.dv.noneAtDegree")}</p>
+        <p className="text-sm text-text-muted py-2 text-center">{t("panel.dv.noneAtDegree")}</p>
       )}
 
       {personId && rings.length > 0 && (
@@ -2162,7 +2162,7 @@ function DegreeViewer({
                     stroke="var(--border)" strokeWidth={1} strokeDasharray="2 3"
                     opacity={on ? 1 : 0.35}
                   />
-                  <text x={CX} y={CY - R - 2} textAnchor="middle" fontSize="9" fill="var(--text-subtle)">
+                  <text x={CX} y={CY - R - 2} textAnchor="middle" fontSize="9" fill="var(--text-muted)">
                     {r.deg}°
                   </text>
                 </g>
@@ -2254,7 +2254,7 @@ function Card({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(collapsible ? defaultOpen : true);
-  const body = empty ? <p className="text-sm text-text-subtle py-2">{empty}</p> : children;
+  const body = empty ? <p className="text-sm text-text-muted py-2">{empty}</p> : children;
   return (
     <section className={`rounded-2xl border border-border bg-surface p-4 sm:p-5${className ? ` ${className}` : ""}`}>
       {collapsible ? (
@@ -2266,16 +2266,16 @@ function Card({
         >
           <span className="flex items-baseline gap-2 min-w-0">
             <h2 className="font-serif text-base font-semibold text-text">{title}</h2>
-            {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}
+            {hint && <span className="text-[11px] text-text-muted shrink-0">{hint}</span>}
           </span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 text-text-subtle transition-transform ${open ? "rotate-180" : ""}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}>
             <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       ) : (
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 className="font-serif text-base font-semibold text-text">{title}</h2>
-          {hint && <span className="text-[11px] text-text-subtle shrink-0">{hint}</span>}
+          {hint && <span className="text-[11px] text-text-muted shrink-0">{hint}</span>}
         </div>
       )}
       {open && <div className={collapsible ? "mt-3" : undefined}>{body}</div>}

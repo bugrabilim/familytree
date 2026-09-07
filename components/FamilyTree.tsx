@@ -292,7 +292,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
           target: cid,
           type: "smoothstep",
           style: {
-            stroke: kopuk ? "var(--text-subtle)" : "var(--tree-edge)",
+            stroke: kopuk ? "var(--text-muted)" : "var(--tree-edge)",
             strokeWidth: 1.8,
             strokeDasharray: evlatlik ? "6 4" : kopuk ? "2 6" : undefined,
             opacity: faded ? 0.25 : kopuk ? 0.45 : 1,

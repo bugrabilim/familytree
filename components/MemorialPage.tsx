@@ -12,7 +12,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (!value) return null;
   return (
     <div className="flex gap-3 py-1.5 border-b border-border/60 last:border-0">
-      <span className="text-[11px] uppercase tracking-wide text-text-subtle w-28 shrink-0 pt-0.5">
+      <span className="text-[11px] uppercase tracking-wide text-text-muted w-28 shrink-0 pt-0.5">
         {label}
       </span>
       <span className="text-sm text-text flex-1 min-w-0">{value}</span>
@@ -131,13 +131,13 @@ export default function MemorialPage({
                 {memories.map((m) => (
                   <li key={m.id}>
                     {m.prompt && (
-                      <p className="text-[11px] uppercase tracking-wide text-text-subtle mb-1">
+                      <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">
                         {m.prompt}
                       </p>
                     )}
                     <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{m.text}</p>
                     {m.date && (
-                      <p className="text-[11px] text-text-subtle mt-1">{formatLong(m.date)}</p>
+                      <p className="text-[11px] text-text-muted mt-1">{formatLong(m.date)}</p>
                     )}
                   </li>
                 ))}
@@ -146,7 +146,7 @@ export default function MemorialPage({
           )}
         </div>
 
-        <p className="text-center text-[11px] text-text-subtle mt-6">
+        <p className="text-center text-[11px] text-text-muted mt-6">
           {t("memorialPage.footer", { tree: treeName })}
         </p>
       </div>
