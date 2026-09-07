@@ -143,6 +143,14 @@ interface Props {
   /** Değişiklik önerileri kuyruğu (madde 35). */
   onOpenProposals?: () => void;
   /**
+   * AİLE MECLİSİ (madde 59) — aidat defteri, borç-alacak, karar tutanağı.
+   *
+   * Bu menü herkese açık paylaşım görünümünde (`publicView`) hiç
+   * çizilmiyor; meclis defterindeki para rakamlarının ziyaretçiye
+   * ulaşmamasının ilk kapısı bu. İkincisi rotanın oturum istemesi.
+   */
+  onOpenCouncil?: () => void;
+  /**
    * Bekleyen öneri sayısı — YALNIZ karar verebilene gönderiliyor.
    *
    * Rozet, bu özelliğin işe yarayıp yaramamasını belirleyen şey: kuyruk
@@ -176,6 +184,7 @@ export default function TopBar({
   onOpenShare,
   onOpenPeople,
   onOpenProposals,
+  onOpenCouncil,
   proposalCount = 0,
   onPrintView,
   onAiChat,
@@ -358,6 +367,13 @@ export default function TopBar({
                       label={proposalCount > 0 ? `${t("proposal.title")} (${proposalCount})` : t("proposal.title")}
                       onClick={() => { setMenuOpen(false); onOpenProposals(); }}
                       icon={<path d="M9 12l2 2 4-4M12 3l7 4v5c0 4.4-3 8.3-7 9-4-0.7-7-4.6-7-9V7l7-4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+                    />
+                  )}
+                  {onOpenCouncil && (
+                    <MenuBtn
+                      label={t("menu.council")}
+                      onClick={() => { setMenuOpen(false); onOpenCouncil(); }}
+                      icon={<path d="M3 21h18M5 21V10M9 21V10M15 21V10M19 21V10M12 3l9 5H3l9-5z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />}
                     />
                   )}
                   <MenuBtn

@@ -31,6 +31,9 @@ const DEPOLAR = [
   "bond-store",
   "story-store",
   "proposal-store",
+  /* Meclis defteri (madde 59): okunamayan defterin üstüne yazmak, kapanmış
+     bir meclis kararını yok etmek demek — kayıp burada geri getirilemez. */
+  "council-store",
 ] as const;
 
 for (const ad of DEPOLAR) {
