@@ -89,7 +89,7 @@ check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
   const i = rota.indexOf("const satir =");
   check(i > 0, "özet satırı var");
   const ozet = rota.slice(i, rota.indexOf("return NextResponse.json(ozet)", i));
-  for (const alan of ["considered", "sent", "newsletters", "asked", "contacted"])
+  for (const alan of ["considered", "sent", "newsletters", "asked", "contacted", "weekly"])
     check(ozet.includes(alan), `günlük satırı ${alan} taşıyor`);
   /*
    * `skipped > 0` UYARI seviyesinde: iş 200 dönüyor ama bazı hesaplar bugün
@@ -197,6 +197,121 @@ check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
   /* İki zamanlanmış iş de buna bağlı; yokluğu hiçbir hata üretmiyor. */
   check(/CRON_SECRET: !!secret/.test(health), "cron sırrının varlığı yanıtta görünüyor");
 }
+
+/* ══ 7. HAFTALIK SORU SERİSİ (madde 39) ══════════════════════════════════
+ *
+ * Bu dal, günlük bir işin içinde yaşayan HAFTALIK bir gönderim. Üç şeyi
+ * birden bozma potansiyeli var: izin (tekrarlayan posta), bütçe (ek G/Ç ve
+ * ek posta) ve kadans (haftada bir). Üçü de burada kilitleniyor.
+ */
+
+/* --- 7a. Tek cron yuvası: kadans ZAMANLAMADA değil, İŞİN İÇİNDE ---------- */
+/*
+ * Vercel Hobby planında proje başına cron sayısı sınırlı ve iki yuva da dolu
+ * (`reminders`, `backup`). Haftalık iş için ÜÇÜNCÜ bir zamanlama yok; bu
+ * yüzden günlük iş haftada bir gün ek olarak seri postalarını da atıyor —
+ * aylık bültenin `ayinIlkGunu` koşuluyla birebir aynı çözüm.
+ *
+ * Kapı kalkarsa "haftalık" seri HER GÜN gönderir: yedi kat posta, yedi kat
+ * jeton, ve `MAX_REQUESTS` tavanı bir haftada dolar.
+ */
+check(/const hikayeGunu = today\.getDay\(\) === 0;/.test(rota), "haftanın günü kapısı var (pazar)");
+check(/const ayinIlkGunu = today\.getDate\(\) === 1;/.test(rota),
+  "bültenin ayın-ilk-günü kapısı duruyor (aynı kalıbın atası)");
+{
+  const iKapi = rota.indexOf("if (!hikayeGunu || kalanHafta <= 0) continue;");
+  const iGonder = rota.indexOf("await issueWeekly(");
+  check(iKapi > -1, "haftalık dal gün kapısıyla başlıyor");
+  check(iKapi > -1 && iGonder > iKapi, "talep YALNIZ kapıdan sonra açılıyor");
+}
+
+/* --- 7b. İZİN: mevcut `canEmailContact`, yeni bir kavram DEĞİL ----------- */
+/*
+ * Seri, `planAsk`ın tek seferlik onay sorusundan farklı olarak TEKRARLAYAN
+ * bir posta. Tam da bu yüzden kendine ait bir izin kavramı UYDURULMAMALI:
+ * ikinci bir onay alanı, onayı ikiye böler ve iki kopya er geç ayrışır —
+ * ayrıştığı gün onay vermemiş birine haftalarca posta gider.
+ */
+{
+  const iIzin = rota.indexOf("if (!canEmailContact(kisi)) continue;");
+  const iSeri = rota.indexOf("const seri = seriOf.get(kisi.id);");
+  check(iIzin > -1 && iSeri > iIzin, "haftalık dal izin kapısının ARDINDA");
+  check(!/seriesConsent|weeklyConsent|notifyStories/.test(rota), "yeni izin kavramı uydurulmamış");
+  /* Çıkış bağlantısı bu postada da var — çıkışsız tekrarlayan posta olmaz. */
+  const iNot = rota.indexOf("Bu haftalık soruları durdurmak için:");
+  check(iNot > -1, "haftalık postada çıkış bağlantısı var");
+  check(rota.slice(iNot, iNot + 200).includes("contact/cikis/${unsub}"),
+    "çıkış bağlantısı imzalı jetonla kuruluyor");
+  const iUnsub = rota.indexOf("if (!unsub) continue;");
+  check(iUnsub > -1 && iNot > iUnsub, "çıkış jetonu üretilemiyorsa haftalık posta da gitmiyor");
+}
+
+/* --- 7c. BÜTÇE ve DÖNDÜRME: dal miras alıyor ---------------------------- */
+/*
+ * Yeni dal ayrı bir hesap döngüsü AÇMIYOR; ikinci döngünün içinde yaşıyor ve
+ * onun döndürülmüş listesini, bütçe denetimini ve kişi döngüsündeki
+ * `break`ini olduğu gibi devralıyor. Üçüncü bir döngü, her ağacı bir kez
+ * daha okumak demek olurdu.
+ *
+ * Devraldığını KANITLAMAK gerekiyor: dal, kişi döngüsünün İÇİNDE ve o
+ * döngü bütçeye bakıyor (yukarıda 2. bölüm).
+ */
+{
+  const iDongu = rota.indexOf("for (let i = 0; i < data.people.length; i++)");
+  const iDal = rota.indexOf("const haftalik = planWeekly(");
+  const iSon = rota.indexOf("if (yeniJetonlar.size > 0)");
+  check(iDongu > -1 && iDal > iDongu && iDal < iSon, "haftalık dal kişi döngüsünün içinde");
+}
+/*
+ * Seri deposu ağaç başına TEK KEZ ve yalnız o gün okunuyor. Kişi döngüsünün
+ * içine düşerse yüz kişilik bir ağaçta yüz blob isteği olur ve bütçe bu
+ * işin geri kalanına yetmez.
+ */
+{
+  const iOku = rota.indexOf("seriler = await readSeries(u.id);");
+  const iDongu = rota.indexOf("for (let i = 0; i < data.people.length; i++)");
+  check(iOku > -1 && iOku < iDongu, "seri deposu kişi döngüsünden ÖNCE okunuyor");
+  check(/if \(hikayeGunu\) \{/.test(rota), "öbür altı gün hiç okunmuyor");
+  check((rota.match(/readSeries\(/g) ?? []).length === 1, "tek okuma noktası");
+}
+/* Koşu başına ağaç başına tavan — `kalanSoru`nun eşi, aynı gerekçe. */
+check(/let kalanHafta = \d+;/.test(rota), "koşu başına haftalık posta tavanı var");
+check(/kalanHafta--;/.test(rota), "tavan yalnız gönderim başına düşüyor");
+
+/* --- 7d. İŞARET YALNIZ GÖNDERİM BAŞARILIYSA ----------------------------- */
+/*
+ * `planAsk` dalındaki kuralın aynısı ve aynı sebeple: damga önce konsaydı,
+ * düşen bir gönderim kişinin HİÇ GÖRMEDİĞİ bir soruyu "sorulmuş" sayardı ve
+ * o soru bir daha hiç sorulmazdı — bankadan sessizce bir soru eksilirdi.
+ *
+ * Talep ise gönderimden ÖNCE açılmak zorunda: bağlantı postanın içinde.
+ * Sıra bu yüzden "aç → gönder → işaretle" ve düşen talebi bir sonraki koşu
+ * `issueWeekly` içinde kapatıyor.
+ */
+{
+  const iAc = rota.indexOf("await issueWeekly(");
+  const iGonder = rota.indexOf('subject: "🌳 Bu haftanın sorusu"');
+  const iKosul = rota.indexOf("if (haftaPosta.sent) {");
+  const iIsaret = rota.indexOf("await markWeeklySent(");
+  check(iAc > -1 && iGonder > iAc, "talep gönderimden ÖNCE açılıyor (bağlantı postada)");
+  check(iKosul > -1 && iGonder < iKosul, "işaret gönderimden SONRA");
+  check(iKosul > -1 && iIsaret > iKosul, "işaret `haftaPosta.sent` koşulunun İÇİNDE");
+  check(/if \("error" in acilan\) continue;/.test(rota), "talep açılamadıysa posta gitmiyor");
+}
+
+/* --- 7e. Karar SAF katmanda -------------------------------------------- */
+/*
+ * Hangi hafta, hangi soru, seri bitti mi — hepsi `lib/story-series.ts`te ve
+ * orada birim testi koşuluyor. Cron kendi kuralını yazsaydı ikinci bir
+ * kopya doğardı; `planAsk`/`planSubmit` ile aynı disiplin.
+ */
+check(/planWeekly\(seri, subjectFromPerson\(kisi, data\.people\), today\)/.test(rota),
+  "kadans kararı saf katmanda");
+check(/if \(haftalik\.kind !== "gonder"\) continue;/.test(rota), "yalnız `gonder` dalı gönderiyor");
+check(!/weekIndex\(|SERIES_WEEKS|\.asked\.length/.test(rota), "cron kendi kadans kuralını yazmıyor");
+/* Gizlilik işareti depoya taşınıyor — kapı orada (bkz. `tests/story-gate`). */
+check(/\{ id: kisi\.id, confidential: kisi\.confidential \}/.test(rota),
+  "cron kişi işaretini depoya taşıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

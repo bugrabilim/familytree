@@ -41,6 +41,20 @@ interface Request {
   closed?: boolean;
 }
 
+/**
+ * Yürüyen haftalık seri (madde 39). Uç yalnız İLERLEME taşıyor — hangi
+ * soruların sorulduğu değil; ekranın ihtiyacı "7/26" ve gereksiz her alan
+ * bir sızıntı yüzeyi.
+ */
+interface Series {
+  id: string;
+  personId: string;
+  subject: string;
+  sent: number;
+  total: number;
+  expiresAt: string;
+}
+
 interface Contribution {
   id: string;
   personId: string;
@@ -56,6 +70,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
   const t = useT();
   const [requests, setRequests] = useState<Request[] | null>(null);
   const [queue, setQueue] = useState<Contribution[]>([]);
+  const [series, setSeries] = useState<Series[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,10 +87,14 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
    * lint kuralının (`react-hooks/set-state-in-effect`) eş zamanlı setState
    * saydığı bir desen — `GatheringsDialog` ve `HistoryDialog` da bu biçimde.
    */
-  const uygula = useCallback((d: { requests: Request[]; contributions: Contribution[] }) => {
-    setRequests(d.requests);
-    setQueue(d.contributions.filter((c) => c.status === "bekliyor"));
-  }, []);
+  const uygula = useCallback(
+    (d: { requests: Request[]; contributions: Contribution[]; series?: Series[] }) => {
+      setRequests(d.requests);
+      setQueue(d.contributions.filter((c) => c.status === "bekliyor"));
+      setSeries(d.series ?? []);
+    },
+    []
+  );
 
   const yukle = useCallback(async () => {
     try {
@@ -145,6 +164,51 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
       if (!res.ok) throw new Error(d?.error ?? t("stories.failed"));
       await yukle();
       if (k === "onayla") onApplied?.();
+    } catch (e) {
+      setError(userMessage(e, t("err.generic")));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /*
+   * HAFTALIK SERİ (madde 39) — tek soru göndermenin kadanslı hâli.
+   *
+   * Aynı kişi seçicisini kullanıyor: seri de bir kişi HAKKINDA ve postası o
+   * kişinin kendi adresine gidiyor. Ayrı bir kişi seçici koymak, aynı kararı
+   * iki yerde sormak olurdu.
+   */
+  const seriBaslat = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/family/stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personId, mode: "seri" }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error ?? t("stories.failed"));
+      await yukle();
+    } catch (e) {
+      setError(userMessage(e, t("err.generic")));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const seriDurdur = async (seriesId: string) => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/family/stories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seriesId }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error ?? t("stories.failed"));
+      await yukle();
     } catch (e) {
       setError(userMessage(e, t("err.generic")));
     } finally {
@@ -240,8 +304,53 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
                 </Button>
               </div>
             )}
+
+            {/*
+              Haftalık seri, tek soru göndermenin yanında duruyor: ikisi de
+              yukarıdaki kişi seçicisini kullanıyor ve ayrı ekrana bölünseydi
+              kadans "sonra bakılacak bir yer" olurdu.
+            */}
+            <div className="rounded-xl border border-border p-3 space-y-2">
+              <h4 className="text-xs font-medium text-text">{t("stories.seriesTitle")}</h4>
+              <p className="text-[11px] text-text-subtle leading-relaxed">{t("stories.seriesNote")}</p>
+              <Button size="sm" variant="secondary" onClick={seriBaslat} disabled={busy || !personId}>
+                {busy ? t("stories.seriesStarting") : t("stories.seriesStart")}
+              </Button>
+            </div>
           </section>
         )}
+
+        <section className="space-y-2">
+          <h3 className="text-xs font-medium text-text">{t("stories.seriesRunning")}</h3>
+          {series.length === 0 && (
+            <p className="text-[11px] text-text-subtle">{t("stories.seriesNone")}</p>
+          )}
+          {series.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-start justify-between gap-3 rounded-xl border border-border p-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm text-text leading-snug">{s.subject}</p>
+                {/* İlerleme bankanın GERÇEK boyutuna göre: 52 yazıp 26'da bitmek yanıltırdı. */}
+                <p className="text-[11px] text-text-subtle">
+                  {t("stories.seriesProgress", { sent: s.sent, total: s.total })} ·{" "}
+                  {s.expiresAt.slice(0, 10)}
+                </p>
+              </div>
+              {editable && (
+                <button
+                  type="button"
+                  onClick={() => seriDurdur(s.id)}
+                  disabled={busy}
+                  className="text-[11px] text-text-subtle hover:text-danger shrink-0"
+                >
+                  {t("stories.seriesStop")}
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
 
         <section className="space-y-2">
           <h3 className="text-xs font-medium text-text">{t("stories.queue")}</h3>

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { isPublicPath } from "../lib/public-routes.ts";
+import { PUBLIC_EXACT, PUBLIC_PREFIXES, isPublicPath } from "../lib/public-routes.ts";
 
 let ok = 0, fail = 0;
 function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); } }
@@ -195,6 +195,157 @@ check(/people\.map\(maskView\)[\s\S]{0,80}StoriesDialog|StoriesDialog[\s\S]{0,40
   check(/memoryIdFor\(c\)/.test(patch), "anı kimliği katkıdan türetiliyor");
   check(!/randomUUID\(\)/.test(patch), "rastgele anı kimliği kalmadı");
 }
+
+/* ══ HAFTALIK SERİ (madde 39) ═══════════════════════════════════════════════
+ *
+ * Kadans eklenince bu maddenin dengesi değişti: kuyruğa artık İKİ yazar
+ * bakıyor — ağaç sahibinin ucu ve zamanlanmış iş. Aşağıdaki kapılar tam
+ * olarak "ikinci yazar geldi" gerçeğini kilitliyor.
+ * ------------------------------------------------------------------------ */
+
+const seri = kodu(read("../lib/story-series.ts"));
+
+/* --- 12. GİZLİ KAYIT denetimi DEPODA ------------------------------------- */
+/*
+ * Denetim eskiden YALNIZ rotadaydı ve o zaman doğruydu: tek yazar vardı.
+ * Cron ikinci yazar; rotadaki kopyaya güvenmek, o kopyayı unutan ikinci
+ * çağıranın gizli bir kayıt hakkında girişsiz bir sayfa açması demek.
+ * Bu, `tests/story-gate.test.mts`in 1. bölümündeki "kapı depoda, çağıranda
+ * değil" ilkesinin aynısı — orada jeton için, burada gizlilik için.
+ */
+check(/function gizli\(konu: StorySubject, personId: string\): boolean/.test(store),
+  "gizlilik kapısı depoda tanımlı");
+check(/return konu\.id !== personId \|\| !!konu\.confidential;/.test(store),
+  "kimlik uyuşmazlığı da reddediliyor (başka kişinin işaretiyle çağrılamaz)");
+for (const fn of ["createRequest", "createSeries", "issueWeekly"]) {
+  const i = store.indexOf(`export async function ${fn}(`);
+  check(i > -1, `${fn} bulundu`);
+  const govde = store.slice(i, store.indexOf("\nexport ", i + 10));
+  check(/konu: StorySubject/.test(govde), `${fn} kişi işaretini ZORUNLU alıyor`);
+  check(/gizli\(konu, /.test(govde), `${fn} gizlilik kapısından geçiyor`);
+}
+/* İki depo hâlâ birbirini tanımıyor: işaret çağırandan geliyor, kayıt okunmuyor. */
+check(!/saveFamilyData|getFamilyData/.test(store), "kuyruk deposu hâlâ kişi verisine erişmiyor");
+/* Rotadaki denetim de duruyor — iki kat, çünkü mesajı kullanıcıya rota veriyor. */
+check(/const konu = \{ id: kisi\.id, confidential: kisi\.confidential \}/.test(sahip),
+  "rota işareti depoya taşıyor");
+
+/* --- 13. HER HAFTA YENİ JETON, ÖNCEKİ KAPANIYOR -------------------------- */
+/*
+ * İki ayrı arıza birden önleniyor:
+ *
+ *  · TEK UZUN ÖMÜRLÜ JETON — bir kez iletilen bağlantı altı ay boyunca
+ *    ailenin kuyruğuna yazma yetkisi olurdu. Her hafta yeni jeton, bu
+ *    yetkiyi bir haftaya indiriyor.
+ *  · TAVAN — `MAX_REQUESTS = 100` ve seri onlarca hafta sürüyor. Eskisini
+ *    kapatmayan bir akış birkaç seriyle tavana çarpar ve o andan sonra
+ *    HİÇBİR talep açılamaz, elle açılanlar dâhil.
+ *
+ * İkisi de TEK işlemde olmak zorunda: kapatma ayrı bir yazma olsaydı
+ * aradaki her düşüş geriye açık bir talep bırakır ve sızıntı birikirdi.
+ */
+{
+  const i = store.indexOf("export async function issueWeekly(");
+  const govde = store.slice(i, store.indexOf("\nexport ", i + 10));
+  check((govde.match(/mutate</g) ?? []).length === 1, "issueWeekly TEK mutasyon işlemi");
+  const iKapat = govde.indexOf("onceki.closed = true");
+  const iSay = govde.indexOf("if (acik >= MAX_REQUESTS)");
+  const iAc = govde.indexOf("box.requests.push(request)");
+  check(iKapat > -1 && iSay > iKapat, "önceki talep tavan SAYIMINDAN önce kapanıyor");
+  check(iAc > iSay, "tavan denetimi yeni talepten önce");
+  check(/randomBytes\(24\)\.toString\("base64url"\)/.test(govde), "her hafta YENİ rastgele jeton");
+  check(/tokenHash: sha256\(ham\)/.test(govde), "kayda yine yalnız özet giriyor");
+  check(/s\.currentRequestId = request\.id;/.test(govde), "açık talep serinin üstünde izleniyor");
+  /*
+   * İŞARET BURADA DEĞİL: talep gönderimden ÖNCE açılmak zorunda (bağlantı
+   * postanın içinde), hafta damgası ise yalnız posta gittiyse konmalı.
+   * Aynı işleve konsaydı, düşen bir gönderim kişinin hiç görmediği bir
+   * soruyu "sorulmuş" sayar ve o soru bir daha hiç sorulmazdı.
+   */
+  check(!/s\.asked\.push|s\.lastWeek =/.test(govde), "hafta damgası issueWeekly'de KONMUYOR");
+}
+{
+  const i = store.indexOf("export async function markWeeklySent(");
+  check(i > -1, "işaretleme ayrı bir işlev");
+  const govde = store.slice(i, store.indexOf("\nexport ", i + 10));
+  check(/if \(!s\.asked\.includes\(promptId\)\) s\.asked\.push\(promptId\);/.test(govde),
+    "aynı soru defterde iki kez yer almıyor");
+  check(/s\.lastWeek = week;/.test(govde), "hafta damgası konuyor");
+}
+/* Seri durdurulunca açık haftalık talep de kapanıyor — canlı uç kalmasın. */
+{
+  const i = store.indexOf("export async function closeSeries(");
+  const govde = store.slice(i, store.indexOf("\nexport ", i + 10));
+  check(/s\.closed = true;/.test(govde), "seri kapanıyor");
+  check(/if \(r\) r\.closed = true;/.test(govde), "açık haftalık talep de kapanıyor");
+}
+/* Ağaçtan çıkarılan kişinin serisi de duruyor. */
+{
+  const i = store.indexOf("export async function closeRequestsOfPeople(");
+  const govde = store.slice(i, store.indexOf("\nexport ", i + 10));
+  check(/for \(const s of box\.series\)/.test(govde), "silinen kişinin serisi de kapatılıyor");
+}
+
+/* --- 14. Kabul kuralları DEĞİŞMEDİ --------------------------------------- */
+/*
+ * Seriden gelen yanıt, elle açılmış bir talebin yanıtından farklı muamele
+ * görmemeli: ikisi de girişsiz yazma, ikisi de aynı onay kuyruğu.
+ * `planSubmit`in yeni alanlara bakması, kuyruğu iki sınıflı hâle getirir ve
+ * "seriden geldi, güvenilir" gibi bir ayrıcalık er geç doğardı.
+ */
+{
+  const katki = kodu(read("../lib/contribution.ts"));
+  const i = katki.indexOf("export function planSubmit(");
+  const govde = katki.slice(i, katki.indexOf("\n/* ── Onay", i));
+  check(!/seriesId|promptId/.test(govde), "`planSubmit` seri alanlarına BAKMIYOR");
+  check(/seriesId\?: string;/.test(katki) && /promptId\?: string;/.test(katki),
+    "talep seri izini taşıyor");
+}
+
+/* --- 15. Ses seçimi SAF katmanda ----------------------------------------- */
+/*
+ * Serinin postası konunun KENDİ adresine gidiyor; "about" sesli sorular
+ * üçüncü tekil kurulmuş ("{name} — sesi nasıldı?") ve kişinin kendisine
+ * gönderildiğinde anlamsız. Kural cron'a bırakılsaydı ikinci bir çağıran
+ * onu farklı seçebilirdi.
+ */
+check(/export const SERIES_VOICE: PromptVoice = "self";/.test(seri), "ses saf katmanda sabit");
+check(/\{ voice: SERIES_VOICE \}/.test(seri), "soru seçimi o sesle süzülüyor");
+check(/PROMPTS\.filter\(\(p\) => p\.voice === SERIES_VOICE\)\.length/.test(seri),
+  "hafta sayısı bankadan türetiliyor (sabit 52 yazılmamış)");
+check(!/new Date\(\)/.test(seri), "saf katmanda saat okunmuyor (karar `today` ile geliyor)");
+check(!/from "@\//.test(seri), "saf katmanda çalışma zamanı `@/` içe aktarımı yok");
+
+/* --- 16. YENİ OTURUMSUZ UÇ YOK ------------------------------------------ */
+/*
+ * Kadans, girişsiz yüzeyi BÜYÜTMEDEN kuruldu: haftalık posta zaten var olan
+ * `/hikaye` sayfasına yeni bir jetonla gidiyor. Madde 39'un ilk teşhisi
+ * ("ayrı giriş kapısı gerek") tam da burada çürüyor — gereken kapı zaten
+ * açıktı. Ayrıntılı gerekçe `tests/tree-identity-gate.test.mts`te.
+ */
+check(PUBLIC_PREFIXES.filter((p) => /hikaye/.test(p)).length === 2,
+  "hikâye için oturumsuz önek sayısı ARTMADI (/hikaye, /api/hikaye)");
+check(![...PUBLIC_PREFIXES, ...PUBLIC_EXACT].some((p) => /seri|series|weekly|hafta/i.test(p)),
+  "seri için ayrı bir oturumsuz yol açılmadı");
+check(!isPublicPath("/api/cron/reminders"), "gönderen iş oturumsuz açık DEĞİL");
+/* Seri uçları ağaç sahibinin KAPALI ucunda yaşıyor. */
+check(/createSeries\(/.test(sahip) && /closeSeries\(/.test(sahip),
+  "seri işlemleri düzenleyici ucunda");
+
+/* --- 17. Arayüz gerçekten BAĞLI ----------------------------------------- */
+/*
+ * Onaylanmayan katkı hiç gönderilmemiş katkıya eşitse, başlatılamayan seri
+ * de hiç yazılmamış seriye eşit.
+ */
+check(/mode: "seri"/.test(pencere), "pencere seriyi başlatabiliyor");
+check(/JSON\.stringify\(\{ seriesId \}\)/.test(pencere), "pencere seriyi durdurabiliyor");
+check(/t\("stories\.seriesProgress", \{ sent: s\.sent, total: s\.total \}\)/.test(pencere),
+  "ilerleme gösteriliyor");
+/*
+ * İlerlemenin paydası UÇTAN geliyor (`total`), ekranda sabit yazmıyor:
+ * "52" yazıp 26'da bitmek kullanıcıya yalan söylemek olurdu.
+ */
+check(!/\/\s*52/.test(pencere), "paydada sabit 52 yazmıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
