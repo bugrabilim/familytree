@@ -55,6 +55,8 @@ const ACIK: Record<string, string> = {
     "Öneri açmak ve kendi önerilerini görmek — rolün varlık sebebi. KARAR (PATCH) canEdit istiyor; aksi hâlde üye kendi önerisini onaylayıp yazma kapısını dolanırdı.",
   "family/proposals/withdraw/route.ts":
     "Kendi önerisini geri çekmek — öneri açabilen, açtığından vazgeçebilmeli; vazgeçemeseydi yazdığı her şey kuyrukta kalıcı olurdu. Uç ağacı YAZMIYOR ve yalnız ÖNERENİN kendi kaydına dokunuyor (sahiplik denetimi `withdraw()` içinde).",
+  "family/council/route.ts":
+    "AİLE MECLİSİ — yalnız OY VERME üyeye açık (madde 59). Meclis oylaması bu özelliğin tek gerçek çok-kullanıcılı yüzeyi: yalnız yöneticinin oy verebildiği bir meclis, meclis değildir. Genişleme oyla SINIRLI — defterin kendisi (kampanya, katkı satırı, borç kaydı, kararın metni ve kapatılması) `canEdit` istiyor, yani üye para rakamı yazamıyor. Oy da serbest yazma değil: `normalizeBallot` yalnız evet/hayır/çekimser kabul ediyor, üye başına TEK satır tutuyor ve kapanmış tutanağa hiç dokundurmuyor.",
   "upload/route.ts":
     "Üye, önereceği kişiye fotoğraf ekleyebilmeli. Yükleme hiçbir kaydı DEĞİŞTİRMİYOR, yalnız URL üretiyor; bir kayda bağlanması ayrı istek ve orada kendi kapısı var.",
 };

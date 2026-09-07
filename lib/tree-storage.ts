@@ -57,6 +57,7 @@ export const TREE_BLOB_PREFIXES = [
   "bonds", //          lib/bond-store.ts
   "stories", //        lib/story-store.ts
   "proposals", //      lib/proposal-store.ts
+  "council", //        lib/council-store.ts — aile meclisi defteri (madde 59)
   "family-data", //    lib/blob.ts       — kişiler (asıl veri; en son silinir)
 ] as const;
 

@@ -14,6 +14,7 @@ import { allows, firstAllowed } from "@/lib/share-scope";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
 import GatheringsDialog from "@/components/GatheringsDialog";
+import CouncilDialog from "@/components/CouncilDialog";
 import StoriesDialog from "@/components/StoriesDialog";
 import ProposalsDialog from "@/components/ProposalsDialog";
 import PersonDrawer from "@/components/PersonDrawer";
@@ -47,7 +48,7 @@ import { PrivacyProvider, usePrivacy } from "@/components/PrivacyContext";
 import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { AuthorityProvider, useAuthority } from "@/components/AuthorityContext";
-import { canEdit, canManage } from "@/lib/roles";
+import { canEdit, canManage, canPropose } from "@/lib/roles";
 import { mutationHeaders, setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 import { isMember } from "@/lib/associates";
@@ -262,6 +263,7 @@ function WorkspaceInner({
   const [shareHubOpen, setShareHubOpen] = useState(false);
   const [gatheringsOpen, setGatheringsOpen] = useState(false);
   const [storiesOpen, setStoriesOpen] = useState(false);
+  const [councilOpen, setCouncilOpen] = useState(false);
   const [proposalsOpen, setProposalsOpen] = useState(false);
   const [proposalCount, setProposalCount] = useState(0);
 
@@ -704,6 +706,17 @@ function WorkspaceInner({
          * onaylanmadığını göremeseydi, boşluğa yazmış olurdu.
          */
         onOpenProposals={!publicView && authority.canAdd ? () => setProposalsOpen(true) : undefined}
+        /*
+         * AİLE MECLİSİ — `publicView` iken HİÇ VERİLMİYOR.
+         *
+         * Defterdeki para rakamları ve "kim kime borçlu" bilgisi, paylaşım
+         * bağlantısını eline geçiren herkesin görmesi gereken bir şey değil.
+         * Düğmenin gizlenmesi tek başına koruma değil (asıl kapı rotanın
+         * oturum istemesi), ama sızıntının ilk halkası hep arayüzde açılır:
+         * `publicView` içinde çizilen bir pencere, veriyi ziyaretçinin
+         * sayfasına getirmek için istek atardı.
+         */
+        onOpenCouncil={!publicView ? () => setCouncilOpen(true) : undefined}
         proposalCount={proposalCount}
         onPrintView={printCurrentView}
         onAiChat={!publicView && canEdit(role) ? () => setAiChatOpen(true) : undefined}
@@ -1028,6 +1041,21 @@ function WorkspaceInner({
           treeId={activeTreeId ?? ""}
           editable={!readOnly}
           onClose={() => setGatheringsOpen(false)}
+        />
+      )}
+
+      {councilOpen && !publicView && (
+        <CouncilDialog
+          /*
+           * Ad listesi HAM kayıttan değil, gizlilik katmanından geçiyor —
+           * `StoriesDialog` ile aynı kural: gizli bir kişinin adı defterin
+           * kişi seçicisine düşmemeli.
+           */
+          people={people.map(maskView).map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() }))}
+          /* Defteri yönetici yazar; oy vermek her üyeye açık. */
+          canWrite={!readOnly && canEdit(role)}
+          canVote={!readOnly && canPropose(role)}
+          onClose={() => setCouncilOpen(false)}
         />
       )}
 
