@@ -86,8 +86,29 @@ check(/buildChanges\(person, istek\)/.test(rota), "değişiklikler KAYIT ile kar
   check(/applyToTree\(data as FamilyData, p\)/.test(patch), "onay ortak uygulayıcıyı çağırıyor");
   check(/applyProposal\(data\.people\[i\], p\)/.test(uygula), "uygulayıcı bayatlık denetiminden geçiyor");
   check(!/applyProposal\(/.test(rota), "rota kendi uygulama kopyasını yazmıyor");
-  check(/if \(!uygula\.ok\)/.test(patch) && /status: 409/.test(patch),
-    "bayat öneri 409 ile REDDEDİLİYOR (yeni bilgi ezilmiyor)");
+  /*
+   * C10 — BU İDDİA KORUDUĞUNU İDDİA ETTİĞİ KURALI KORUMUYORDU.
+   *
+   * İlk hâli iki bağımsız aramaydı: `if (!uygula.ok)` var mı, ve DOSYADA
+   * bir yerde `status: 409` geçiyor mu. İkisi de doğru olabilir ve kural
+   * yine de kırık olabilir — nitekim öyleydi: başarısız dalın kodunu 200'e
+   * çevirdiğimde iddia yeşil kaldı, çünkü aynı işleyicide BAŞKA bir
+   * `status: 409` var (toplu istekte hiçbiri geçmediğinde dönen kod).
+   *
+   * Kaçırdığı davranış küçük değil: 200 dönen bir yanıtta istemcinin
+   * `if (!res.ok)` dalı hiç koşmaz, yani bayat alanlar kullanıcıya HİÇ
+   * gösterilmez ve onay başarılı sanılır — oysa uygulanmamıştır.
+   *
+   * İddia artık başarısız dalın GÖVDESİNE bakıyor.
+   */
+  {
+    const i = patch.indexOf("if (!uygula.ok) {");
+    check(i > -1, "başarısız dal bulundu");
+    const dal = patch.slice(i, patch.indexOf("continue;", i));
+    check(/status: 409/.test(dal), "bayat öneri 409 ile REDDEDİLİYOR (yeni bilgi ezilmiyor)");
+    check(/ok: false/.test(dal), "sonuç başarısız olarak işaretleniyor");
+    check(/error: applyFailMessage\(uygula\.fail\)/.test(dal), "gerekçe yanıta giriyor");
+  }
   check(/stale: uygula\.fail\.stale/.test(patch), "hangi alanların bayatladığı söyleniyor");
 
   /*
@@ -148,10 +169,30 @@ check((rota.match(/await saveFamilyData\(/g) ?? []).length === 1, "ağaca tek bi
    * çiziliyor, posta bunu atlayan tek yüzey olurdu.
    */
   const b = rota.slice(rota.indexOf("async function bildir"));
-  check(/Object\.keys\(p\.changes\)\.length/.test(b), "postaya alan SAYISI giriyor");
+  check(/Object\.keys\(p\.changes \?\? \{\}\)\.length/.test(b), "postaya alan SAYISI giriyor");
   check(!/p\.changes\[/.test(b) && !/c\.to/.test(b) && !/JSON\.stringify\(p\.changes/.test(b),
     "önerilen DEĞERLER postaya girmiyor");
   check(/if \(!adres\) return;/.test(b), "adres yoksa sessizce geçiliyor");
+  /*
+   * METİN TÜRE GÖRE. Tek bir cümle `changes` alanlarını sayıyordu, ama
+   * `changes` yalnız "alan" türünde dolu: ekleme, silme ve içerik
+   * önerilerinde posta "0 ALANDA DEĞİŞİKLİK ÖNERİYOR" diyordu. Sahibi ne
+   * geldiğini anlayamıyor, önemsiz sanıp açmayabiliyordu — oysa gelen şey
+   * bir SİLME önerisi olabilir.
+   */
+  check(/const tur = kindOf\(p\);/.test(b), "tür soruluyor");
+  for (const t of ["ekleme", "silme", "icerik"])
+    check(new RegExp(`tur === "${t}"`).test(b), `${t} türünün kendi cümlesi var`);
+  check(/SİLİNMESİNİ/.test(b), "silme önerisi postada AÇIKÇA silme diyor");
+  /*
+   * Alan sayısı YALNIZ "alan" türünde cümleye giriyor — öbür türlerde sıfır
+   * olacağı için oraya konması ilk hatanın ta kendisiydi. `alanlar` değişkeni
+   * son daldan sonra geçmemeli.
+   */
+  const iSonDal = b.indexOf('tur === "icerik"');
+  const kalan = b.slice(iSonDal, b.indexOf("renderEmail", iSonDal));
+  check((kalan.match(/\$\{alanlar\}/g) ?? []).length === 1,
+    "alan sayısı yalnız 'alan' türünde geçiyor");
 }
 
 /* --- 6. Depo: okunamayan kuyruk BOŞ kuyruk değil ------------------------- */
@@ -668,6 +709,43 @@ check((icerik.match(/ok: false, error:/g) ?? []).length >= 3, "her depo için re
   check(/=== "alan"/.test(patch), "yalnız alan türünde tekrar onay öneriliyor");
   /* Mesaj "ağaca uygulandı" demiyor: içerik onayı ağaca hiç dokunmuyor. */
   check(!/Değişiklik ağaca uygulandı/.test(patch), "yanlış 'ağaca uygulandı' ifadesi kalmadı");
+}
+
+/* --- 12. Sunucunun söylediğini istemci OKUYOR ---------------------------- */
+{
+  const dialog = readFileSync(new URL("../components/ProposalsDialog.tsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  /*
+   * C7 — `stampFailed`. Sunucu bu bayrağı "istemci bunu BİLMELİ" diyerek
+   * gönderiyordu ve hiçbir istemci okumuyordu. Bayrak, ağaç yazıldı ama
+   * öneri damgası yazılamadı demek: kuyrukta hâlâ "bekliyor" görünen
+   * öneriler ASLINDA uygulanmış olabilir ve yeniden onaylamak ekleme
+   * türünde ikinci bir kopya üretir. Okunmayınca yanıt "kısmen başarılı"
+   * gibi görünüyor ve kullanıcı tam da yapmaması gerekeni yapmaya davet
+   * ediliyordu.
+   */
+  check(/stampFailed: true/.test(rota), "sunucu bayrağı gönderiyor");
+  check(/d\?\.stampFailed === true/.test(dialog), "istemci bayrağı OKUYOR");
+  check(/t\("proposal\.stampFailed"\)/.test(dialog), "kullanıcıya gösteriliyor");
+  /* Uyarı `hata` değil: bu bir başarısızlık değil, YARIM başarı. */
+  check(!/setHata\(t\("proposal\.stampFailed"\)\)/.test(dialog), "hata satırına karıştırılmıyor");
+
+  /*
+   * C8 — bayatlık uyarısı TEMİZLENİYOR. `stale` haritasına yalnız
+   * ekleniyordu; hiçbir yerde silinmiyordu. Bir kez çıkan uyarı, öneri
+   * listeden düşse bile diyalog kapanana kadar duruyordu — ve kalıcı bir
+   * uyarı, bir süre sonra okunmayan bir uyarıdır.
+   */
+  const silmeler = [...dialog.matchAll(/delete yeni\[/g)];
+  check(silmeler.length >= 2, `bayatlık kaydı silinebiliyor (${silmeler.length} yerde)`);
+  {
+    /* Yüklemede: kuyrukta artık olmayan önerilerin kaydı düşüyor. */
+    const i = dialog.indexOf("const kalanlar = new Set(");
+    check(i > -1, "yüklemede kalanlar hesaplanıyor");
+    const blok = dialog.slice(i, i + 400);
+    check(/if \(kalanlar\.has\(id\)\)/.test(blok), "yalnız hâlâ kuyrukta olanlar korunuyor");
+  }
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
