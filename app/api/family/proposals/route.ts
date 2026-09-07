@@ -402,18 +402,35 @@ export async function PATCH(req: NextRequest) {
     if (!tek.ok) return NextResponse.json({ error: tek.error, ...(tek.stale ? { stale: tek.stale } : {}) }, { status: tek.status ?? 409 });
     if (damgalandi === 0)
       /*
-       * DEĞİŞİKLİK AĞACA ZATEN YAZILDI ama damga yazılamadı. Buradan "Öneri
-       * bulunamadı" (404) dönmek yanıltıcıydı: kullanıcı hiçbir şey
-       * olmadığını sanıyor, oysa ağaç değişti. Öneri "bekliyor" kalıyor ve
-       * tekrar onaylandığında `applyProposal` idempotent olduğu için
-       * sorunsuz geçiyor — yani durum kurtarılabilir.
+       * DEĞİŞİKLİK ZATEN UYGULANDI ama damga yazılamadı. "Öneri bulunamadı"
+       * (404) demek yanıltıcı olurdu: kullanıcı hiçbir şey olmadığını
+       * sanır, oysa değişiklik gerçekleşti.
+       *
+       * TAVSİYE TÜRE GÖRE, çünkü "tekrar onayla" YALNIZ "alan" türünde
+       * güvenli. Önceki hâli her tür için "tekrar onaylayabilirsin"
+       * diyordu ve gerekçe olarak `applyProposal`ın idempotentliğini
+       * gösteriyordu — ama o işlev yalnız "alan" yolunda çalışıyor:
+       *
+       *  · "ekleme"  → her onay `createPerson` çağırıp YENİ kimlikli bir
+       *    kayıt üretiyor; tekrar onay kişiyi İKİZLİYOR ve ilk ikizin
+       *    kimliği hiçbir yerde tutulmadığı için geri alma onu göremiyor.
+       *  · "icerik"  → tarif/etkinlik/mektup defterine İKİNCİ bir kopya
+       *    ekleniyor. (Mesaj ayrıca yanlıştı: "ağaca uygulandı" diyordu,
+       *    oysa içerik onayı ağaca hiç dokunmuyor.)
+       *  · "silme"   → kişi artık yok; tekrar onay "kişi yok" ile düşüyor ve
+       *    öneri kalıcı olarak onaylanamaz hâle geliyor.
+       *
+       * Bu üçünde doğru tavsiye reddetmek: değişiklik zaten yapıldı, geriye
+       * yalnız kuyruk kaydını kapatmak kalıyor.
        */
       return NextResponse.json(
         {
           error:
-            karar === "onaylandi"
-              ? "Değişiklik ağaca uygulandı ama öneri damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin."
-              : "Öneri bulunamadı.",
+            karar !== "onaylandi"
+              ? "Öneri bulunamadı."
+              : kindOf(kitap.get(ids[0]) ?? ({ kind: "alan" } as Proposal)) === "alan"
+                ? "Değişiklik uygulandı ama öneri damgası yazılamadı. Kuyruğu tazeleyip tekrar onaylayabilirsin."
+                : "Değişiklik uygulandı ama öneri damgası yazılamadı. TEKRAR ONAYLAMAYIN — ikinci bir kopya oluşur. Kuyruğu tazeleyip bu öneriyi reddedin.",
           applied: karar === "onaylandi",
         },
         { status: karar === "onaylandi" ? 500 : 404 }

@@ -1,5 +1,6 @@
 import { applyProposal, invert, kindOf, type Proposal, type RemovedRef, type UndoRecord } from "@/lib/proposals";
 import { createPerson } from "@/lib/person-create";
+import { scrubDeleted } from "@/lib/scrub";
 import type { FamilyData, Person } from "@/types/family";
 
 /**
@@ -17,6 +18,39 @@ import type { FamilyData, Person } from "@/types/family";
  * yoksa ikinci öneri birincinin yazdığını ezerdi.
  */
 
+/**
+ * Bir kaydı gösteren BÜTÜN başvurular — geri almanın dayanağı.
+ *
+ * Hem silmede (koparılan bağları saklamak için) hem eklemede (kaydın
+ * onaydan sonra yeni bağ kazanıp kazanmadığını anlamak için) aynı soru
+ * soruluyordu ve iki yere ayrı yazılırsa ayrışırlar.
+ */
+function baglayanlar(people: readonly Person[], hedef: string): RemovedRef[] {
+  const out: RemovedRef[] = [];
+  for (const x of people) {
+    if (x.id === hedef) continue;
+    const assoc = x.associations?.find((a) => a.personId === hedef);
+    const ref: RemovedRef = {
+      id: x.id,
+      ...((x.parentIds ?? []).includes(hedef) ? { parent: true } : {}),
+      ...((x.spouseIds ?? []).includes(hedef) ? { spouse: true } : {}),
+      ...((x.formerSpouseIds ?? []).includes(hedef) ? { former: true } : {}),
+      ...(assoc ? { assoc } : {}),
+    };
+    if (ref.parent || ref.spouse || ref.former || ref.assoc) out.push(ref);
+  }
+  return out;
+}
+
+/** Karşılaştırılabilir biçim — anahtar sırası fark etmesin. */
+function damga(v: unknown): string {
+  return JSON.stringify(v, (_k, val) =>
+    val && typeof val === "object" && !Array.isArray(val)
+      ? Object.fromEntries(Object.entries(val as object).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : val
+  );
+}
+
 export type ApplyFail =
   /** Öneri edilen kişi (artık) yok. */
   | { kod: "kisi-yok" }
@@ -27,7 +61,9 @@ export type ApplyFail =
   /** Öneri yazıldığından beri alanlar değişmiş. */
   | { kod: "bayat"; stale: string[] }
   /** Geri alınacak bir kayıt yok (öneri onaylanmamış ya da kaydı tutulmamış). */
-  | { kod: "kayit-yok" };
+  | { kod: "kayit-yok" }
+  /** Kayıt onaydan SONRA değişmiş; geri almak o değişikliği de silerdi. */
+  | { kod: "degismis" };
 
 export function applyToTree(
   data: FamilyData,
@@ -55,7 +91,25 @@ export function applyToTree(
      * yanıtlayamaz — ad üstünden aramak, aynı adlı iki kayıtta yanlış
      * kişiyi silerdi.
      */
-    return { ok: true, undo: { createdId: kur.person.id } };
+    /*
+     * Oluşan kaydın kimliği burada üretiliyor ve önerinin içinde YOK. Geri
+     * alma "hangi kaydı sileceğim" sorusunu başka hiçbir yerden
+     * yanıtlayamaz — ad üstünden aramak, aynı adlı iki kayıtta yanlış
+     * kişiyi silerdi.
+     *
+     * Kaydın ANLIK GÖRÜNTÜSÜ ve o an ona bağlanan kayıtlar da saklanıyor:
+     * geri alma, aradan geçen sürede kayda ne olduğunu bilmek zorunda.
+     * Bilmeden silmek, onay sonrası eklenen biyografiyi, fotoğrafı, eşi ve
+     * çocuğu kimseye sormadan çöpe atmak olurdu.
+     */
+    return {
+      ok: true,
+      undo: {
+        createdId: kur.person.id,
+        person: kur.person,
+        refs: baglayanlar(data.people, kur.person.id),
+      },
+    };
   }
 
   const i = data.people.findIndex((x) => x.id === p.personId);
@@ -81,28 +135,21 @@ export function applyToTree(
      * Yalnız koparılan bağın kendisi saklanıyor, kaydın tamamı değil —
      * geri koyma eklemeli olsun, aradaki başka düzenlemeleri ezmesin.
      */
-    const refs: RemovedRef[] = [];
-    for (const x of data.people) {
-      if (x.id === silinen) continue;
-      const assoc = x.associations?.find((a) => a.personId === silinen);
-      const ref: RemovedRef = {
-        id: x.id,
-        ...((x.parentIds ?? []).includes(silinen) ? { parent: true } : {}),
-        ...((x.spouseIds ?? []).includes(silinen) ? { spouse: true } : {}),
-        ...((x.formerSpouseIds ?? []).includes(silinen) ? { former: true } : {}),
-        ...(assoc ? { assoc } : {}),
-      };
-      if (ref.parent || ref.spouse || ref.former || ref.assoc) refs.push(ref);
-    }
-    data.people = data.people
-      .filter((x) => x.id !== silinen)
-      .map((x) => ({
-        ...x,
-        parentIds: (x.parentIds ?? []).filter((id) => id !== silinen),
-        spouseIds: (x.spouseIds ?? []).filter((id) => id !== silinen),
-        ...(x.formerSpouseIds ? { formerSpouseIds: x.formerSpouseIds.filter((id) => id !== silinen) } : {}),
-        ...(x.associations ? { associations: x.associations.filter((a) => a.personId !== silinen) } : {}),
-      }));
+    const refs = baglayanlar(data.people, silinen);
+    /*
+     * TEMİZLİK ORTAK İŞLEVDEN (`scrubDeleted`).
+     *
+     * Buradaki temizlik elle yazılmıştı ve `parentLinks`i UNUTUYORDU:
+     * doğrudan silme yolu (`DELETE /api/family/person/[id]`) `scrubDeleted`
+     * çağırıp onu da temizliyor. Yani aynı iş iki yerde ayrı yazılmış ve
+     * ayrışmıştı — üstelik `lib/scrub.ts`in dosya başlığı tam olarak bu
+     * hatanın bir önceki tekrarını anlatıyor. Öneri yolu üçüncü kopyaydı.
+     *
+     * Sonucu görünürdü: uygulamanın kendi bütünlük tarayıcısı silinen
+     * ebeveyne işaret eden `parentLinks` kaydını `orphanParentLink` diye
+     * bildiriyordu.
+     */
+    data.people = scrubDeleted(data.people, [silinen]);
     return { ok: true, undo: { person: kayit, refs } };
   }
 
@@ -133,11 +180,34 @@ export function undoApplied(
   if (!u) return { ok: false, fail: { kod: "kayit-yok" } };
 
   if (kindOf(p) === "ekleme") {
-    /*
-     * Eklenen kayıt siliniyor — bağlarıyla birlikte, doğrudan silmeyle aynı
-     * kural. Kayıt yoksa (biri elle silmişse) geri alacak bir şey de yok.
-     */
     if (!u.createdId) return { ok: false, fail: { kod: "kayit-yok" } };
+    const mevcut = data.people.find((x) => x.id === u.createdId);
+    /* Kayıt zaten yok (biri elle silmiş): geri alacak bir şey de yok. */
+    if (!mevcut) return { ok: true };
+
+    /*
+     * ARADA NE OLDUĞUNA BAKMADAN SİLMİYORUZ.
+     *
+     * "alan" dalı onaydan sonraki değişiklikleri bayatlık denetimiyle
+     * koruyor; bu dalda öyle bir denetim YOKTU ve sonucu şuydu: üye "Nine"
+     * eklemeyi öneriyor, yönetici onaylıyor, aile bir hafta boyunca Nine'ye
+     * biyografi, fotoğraf, bir eş ve bir çocuk bağlıyor — sonra biri
+     * kuyrukta "geri al"a basıyor ve hepsi kaydedilmeden gidiyor. Öneri
+     * "bekliyor"a dönüyor; tekrar onaylanırsa BOMBOŞ, yeni kimlikli bir
+     * kayıt oluşuyor. Tek kurtarma yolu güncelleme günlüğüydü ve kullanıcıya
+     * söylenmiyordu.
+     *
+     * İki şeye birden bakılıyor, çünkü biri ötekini görmüyor:
+     *  · kaydın KENDİSİ değişti mi (biyografi, fotoğraf, eş — eş bağı
+     *    karşılıklı olduğu için kaydın kendi dizisine de yazılır),
+     *  · kaydı GÖSTEREN başvurular değişti mi (çocuk eklenince yalnız
+     *    ÇOCUĞUN `parentIds`i değişir, kaydın kendisi hiç değişmez).
+     */
+    if (u.person && damga(mevcut) !== damga(u.person))
+      return { ok: false, fail: { kod: "degismis" } };
+    if (u.refs && damga(baglayanlar(data.people, u.createdId)) !== damga(u.refs))
+      return { ok: false, fail: { kod: "degismis" } };
+
     const sil: Proposal = { ...p, kind: "silme", personId: u.createdId, changes: {} };
     const r = applyToTree(data, sil);
     return r.ok ? { ok: true } : r;
@@ -145,9 +215,40 @@ export function undoApplied(
 
   if (kindOf(p) === "silme") {
     if (!u.person) return { ok: false, fail: { kod: "kayit-yok" } };
-    const geri = u.person as Person;
+    const anlik = u.person as Person;
+    const varOlan = new Set(data.people.map((x) => x.id));
+    /*
+     * KAYDIN KENDİ BAĞLARI DA SÜZÜLÜYOR.
+     *
+     * Anlık görüntü olduğu gibi geri konuyordu ve içindeki hedefler hâlâ
+     * var mı diye bakılmıyordu. Karşı taraf (`refs`) için `if (!x) continue`
+     * koruması vardı, kaydın kendi tarafı korunmuyordu.
+     *
+     * Senaryo: A (eşi B) siliniyor, yönetici arada B'yi de siliyor, sonra
+     * A'nın silinmesi geri alınıyor → A.spouseIds hâlâ ["B"] ve B yok.
+     * Uygulamanın bütünlük tarayıcısı bunu `error` seviyesinde
+     * `danglingSpouse` diye bildiriyor.
+     */
+    const geri: Person = {
+      ...anlik,
+      parentIds: (anlik.parentIds ?? []).filter((id) => varOlan.has(id)),
+      spouseIds: (anlik.spouseIds ?? []).filter((id) => varOlan.has(id)),
+      ...(anlik.formerSpouseIds
+        ? { formerSpouseIds: anlik.formerSpouseIds.filter((id) => varOlan.has(id)) }
+        : {}),
+      ...(anlik.associations
+        ? { associations: anlik.associations.filter((a) => varOlan.has(a.personId)) }
+        : {}),
+      ...(anlik.parentLinks
+        ? {
+            parentLinks: Object.fromEntries(
+              Object.entries(anlik.parentLinks).filter(([pid]) => varOlan.has(pid))
+            ),
+          }
+        : {}),
+    };
     // Zaten geri konmuşsa (ikinci istek, yeniden deneme) sessizce geçiyoruz.
-    if (!data.people.some((x) => x.id === geri.id)) data.people.push(geri);
+    if (!varOlan.has(geri.id)) data.people.push(geri);
     /*
      * Bağlar EKLEMELİ konuyor: dizinin tamamı geri yazılsaydı, silmeden
      * SONRA o kayda eklenen bir eş/ebeveyn sessizce kaybolurdu.
@@ -155,7 +256,22 @@ export function undoApplied(
     for (const ref of u.refs ?? []) {
       const x = data.people.find((y) => y.id === ref.id);
       if (!x) continue;
-      if (ref.parent && !x.parentIds.includes(geri.id)) x.parentIds.push(geri.id);
+      /*
+       * İKİ EBEVEYN SINIRI GERİ ALMADA DA GEÇERLİ.
+       *
+       * Bağlar eklemeli konuyor ama sınır sınanmıyordu: A silinince C'nin
+       * ebeveyni [B] kalıyor, yönetici boşalan yere D ekliyor, sonra silme
+       * geri alınınca C üç ebeveynli oluyor — ve bütünlük tarayıcısı bunu
+       * YAKALAMIYOR. Aynı sınır `createPerson` ve düzenleme formunda
+       * zorlanıyor; yalnız bu yol dışarıda kalmıştı.
+       *
+       * Sessizce atlamak yerine REDDEDİYORUZ: atlamak, geri alındığı
+       * sanılan bir bağı kimseye söylemeden kaybetmek olurdu.
+       */
+      if (ref.parent && !x.parentIds.includes(geri.id)) {
+        if (x.parentIds.length >= 2) return { ok: false, fail: { kod: "iki-ebeveyn" } };
+        x.parentIds.push(geri.id);
+      }
       if (ref.spouse && !x.spouseIds.includes(geri.id)) x.spouseIds.push(geri.id);
       if (ref.former && !(x.formerSpouseIds ?? []).includes(geri.id))
         x.formerSpouseIds = [...(x.formerSpouseIds ?? []), geri.id];
@@ -192,5 +308,7 @@ export function applyFailMessage(f: ApplyFail): string {
       return "Bu öneri yazıldığından beri alanlar değişmiş; uygulamak yeni bilgiyi silerdi.";
     case "kayit-yok":
       return "Bu onayın geri alma kaydı yok.";
+    case "degismis":
+      return "Bu kayıt onaydan sonra değişti; geri almak o değişiklikleri de silerdi. Kaydı gerçekten kaldırmak istiyorsan doğrudan sil.";
   }
 }
