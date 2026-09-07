@@ -21,7 +21,21 @@ export interface TreeRow {
   createdAt?: string;
 }
 
-function personToRow(treeId: string, p: Person) {
+/**
+ * `stamp` — satıra yazılacak sürüm damgası.
+ *
+ * Verilmezse "şimdi" kullanılıyordu ve bu, iyimser kilidi sessizce kırıyordu:
+ * kaydetme yolu Blob'a `data.updatedAt` yazıp o değeri istemciye `version`
+ * olarak veriyor, ama aynaya basılan satırlar BİRKAÇ MİLİSANİYE SONRAKİ bir
+ * damga taşıyordu. Okuma yolundaki jeton ikisinin BÜYÜĞÜ olduğu için
+ * (`pickVersion`) sonuç hep kişi damgası oluyordu — yani istemcinin elindeki
+ * sürüm daha doğduğu anda bayattı ve arka arkaya yapılan her ikinci yazma
+ * "ağaç başka bir yerde değişti" diye 409 yiyordu.
+ *
+ * Çağıran damgayı geçirdiğinde Blob ile Postgres AYNI değeri taşıyor ve
+ * jeton tam olarak istemciye dönen değere eşitleniyor.
+ */
+function personToRow(treeId: string, p: Person, stamp?: string) {
   return {
     tree_id: treeId,
     person_id: p.id,
@@ -32,7 +46,7 @@ function personToRow(treeId: string, p: Person) {
     death_date: p.deathDate ?? null,
     sibling_order: p.siblingOrder ?? null,
     data: p, // tam Person nesnesi (kayıpsız)
-    updated_at: new Date().toISOString(),
+    updated_at: stamp ?? new Date().toISOString(),
   };
 }
 
@@ -54,12 +68,17 @@ export async function dbUpsertTree(t: TreeRow): Promise<void> {
 }
 
 /** Ağacın kişilerini Postgres'e tam kopyala (önce temizle, sonra ekle). İdempotent. */
-export async function dbReplacePeople(treeId: string, people: Person[]): Promise<number> {
+export async function dbReplacePeople(
+  treeId: string,
+  people: Person[],
+  /** Satırlara yazılacak damga — bkz. `personToRow`. */
+  stamp?: string
+): Promise<number> {
   const sb = supabaseAdmin();
   const del = await sb.from("people").delete().eq("tree_id", treeId);
   if (del.error) throw new Error(`people delete: ${del.error.message}`);
   if (people.length === 0) return 0;
-  const rows = people.map((p) => personToRow(treeId, p));
+  const rows = people.map((p) => personToRow(treeId, p, stamp));
   // Büyük ağaçlarda tek istek şişmesin diye parça parça ekle.
   const CHUNK = 500;
   for (let i = 0; i < rows.length; i += CHUNK) {
@@ -70,9 +89,14 @@ export async function dbReplacePeople(treeId: string, people: Person[]): Promise
 }
 
 /** Yalnız verilen kişileri ekle/güncelle (hedefli — tam yenileme yerine). */
-export async function dbUpsertPeople(treeId: string, people: Person[]): Promise<number> {
+export async function dbUpsertPeople(
+  treeId: string,
+  people: Person[],
+  /** Satırlara yazılacak damga — bkz. `personToRow`. */
+  stamp?: string
+): Promise<number> {
   if (people.length === 0) return 0;
-  const rows = people.map((p) => personToRow(treeId, p));
+  const rows = people.map((p) => personToRow(treeId, p, stamp));
   const { error } = await supabaseAdmin()
     .from("people")
     .upsert(rows, { onConflict: "tree_id,person_id" });
