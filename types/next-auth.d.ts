@@ -19,6 +19,11 @@ declare module "next-auth" {
        * onun kimliği ağacın kimliğidir. `id` ağacı, bu alan kişiyi söyler.
        */
       memberId?: string;
+      /**
+       * Jetonun verildiği an (saniye). `sessionEpoch` denetimi buna bakıyor:
+       * çağdan eski her oturum reddediliyor.
+       */
+      iat?: number;
     };
   }
 

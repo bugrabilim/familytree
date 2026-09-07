@@ -2,7 +2,8 @@ import { cookies, headers } from "next/headers";
 import { auth } from "@/auth";
 import { verifyMobileToken } from "@/lib/mobile-token";
 import { accessibleTreeIds, hasTreeAccess } from "@/lib/trees";
-import { isAccountDeleted } from "@/lib/users";
+import { isAccountDeleted, sessionEpochOf } from "@/lib/users";
+import { getTreeAccess } from "@/lib/members";
 import { normalizeRole, type TreeRole } from "@/types/user";
 
 /** Aktif ağaç kimliğini taşıyan çerez. */
@@ -40,6 +41,8 @@ async function resolveSessionUser(): Promise<{
   isFounder: boolean;
   role: TreeRole;
   memberId?: string;
+  /** Jetonun verildiği an (saniye) — `sessionEpoch` denetimi için. */
+  iat?: number;
 } | null> {
   const h = await headers();
   const authz = h.get("authorization");
@@ -51,6 +54,7 @@ async function resolveSessionUser(): Promise<{
         isFounder: claims.isFounder,
         role: claims.role,
         memberId: claims.memberId,
+        iat: claims.iat,
       };
     return null; // geçersiz jeton → doğrudan reddet (çerezle karışmasın)
   }
@@ -66,6 +70,7 @@ async function resolveSessionUser(): Promise<{
        */
       role: session.user.role === undefined ? "yonetici" : normalizeRole(session.user.role),
       memberId: session.user.memberId,
+      iat: session.user.iat,
     };
   }
   return null;
@@ -96,14 +101,84 @@ export async function resolveActiveTree(): Promise<TreeContext> {
    */
   if (await isAccountDeleted(accountId)) return { ok: false, status: 401 };
 
+  /*
+   * ŞİFRE SIFIRLANDIYSA ESKİ OTURUMLAR DÜŞÜYOR.
+   *
+   * Ne çerez ne JWT geri çağrılabiliyor; ikisi de imzalandıktan sonra
+   * kendi başına geçerli. Sıfırlama `users.json`a bir çağ damgası koyuyor
+   * (`lib/users.ts`), burası da o çağdan eski her oturumu reddediyor.
+   *
+   * `iat` YOKSA REDDEDİLİYOR — ama yalnız çağ VARSA. Çağ konmuş bir hesapta
+   * "ne zaman verildiği bilinmeyen" bir oturum, tam olarak düşürmek
+   * istediğimiz eski oturumdur; kabul etmek denetimi delik bırakırdı.
+   * Çağ hiç yoksa (hesap hiç sıfırlanmamış) `iat`siz eski oturumlar
+   * çalışmaya devam ediyor.
+   */
+  const cag = await sessionEpochOf(accountId);
+  if (cag) {
+    const verilis = sessionUser.iat ? sessionUser.iat * 1000 : 0;
+    const sinir = Date.parse(cag);
+    if (!Number.isNaN(sinir) && verilis < sinir) return { ok: false, status: 401 };
+  }
+
   const isFounder = sessionUser.isFounder;
+
+  if (!isFounder) {
+    /*
+     * ÜYELİK HER İSTEKTE YENİDEN SORULUYOR — jetondaki iddiaya güvenilmiyor.
+     *
+     * Üyenin rolü ve varlığı eskiden YALNIZ jetondan/çerezden geliyordu ve
+     * ikisi de geri çağrılamıyor. Sonuç üç ayrı arızaydı:
+     *
+     *  · Ağaçtan ÇIKARILAN üye 30 güne kadar (mobilde 60) okumaya devam
+     *    ediyordu. "Üyeyi çıkar" düğmesi bir yetkiyi değil, yalnız gelecekteki
+     *    girişleri kapatıyordu.
+     *  · Rolü DÜŞÜRÜLEN üye eski rolüyle yazmaya devam ediyordu.
+     *  · `memberId` taşımayan eski oturumlarda `authorId`, `accountId`e —
+     *    yani AĞACIN kimliğine — düşüyordu ve `visibleTo` o oturumu kurucu
+     *    sanıp kurucunun önerilerini gösteriyor, geri çekmesine izin
+     *    veriyordu.
+     *
+     * Artık üye kaydı depodan okunuyor: yoksa 401, varsa rol ve yazar
+     * kimliği KAYITTAN geliyor. `memberId`siz oturum da kaydı bulamadığı
+     * için 401 alıyor ve yeniden girmek zorunda kalıyor — o oturumların
+     * taşıyabileceği tek doğru davranış bu.
+     *
+     * Bedeli istek başına bir erişim dosyası okuması; `getTreeAccess` kendi
+     * içinde bunu tek çağrıya indiriyor ve üye sayısı küçük.
+     */
+    const uyeId = sessionUser.memberId;
+    if (!uyeId) return { ok: false, status: 401 };
+    let uye: { id: string; role: unknown } | undefined;
+    try {
+      const erisim = await getTreeAccess(accountId);
+      uye = erisim.members.find((m) => m.id === uyeId);
+    } catch {
+      /*
+       * Depo okunamadı. REDDEDİLMİYOR: kendi altyapı hatamız yüzünden
+       * üyeyi uygulamasından etmeyiz — `isAccountDeleted`teki aynı karar.
+       * Jetondaki role düşülüyor; bu, arıza penceresinde eski davranış.
+       */
+      return {
+        ok: true, accountId, treeId: accountId,
+        role: sessionUser.role, isFounder: false, authorId: uyeId,
+      };
+    }
+    if (!uye) return { ok: false, status: 401 };
+    return {
+      ok: true,
+      accountId,
+      treeId: accountId,
+      /* Rol KAYITTAN: düşürülen yetki bir sonraki istekte geçerli olsun. */
+      role: normalizeRole(uye.role),
+      isFounder: false,
+      authorId: uye.id,
+    };
+  }
+
   const homeRole = sessionUser.role;
   // Kurucuda üye kimliği yok; ağacın kimliği onu temsil eder.
   const authorId = sessionUser.memberId ?? accountId;
-
-  if (!isFounder) {
-    return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: false, authorId };
-  }
 
   // Aktif ağaç seçimi: mobil `x-tree-id` başlığı, yoksa web çerezi.
   const h = await headers();

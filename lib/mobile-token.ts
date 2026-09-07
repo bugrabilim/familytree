@@ -26,6 +26,12 @@ export interface MobileClaims {
    * taşınmazsa telefondan yapılan her düzenleme akışta "biri" kalırdı.
    */
   memberId?: string;
+  /**
+   * Jetonun verildiği an (saniye) — `setIssuedAt` koyuyor, doğrulama geri
+   * veriyor. `sessionEpoch` denetimi buna bakıyor: şifre sıfırlandıktan
+   * sonra imzalanmış olmayan hiçbir jeton kabul edilmiyor.
+   */
+  iat?: number;
 }
 
 const AUD = "soyagaci-mobile";
@@ -86,6 +92,7 @@ export async function verifyMobileToken(token: string): Promise<MobileClaims | n
       isFounder: payload.isFounder !== false,
       treeName: typeof payload.treeName === "string" ? payload.treeName : undefined,
       memberId: typeof payload.memberId === "string" ? payload.memberId : undefined,
+      iat: typeof payload.iat === "number" ? payload.iat : undefined,
     };
   } catch {
     return null;

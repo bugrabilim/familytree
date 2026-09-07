@@ -77,6 +77,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Eski jetonda yoksa founder varsay (ağaç şifresiyle girenler).
       session.user.isFounder = (token.isFounder as boolean | undefined) ?? true;
       session.user.memberId = token.memberId as string | undefined;
+      /*
+       * Jetonun verildiği an. NextAuth bunu jetona kendisi koyuyor ama
+       * oturuma taşımıyordu; `sessionEpoch` denetiminin (şifre sıfırlamanın
+       * eski oturumları düşürmesi) dayanağı bu alan.
+       */
+      session.user.iat = typeof token.iat === "number" ? token.iat : undefined;
       return session;
     },
   },
