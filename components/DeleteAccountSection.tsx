@@ -140,7 +140,7 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
                 <li key={f}>• {f}</li>
               ))}
             </ul>
-            <p className="text-[11px] text-text-subtle leading-snug">
+            <p className="text-[11px] text-text-muted leading-snug">
               {t("account.delete.partialHint")}
             </p>
           </div>
@@ -172,7 +172,7 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
       ) : (
         <div className="space-y-3 pt-1">
           <div className="rounded-lg border border-border bg-bg-elevated p-2.5 space-y-1.5">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
               {t("account.delete.scopeTitle")}
             </h4>
             <DeleteScopeList />
@@ -189,7 +189,7 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
               onChange={(e) => setSifre(e.target.value)}
               placeholder={t("account.delete.passwordPlaceholder")}
               autoComplete="current-password"
-              className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-danger"
+              className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-danger"
             />
           </div>
 
@@ -203,9 +203,9 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
               onChange={(e) => setOnay(e.target.value)}
               placeholder={t("account.delete.confirmPlaceholder")}
               autoComplete="off"
-              className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-danger"
+              className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-danger"
             />
-            <p className="text-[11px] text-text-subtle leading-snug">
+            <p className="text-[11px] text-text-muted leading-snug">
               {t("account.delete.confirmHint")}
             </p>
           </div>

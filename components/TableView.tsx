@@ -291,7 +291,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("list.searchPlaceholder")}
-            className="h-9 flex-1 min-w-[140px] max-w-md px-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+            className="h-9 flex-1 min-w-[140px] max-w-md px-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
           />
           {!readOnly && (
             <Button size="sm" onClick={onAdd} className="shrink-0">
@@ -330,7 +330,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               />
             </>
           )}
-          <span className="ml-auto text-xs text-text-subtle tabular-nums">
+          <span className="ml-auto text-xs text-text-muted tabular-nums">
             {t("common.peopleCount", { count: rows.length })}
           </span>
         </div>
@@ -353,7 +353,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <span aria-hidden>✕</span>
               </button>
             ))}
-            <button onClick={() => setFilters({})} className="text-[11px] text-text-subtle hover:text-text">
+            <button onClick={() => setFilters({})} className="text-[11px] text-text-muted hover:text-text">
               {t("table.filter.clearAll")}
             </button>
           </div>
@@ -378,7 +378,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <Button size="sm" variant="danger" onClick={() => setConfirmDel(true)}>
                   {t("table.deleteSelected")}
                 </Button>
-                <button onClick={() => setSelected(new Set())} className="text-xs text-text-subtle hover:text-text">
+                <button onClick={() => setSelected(new Set())} className="text-xs text-text-muted hover:text-text">
                   {t("table.clearSelection")}
                 </button>
               </>
@@ -461,7 +461,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                     const v = c.get(p);
                     return (
                       <td key={c.key} className="px-3 py-1.5 whitespace-nowrap text-text-muted">
-                        {v || <span className="text-text-subtle">—</span>}
+                        {v || <span className="text-text-muted">—</span>}
                       </td>
                     );
                   }
@@ -529,7 +529,7 @@ function HeaderFilter({
         aria-label={t("table.filter.aria", { col: col.label })}
         aria-expanded={open}
         className={`shrink-0 w-5 h-5 grid place-items-center rounded transition-colors ${
-          active ? "text-primary bg-primary-soft" : "text-text-subtle hover:text-text hover:bg-surface-2"
+          active ? "text-primary bg-primary-soft" : "text-text-muted hover:text-text hover:bg-surface-2"
         }`}
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -624,13 +624,13 @@ function FilterPopover({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("table.filter.search")}
-          className="w-full h-8 px-2.5 mb-1.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+          className="w-full h-8 px-2.5 mb-1.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
         />
         <div className="flex items-center justify-between px-1 pb-1.5 text-[11px]">
           <button onClick={() => setDraft(new Set(shown.map(toStored)))} className="text-primary hover:underline">
             {t("table.filter.selectAll")}
           </button>
-          <button onClick={() => setDraft(new Set())} className="text-text-subtle hover:text-text">
+          <button onClick={() => setDraft(new Set())} className="text-text-muted hover:text-text">
             {t("table.filter.clear")}
           </button>
         </div>
@@ -652,13 +652,13 @@ function FilterPopover({
                     }
                     className="ui-check"
                   />
-                  <span className={`text-xs truncate ${v === BLANK ? "text-text-subtle italic" : "text-text"}`}>{v}</span>
+                  <span className={`text-xs truncate ${v === BLANK ? "text-text-muted italic" : "text-text"}`}>{v}</span>
                 </label>
               </li>
             );
           })}
           {shown.length === 0 && (
-            <li className="text-[11px] text-text-subtle px-1.5 py-2 text-center">{t("table.noMatch")}</li>
+            <li className="text-[11px] text-text-muted px-1.5 py-2 text-center">{t("table.noMatch")}</li>
           )}
         </ul>
         <div className="flex items-center gap-1.5 pt-2 mt-1 border-t border-border">
@@ -798,7 +798,7 @@ function DateFilterPopover({
         <button
           type="button"
           onClick={onExpand}
-          className={`w-4 h-4 shrink-0 grid place-items-center text-text-subtle ${expandable ? "hover:text-text" : "invisible"}`}
+          className={`w-4 h-4 shrink-0 grid place-items-center text-text-muted ${expandable ? "hover:text-text" : "invisible"}`}
           aria-label={isOpen ? "-" : "+"}
         >
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden className={`transition-transform ${isOpen ? "rotate-90" : ""}`}>
@@ -832,13 +832,13 @@ function DateFilterPopover({
           <button onClick={() => setDraft(new Set(years))} className="text-primary hover:underline">
             {t("table.filter.selectAll")}
           </button>
-          <button onClick={() => setDraft(new Set())} className="text-text-subtle hover:text-text">
+          <button onClick={() => setDraft(new Set())} className="text-text-muted hover:text-text">
             {t("table.filter.clear")}
           </button>
         </div>
         <div className="max-h-72 overflow-y-auto pr-0.5">
           {years.length === 0 && !hasBlank && (
-            <p className="text-[11px] text-text-subtle px-1.5 py-2 text-center">{t("table.noMatch")}</p>
+            <p className="text-[11px] text-text-muted px-1.5 py-2 text-center">{t("table.noMatch")}</p>
           )}
           {years.map((y) => {
             const months = tree.get(y)!;
@@ -866,7 +866,7 @@ function DateFilterPopover({
           {hasBlank && (
             <label className="flex items-center gap-2 py-1 px-1 rounded-lg hover:bg-surface-2 cursor-pointer" style={{ paddingInlineStart: 20 }}>
               <input type="checkbox" checked={draft.has("")} onChange={toggleBlank} className="ui-check" />
-              <span className="text-xs text-text-subtle italic">{BLANK}</span>
+              <span className="text-xs text-text-muted italic">{BLANK}</span>
             </label>
           )}
         </div>
@@ -901,7 +901,7 @@ function Cell({
   wide?: boolean;
 }) {
   if (readOnly) {
-    return <td className="px-3 py-1.5 text-text">{defaultValue || <span className="text-text-subtle">—</span>}</td>;
+    return <td className="px-3 py-1.5 text-text">{defaultValue || <span className="text-text-muted">—</span>}</td>;
   }
   return (
     <td className="px-2 py-1.5">

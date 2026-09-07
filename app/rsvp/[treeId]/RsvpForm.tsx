@@ -104,12 +104,12 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
       <div className="space-y-4">
         <dl className="space-y-1 text-sm">
           <div className="flex gap-2">
-            <dt className="text-text-subtle shrink-0">{t("rsvp.when")}</dt>
+            <dt className="text-text-muted shrink-0">{t("rsvp.when")}</dt>
             <dd className="text-text">{gathering.when.replace("T", " ")}</dd>
           </div>
           {gathering.place && (
             <div className="flex gap-2">
-              <dt className="text-text-subtle shrink-0">{t("rsvp.place")}</dt>
+              <dt className="text-text-muted shrink-0">{t("rsvp.place")}</dt>
               <dd className="text-text">{gathering.place}</dd>
             </div>
           )}
@@ -122,7 +122,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
         )}
 
         {/* Özet — kimin geldiği DEĞİL, kaç kişi. Ad listesi ailenin bilgisi. */}
-        <p className="text-[11px] text-text-subtle">
+        <p className="text-[11px] text-text-muted">
           {t("rsvp.tally", { count: gathering.tally.geliyorum, people: gathering.tally.headcount })}
         </p>
 
@@ -142,7 +142,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
         ) : (
           <div className="space-y-3">
             <label className="block space-y-1">
-              <span className="text-[11px] text-text-subtle">{t("rsvp.name")}</span>
+              <span className="text-[11px] text-text-muted">{t("rsvp.name")}</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -152,7 +152,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
             </label>
 
             <fieldset className="space-y-1">
-              <legend className="text-[11px] text-text-subtle">{t("rsvp.answer")}</legend>
+              <legend className="text-[11px] text-text-muted">{t("rsvp.answer")}</legend>
               <div className="flex flex-wrap gap-2">
                 {RSVP_ANSWERS.map((a) => (
                   <button
@@ -174,7 +174,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
 
             {answer === "geliyorum" && (
               <label className="block space-y-1">
-                <span className="text-[11px] text-text-subtle">{t("rsvp.headcount")}</span>
+                <span className="text-[11px] text-text-muted">{t("rsvp.headcount")}</span>
                 <input
                   type="number"
                   min={1}
@@ -187,7 +187,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
             )}
 
             <label className="block space-y-1">
-              <span className="text-[11px] text-text-subtle">{t("rsvp.note")}</span>
+              <span className="text-[11px] text-text-muted">{t("rsvp.note")}</span>
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -203,7 +203,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
           </div>
         )}
 
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       </div>
     </AuthShell>
   );

@@ -72,7 +72,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
       {/* Başlık */}
       <div className="shrink-0 border-b border-border bg-bg-elevated/60 px-4 sm:px-6 py-2.5 flex items-baseline justify-between gap-3">
         <h1 className="font-serif text-base font-semibold text-text">{t("timeline.title")}</h1>
-        <span className="text-xs text-text-subtle tabular-nums">
+        <span className="text-xs text-text-muted tabular-nums">
           {tl.minYear}–{tl.maxYear} · {t("common.peopleCount", { count: tl.rows.length })}
         </span>
       </div>
@@ -88,7 +88,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
               <span className="text-[11px] font-medium text-text-muted leading-tight">
                 {t("timeline.overview")}
               </span>
-              <span className="text-[10px] text-text-subtle tabular-nums leading-tight mt-0.5">
+              <span className="text-[10px] text-text-muted tabular-nums leading-tight mt-0.5">
                 {t("timeline.peak", { count: peak.count, year: peak.year })}
               </span>
             </div>
@@ -132,7 +132,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
                 return (
                   <span
                     key={y}
-                    className={`absolute top-1 ${anchor} text-[10px] text-text-subtle tabular-nums`}
+                    className={`absolute top-1 ${anchor} text-[10px] text-text-muted tabular-nums`}
                     style={{ left: `${pct(y)}%` }}
                   >
                     {y}
@@ -172,7 +172,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
                       <Avatar person={p} size="xs" />
                       <span className="min-w-0 flex-1">
                         <span className="block text-xs text-text leading-tight line-clamp-2 break-words">{fullName(p)}</span>
-                        <span className="block text-[10px] text-text-subtle tabular-nums leading-tight">
+                        <span className="block text-[10px] text-text-muted tabular-nums leading-tight">
                           {r.startYear}
                           {r.living ? `–${t("timeline.living")}` : `–${r.endYear}`}
                         </span>
@@ -211,7 +211,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
 
       {hidden > 0 && (
         <div className="shrink-0 border-t border-border px-4 sm:px-6 py-1.5">
-          <p className="text-[11px] text-text-subtle">{t("timeline.hiddenNote", { count: hidden })}</p>
+          <p className="text-[11px] text-text-muted">{t("timeline.hiddenNote", { count: hidden })}</p>
         </div>
       )}
     </div>

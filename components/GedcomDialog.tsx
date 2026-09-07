@@ -136,7 +136,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
             ))}
           </div>
           {exportFmt === "html" && (
-            <p className="text-[11px] text-text-subtle leading-relaxed mb-3">{t("gedcom.htmlNote")}</p>
+            <p className="text-[11px] text-text-muted leading-relaxed mb-3">{t("gedcom.htmlNote")}</p>
           )}
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={busy !== ""}>
             {busy === "export" ? t("gedcom.preparing") : t("gedcom.export")}
@@ -153,7 +153,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
             {t("gedcom.importBodyBefore")}{" "}
             <span className="text-text">{t("gedcom.importBodyAfter")}</span>
           </p>
-          <p className="text-[11px] text-text-subtle leading-relaxed mb-3">{t("common.import.formatsNote")}</p>
+          <p className="text-[11px] text-text-muted leading-relaxed mb-3">{t("common.import.formatsNote")}</p>
 
           <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-2 border border-border mb-3">
             {([

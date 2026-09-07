@@ -130,7 +130,7 @@ export default function MemorialCalendar({
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3 mb-1">
         <h2 className="font-serif text-base font-semibold text-text">{t("memorialCal.title")}</h2>
-        <span className="text-[11px] text-text-subtle shrink-0">{t("memorialCal.hint")}</span>
+        <span className="text-[11px] text-text-muted shrink-0">{t("memorialCal.hint")}</span>
       </div>
 
       {/* Ay gezinmesi */}
@@ -138,7 +138,7 @@ export default function MemorialCalendar({
         <button
           onClick={() => setOffset((o) => o - 1)}
           aria-label={t("memorialCal.prev")}
-          className="w-8 h-8 rounded-lg border border-border text-text-subtle hover:bg-accent-soft transition-colors"
+          className="w-8 h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
         >
           ‹
         </button>
@@ -146,7 +146,7 @@ export default function MemorialCalendar({
         <button
           onClick={() => setOffset((o) => o + 1)}
           aria-label={t("memorialCal.next")}
-          className="w-8 h-8 rounded-lg border border-border text-text-subtle hover:bg-accent-soft transition-colors"
+          className="w-8 h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
         >
           ›
         </button>
@@ -172,7 +172,7 @@ export default function MemorialCalendar({
               className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                 on
                   ? "border-accent bg-accent-soft text-accent"
-                  : "border-border text-text-subtle hover:bg-accent-soft/40"
+                  : "border-border text-text-muted hover:bg-accent-soft/40"
               }`}
             >
               {t(observanceKey(k))}
@@ -182,14 +182,14 @@ export default function MemorialCalendar({
       </div>
 
       {days.length === 0 ? (
-        <p className="text-sm text-text-subtle py-2">{t("memorialCal.empty")}</p>
+        <p className="text-sm text-text-muted py-2">{t("memorialCal.empty")}</p>
       ) : (
         <ul className="space-y-3">
           {days.map((g) => (
             <li key={g.date}>
               <p
                 className={`text-[11px] font-semibold uppercase tracking-wide mb-1 ${
-                  g.date === todayIso ? "text-accent" : "text-text-subtle"
+                  g.date === todayIso ? "text-accent" : "text-text-muted"
                 }`}
               >
                 {formatLong(g.date)}
@@ -213,7 +213,7 @@ export default function MemorialCalendar({
                         <Avatar person={person} size="sm" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-text truncate leading-tight">{name}</p>
-                          <p className="text-[11px] text-text-subtle leading-tight">
+                          <p className="text-[11px] text-text-muted leading-tight">
                             🕯️ {label}
                             {o.year ? ` · ${t("memorial.yearOrdinal", { year: o.year })}` : ""}
                           </p>

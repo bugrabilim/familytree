@@ -19,8 +19,34 @@
   --border-strong: #cdc7b8;
 
   --text: #1b1a16;
-  --text-muted: #6d675b;
-  --text-subtle: #9a9384;
+  /*
+   * İKİ metin katmanı var, üç değil. `--text-subtle` (#9a9384) EMEKLİYE
+   * AYRILDI — sebebi ölçüm:
+   *
+   * Eski değer 11-14px normal ağırlıkta hiçbir zeminde AA'yı (4.5) geçmiyordu:
+   * --bg 2.82, --surface 3.05, --surface-2 2.65, --surface-3 2.42. Görüldüğü
+   * yerler süs değildi: alt bilgi sütun başlıkları, /login'deki "Şifremi
+   * unuttum" KURTARMA bağlantısı, /privacy + /terms'teki "Son güncelleme"
+   * tarihi, kayıt formunun yardım metinleri.
+   *
+   * Peki neden yalnızca koyulaştırmadık? Çünkü tokenin KENDİ ton rampasında
+   * DÖRT zeminde birden 4.5'i geçen EN AÇIK renk #6b665c (CIE L* 43.4) —
+   * `--text-muted`in kendisi (#6d675b, L* 43.8) ile arasında 0.4 L* var.
+   * Koyu temada aynı hesap: sınır #9e9685 (L* 62.2), --text-muted #a09a8c
+   * (L* 63.7), fark 1.5 L*. Yani "geçen bir --text-subtle" gözle
+   * --text-muted'den ayırt edilemez. İki isim, tek renk: ikinci tokeni
+   * yaşatmak, olmayan bir hiyerarşiyi varmış gibi göstermek olurdu.
+   * (İkinci bir katman gerçekten gerekiyorsa ayrımı PUNTO/AĞIRLIK yapmalı —
+   * kontrastı düşürmek AA'yı ödemeden hiyerarşi satın almaktır.)
+   *
+   * --text-muted #6d675b → #68635a: tek amacı en KOYU açık zeminde (--surface-3
+   * #e8e5dc) 4.46 olan oranı 4.74'e çıkarmak. 470 çağrı yeri bu tokene
+   * taşındığı için o sınırdaki eksik artık her yerde geçerliydi.
+   * Ölçülen oranlar (açık tema, #68635a):
+   *   --bg #f7f6f2 5.52 | --surface #ffffff 5.96 | --surface-2 #f1efe9 5.19
+   *   | --surface-3 #e8e5dc 4.74      → hepsi ≥ 4.5
+   */
+  --text-muted: #68635a;
 
   --primary: #1f6b47;
   --primary-hover: #185639;
@@ -65,8 +91,15 @@
   --border-strong: #434839;
 
   --text: #eeece4;
+  /*
+   * Koyu temada `--text-muted` DEĞİŞMEDİ: dört zeminin en açığında bile
+   * (--surface-3 #2c3128) 4.75 ile zaten AA'yı geçiyor. Ölçülen oranlar:
+   *   --bg #12140f 6.62 | --surface #1a1d17 6.08 | --surface-2 #22261e 5.50
+   *   | --surface-3 #2c3128 4.75
+   * Emekliye ayrılan `--text-subtle` burada #726c60'tı: 3.56 / 3.27 / 2.95 /
+   * 2.56 — dördü de eşiğin altında.
+   */
   --text-muted: #a09a8c;
-  --text-subtle: #726c60;
 
   --primary: #4fae82;
   --primary-hover: #64c096;
@@ -107,8 +140,10 @@
   --color-border-strong: var(--border-strong);
 
   --color-text: var(--text);
+  /* `--color-text-subtle` yok: token emekliye ayrıldı (yukarıdaki gerekçe).
+     Eşleme de silindi ki Tailwind `text-text-subtle`ı ÜRETEMESİN — üretseydi
+     sınıf sessizce hiçbir şey yapmaz, metin miras rengiyle çizilirdi. */
   --color-text-muted: var(--text-muted);
-  --color-text-subtle: var(--text-subtle);
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
@@ -182,7 +217,7 @@ body {
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--text-subtle);
+  background: var(--text-muted);
   background-clip: content-box;
 }
 

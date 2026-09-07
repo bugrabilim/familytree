@@ -62,7 +62,7 @@ export default function Modal({ title, subtitle, onClose, children, footer, size
             <button
               onClick={onClose}
               aria-label="Kapat"
-              className="w-8 h-8 shrink-0 grid place-items-center rounded-lg text-text-subtle hover:text-text hover:bg-surface-2 transition-colors"
+              className="w-8 h-8 shrink-0 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                 <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

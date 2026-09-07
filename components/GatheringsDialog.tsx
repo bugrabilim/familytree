@@ -122,7 +122,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
   return (
     <Modal title={t("gathering.title")} onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-xs text-text-subtle leading-snug">{t("gathering.hint")}</p>
+        <p className="text-xs text-text-muted leading-snug">{t("gathering.hint")}</p>
 
         {/*
           Hata İÇERİĞİN ÜSTÜNDE. En altta duruyordu ve uzun bir listede
@@ -140,9 +140,9 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
           bilemiyor. Hata varken tek doğru cümle hatanın kendisi.
         */}
         {error ? null : list === null ? (
-          <p className="text-xs text-text-subtle">{t("rsvp.loading")}</p>
+          <p className="text-xs text-text-muted">{t("rsvp.loading")}</p>
         ) : list.length === 0 && !draft ? (
-          <p className="text-xs text-text-subtle">{t("gathering.empty")}</p>
+          <p className="text-xs text-text-muted">{t("gathering.empty")}</p>
         ) : null}
 
         <ul className="space-y-3">
@@ -153,7 +153,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-text truncate">{g.title}</p>
-                    <p className="text-[11px] text-text-subtle">
+                    <p className="text-[11px] text-text-muted">
                       {g.when.replace("T", " ")}
                       {g.place ? ` · ${g.place}` : ""}
                     </p>
@@ -202,7 +202,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
                       />
                       <span>
                         {t("gathering.rsvpOpen")}
-                        <span className="block text-[11px] text-text-subtle leading-snug">
+                        <span className="block text-[11px] text-text-muted leading-snug">
                           {t("gathering.rsvpOpenHint")}
                         </span>
                       </span>
@@ -228,7 +228,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
                     {t("gathering.guests")} ({g.rsvps.length})
                   </summary>
                   {g.rsvps.length === 0 ? (
-                    <p className="text-[11px] text-text-subtle mt-1">{t("gathering.noGuests")}</p>
+                    <p className="text-[11px] text-text-muted mt-1">{t("gathering.noGuests")}</p>
                   ) : (
                     <ul className="mt-1 space-y-1">
                       {g.rsvps.map((r) => (
@@ -271,7 +271,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
               ["place", "text"],
             ] as const).map(([alan, tip]) => (
               <label key={alan} className="block space-y-1">
-                <span className="text-[11px] text-text-subtle">{t(`gathering.field.${alan}`)}</span>
+                <span className="text-[11px] text-text-muted">{t(`gathering.field.${alan}`)}</span>
                 <input
                   type={tip}
                   value={draft[alan] ?? ""}
@@ -281,7 +281,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
               </label>
             ))}
             <label className="block space-y-1">
-              <span className="text-[11px] text-text-subtle">{t("gathering.field.description")}</span>
+              <span className="text-[11px] text-text-muted">{t("gathering.field.description")}</span>
               <textarea
                 rows={3}
                 value={draft.description ?? ""}

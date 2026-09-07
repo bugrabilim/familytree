@@ -242,7 +242,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
             <h3 className="text-xs font-medium text-text">{t("stories.newTitle")}</h3>
 
             <div>
-              <label className="text-[11px] text-text-subtle block mb-1" htmlFor="s-kisi">
+              <label className="text-[11px] text-text-muted block mb-1" htmlFor="s-kisi">
                 {t("stories.person")}
               </label>
               <select
@@ -258,7 +258,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
             </div>
 
             <div>
-              <label className="text-[11px] text-text-subtle block mb-1" htmlFor="s-soru">
+              <label className="text-[11px] text-text-muted block mb-1" htmlFor="s-soru">
                 {t("stories.question")}
               </label>
               <input
@@ -272,7 +272,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
             </div>
 
             <div>
-              <label className="text-[11px] text-text-subtle block mb-1" htmlFor="s-kime">
+              <label className="text-[11px] text-text-muted block mb-1" htmlFor="s-kime">
                 {t("stories.sentTo")}
               </label>
               <input
@@ -290,7 +290,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
             {link && (
               <div className="rounded-xl border border-border p-3 space-y-2">
                 {/* Bağlantı bir kez görünüyor — depoda yalnız özeti var. */}
-                <p className="text-[11px] text-text-subtle leading-relaxed">{t("stories.linkOnce")}</p>
+                <p className="text-[11px] text-text-muted leading-relaxed">{t("stories.linkOnce")}</p>
                 <code className="block text-[11px] break-all text-text">{link}</code>
                 <Button
                   size="sm"
@@ -312,7 +312,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
             */}
             <div className="rounded-xl border border-border p-3 space-y-2">
               <h4 className="text-xs font-medium text-text">{t("stories.seriesTitle")}</h4>
-              <p className="text-[11px] text-text-subtle leading-relaxed">{t("stories.seriesNote")}</p>
+              <p className="text-[11px] text-text-muted leading-relaxed">{t("stories.seriesNote")}</p>
               <Button size="sm" variant="secondary" onClick={seriBaslat} disabled={busy || !personId}>
                 {busy ? t("stories.seriesStarting") : t("stories.seriesStart")}
               </Button>
@@ -323,7 +323,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
         <section className="space-y-2">
           <h3 className="text-xs font-medium text-text">{t("stories.seriesRunning")}</h3>
           {series.length === 0 && (
-            <p className="text-[11px] text-text-subtle">{t("stories.seriesNone")}</p>
+            <p className="text-[11px] text-text-muted">{t("stories.seriesNone")}</p>
           )}
           {series.map((s) => (
             <div
@@ -333,7 +333,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
               <div className="min-w-0">
                 <p className="text-sm text-text leading-snug">{s.subject}</p>
                 {/* İlerleme bankanın GERÇEK boyutuna göre: 52 yazıp 26'da bitmek yanıltırdı. */}
-                <p className="text-[11px] text-text-subtle">
+                <p className="text-[11px] text-text-muted">
                   {t("stories.seriesProgress", { sent: s.sent, total: s.total })} ·{" "}
                   {s.expiresAt.slice(0, 10)}
                 </p>
@@ -343,7 +343,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
                   type="button"
                   onClick={() => seriDurdur(s.id)}
                   disabled={busy}
-                  className="text-[11px] text-text-subtle hover:text-danger shrink-0"
+                  className="text-[11px] text-text-muted hover:text-danger shrink-0"
                 >
                   {t("stories.seriesStop")}
                 </button>
@@ -354,15 +354,15 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
 
         <section className="space-y-2">
           <h3 className="text-xs font-medium text-text">{t("stories.queue")}</h3>
-          <p className="text-[11px] text-text-subtle leading-relaxed">{t("stories.approvedNote")}</p>
-          {queue.length === 0 && <p className="text-[11px] text-text-subtle">{t("stories.noQueue")}</p>}
+          <p className="text-[11px] text-text-muted leading-relaxed">{t("stories.approvedNote")}</p>
+          {queue.length === 0 && <p className="text-[11px] text-text-muted">{t("stories.noQueue")}</p>}
           {queue.map((c) => (
             <div key={c.id} className="rounded-xl border border-border p-3 space-y-1.5">
-              <p className="text-[11px] text-text-subtle">
+              <p className="text-[11px] text-text-muted">
                 {c.subject} · {c.question}
               </p>
               <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{c.text}</p>
-              <p className="text-[11px] text-text-subtle">
+              <p className="text-[11px] text-text-muted">
                 — {c.authorName} ({c.at.slice(0, 10)})
               </p>
               {editable && (
@@ -381,12 +381,12 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
 
         <section className="space-y-2">
           <h3 className="text-xs font-medium text-text">{t("stories.open")}</h3>
-          {acik.length === 0 && <p className="text-[11px] text-text-subtle">{t("stories.noOpen")}</p>}
+          {acik.length === 0 && <p className="text-[11px] text-text-muted">{t("stories.noOpen")}</p>}
           {acik.map((r) => (
             <div key={r.id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
               <div className="min-w-0">
                 <p className="text-sm text-text leading-snug">{r.question}</p>
-                <p className="text-[11px] text-text-subtle">
+                <p className="text-[11px] text-text-muted">
                   {r.subject}
                   {r.sentTo ? ` · ${r.sentTo}` : ""} · {r.expiresAt.slice(0, 10)}
                 </p>
@@ -396,7 +396,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
                   type="button"
                   onClick={() => kapat(r.id)}
                   disabled={busy}
-                  className="text-[11px] text-text-subtle hover:text-danger shrink-0"
+                  className="text-[11px] text-text-muted hover:text-danger shrink-0"
                 >
                   {t("stories.close")}
                 </button>

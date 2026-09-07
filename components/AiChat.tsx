@@ -354,7 +354,7 @@ export default function AiChat({
             <p className="text-sm font-semibold text-text flex items-center gap-1.5">
               <span aria-hidden>✨</span> {t("ai.chat.title")}
             </p>
-            <p className="text-[11px] text-text-subtle truncate">{t("ai.chat.subtitle")}</p>
+            <p className="text-[11px] text-text-muted truncate">{t("ai.chat.subtitle")}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {messages.length > 0 && (
@@ -409,7 +409,7 @@ export default function AiChat({
                 </div>
               ))
             )}
-            {busy && <p className="text-xs text-text-subtle">{t("ai.chat.thinking")}</p>}
+            {busy && <p className="text-xs text-text-muted">{t("ai.chat.thinking")}</p>}
             {error && <p className="text-[11px] text-danger">{error}</p>}
           </div>
 
@@ -437,7 +437,7 @@ export default function AiChat({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("ai.chat.placeholder")}
-              className="flex-1 h-11 px-3.5 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-subtle focus:outline-none focus:border-primary"
+              className="flex-1 h-11 px-3.5 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
             />
             <button
               type="submit"
@@ -448,9 +448,9 @@ export default function AiChat({
             </button>
           </form>
           {messages.length > 0 && (
-            <p className="text-[10px] text-text-subtle mt-2">{t("ai.chat.goHint")}</p>
+            <p className="text-[10px] text-text-muted mt-2">{t("ai.chat.goHint")}</p>
           )}
-          <p className="text-[10px] text-text-subtle mt-1">{t("ai.story.note")}</p>
+          <p className="text-[10px] text-text-muted mt-1">{t("ai.story.note")}</p>
         </div>
       </aside>
     </div>,

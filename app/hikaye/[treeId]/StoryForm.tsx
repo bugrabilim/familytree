@@ -108,7 +108,7 @@ export default function StoryForm({ treeId, token }: { treeId: string; token: st
   return (
     <AuthShell icon="📖" title={t("story.title")}>
       <form onSubmit={gonder} className="space-y-3">
-        <p className="text-[11px] text-text-subtle">{t("story.about", { name: istek.subjectName })}</p>
+        <p className="text-[11px] text-text-muted">{t("story.about", { name: istek.subjectName })}</p>
         <p className="text-sm text-text leading-relaxed font-medium">{istek.question}</p>
 
         <div>
@@ -124,7 +124,7 @@ export default function StoryForm({ treeId, token }: { treeId: string; token: st
             Adın neden istendiği yazıyor: bu depoda hiçbir iddia kaynaksız
             kayda girmiyor ve onaylanan katkı "kim anlattı" bilgisini taşıyor.
           */}
-          <p className="text-[11px] text-text-subtle mt-1">{t("story.nameWhy")}</p>
+          <p className="text-[11px] text-text-muted mt-1">{t("story.nameWhy")}</p>
         </div>
 
         <div>
@@ -139,13 +139,13 @@ export default function StoryForm({ treeId, token }: { treeId: string; token: st
           />
         </div>
 
-        <p className="text-[11px] text-text-subtle leading-relaxed">{t("story.queueNote")}</p>
+        <p className="text-[11px] text-text-muted leading-relaxed">{t("story.queueNote")}</p>
 
         <Button type="submit" size="sm" disabled={busy}>
           {busy ? t("story.sending") : t("story.send")}
         </Button>
 
-        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2 rounded-xl">{error}</p>}
+        {error && <p role="alert" className="text-xs text-danger bg-danger-soft px-3 py-2 rounded-xl">{error}</p>}
       </form>
     </AuthShell>
   );

@@ -249,7 +249,7 @@ export default function TopBar({
               <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
                 {familyName ? `${familyName}` : t("topbar.appName")}
               </p>
-              <p className="text-[11px] leading-tight text-text-subtle">
+              <p className="text-[11px] leading-tight text-text-muted">
                 {t("common.peopleCount", { count: peopleCount })}
               </p>
             </div>
@@ -277,7 +277,7 @@ export default function TopBar({
               <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
             </svg>
             <span className="hidden md:inline text-xs">{t("topbar.search")}</span>
-            <kbd className="hidden md:inline text-[10px] font-sans px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-subtle">
+            <kbd className="hidden md:inline text-[10px] font-sans px-1.5 py-0.5 rounded border border-border bg-surface-2 text-text-muted">
               ⌘K
             </kbd>
           </button>

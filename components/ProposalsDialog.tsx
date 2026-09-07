@@ -439,7 +439,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               )}
               <div>
               <p className="text-sm font-medium text-text">{p.personName || "—"}</p>
-              <p className="text-[11px] text-text-subtle">
+              <p className="text-[11px] text-text-muted">
                 {p.byName ? `${p.byName} · ` : ""}
                 {p.at.slice(0, 16).replace("T", " ")}
                 {p.status !== "bekliyor" && ` · ${durumAdi(p.status)}`}
@@ -468,15 +468,15 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               {p.kind === "icerik" || p.kind === "ekleme"
                 ? Object.entries(p.kind === "icerik" ? (p.content?.item ?? {}) : (p.person ?? {})).map(([k, v]) => (
                     <div key={k} className="text-[11px] leading-relaxed">
-                      <span className="text-text-subtle">{alanAdi(t, k)}: </span>
+                      <span className="text-text-muted">{alanAdi(t, k)}: </span>
                       <span className="text-text">{goster(v)}</span>
                     </div>
                   ))
                 : Object.entries(p.changes).map(([k, c]) => (
                     <div key={k} className="text-[11px] leading-relaxed">
-                      <span className="text-text-subtle">{alanAdi(t, k)}: </span>
+                      <span className="text-text-muted">{alanAdi(t, k)}: </span>
                       <span className="text-text-muted line-through">{goster(c.from)}</span>
-                      <span className="text-text-subtle"> → </span>
+                      <span className="text-text-muted"> → </span>
                       <span className="text-text">{goster(c.to)}</span>
                     </div>
                   ))}

@@ -105,7 +105,7 @@ function LoginForm() {
             </Link>
           </p>
           <p className="mt-2">
-            <Link href="/forgot-password" className="text-text-subtle hover:text-primary hover:underline">
+            <Link href="/forgot-password" className="text-text-muted hover:text-primary hover:underline">
               {t("login.forgot")}
             </Link>
           </p>
@@ -139,7 +139,7 @@ function LoginForm() {
             autoCorrect="off"
             spellCheck={false}
           />
-          <p className="mt-1 text-[11px] text-text-subtle">{t("login.usernameHint")}</p>
+          <p className="mt-1 text-[11px] text-text-muted">{t("login.usernameHint")}</p>
         </div>
 
         <div>
@@ -156,8 +156,16 @@ function LoginForm() {
           />
         </div>
 
+        {/*
+          `role="alert"` — hata METNİ değişse de yeni bir düğüm eklendiği için
+          ekran okuyucu onu ANINDA okuyor. Öncesinde mesaj sessizce beliriyordu:
+          gören kullanıcı kırmızı kutuyu fark ediyor, görmeyen kullanıcı formu
+          gönderdikten sonra hiçbir şey duymuyordu — "gitti mi, gitmedi mi?"
+          Aynı desen #328'de /register'da kuruldu; burası ve /forgot-password
+          o turda atlanmıştı.
+        */}
         {error && (
-          <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
+          <p role="alert" className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>
         )}
 
         {/* Silinmekte olan hesap için geri getirme yolu — yalnız giriş
@@ -182,7 +190,8 @@ function LoginForm() {
 
         {restoreFailed && (
           <div className="rounded-xl border border-danger/40 bg-danger-soft/40 px-3 py-2.5 space-y-1.5">
-            <p className="text-[11px] text-danger font-medium">{t("login.restore.partial")}</p>
+            {/* Kısmî geri getirme de bir hata sonucu: sessizce çizilmemeli. */}
+            <p role="alert" className="text-[11px] text-danger font-medium">{t("login.restore.partial")}</p>
             <ul className="text-[11px] text-text-muted space-y-0.5">
               {restoreFailed.map((f) => (
                 <li key={f}>• {f}</li>
@@ -214,7 +223,7 @@ function LoginForm() {
       <div className="mt-6">
         <div className="flex items-center gap-3 mb-4">
           <span className="h-px flex-1 bg-border" />
-          <span className="text-[11px] text-text-subtle">{t("login.or")}</span>
+          <span className="text-[11px] text-text-muted">{t("login.or")}</span>
           <span className="h-px flex-1 bg-border" />
         </div>
 
@@ -236,7 +245,7 @@ function LoginForm() {
           {demoLoading ? t("login.demoLoading") : t("login.demoButton")}
         </Button>
 
-        <p className="text-[11px] text-text-subtle text-center mt-2.5 leading-relaxed">
+        <p className="text-[11px] text-text-muted text-center mt-2.5 leading-relaxed">
           {t("login.demoNote")}
         </p>
       </div>

@@ -26,7 +26,7 @@ type Cevap = { year: number; record: RecordYear | null; reason?: string };
  * burası yalnız o boşluğa okunur bir etiket koyuyor.
  */
 function Ad({ name, gizli, gizliMetin }: { name: string; gizli: boolean; gizliMetin: string }) {
-  if (gizli || !name) return <i className="text-text-subtle">{gizliMetin}</i>;
+  if (gizli || !name) return <i className="text-text-muted">{gizliMetin}</i>;
   return <>{name}</>;
 }
 
@@ -41,7 +41,7 @@ function KisiListesi({
   if (kisiler.length === 0) return null;
   return (
     <section className="space-y-1">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">{baslik}</h4>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{baslik}</h4>
       <ul className="flex flex-wrap gap-1.5">
         {kisiler.map((k) => (
           <li key={k.id}>
@@ -64,7 +64,7 @@ function Satir({ ad, deger }: { ad: string; deger: number }) {
     <li className="flex items-baseline justify-between gap-3 text-sm">
       <span className="text-text-muted">{ad}</span>
       {/* Eksilme gizlenmiyor; işaretiyle birlikte yazılıyor. */}
-      <b className={`tabular-nums ${deger < 0 ? "text-text-subtle" : "text-text"}`}>
+      <b className={`tabular-nums ${deger < 0 ? "text-text-muted" : "text-text"}`}>
         {deger > 0 ? `+${deger}` : deger}
       </b>
     </li>
@@ -144,7 +144,7 @@ export default function ReportCardView({
 
           {events.length > 0 && (
             <section className="space-y-1">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.events")}
               </h4>
               <ul className="space-y-1">
@@ -162,7 +162,7 @@ export default function ReportCardView({
 
           {anniversaries.length > 0 && (
             <section className="space-y-1">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.anniversaries")}
               </h4>
               <ul className="space-y-1">
@@ -191,10 +191,10 @@ export default function ReportCardView({
           */}
           {record && (
             <section className="space-y-1 pt-1 border-t border-border/60">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.recorded")}
               </h4>
-              <p className="text-[11px] text-text-subtle">
+              <p className="text-[11px] text-text-muted">
                 {t("report.since", { date: record.since.slice(0, 10) })}
               </p>
               <ul className="space-y-0.5 mt-1">

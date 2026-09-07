@@ -143,9 +143,9 @@ export default function PeopleDialog({
             >
               <span className="flex items-baseline gap-2 min-w-0">
                 <h3 className="text-sm font-semibold text-text">{t("panel.card.issues", { count: issues.length })}</h3>
-                <span className="text-[11px] text-text-subtle shrink-0">{t("panel.card.issuesHint")}</span>
+                <span className="text-[11px] text-text-muted shrink-0">{t("panel.card.issuesHint")}</span>
               </span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 text-text-subtle transition-transform ${issuesOpen ? "rotate-180" : ""}`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className={`shrink-0 text-text-muted transition-transform ${issuesOpen ? "rotate-180" : ""}`}>
                 <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
@@ -176,7 +176,7 @@ export default function PeopleDialog({
                   );
                 })}
                 {issues.length > 20 && (
-                  <li className="px-2 pt-1 text-[11px] text-text-subtle">
+                  <li className="px-2 pt-1 text-[11px] text-text-muted">
                     {t("panel.card.issuesMore", { count: issues.length - 20 })}
                   </li>
                 )}

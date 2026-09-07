@@ -205,7 +205,7 @@ export default function TreeSwitcher({
           <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate flex items-center gap-1">
             {active?.name ?? t("topbar.appName")}
           </p>
-          <p className="text-[11px] leading-tight text-text-subtle">
+          <p className="text-[11px] leading-tight text-text-muted">
             {t("common.peopleCount", { count: peopleCount })}
           </p>
         </div>
@@ -215,7 +215,10 @@ export default function TreeSwitcher({
           viewBox="0 0 24 24"
           fill="none"
           aria-hidden
-          className="shrink-0 text-text-subtle group-hover:text-text-muted transition-colors"
+          /* `--text-subtle` emekliye ayrılınca (bkz. globals.css) taban ve hover aynı
+             tokene düşmüştü: hover hiçbir şey yapmıyordu. Ok, üstüne gelince
+             gövde rengine çıkıyor — okun bir afordans olduğu yine görünüyor. */
+          className="shrink-0 text-text-muted group-hover:text-text transition-colors"
         >
           <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -224,7 +227,7 @@ export default function TreeSwitcher({
       {open && (
         <>
           <div className="absolute left-0 top-11 z-20 w-72 rounded-xl border border-border bg-bg-elevated shadow-float overflow-hidden animate-scale-in origin-top-left">
-            <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle border-b border-border">
+            <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-muted border-b border-border">
               {t("tree.myTrees")}
             </div>
 
@@ -282,7 +285,7 @@ export default function TreeSwitcher({
                         viewBox="0 0 24 24"
                         fill="none"
                         aria-hidden
-                        className={isActive ? "text-primary shrink-0" : "text-text-subtle shrink-0"}
+                        className={isActive ? "text-primary shrink-0" : "text-text-muted shrink-0"}
                       >
                         {tree.home ? (
                           <path d="M4 11l8-6 8 6M6 10v9h12v-9" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
@@ -294,7 +297,7 @@ export default function TreeSwitcher({
                         {tree.name}
                       </span>
                       {tree.home && (
-                        <span className="text-[10px] text-text-subtle shrink-0">{t("tree.home")}</span>
+                        <span className="text-[10px] text-text-muted shrink-0">{t("tree.home")}</span>
                       )}
                       {isActive && (
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden className="ml-auto text-primary shrink-0">
@@ -319,7 +322,7 @@ export default function TreeSwitcher({
                           }}
                           disabled={busy}
                           title={t("tree.rename")}
-                          className="w-7 h-7 grid place-items-center rounded-md text-text-subtle hover:text-text hover:bg-surface-3"
+                          className="w-7 h-7 grid place-items-center rounded-md text-text-muted hover:text-text hover:bg-surface-3"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                             <path d="M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
@@ -340,7 +343,7 @@ export default function TreeSwitcher({
                           }}
                           disabled={busy}
                           title={t("tree.delete")}
-                          className="w-7 h-7 grid place-items-center rounded-md text-text-subtle hover:text-danger hover:bg-surface-3"
+                          className="w-7 h-7 grid place-items-center rounded-md text-text-muted hover:text-danger hover:bg-surface-3"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                             <path d="M5 7h14M9 7V5h6v2M6 7l1 13h10l1-13" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
@@ -362,7 +365,7 @@ export default function TreeSwitcher({
             {deletedTrees.length > 0 && (
               <>
                 <div className="h-px bg-border" />
-                <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
+                <div className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-text-muted">
                   {t("tree.deletedTitle")}
                 </div>
                 <div className="max-h-48 overflow-y-auto pb-1">
@@ -382,7 +385,7 @@ export default function TreeSwitcher({
                               ? t("tree.purgeToday")
                               : t("tree.deletedDaysLeft", { days: kalan })}
                           </p>
-                          <p className="text-[10px] text-text-subtle leading-tight">
+                          <p className="text-[10px] text-text-muted leading-tight">
                             {t("tree.deletedOn", { date: tarihYaz(tree.deletedAt) })}
                           </p>
                         </div>
@@ -416,7 +419,7 @@ export default function TreeSwitcher({
                   }}
                   disabled={busy}
                   placeholder={t("tree.newNamePlaceholder")}
-                  className="w-full h-8 px-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-subtle focus:border-primary focus:outline-none"
+                  className="w-full h-8 px-2.5 rounded-lg border border-border bg-surface text-sm text-text placeholder:text-text-muted focus:border-primary focus:outline-none"
                 />
                 <div className="flex items-center gap-1 mt-1.5">
                   <button

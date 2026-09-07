@@ -60,13 +60,13 @@ export default function RecordHints({ person }: { person: Person }) {
           className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text"
         >
           {t("records.google")}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-subtle">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
             <path d="M14 5h5v5M19 5l-9 9M11 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </a>
       </div>
       {results === null ? null : results.length === 0 ? (
-        <p className="text-sm text-text-subtle">{t("records.none")}</p>
+        <p className="text-sm text-text-muted">{t("records.none")}</p>
       ) : (
         <ul className="space-y-1.5">
           {results.map((r) => (
@@ -80,10 +80,10 @@ export default function RecordHints({ person }: { person: Person }) {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm text-text truncate">{r.label}</span>
                   {r.description && (
-                    <span className="block text-[11px] text-text-subtle truncate">{r.description}</span>
+                    <span className="block text-[11px] text-text-muted truncate">{r.description}</span>
                   )}
                 </span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-subtle mt-1 shrink-0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted mt-1 shrink-0">
                   <path d="M14 5h5v5M19 5l-9 9M11 5H6a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </a>
@@ -92,7 +92,7 @@ export default function RecordHints({ person }: { person: Person }) {
         </ul>
       )}
       {error && <p className="text-[11px] text-danger mt-2">{error}</p>}
-      <p className="text-[10px] text-text-subtle mt-2">{t("records.source")}</p>
+      <p className="text-[10px] text-text-muted mt-2">{t("records.source")}</p>
     </div>
   );
 }

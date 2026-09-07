@@ -107,7 +107,7 @@ export default function NotifySection() {
       />
       <span className="leading-snug">
         <span className="text-xs font-medium">{etiket}</span>
-        <span className="block text-[11px] text-text-subtle">{ipucu}</span>
+        <span className="block text-[11px] text-text-muted">{ipucu}</span>
       </span>
     </label>
   );
@@ -118,7 +118,7 @@ export default function NotifySection() {
         <label className="text-xs font-medium block mb-1" htmlFor="notify-mail">
           {t("notify.label")}
         </label>
-        <p className="text-[11px] text-text-subtle leading-snug mb-2">{t("notify.hint")}</p>
+        <p className="text-[11px] text-text-muted leading-snug mb-2">{t("notify.hint")}</p>
         <input
           id="notify-mail"
           type="email"
@@ -137,14 +137,14 @@ export default function NotifySection() {
       </div>
 
       {adresYok && !yukleniyor && (
-        <p className="text-[11px] text-text-subtle">{t("notify.needsAddress")}</p>
+        <p className="text-[11px] text-text-muted">{t("notify.needsAddress")}</p>
       )}
 
       <Button size="sm" onClick={kaydet} disabled={kaydediyor || yukleniyor}>
         {kaydediyor ? t("notify.saving") : t("notify.save")}
       </Button>
 
-      {bilgi && <p className="text-[11px] text-text-subtle">{bilgi}</p>}
+      {bilgi && <p className="text-[11px] text-text-muted">{bilgi}</p>}
       {hata && <p className="text-xs text-danger bg-danger-soft px-3 py-2 rounded-xl">{hata}</p>}
     </section>
   );

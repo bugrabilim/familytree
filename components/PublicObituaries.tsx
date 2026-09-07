@@ -36,7 +36,7 @@ export default function PublicObituaries({
           <article key={o.id} className="grid gap-0.5">
             <p className="text-sm text-text">
               {o.personName}
-              {o.diedOn ? <span className="text-text-subtle"> · {formatLong(o.diedOn)}</span> : null}
+              {o.diedOn ? <span className="text-text-muted"> · {formatLong(o.diedOn)}</span> : null}
             </p>
             {row(labels.serviceOn, o.serviceOn ? formatLong(o.serviceOn) : undefined)}
             {row(labels.serviceAt, o.serviceAt)}

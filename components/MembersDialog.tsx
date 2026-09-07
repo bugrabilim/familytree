@@ -151,12 +151,12 @@ export default function MembersDialog({ treeName, onClose }: Props) {
             bunu anlatmıyor ve daveti gönderen, karşı tarafa ne verdiğini
             bilmeli — özellikle "her değişikliği onayına gelecek" kısmını.
           */}
-          <p className="mt-2 text-[11px] text-text-subtle leading-relaxed">
+          <p className="mt-2 text-[11px] text-text-muted leading-relaxed">
             {t("role.uyeHint")}
           </p>
           {link && (
             <div className="mt-2.5">
-              <p className="text-[11px] text-text-subtle mb-1">{t("members.linkHint")}</p>
+              <p className="text-[11px] text-text-muted mb-1">{t("members.linkHint")}</p>
               <div className="flex items-center gap-2">
                 <input
                   readOnly
@@ -181,9 +181,9 @@ export default function MembersDialog({ treeName, onClose }: Props) {
         <section>
           <h3 className="text-xs font-semibold text-text mb-2">{t("members.membersTitle")}</h3>
           {loading ? (
-            <p className="text-sm text-text-subtle">{t("members.loading")}</p>
+            <p className="text-sm text-text-muted">{t("members.loading")}</p>
           ) : members.length === 0 ? (
-            <p className="text-sm text-text-subtle">{t("members.noMembers")}</p>
+            <p className="text-sm text-text-muted">{t("members.noMembers")}</p>
           ) : (
             <ul className="space-y-1.5">
               {members.map((m) => (
@@ -197,13 +197,13 @@ export default function MembersDialog({ treeName, onClose }: Props) {
                       * giriyor.
                       */}
                     {m.username && (
-                      <span className="text-[11px] text-text-subtle">@{m.username}</span>
+                      <span className="text-[11px] text-text-muted">@{m.username}</span>
                     )}
                     {roleBadge(m.role)}
                   </span>
                   <button
                     onClick={() => removeMember(m.id)}
-                    className="text-[11px] text-text-subtle hover:text-danger shrink-0"
+                    className="text-[11px] text-text-muted hover:text-danger shrink-0"
                   >
                     {t("members.remove")}
                   </button>
@@ -222,13 +222,13 @@ export default function MembersDialog({ treeName, onClose }: Props) {
                 <li key={iv.tokenHash} className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2">
                   <span className="text-sm text-text flex items-center gap-2">
                     {roleBadge(iv.role)}
-                    <span className="text-[11px] text-text-subtle">
+                    <span className="text-[11px] text-text-muted">
                       {t("members.expires", { date: new Date(iv.expiresAt).toLocaleDateString("tr-TR") })}
                     </span>
                   </span>
                   <button
                     onClick={() => revokeInvite(iv.tokenHash)}
-                    className="text-[11px] text-text-subtle hover:text-danger shrink-0"
+                    className="text-[11px] text-text-muted hover:text-danger shrink-0"
                   >
                     {t("members.revoke")}
                   </button>

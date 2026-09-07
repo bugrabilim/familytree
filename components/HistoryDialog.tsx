@@ -150,14 +150,14 @@ export default function HistoryDialog({
                     <Button size="sm" variant="danger" onClick={() => setConfirmSel(true)} disabled={busyId !== null}>
                       {t("history.undoSelected")}
                     </Button>
-                    <button onClick={() => setSelected(new Set())} className="text-[11px] text-text-subtle hover:text-text">
+                    <button onClick={() => setSelected(new Set())} className="text-[11px] text-text-muted hover:text-text">
                       {t("history.clearSelection")}
                     </button>
                   </>
                 )}
               </div>
             ) : (
-              <p className="text-[11px] text-text-subtle px-1">{t("history.selectHint")}</p>
+              <p className="text-[11px] text-text-muted px-1">{t("history.selectHint")}</p>
             )}
           </div>
 
@@ -166,7 +166,7 @@ export default function HistoryDialog({
             <div key={g.key} className="space-y-1.5">
               {/* Gün başlığı (yalnız etiket) */}
               <div className="flex items-center gap-2 px-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   {g.key === todayKey ? t("history.today") : g.label}
                   {g.items.length > 1 && <span className="ml-1 tabular-nums font-normal">· {g.items.length}</span>}
                 </span>
@@ -185,7 +185,7 @@ export default function HistoryDialog({
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-text tabular-nums leading-tight">{fmt(e.at)}</p>
-                      <p className="text-[11px] text-text-subtle leading-tight">{t("history.peopleCount", { count: e.count })}</p>
+                      <p className="text-[11px] text-text-muted leading-tight">{t("history.peopleCount", { count: e.count })}</p>
                     </div>
                     {confirmId === e.id ? (
                       <div className="flex gap-1.5 shrink-0">

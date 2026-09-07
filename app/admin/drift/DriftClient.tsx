@@ -45,7 +45,7 @@ function AgacKarti({ t }: { t: TreeDrift & { error?: string } }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{t.name}</p>
-          <p className="text-[11px] text-text-subtle tabular-nums">
+          <p className="text-[11px] text-text-muted tabular-nums">
             Blob {t.blobPeople} · Postgres {t.dbPeople}
             {/*
               Sayılar eşit ama ayrışma varsa bunu AÇIKÇA söylüyoruz: eski
@@ -91,8 +91,8 @@ function AgacKarti({ t }: { t: TreeDrift & { error?: string } }) {
             <ul className="mt-2 space-y-1.5">
               {t.people.items.map((it) => (
                 <li key={`${it.id}-${it.kind}`} className="text-[11px] leading-snug">
-                  <span className="text-text">{it.label ?? <i className="text-text-subtle">gizli kayıt</i>}</span>
-                  <span className="text-text-subtle"> · {KIND_LABEL[it.kind] ?? it.kind}</span>
+                  <span className="text-text">{it.label ?? <i className="text-text-muted">gizli kayıt</i>}</span>
+                  <span className="text-text-muted"> · {KIND_LABEL[it.kind] ?? it.kind}</span>
                   {it.fields && (
                     <span className="block text-text-muted font-mono">
                       {it.fields.map((f) => `${f.field}: ${f.blob} → ${f.db}`).join("  ·  ")}
@@ -101,7 +101,7 @@ function AgacKarti({ t }: { t: TreeDrift & { error?: string } }) {
                 </li>
               ))}
               {t.people.truncated > 0 && (
-                <li className="text-[11px] text-text-subtle">
+                <li className="text-[11px] text-text-muted">
                   …ve {t.people.truncated} kayıt daha (tam liste için <code>?full=1</code>).
                 </li>
               )}

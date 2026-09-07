@@ -63,7 +63,7 @@ export default function MergeDialog({
           <MergeCard p={a} selected={keepId === a.id} onPick={() => setKeepId(a.id)} />
           <MergeCard p={b} selected={keepId === b.id} onPick={() => setKeepId(b.id)} />
         </div>
-        <p className="text-[11px] text-text-subtle leading-relaxed">{t("merge.note")}</p>
+        <p className="text-[11px] text-text-muted leading-relaxed">{t("merge.note")}</p>
         {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
@@ -92,15 +92,15 @@ function MergeCard({ p, selected, onPick }: { p: Person; selected: boolean; onPi
         <Avatar person={p} size="md" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-text truncate">{fullName(p)}</p>
-          <p className="text-[11px] text-text-subtle tabular-nums">{lifeSpan(p.birthDate, p.deathDate) || "—"}</p>
+          <p className="text-[11px] text-text-muted tabular-nums">{lifeSpan(p.birthDate, p.deathDate) || "—"}</p>
         </div>
       </div>
       <div className="space-y-0.5 text-[11px] text-text-muted">
         {p.birthPlace && <p className="truncate">📍 {p.birthPlace}</p>}
         {p.occupation && <p className="truncate">💼 {p.occupation}</p>}
-        <p className="text-text-subtle">{t("merge.code", { code: p.code ?? "—" })}</p>
+        <p className="text-text-muted">{t("merge.code", { code: p.code ?? "—" })}</p>
       </div>
-      <p className={`mt-2 text-[11px] font-medium ${selected ? "text-primary" : "text-text-subtle"}`}>
+      <p className={`mt-2 text-[11px] font-medium ${selected ? "text-primary" : "text-text-muted"}`}>
         {selected ? t("merge.willKeep") : t("merge.willMerge")}
       </p>
     </button>

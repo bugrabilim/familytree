@@ -146,7 +146,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             autoCorrect="off"
             spellCheck={false}
           />
-          <p className="mt-1 text-[11px] text-text-subtle">{t("join.userHint")}</p>
+          <p className="mt-1 text-[11px] text-text-muted">{t("join.userHint")}</p>
         </div>
         <div>
           <label className={authLabel} htmlFor="join-pass">{t("join.passLabel")}</label>
@@ -159,7 +159,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             placeholder={t("join.passPlaceholder")}
           />
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? t("join.joining") : t("join.action")}
         </Button>

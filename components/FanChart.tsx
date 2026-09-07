@@ -87,7 +87,7 @@ export default function FanChart({
 
   if (!root) {
     return (
-      <div className="h-full grid place-items-center text-text-subtle text-sm">
+      <div className="h-full grid place-items-center text-text-muted text-sm">
         Görüntülenecek kişi yok
       </div>
     );

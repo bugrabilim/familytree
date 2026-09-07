@@ -408,7 +408,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               {t("map.subtitle", { located: located.length, total: aggregates.length })}
             </p>
           </div>
-          <p className="text-[11px] text-text-subtle shrink-0 hidden sm:block">{t("map.navHint")}</p>
+          <p className="text-[11px] text-text-muted shrink-0 hidden sm:block">{t("map.navHint")}</p>
         </div>
 
         {/* Denetimler — göç yolları + dönem süzgeci */}
@@ -458,7 +458,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 aria-label={t("map.eraTo")}
               />
               {(a0 > yearBounds.min || a1 < yearBounds.max) && (
-                <button onClick={() => setEra(null)} className="text-[11px] text-text-subtle hover:text-text">
+                <button onClick={() => setEra(null)} className="text-[11px] text-text-muted hover:text-text">
                   {t("map.eraAll")}
                 </button>
               )}
@@ -491,7 +491,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 aria-label={t("map.genTo")}
               />
               {!genAll && (
-                <button onClick={() => setGenRange(null)} className="text-[11px] text-text-subtle hover:text-text">
+                <button onClick={() => setGenRange(null)} className="text-[11px] text-text-muted hover:text-text">
                   {t("map.genAll")}
                 </button>
               )}
@@ -511,7 +511,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                 activeSurname === null
                   ? "border-accent bg-accent-soft text-accent"
-                  : "border-border text-text-subtle hover:bg-surface-2"
+                  : "border-border text-text-muted hover:bg-surface-2"
               }`}
             >
               {t("map.surnameAll")}
@@ -526,7 +526,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                     on
                       ? "border-accent bg-accent-soft text-accent"
-                      : "border-border text-text-subtle hover:bg-surface-2"
+                      : "border-border text-text-muted hover:bg-surface-2"
                   }`}
                 >
                   {sn.surname} <span className="tabular-nums opacity-70">{sn.count}</span>
@@ -534,7 +534,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               );
             })}
             {surnameStats.patronymicOnly > 0 && (
-              <span className="text-[11px] text-text-subtle">
+              <span className="text-[11px] text-text-muted">
                 {t("map.surnamePatronymic", { count: surnameStats.patronymicOnly })}
               </span>
             )}
@@ -595,7 +595,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   <h2 className="font-serif text-base font-semibold text-text truncate">{active.place}</h2>
                   <button
                     onClick={() => setActivePlace(null)}
-                    className="text-[11px] text-text-subtle hover:text-text shrink-0"
+                    className="text-[11px] text-text-muted hover:text-text shrink-0"
                   >
                     {t("map.close")}
                   </button>
@@ -606,7 +606,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ background: activeKind === "burial" ? BURIAL_COLOR : BIRTH_COLOR }}
                   />
-                  <span className="text-[11px] text-text-subtle">
+                  <span className="text-[11px] text-text-muted">
                     {activeKind === "burial" ? t("map.burialKind") : t("map.birthKind")} · {active.count}
                   </span>
                 </div>
@@ -625,7 +625,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                    çünkü `surnamesByPlace` doğum yerine göre gruplar. */}
                 {activeKind === "birth" && (placeSurnames.get(active.place)?.surnames.length ?? 0) > 0 && (
                   <div className="mb-3">
-                    <p className="text-[11px] text-text-subtle mb-1.5">{t("map.surnamesHere")}</p>
+                    <p className="text-[11px] text-text-muted mb-1.5">{t("map.surnamesHere")}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {placeSurnames.get(active.place)!.surnames.slice(0, 10).map((sn) => (
                         <button
@@ -665,13 +665,13 @@ export default function PlacesMap({ people, onSelect }: Props) {
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{
-                          background: a.coords ? BIRTH_COLOR : "var(--text-subtle)",
+                          background: a.coords ? BIRTH_COLOR : "var(--text-muted)",
                           opacity: a.coords ? 0.85 : 0.4,
                         }}
                       />
                       <span className="text-sm text-text truncate flex-1 min-w-0">
                         {a.place}
-                        {!a.coords && <span className="text-text-subtle">{t("map.noLocation")}</span>}
+                        {!a.coords && <span className="text-text-muted">{t("map.noLocation")}</span>}
                       </span>
                       <span className="text-xs text-text-muted tabular-nums shrink-0">{a.count}</span>
                     </button>
@@ -685,7 +685,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
               <section className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex items-baseline justify-between gap-2 mb-3">
                   <h2 className="font-serif text-base font-semibold text-text">{t("map.burialTitle")}</h2>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text-subtle shrink-0">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-text-muted shrink-0">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: BURIAL_COLOR }} />
                     {burialLocated.length}
                   </span>
@@ -712,9 +712,9 @@ export default function PlacesMap({ people, onSelect }: Props) {
               <section className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex items-baseline justify-between gap-2 mb-3">
                   <h2 className="font-serif text-base font-semibold text-text">{t("map.unlocatedTitle")}</h2>
-                  <span className="text-[11px] text-text-subtle shrink-0">{unlocated.length}</span>
+                  <span className="text-[11px] text-text-muted shrink-0">{unlocated.length}</span>
                 </div>
-                <p className="text-[11px] text-text-subtle mb-3">{t("map.unlocatedBody")}</p>
+                <p className="text-[11px] text-text-muted mb-3">{t("map.unlocatedBody")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {unlocated.map((a) => (
                     <span
@@ -722,7 +722,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 text-xs text-text"
                     >
                       {a.place}
-                      <span className="text-text-subtle tabular-nums">{a.count}</span>
+                      <span className="text-text-muted tabular-nums">{a.count}</span>
                     </span>
                   ))}
                 </div>

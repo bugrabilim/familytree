@@ -8,6 +8,26 @@ import AboutDialog from "./AboutDialog";
 import { useLang, useT } from "@/lib/i18n";
 import { demoGirisi } from "@/app/login/actions";
 
+/**
+ * Alt bilgi bağlantılarının ORTAK sınıfı — dokunma hedefi burada yaşıyor.
+ *
+ * Ölçüm: bu bağlantılar 320/360/390'da 27-105 x **18px**'ti ve bir sütunda
+ * 8px arayla ALT ALTA diziliydiler; yani hem eşiğin çok altında, hem de
+ * komşusuna bitişik. Bu bölümün en tehlikeli hedefiydi.
+ *
+ * Neden görünmez `::before` vuruş alanı DEĞİL: bu bağlantılar yan yana
+ * değil, üst üste. Görünmez bir kutuyu 44px'e büyütmek komşusunun ÜSTÜNE
+ * taşardı ve üstteki eleman dokunuşu yutardı — #307'nin H2/H5'te tam olarak
+ * onardığı arıza (görünen yer ile basılan yerin ayrışması). Kutunun kendisi
+ * büyüyünce satır aralığı da büyüyor: görülen ile basılan aynı yer kalıyor.
+ *
+ * `-mx-2 px-2`: kutu büyürken metin sütun başlığıyla hizasını korusun.
+ * `lg:min-h-0`: farede eski sıkı yerleşim geri geliyor (#307'deki eşik).
+ */
+const footLink =
+  "inline-flex items-center min-h-11 min-w-11 lg:min-h-0 lg:min-w-0 -mx-2 px-2 lg:mx-0 lg:px-0 rounded-lg " +
+  "text-text-muted hover:text-text hover:bg-surface-2 lg:hover:bg-transparent transition-colors";
+
 /** Marka simgesi (üç kuşaklık düğüm). */
 function BrandMark({ className, stroke = "currentColor" }: { className?: string; stroke?: string }) {
   return (
@@ -66,7 +86,7 @@ function Stat({ value, label, suffix = "" }: { value: number; label: string; suf
         <span ref={ref}>{n.toLocaleString("tr-TR")}</span>
         {suffix}
       </p>
-      <p className="text-[11px] sm:text-xs text-text-subtle mt-1.5 leading-tight">{label}</p>
+      <p className="text-[11px] sm:text-xs text-text-muted mt-1.5 leading-tight">{label}</p>
     </div>
   );
 }
@@ -237,12 +257,24 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
     <div className="min-h-screen bg-bg text-text">
       {/* ---- Üst çubuk ---- */}
       <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-2 sm:gap-4">
+        {/* En dar ekranda boşluk bütçesi: tema düğmesi (44px) satıra girince
+            320px'te 3px taşma ölçüldü. Boşluklar `sm` altında 8→4 ve 6→4'e
+            indirildi (10px kazanç); `sm` ve üstünde eski değerler duruyor. */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-1 sm:gap-4">
           <div className="flex items-center gap-2.5 shrink-0">
             <div className="w-9 h-9 rounded-xl bg-primary grid place-items-center shadow-soft">
               <BrandMark stroke="var(--primary-text)" />
             </div>
-            <span className="font-serif text-lg font-semibold whitespace-nowrap hidden min-[360px]:inline">{t("auth.brand")}</span>
+            {/*
+              Marka SÖZCÜĞÜ `sm`den (640px) önce çizilmiyor — eskiden 360px'te
+              açılıyordu. İki sebep, ikisi de ölçülmüş:
+              (1) 360px'te satır zaten TAŞIYORDU: belge genişliği 368px, yani
+                  8px yatay kayma vardı;
+              (2) tema düğmesine (44px) yer açmak gerekiyordu — bkz. aşağıdaki
+                  yorum. Sözcük gidince 360px'te belge genişliği 368 → 360.
+              Marka İŞARETİ her genişlikte duruyor, yani kimlik kaybolmuyor.
+            */}
+            <span className="font-serif text-lg font-semibold whitespace-nowrap hidden sm:inline">{t("auth.brand")}</span>
           </div>
 
           {/*
@@ -262,16 +294,35 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
             <button onClick={() => setAboutOpen(true)} className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("about.nav")}</button>
           </nav>
 
-          <div className="ml-auto lg:ml-0 shrink-0 flex items-center gap-1.5 sm:gap-2">
-            {/* Dil/tema mobilde başlıkta gizli (footer'da dil anahtarı var); böylece
-                giriş yap + hesap oluştur en dar ekranda bile sığar. */}
+          <div className="ml-auto lg:ml-0 shrink-0 flex items-center gap-1 sm:gap-2">
+            {/*
+              TEMA düğmesi artık HER genişlikte burada.
+
+              Eskiden `hidden sm:grid`di ve koyu tema YALNIZ elle seçimle
+              açıldığı için (`ThemeToggle.tsx`: `prefers-color-scheme` bilinçli
+              yok sayılıyor) mobilden gelen ziyaretçinin açılış sayfasında koyu
+              temaya geçmesi HİÇBİR yoldan mümkün değildi: üst barda yok, alt
+              bilgide de yoktu. Varsayılanı değiştirmek çözüm değil (o kararın
+              gerekçesi ThemeToggle'da yazılı) — eksik olan ERİŞİMDİ.
+
+              Yer bütçesi (320px, ölçülen): marka işareti 36 + tema 44 + "Giriş
+              yap" 78 + "Hesap oluştur" 110 + boşluklar 18 + kenar dolgusu 32 =
+              318 ≤ 320. Bu yüzden marka sözcüğü `sm`ye taşındı; sözcük
+              kalsaydı 360px'te satır taşardı (zaten taşıyordu).
+
+              DİL anahtarı `sm` altında hâlâ gizli: 69px daha yer yok. Alt
+              bilgideki "Görünüm" grubunda hem dil hem tema var (bkz. footer) —
+              yani her ikisi de en az bir yoldan erişilebilir, dil iki yoldan.
+            */}
             <LanguageSwitch className="hidden sm:flex shrink-0" />
-            <ThemeToggle className="hidden sm:grid shrink-0" />
+            <ThemeToggle className="shrink-0" />
             {/* Sağ üst: giriş yap + hesap oluştur (Madde 1) — ikisi de mobilde görünür */}
-            <Link href="/login" className="shrink-0 inline-flex h-9 items-center px-3 sm:px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-sm font-medium transition-colors whitespace-nowrap">
+            {/* Yükseklik 36 → 44 (lg'de 36): 64px'lik başlığa sığıyor ve
+                YATAY bütçeye hiç dokunmuyor, yani 320px'teki denge bozulmuyor. */}
+            <Link href="/login" className="shrink-0 inline-flex h-11 lg:h-9 items-center px-3 sm:px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-sm font-medium transition-colors whitespace-nowrap">
               {t("land.nav.signin")}
             </Link>
-            <Link href="/register" className="shrink-0 h-9 inline-flex items-center px-3 sm:px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all whitespace-nowrap">
+            <Link href="/register" className="shrink-0 h-11 lg:h-9 inline-flex items-center px-3 sm:px-3.5 rounded-lg bg-primary text-primary-text text-sm font-medium hover:brightness-110 transition-all whitespace-nowrap">
               {t("land.nav.register")}
             </Link>
           </div>
@@ -282,7 +333,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
       {platform && (platform.trees > 0 || platform.people > 0) && (
         <div className="border-b border-border bg-primary-soft/40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-center gap-x-8 sm:gap-x-12 gap-y-2 text-center">
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-subtle">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-muted">
               {t("land.social.lead")}
             </span>
             <SocialStat value={platform.trees} label={t("land.social.trees")} icon="🌳" />
@@ -325,7 +376,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
                 {demoLoading ? t("land.demo.loading") : t("land.hero.ctaDemo")}
               </button>
             </div>
-            <p className="text-xs text-text-subtle mt-4">{t("land.hero.trust")}</p>
+            <p className="text-xs text-text-muted mt-4">{t("land.hero.trust")}</p>
           </div>
 
           <div className="relative">
@@ -335,7 +386,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
                 <span className="w-2.5 h-2.5 rounded-full bg-danger/60" aria-hidden />
                 <span className="w-2.5 h-2.5 rounded-full bg-accent/60" aria-hidden />
                 <span className="w-2.5 h-2.5 rounded-full bg-primary/60" aria-hidden />
-                <span className="ml-2 text-[10px] text-text-subtle tabular-nums">soylus.com</span>
+                <span className="ml-2 text-[10px] text-text-muted tabular-nums">soylus.com</span>
               </div>
               <HeroMedia t={t} />
             </div>
@@ -360,7 +411,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
 
       {/* ---- Yetenek şeridi ---- */}
       <section className="border-y border-border bg-surface py-6 overflow-hidden marquee-wrap">
-        <p className="text-center text-[11px] uppercase tracking-[0.18em] text-text-subtle mb-4">{t("land.ticker.label")}</p>
+        <p className="text-center text-[11px] uppercase tracking-[0.18em] text-text-muted mb-4">{t("land.ticker.label")}</p>
         <div className="marquee-mask">
           <div className="marquee-track flex gap-3 w-max">
             {[...TICKER, ...TICKER].map((item, i) => (
@@ -504,9 +555,12 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
         <div className="space-y-3 sd-stagger">
           {FAQS.map((n) => (
             <details key={n} className="group rounded-2xl border border-border bg-surface p-5 open:bg-surface-2 hover:border-border-strong transition-colors">
-              <summary className="flex items-center justify-between gap-3 cursor-pointer font-medium list-none">
+              {/* 246-316 x **24px**'ti; açma/kapama tek afordans olduğu için
+                  eşiğin altında kalması doğrudan "SSS mobilde açılmıyor"
+                  demekti. Dokunmada 44px, farede (lg) eski 24px. */}
+              <summary className="flex items-center justify-between gap-3 cursor-pointer font-medium list-none min-h-11 lg:min-h-0">
                 {t(`land.faq.${n}.q`)}
-                <span className="text-text-subtle group-open:rotate-45 transition-transform duration-300 text-xl leading-none" aria-hidden>+</span>
+                <span className="text-text-muted group-open:rotate-45 transition-transform duration-300 text-xl leading-none" aria-hidden>+</span>
               </summary>
               <p className="text-sm text-text-muted leading-relaxed mt-3">{t(`land.faq.${n}.a`)}</p>
             </details>
@@ -531,7 +585,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
               {t("land.nav.signin")}
             </Link>
           </div>
-          <p className="text-xs text-text-subtle mt-5">{t("land.hero.trust")}</p>
+          <p className="text-xs text-text-muted mt-5">{t("land.hero.trust")}</p>
         </div>
       </section>
 
@@ -547,45 +601,63 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
                 <span className="font-serif font-semibold">{t("auth.brand")}</span>
               </div>
               <p className="text-sm text-text-muted leading-relaxed max-w-[16rem]">{t("land.footer.tagline")}</p>
+
+              {/*
+                GÖRÜNÜM grubu — dil + tema, alt bilginin sabit adresi.
+
+                Dil anahtarı eskiden "Kaynaklar" sütununun sonuna bir liste
+                öğesi olarak iliştirilmişti (başlıksız, bağlantıların arasında)
+                ve tema düğmesi alt bilgide HİÇ yoktu. Mobilde üst barda da
+                olmadığı için koyu temaya geçmenin hiçbir yolu kalmıyordu.
+                İkisi kendi başlıklı grubunda: aranan yerde bulunuyor ve
+                "Gizlilik Politikası" ile aynı listede bir ayar düğmesi
+                durmuyor.
+              */}
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mt-6 mb-2">
+                {t("land.footer.appearance")}
+              </h3>
+              <div className="flex items-center gap-2">
+                <LanguageSwitch />
+                <ThemeToggle />
+              </div>
             </div>
 
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.product")}</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#ozellikler" className="text-text-muted hover:text-text transition-colors">{t("land.nav.features")}</a></li>
-                <li><a href="#nasil" className="text-text-muted hover:text-text transition-colors">{t("land.nav.how")}</a></li>
-                <li><button onClick={startDemo} className="text-text-muted hover:text-text transition-colors">{t("land.demo.cta")}</button></li>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">{t("land.footer.product")}</h3>
+              <ul className="space-y-1 lg:space-y-2 text-sm">
+                <li><a href="#ozellikler" className={footLink}>{t("land.nav.features")}</a></li>
+                <li><a href="#nasil" className={footLink}>{t("land.nav.how")}</a></li>
+                <li><button onClick={startDemo} className={footLink}>{t("land.demo.cta")}</button></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.account")}</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/login" className="text-text-muted hover:text-text transition-colors">{t("land.nav.signin")}</Link></li>
-                <li><Link href="/register" className="text-text-muted hover:text-text transition-colors">{t("land.final.ctaRegister")}</Link></li>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">{t("land.footer.account")}</h3>
+              <ul className="space-y-1 lg:space-y-2 text-sm">
+                <li><Link href="/login" className={footLink}>{t("land.nav.signin")}</Link></li>
+                <li><Link href="/register" className={footLink}>{t("land.final.ctaRegister")}</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.resources")}</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#fark" className="text-text-muted hover:text-text transition-colors">{t("land.nav.diff")}</a></li>
-                <li><a href="#sss" className="text-text-muted hover:text-text transition-colors">{t("land.nav.faq")}</a></li>
-                <li><button onClick={() => setAboutOpen(true)} className="text-text-muted hover:text-text transition-colors">{t("about.nav")}</button></li>
-                <li><div className="pt-1"><LanguageSwitch /></div></li>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">{t("land.footer.resources")}</h3>
+              <ul className="space-y-1 lg:space-y-2 text-sm">
+                <li><a href="#fark" className={footLink}>{t("land.nav.diff")}</a></li>
+                <li><a href="#sss" className={footLink}>{t("land.nav.faq")}</a></li>
+                <li><button onClick={() => setAboutOpen(true)} className={footLink}>{t("about.nav")}</button></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">{t("land.footer.legal")}</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/privacy" className="text-text-muted hover:text-text transition-colors">{t("land.footer.privacy")}</Link></li>
-                <li><Link href="/terms" className="text-text-muted hover:text-text transition-colors">{t("land.footer.terms")}</Link></li>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">{t("land.footer.legal")}</h3>
+              <ul className="space-y-1 lg:space-y-2 text-sm">
+                <li><Link href="/privacy" className={footLink}>{t("land.footer.privacy")}</Link></li>
+                <li><Link href="/terms" className={footLink}>{t("land.footer.terms")}</Link></li>
               </ul>
             </div>
           </div>
 
-          <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-subtle">
+          <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted">
             <p>© 2013 {t("auth.brand")}</p>
             <p>{t("land.footer.madeby")}</p>
           </div>

@@ -44,7 +44,7 @@ export default function ContactUnsubClient({ token }: { token: string }) {
         <Button size="sm" onClick={cik} disabled={durum === "calisiyor"}>
           {durum === "calisiyor" ? t("contactUnsub.working") : t("contactUnsub.action")}
         </Button>
-        {durum === "hata" && <p className="text-xs text-danger">{mesaj}</p>}
+        {durum === "hata" && <p role="alert" className="text-xs text-danger">{mesaj}</p>}
       </div>
     </AuthShell>
   );

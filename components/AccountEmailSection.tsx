@@ -76,10 +76,10 @@ export default function AccountEmailSection() {
 
   return (
     <section className="space-y-1">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle mb-1">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted mb-1">
         {t("account.email.label")}
       </h3>
-      <p className="text-[11px] text-text-subtle leading-snug">{t("account.email.hint")}</p>
+      <p className="text-[11px] text-text-muted leading-snug">{t("account.email.hint")}</p>
       <div className="flex gap-2 mt-1.5">
         <input
           type="email"
@@ -94,7 +94,7 @@ export default function AccountEmailSection() {
       </div>
       {durum.authEmail && (
         <p className="text-[11px] mt-1">
-          <span className={durum.authEmailVerified ? "text-primary" : "text-text-subtle"}>
+          <span className={durum.authEmailVerified ? "text-primary" : "text-text-muted"}>
             {durum.authEmailVerified ? `✓ ${t("account.email.verified")}` : t("account.email.unverified")}
           </span>
         </p>

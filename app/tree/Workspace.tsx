@@ -57,7 +57,7 @@ function TreeLoading() {
   const t = useT();
   return (
     <div className="h-full grid place-items-center">
-      <div className="flex items-center gap-2.5 text-text-subtle text-sm">
+      <div className="flex items-center gap-2.5 text-text-muted text-sm">
         <span className="w-4 h-4 rounded-full border-2 border-border border-t-primary animate-spin" />
         {t("ws.treeLoading")}
       </div>
@@ -1200,7 +1200,7 @@ function TreeDepthControl({
           </button>
         ))}
       </div>
-      <span className="text-[11px] text-text-subtle tabular-nums whitespace-nowrap border-l border-border pl-2 shrink-0">
+      <span className="text-[11px] text-text-muted tabular-nums whitespace-nowrap border-l border-border pl-2 shrink-0">
         {shown}/{total}
       </span>
     </div>

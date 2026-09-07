@@ -37,7 +37,7 @@ export default function RootSelect({
     <div className="flex items-center gap-2 min-w-0">
       <Avatar person={root} size="sm" />
       <div className="min-w-0">
-        <label className="text-xs text-text-subtle leading-tight block" htmlFor={id}>
+        <label className="text-xs text-text-muted leading-tight block" htmlFor={id}>
           {label}
         </label>
         <select

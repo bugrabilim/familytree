@@ -50,7 +50,10 @@ export default function AcceptPairPage({ params }: { params: Promise<{ token: st
         <p className="text-sm text-text-muted leading-relaxed">{t("pair.acceptBody")}</p>
         {needLogin ? (
           <div className="space-y-2">
-            <p className="text-sm text-danger">{t("pair.needLogin")}</p>
+            {/* `needLogin` 401 yanıtından sonra açılıyor, yani bu da bir
+                EYLEM SONUCU: sessiz belirmemeli. Hemen altındaki "girişe git"
+                bağlantısı odak sırasında bunu izliyor. */}
+            <p role="alert" className="text-sm text-danger">{t("pair.needLogin")}</p>
             <Link href="/login" className="text-sm text-primary hover:underline">
               {t("pair.toLogin")}
             </Link>
@@ -60,8 +63,8 @@ export default function AcceptPairPage({ params }: { params: Promise<{ token: st
             {busy ? t("pair.accepting") : t("pair.accept")}
           </Button>
         )}
-        {error && <p className="text-sm text-danger">{error}</p>}
-        <Link href="/tree" className="block text-xs text-text-subtle hover:text-text">
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        <Link href="/tree" className="block text-xs text-text-muted hover:text-text">
           {t("pair.cancel")}
         </Link>
       </div>

@@ -52,7 +52,7 @@ export default function VerifyEmailClient({ token }: { token: string }) {
           <Button size="sm" onClick={dogrula} disabled={durum === "calisiyor"}>
             {durum === "calisiyor" ? t("verifyEmail.working") : t("verifyEmail.action")}
           </Button>
-          {durum === "hata" && <p className="text-xs text-danger">{mesaj}</p>}
+          {durum === "hata" && <p role="alert" className="text-xs text-danger">{mesaj}</p>}
         </div>
       )}
     </AuthShell>
