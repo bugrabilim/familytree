@@ -57,9 +57,20 @@ create table if not exists public.tree_members (
   display_name  text not null default '',
   password_hash text not null,
   role          text not null default 'viewer',
+  -- Giriş adı (`lib/username.ts`). SONRADAN eklendi: eski üyelerde boş.
+  -- Boş bırakılabilir olması şart — üye adsız da var olabiliyor ve
+  -- `not null` yapmak göçü kilitlerdi.
+  username      text,
   joined_at     timestamptz not null default now()
 );
 create index if not exists tree_members_tree_idx on public.tree_members (tree_id);
+-- Ad ağaç içinde BENZERSİZ ve büyük/küçük harf duyarsız — `usernameTaken`
+-- ile aynı kural, ama burada veritabanı düzeyinde. Blob tarafındaki denetim
+-- iki eşzamanlı davetin aynı adı almasını engelleyemiyor; bu indeks
+-- engelliyor. `where username is not null`: adsız üyeler kısıta girmiyor.
+create unique index if not exists tree_members_username_idx
+  on public.tree_members (tree_id, lower(username))
+  where username is not null;
 
 -- ── Davetler ─────────────────────────────────────────────────────────────────
 -- Tek kullanımlık davetler (bekleyen/kullanılmış).

@@ -3,7 +3,7 @@ import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { mergePersonFields } from "@/lib/person-fields";
 import { canEdit, canEditPerson } from "@/lib/roles";
-import { deleteBondsOfPerson } from "@/lib/bond-store";
+import { forgetPeople } from "@/lib/person-forget";
 import { scrubDeleted } from "@/lib/scrub";
 
 const conflict = () =>
@@ -174,20 +174,15 @@ export async function DELETE(
   await saveFamilyData(userId, data, { by: ctx.authorId });
 
   /*
-   * Duygusal bağlar ayrı bir blobda; kişi listesinden silmek onları
-   * silmiyor. Ölü kaydı burada kaldırıyoruz.
+   * AĞACIN DIŞINDA KALANLAR — duygusal bağlar, açık hikâye talepleri.
+   * Kural ve gerekçeler `lib/person-forget.ts`te; TOPLU silme yolu da AYNI
+   * işlevi çağırıyor ki ikisi ayrı düşmesin (bir kez düşmüştü: toplu silme
+   * bu depolara hiç uğramıyordu).
    *
-   * Kişi kaydı ZATEN kaydedildikten SONRA ve hatayı yutarak: bağ silme
-   * başarısız olsa bile kişi silinmiş olmalı. Kalan öksüz bağı okuma
-   * tarafındaki `pruneBonds` zaten süzüyor, yani görünür bir bozulma
-   * doğurmuyor — asıl silme işlemini geri almak ise kullanıcıya "silinmedi"
-   * demek olurdu.
+   * Kişi kaydı ZATEN kaydedildikten SONRA: bu temizlik başarısız diye silme
+   * geri alınamaz, kullanıcıya "silinmedi" demek olurdu.
    */
-  try {
-    await deleteBondsOfPerson(userId, id);
-  } catch {
-    /* yok sayılır — öksüz bağ okurken süzülüyor */
-  }
+  await forgetPeople(userId, [id]);
 
   return NextResponse.json({ success: true });
 }

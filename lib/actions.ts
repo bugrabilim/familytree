@@ -124,11 +124,20 @@ export async function deletePerson(id: string): Promise<void> {
   if (!res.ok) throw new Error(await parseError(res, "Kişi silinemedi."));
 }
 
-/** Kardeş grubunun yeni sırasını (id listesi) sunucuya bildirir. */
+/**
+ * Kardeş grubunun yeni sırasını (id listesi) sunucuya bildirir.
+ *
+ * `mutationHeaders()` — düz `{ "Content-Type": … }` DEĞİL. Sunucu tarafı bu
+ * uçta `versionMismatch`i baştan beri denetliyordu ama istemci başlığı hiç
+ * göndermiyordu: `versionMismatch` başlık yokken `false` döndüğü için kilit
+ * VARDI ama hiçbir zaman devreye girmiyordu — kodu okuyan "burası korunuyor"
+ * diye geçiyordu. En sessiz koruma türü: kendi testini de geçen, hiç
+ * çalışmayan kilit.
+ */
 export async function reorderSiblings(ids: string[]): Promise<void> {
   const res = await fetch("/api/family/reorder", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: mutationHeaders(),
     body: JSON.stringify({ ids }),
   });
   if (!res.ok) throw new Error(await parseError(res, "Sıra güncellenemedi."));

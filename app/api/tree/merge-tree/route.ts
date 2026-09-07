@@ -55,8 +55,21 @@ export async function POST(req: NextRequest) {
     );
 
   const { people, added, linked } = mergeTree(mine.people, peer.people);
-  if (added > 0) {
-    await saveFamilyData(ctx.treeId, { people: ensureCodes(people), updatedAt: new Date().toISOString() });
+  /*
+   * `linked` DE BİR DEĞİŞİKLİK — koşul eskiden yalnız `added > 0` idi.
+   *
+   * `graftClosure` eşleşen kişilerde komşu ağaçtan gelen eksik ebeveyn, eş ve
+   * eski eş bağlarını yerel kayda birleştiriyor ve bunu `linked` ile sayıyor.
+   * Yeni kişi eklenmediği (`added === 0`) ama bağ birleştiği durumda o
+   * birleşmeler hesaplanıp yanıtta bildiriliyor, ama HİÇ KAYDEDİLMİYORDU:
+   * kullanıcı "0 eklendi · 5 bağlandı" görüyor, ekranı yenilediğinde beş
+   * bağın hiçbiri yok. Sessiz bir kayıp değil — sessiz bir YALAN.
+   *
+   * Kardeş uç `/api/tree/graft` bu koşulu baştan doğru yazmıştı
+   * (`added === 0 && linked === 0` ise erken dönüş); ikisi ayrı düşmüştü.
+   */
+  if (added > 0 || linked > 0) {
+    await saveFamilyData(ctx.treeId, { people: ensureCodes(people), updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   }
   return NextResponse.json({ ok: true, added, linked });
 }

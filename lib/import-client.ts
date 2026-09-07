@@ -8,7 +8,21 @@
  *  · Görsel / Excel / Word / diğer → yapay zekâ (/api/ai/extract).
  *
  * Böylece kullanıcı hangi dosyayı seçerse seçsin tek "Dosya seç" akışı çalışır.
+ *
+ * ## Sürüm başlığı
+ *
+ * Her iki uç da `versionMismatch`i denetliyor, ama bu istemci başlığı hiç
+ * göndermiyordu — ve `versionMismatch` başlık yokken `false` döndüğü için
+ * kilit VARDI ama hiç devreye girmiyordu. "Değiştir" kipinde bunun bedeli
+ * ağır: ağacın TAMAMI dosyadaki listeyle eziliyor, yani ekran açıkken
+ * başkasının eklediği kişiler sessizce gidiyordu.
+ *
+ * `mutationHeaders(false)` — `Content-Type` KONMUYOR. Gövde `FormData` ve
+ * tarayıcı `multipart/form-data` sınırını kendi üretiyor; elle bir
+ * `Content-Type` koymak o sınırı bozar ve istek ayrıştırılamaz.
  */
+
+import { mutationHeaders } from "./actions";
 
 export class ImportError extends Error {
   status: number;
@@ -29,7 +43,7 @@ async function postFamilyImport(file: File, mode: string): Promise<Attempt> {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("mode", mode);
-  const res = await fetch("/api/family/import", { method: "POST", body: fd });
+  const res = await fetch("/api/family/import", { method: "POST", headers: mutationHeaders(false), body: fd });
   const data = await res.json().catch(() => null);
   return { ok: res.ok, count: data?.count ?? 0, status: res.status, error: data?.error };
 }
@@ -39,7 +53,7 @@ async function postAiExtract(file: File, mode: string, lang: string): Promise<At
   fd.append("file", file);
   fd.append("mode", mode);
   fd.append("lang", lang);
-  const res = await fetch("/api/ai/extract", { method: "POST", body: fd });
+  const res = await fetch("/api/ai/extract", { method: "POST", headers: mutationHeaders(false), body: fd });
   const data = await res.json().catch(() => null);
   return { ok: res.ok, count: data?.count ?? 0, status: res.status, error: data?.error };
 }

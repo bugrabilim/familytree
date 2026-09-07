@@ -45,7 +45,7 @@ import TreeSchema from "@/components/TreeSchema";
 import { ReadOnlyProvider, useReadOnly } from "@/components/ReadOnlyContext";
 import { AuthorityProvider, useAuthority } from "@/components/AuthorityContext";
 import { canEdit, canManage } from "@/lib/roles";
-import { setBaseVersion, type RelationType } from "@/lib/actions";
+import { mutationHeaders, setBaseVersion, type RelationType } from "@/lib/actions";
 import { ancestorDepths, descendantDepths, indexPeople } from "@/lib/relations";
 import { isMember } from "@/lib/associates";
 import { useT } from "@/lib/i18n";
@@ -539,8 +539,8 @@ function WorkspaceInner({
   const setCover = useCallback(async (url: string | null) => {
     try {
       const res = url
-        ? await fetch("/api/family/cover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })
-        : await fetch("/api/family/cover", { method: "DELETE" });
+        ? await fetch("/api/family/cover", { method: "POST", headers: mutationHeaders(), body: JSON.stringify({ url }) })
+        : await fetch("/api/family/cover", { method: "DELETE", headers: mutationHeaders(false) });
       if (!res.ok) throw new Error();
       setCoverPhotoState(url ?? undefined);
     } catch {

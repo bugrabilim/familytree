@@ -258,7 +258,26 @@ export async function saveFamilyData(
    * kurulumu). Verilmezse akışta katkı "biri" olarak görünür, kayıt yine
    * tutulur.
    */
-  opts: { by?: string } = {}
+  opts: {
+    by?: string;
+    /**
+     * GERİ ALMA GÜNLÜĞÜNE YAZMA.
+     *
+     * Günlük 50 görüntüyle sınırlı ve amacı KULLANICININ kendi
+     * düzenlemelerini geri alabilmesi. Ama bazı yazmalar kullanıcının
+     * düzenlemesi değil: bir üçüncü kişinin postadaki bağlantıya tıklayıp
+     * onay/ret vermesi (`lib/contact-lookup.ts`) ya da hatırlatma işinin
+     * gönderdiği soruyu işaretlemesi (`app/api/cron/reminders`).
+     *
+     * Bunlar günlüğe yazıldığında iki zarar birden veriyordu: sınırlı geri
+     * alma yuvasını tüketip kullanıcının GERÇEK bir düzenlemesini ringden
+     * düşürüyor, ve katkı akışında hiç yapılmamış bir "düzenleme" gösteriyor
+     * ("biri bir şey değiştirdi" — kimse değiştirmedi).
+     *
+     * Kaydın kendisi yine yapılıyor; yalnız geçmişe yazılmıyor.
+     */
+    skipHistory?: boolean;
+  } = {}
 ): Promise<void> {
   // Hedefli çift-yazma için: AYNI istekte okunmuş TAZE anlık görüntüyü yakala
   // (kaydetmeden önceki durum). Taze değilse (ör. önce okumayan demo yolu)
@@ -269,7 +288,7 @@ export async function saveFamilyData(
   // #11 — Güncelleme günlüğü: bu kaydın ÜZERİNE yazdığı ÖNCEKİ durumu geçmişe
   // ekle (geri alma için). Taze eski görüntü varsa onu kullan; yoksa Blob'dan
   // oku. Kişi listesi değişmediyse (ör. yalnız kapak) günlüğe eklemeyiz.
-  try {
+  if (!opts.skipHistory) try {
     let prevPeople: Person[] | null = null;
     if (freshOldJson) {
       prevPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? null;

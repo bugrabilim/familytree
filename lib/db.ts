@@ -128,6 +128,22 @@ export async function dbReplaceMembers(treeId: string, members: Member[]): Promi
     display_name: m.displayName,
     password_hash: m.passwordHash,
     role: m.role,
+    /*
+     * GİRİŞ ADI da aynalanıyor.
+     *
+     * Alan sonradan eklendi (`lib/username.ts`) ve ayna güncellenmemişti:
+     * üye Blob'da adıyla vardı, Postgres'te adsızdı. Bugün zararsız — okuma
+     * yolu üyeleri hâlâ Blob'dan çözüyor — ama Faz 3'ün varış noktası
+     * okumayı Postgres'e çevirmek, ve o gün her üye giriş adını KAYBEDERDİ:
+     * adıyla giriş yapan herkes "böyle bir üye yok" görürdü ve sebebi
+     * aylar önce yazılmış bu satırda olurdu.
+     *
+     * `?? null`: alan yoksa sütun boş kalıyor. Boş dize YAZILMIYOR — şemadaki
+     * benzersizlik indeksi `username is not null` ile sınırlı ve boş dize
+     * "adsız" değil, "adı boş dize olan" demek olurdu; iki adsız üye
+     * çakışırdı.
+     */
+    username: m.username ?? null,
     joined_at: m.joinedAt,
   }));
   const { error } = await sb.from("tree_members").insert(rows);

@@ -350,7 +350,14 @@ export async function GET(req: NextRequest) {
               };
               yazilacak = true;
             }
-            if (yazilacak) await saveFamilyData(u.id, taze);
+            /*
+             * GEÇMİŞE YAZILMIYOR: yazılan tek şey jeton özeti ve sorma anı —
+             * kullanıcının göreceği ya da geri almak isteyeceği bir
+             * düzenleme değil. Günlüğe girseydi zamanlanmış iş her koşuda
+             * geri alma ringini kemirir ve akışta sahte "düzenleme"ler
+             * üretirdi.
+             */
+            if (yazilacak) await saveFamilyData(u.id, taze, { skipHistory: true });
           }
         } catch {
           /* tek ağaç hatası tüm işi durdurmasın */

@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
       { status: 409 }
     );
 
-  await saveFamilyData(ctx.treeId, { people: [], updatedAt: new Date().toISOString() });
+  await saveFamilyData(ctx.treeId, { people: [], updatedAt: new Date().toISOString() }, { by: ctx.authorId });
   return NextResponse.json({ ok: true, count: 0 });
 }
