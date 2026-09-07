@@ -184,7 +184,25 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   const h = await headers();
   const cookieVal = h.get(ACTIVE_TREE_HEADER)?.trim() || (await cookies()).get(ACTIVE_TREE_COOKIE)?.value;
   if (cookieVal && cookieVal !== accountId) {
-    const owned = await accessibleTreeIds(accountId);
+    /*
+     * KAYIT OKUNAMAZSA ANA AĞACA DÜŞÜLÜYOR, HATA VERİLMİYOR.
+     *
+     * `readRegistry` artık okuma arızasında fırlatıyor (yetim ağaç
+     * bırakmamak için, `lib/trees.ts`) ve bu çağrı `resolveActiveTree`in
+     * içinde: sarmalanmasaydı geçici bir depo arızası BÜTÜN API'yi 500'e
+     * çevirirdi — düzeltmenin kendisi, düzelttiği arızadan ağır bir hasar
+     * verirdi.
+     *
+     * Düşülen yer güvenli yön: kullanıcı seçtiği ağaç yerine KENDİ ana
+     * ağacını görüyor. Bu bir DARALTMA — hiçbir zaman erişemeyeceği bir
+     * ağacı açmıyor.
+     */
+    let owned: string[] = [];
+    try {
+      owned = await accessibleTreeIds(accountId);
+    } catch (e) {
+      console.warn(`[ağaç-bağlamı] kayıt okunamadı (${accountId}):`, (e as Error).message);
+    }
     if (hasTreeAccess(accountId, cookieVal, owned)) {
       return { ok: true, accountId, treeId: cookieVal, role: "yonetici", isFounder: true, authorId };
     }

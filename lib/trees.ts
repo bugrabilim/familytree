@@ -22,20 +22,36 @@ function registryPath(accountId: string) {
   return `account-trees-${accountId}.json`;
 }
 
+/**
+ * Hesabın ağaç kaydı.
+ *
+ * OKUNAMAYAN KAYIT, BOŞ KAYIT DEĞİL — ve burada bedeli ötekilerden ağır.
+ *
+ * İlk hâli her arızada `[]` dönüyordu. `writeRegistry` okuduğunun üstüne
+ * yazdığı için (ağaç ekleme, silme, kalıcı temizlik hepsi oku→değiştir→yaz),
+ * tek bir geçici okuma hatası hesabın BÜTÜN EK AĞAÇLARINI kayıttan
+ * düşürüyordu. Ve düşen ağaç yalnız görünmez olmuyor: `treeId` artık hiçbir
+ * kayıtta olmadığı için `duePurgeTrees` onu bir daha hiç görmüyor,
+ * `accessibleTreeIds` erişimi vermiyor, `allTreeIds` hesap silinirken onu
+ * temizlemiyor. Ortada sahibi olmayan, kimsenin göremediği ve kimsenin
+ * silemeyeceği bir ağaç kalıyor — hem veri kaybı hem yetim veri.
+ *
+ * Aynı tuzak `users.json`, `tree-access-*`, `family-data-*` ve
+ * `family-history-*`ta da vardı; hepsi aynı yönde çözüldü: fırlat.
+ *
+ * DOSYA YOKSA boş dönmek DOĞRU: hesabın gerçekten ek ağacı olmayabilir.
+ */
 async function readRegistry(accountId: string): Promise<TreeMeta[]> {
-  try {
-    const { blobs } = await list({ prefix: registryPath(accountId) });
-    if (blobs.length === 0) return [];
-    const latest = blobs.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0];
-    const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return [];
-    const data = (await new Response(result.stream).json()) as { trees?: TreeMeta[] };
-    return Array.isArray(data.trees) ? data.trees : [];
-  } catch {
-    return [];
-  }
+  const { blobs } = await list({ prefix: registryPath(accountId) });
+  if (blobs.length === 0) return [];
+  const latest = blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+  const result = await get(latest.pathname, { access: "private", useCache: false });
+  if (!result || result.statusCode !== 200)
+    throw new Error(`ağaç kaydı okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
+  const data = (await new Response(result.stream).json()) as { trees?: TreeMeta[] };
+  return Array.isArray(data.trees) ? data.trees : [];
 }
 
 async function writeRegistry(accountId: string, trees: TreeMeta[]): Promise<void> {

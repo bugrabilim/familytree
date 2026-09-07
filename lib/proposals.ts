@@ -590,6 +590,37 @@ export function markUndone(p: Proposal, at: string, byName = ""): Proposal {
  * öneriler tavanı doldurmuşsa yeni öneri REDDEDİLİYOR — gürültülü bir
  * "kuyruk dolu" hatası, sessiz bir kayıptan iyidir.
  */
+/**
+ * Bir kararlı önerinin ATILMA SIRASI — küçük olan önce gider.
+ *
+ * Tavan dolduğunda eskiden en eski kararlı öneriler sırayla atılıyordu ve
+ * "kararlı" olmak hepsini eşit değerde sayıyordu. Değildiler:
+ *
+ * Onaylanmış bir SİLME önerisinin `undo` kaydı, silinen kişinin kaydını ve
+ * koparılan bağlarını taşıyor — ağaçta o kişi artık yok, yani bu kuyruktaki
+ * satır o kişinin TEK KOPYASI. Tavan yüzünden atıldığında geri alma
+ * düğmesi işlevsiz kalıyor ve kişi kalıcı olarak yok oluyor; üstelik
+ * sessizce, çünkü tavan temizliği kullanıcıya hiçbir şey söylemiyor.
+ *
+ * Reddedilmiş ya da geri çekilmiş bir öneri ise hiçbir şey uygulamamış:
+ * atılınca kaybolan tek şey bir kaydın "şunu önermiştim" bilgisi. Aynı
+ * şekilde geri alınmış bir onay da (`undoneAt` var, `undo` silinmiş)
+ * kurtarılacak bir şey taşımıyor.
+ *
+ * Sıra bu yüzden değere göre: önce hiçbir şey taşımayanlar, en son kişinin
+ * tek kopyasını taşıyanlar.
+ */
+function atilmaSirasi(p: Proposal): number {
+  /* 0 — hiçbir şey uygulanmadı; kurtarılacak veri yok. */
+  if (p.status === "reddedildi" || p.status === "geri-cekildi") return 0;
+  /* 1 — onay geri alınmış: `undo` zaten silinmiş. */
+  if (p.undoneAt || !p.undo) return 1;
+  /* 3 — silinen kişinin TEK KOPYASI. */
+  if (kindOf(p) === "silme") return 3;
+  /* 2 — geri alınabilir ama kayıt hâlâ ağaçta (alan/ekleme/içerik). */
+  return 2;
+}
+
 export function planProposal(
   mevcut: Proposal[],
   yeni: Proposal
@@ -601,7 +632,26 @@ export function planProposal(
   const kararli = liste.filter((p) => p.status !== "bekliyor");
   if (kararli.length < dusurulecek) return { ok: false, fail: "kuyruk-dolu" };
 
-  const at = new Set(kararli.slice(0, dusurulecek).map((p) => p.id));
+  /*
+   * DEĞERE GÖRE SIRALA, sonra en ucuzları at. Sıralama KARARLI: eşit
+   * değerdekiler arasında liste sırası (yani eskilik) korunuyor, çünkü
+   * `Array.prototype.sort` ES2019'dan beri kararlı. Eskiden davranış yalnız
+   * bu ikinci ölçüttü.
+   */
+  const sirali = kararli
+    .map((p, i) => ({ p, i, deger: atilmaSirasi(p) }))
+    .sort((a, b) => a.deger - b.deger || a.i - b.i);
+
+  /*
+   * SİLİNEN KİŞİNİN TEK KOPYASI ATILMIYOR. Atılacakların hepsi bu değerdeyse
+   * yeni öneri REDDEDİLİYOR: gürültülü bir "kuyruk dolu" hatası, sessizce
+   * bir insanın kaydını yok etmekten iyidir. Kuyruk sahibi bir öneriyi geri
+   * alarak ya da geri almayı bitirerek yer açabilir.
+   */
+  const atilacak = sirali.slice(0, dusurulecek);
+  if (atilacak.some((x) => x.deger === 3)) return { ok: false, fail: "kuyruk-dolu" };
+
+  const at = new Set(atilacak.map((x) => x.p.id));
   return { ok: true, list: liste.filter((p) => !at.has(p.id)) };
 }
 

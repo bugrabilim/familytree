@@ -318,6 +318,71 @@ check(sameValue([{ a: 1, b: 2 }], [{ b: 2, a: 1 }]), "dizi içindeki nesnelerde 
   const r = planProposal(dolu, oneri({ id: "yeni" }));
   check(!r.ok && r.fail === "kuyruk-dolu", "hepsi bekliyorsa yeni öneri REDDEDİLİYOR");
 }
+
+/* ── Tavan: NE atılacağı da bir karar ────────────────────────────────────── */
+/*
+ * "Kararlı" olmak bütün önerileri eşit değerde yapmıyordu ve eskiden tavan
+ * en eskiyi atıyordu. Onaylanmış bir SİLME önerisinin `undo` kaydı, silinen
+ * kişinin kaydını ve koparılan bağlarını taşıyor — ağaçta o kişi artık YOK,
+ * yani kuyruktaki bu satır onun TEK KOPYASI. Atıldığında geri alma düğmesi
+ * işlevsiz kalıyor ve kişi kalıcı olarak yok oluyor; üstelik sessizce.
+ */
+{
+  const silmeUndo = () =>
+    oneri({
+      id: "silme-eski", status: "onaylandi", kind: "silme",
+      undo: { person: { id: "k1", firstName: "Ayşe", lastName: "Yılmaz" }, refs: [] },
+    } as unknown as Partial<Proposal>);
+
+  /* En ESKİ kayıt kıymetli olan; yenisi reddedilmiş. Eskilik değil DEĞER kazanmalı. */
+  const liste = [
+    silmeUndo(),
+    ...Array.from({ length: MAX_PROPOSALS - 1 }, (_, i) =>
+      oneri({ id: `r${i}`, status: "reddedildi" })),
+  ];
+  const r = planProposal(liste, oneri({ id: "yeni" }));
+  check(r.ok, "yer açılabiliyor");
+  if (r.ok) {
+    check(r.list.some((p) => p.id === "silme-eski"),
+      "silinen kişinin TEK KOPYASI atılmıyor (en eski olsa bile)");
+    check(!r.list.some((p) => p.id === "r0"), "onun yerine değersiz olan atılıyor");
+  }
+}
+{
+  /*
+   * Atılabilecek her şey kıymetliyse yeni öneri REDDEDİLİYOR. Gürültülü bir
+   * "kuyruk dolu" hatası, sessizce bir insanın kaydını yok etmekten iyidir —
+   * bekleyen öneriler için verilen kararın aynısı.
+   */
+  const hepsiSilme = Array.from({ length: MAX_PROPOSALS }, (_, i) =>
+    oneri({
+      id: `s${i}`, status: "onaylandi", kind: "silme",
+      undo: { person: { id: `k${i}` }, refs: [] },
+    } as unknown as Partial<Proposal>));
+  const r = planProposal(hepsiSilme, oneri({ id: "yeni" }));
+  check(!r.ok && r.fail === "kuyruk-dolu", "kurtarılacak kayıt uğruna yeni öneri reddediliyor");
+}
+{
+  /*
+   * GERİ ALINMIŞ bir onay taşıdığı şeyi zaten geri vermiş: `undo` silinmiş,
+   * `undoneAt` konmuş. Onu atmak bir şey kaybettirmiyor, o yüzden bekleyen
+   * silme kaydından ÖNCE gitmeli.
+   */
+  const liste = [
+    oneri({ id: "geri-alinmis", status: "onaylandi", kind: "silme", undoneAt: "2026-01-01T00:00:00.000Z" } as unknown as Partial<Proposal>),
+    oneri({
+      id: "canli-silme", status: "onaylandi", kind: "silme",
+      undo: { person: { id: "k9" }, refs: [] },
+    } as unknown as Partial<Proposal>),
+    ...Array.from({ length: MAX_PROPOSALS - 2 }, (_, i) => oneri({ id: `p${i}` })),
+  ];
+  const r = planProposal(liste, oneri({ id: "yeni" }));
+  check(r.ok, "yer açılabiliyor");
+  if (r.ok) {
+    check(!r.list.some((p) => p.id === "geri-alinmis"), "geri alınmış onay atılıyor");
+    check(r.list.some((p) => p.id === "canli-silme"), "canlı silme kaydı korunuyor");
+  }
+}
 eq(pendingCount([oneri(), oneri({ status: "onaylandi" }), oneri()]), 2, "bekleyen sayısı");
 
 /* ── Görünürlük ───────────────────────────────────────────────────────────── */
