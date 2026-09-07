@@ -2,6 +2,11 @@
 
 Bu dosya, kullanıcının "sonra test edeceğim / sorunca hatırlat" dediği maddeleri tutar.
 
+> **Durum (2026-09-07):** ürün sahibi "şu an beklesin, önce diğer işler bitsin"
+> dedi. Aşağıdaki akışlar **elle test edilmeyi bekliyor** — hiçbiri arızalı
+> bilinmiyor, sadece gerçek kullanımla doğrulanmadı. Kalan geliştirme işleri
+> bittiğinde bu liste tek oturumda birlikte gözden geçirilecek.
+
 ## Kullanıcının sonra test edeceği özellikler
 
 - **Üyeler ve davetler** (⋮ → Paylaş → "Üyeler ve davetler"): davet oluşturma,
