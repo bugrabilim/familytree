@@ -270,4 +270,15 @@ export interface TreeAccess {
    * ayrışır ve ağaç yarı gizlenmiş olur — en kötüsü o.
    */
   deletedAt?: string;
+  /**
+   * SÜRÜM DAMGASI — kayıp yazma korumasının dayanağı (`lib/store-mutate.ts`).
+   *
+   * Bu dosya üyeleri, davetleri, paylaşım bağlantılarını ve eşleşmeleri
+   * TEK bir blob'da tutuyor ve her değişiklik dosyanın tamamını geri yazıyor.
+   * Damga olmadan iki eşzamanlı işlem (bir davet kabulü ile bir paylaşım
+   * bağlantısı oluşturma) birbirini siliyordu.
+   *
+   * Eski dosyalarda yok; `normalizeAccess` sabit bir başlangıç değeri veriyor.
+   */
+  updatedAt?: string;
 }

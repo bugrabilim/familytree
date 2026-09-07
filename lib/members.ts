@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import { put, get, list } from "@vercel/blob";
 import { createHash, randomBytes } from "crypto";
 import { compare } from "bcryptjs";
@@ -24,7 +25,42 @@ function accessPathname(treeId: string) {
   return `tree-access-${treeId}.json`;
 }
 
-const empty = (): TreeAccess => ({ members: [], invites: [] });
+const empty = (): TreeAccess & { updatedAt: string } => ({
+  members: [],
+  invites: [],
+  /*
+   * Damga BOŞ kayıtta da var. `mutateStore` iki okumanın damgasını
+   * karşılaştırıyor; `undefined` bırakılsaydı henüz hiç yazılmamış bir ağaç
+   * için koruma çalışmazdı — ve ilk üyenin eklendiği an tam da iki isteğin
+   * çakışmaya en yatkın olduğu an.
+   */
+  updatedAt: new Date(0).toISOString(),
+});
+
+/**
+ * OKU → DEĞİŞTİR → YAZ, çakışma denetimiyle (`lib/store-mutate.ts`).
+ *
+ * Bu dosya üyeleri, davetleri, PAYLAŞIM BAĞLANTILARINI ve eşleşmeleri tek bir
+ * blob'da tutuyor; her değişiklik dosyanın tamamını geri yazıyor. Kilit
+ * yokken iki eşzamanlı işlem birbirini siliyordu — ve buradaki kayıtlar
+ * yalnız veri değil YETKİ: silinen bir üye satırı erişim kaybı, silinen bir
+ * davet "bağlantım çalışmıyor", silinen bir paylaşım bağlantısı ise
+ * dışarıya verilmiş bir adresin ölmesi demek.
+ *
+ * `mirror: false` seçeneği geçiriliyor olabilir; sarmalayıcı onu da taşıyor.
+ */
+function mutate<T>(
+  treeId: string,
+  degistir: (data: TreeAccess & { updatedAt: string }) => { yaz: boolean; sonuc: T } | Promise<{ yaz: boolean; sonuc: T }>,
+  opts: { mirror?: boolean } = {}
+): Promise<T> {
+  return mutateStore(
+    () => getTreeAccess(treeId),
+    (d) => saveTreeAccess(treeId, d, opts),
+    degistir,
+    "Erişim kaydı"
+  );
+}
 
 /**
  * OKUNAMAYAN DOSYA, BOŞ DOSYA DEĞİLDİR.
@@ -43,7 +79,15 @@ const empty = (): TreeAccess => ({ members: [], invites: [] });
  * boş görünmeyi tercih ediyorsa bunu KENDİ çağrısında yakalamalı — orada
  * görünür olur; burada bir bayrağın arkasında görünmez oluyordu.
  */
-export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
+/**
+ * Dönüş tipi damgayı ZORUNLU sayıyor (`TreeAccess`te isteğe bağlı).
+ *
+ * `normalizeAccess` her okumada bir değer koyuyor — depolanan eski dosyada
+ * alan olmasa bile. Tipin bunu söylemesi şart: `mutateStore` iki okumanın
+ * damgasını karşılaştırıyor ve `undefined === undefined` her eski ağacı
+ * "değişmemiş" gösterirdi, yani koruma tam da en eski ağaçlarda çalışmazdı.
+ */
+export async function getTreeAccess(treeId: string): Promise<TreeAccess & { updatedAt: string }> {
   const pathname = accessPathname(treeId);
 
   // (1) Önce DOĞRUDAN pathname ile `get` — YENİ yazılan kaydı hemen görür (güçlü
@@ -99,6 +143,8 @@ async function saveTreeAccess(
   data: TreeAccess,
   opts: { mirror?: boolean } = {}
 ): Promise<void> {
+  /* Damga her yazmada tazeleniyor — çakışma denetiminin dayanağı bu. */
+  data.updatedAt = new Date().toISOString();
   await put(accessPathname(treeId), JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
@@ -163,10 +209,11 @@ export async function isTreeDeleted(treeId: string): Promise<boolean> {
  * döndürmenin anlamı yok.
  */
 export async function markTreeDeleted(treeId: string, deletedAt: string | null): Promise<void> {
-  const data = await getTreeAccess(treeId);
-  if (deletedAt) data.deletedAt = deletedAt;
-  else delete data.deletedAt;
-  await saveTreeAccess(treeId, data, { mirror: false });
+  return mutate<void>(treeId, (data) => {
+    if (deletedAt) data.deletedAt = deletedAt;
+    else delete data.deletedAt;
+    return { yaz: true, sonuc: undefined };
+  }, { mirror: false });
 }
 
 /**
@@ -190,10 +237,10 @@ export async function createInvite(
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + ttlDays * 86400_000).toISOString(),
   };
-  const data = await getTreeAccess(treeId);
-  data.invites.push(invite);
-  await saveTreeAccess(treeId, data);
-  return { token, invite };
+  return mutate<{ token: string; invite: Invite }>(treeId, (data) => {
+    data.invites.push(invite);
+    return { yaz: true, sonuc: { token, invite } };
+  });
 }
 
 /** Davet bağlantısındaki ham jetondan treeId'yi ayıkla (`<treeId>.<secret>`). */
@@ -249,11 +296,23 @@ export async function acceptInvite(
   if (!parsed) return null;
   const { treeId, secret } = parsed;
   const hash = sha256(secret);
-  const data = await getTreeAccess(treeId);
-  if (isSoftDeleted(data)) return null; // silinmiş ağaca yeni üye alınmaz
+
+  /*
+   * KAYIP YAZMA KORUMASI burada özellikle gerekiyordu: davet bağlantısı bir
+   * aileye toplu gidiyor ve iki kişinin aynı dakikada katılması beklenen
+   * durum. Korumasızken ikincisi birincinin üyelik satırını siliyordu —
+   * kişi "katıldım" görüyor, ertesi gün giriş yapamıyordu.
+   *
+   * Gövde ASENKRON: şifre çakışması `compare` ile, kurucunun şifresi ayrı
+   * bir okumayla denetleniyor. Doğrulama okuması gövdeden sonra, yazmadan
+   * hemen önce yapıldığı için bu pencereyi genişletmiyor.
+   */
+  type Sonuc = { treeId: string; member: Member } | { error: "sifre-dolu" | "ad-dolu" } | null;
+  return mutate<Sonuc>(treeId, async (data) => {
+  if (isSoftDeleted(data)) return { yaz: false, sonuc: null }; // silinmiş ağaca yeni üye alınmaz
   const invite = data.invites.find((iv) => iv.tokenHash === hash);
-  if (!invite || invite.usedAt) return null;
-  if (new Date(invite.expiresAt).getTime() < Date.now()) return null;
+  if (!invite || invite.usedAt) return { yaz: false, sonuc: null };
+  if (new Date(invite.expiresAt).getTime() < Date.now()) return { yaz: false, sonuc: null };
 
   /*
    * Aynı ağaçta AYNI ŞİFRE olamaz (yukarıdaki gerekçe). Kurucunun şifresi de
@@ -261,7 +320,7 @@ export async function acceptInvite(
    * şifresini seçen bir üye hiç giriş yapamaz — sessiz bir kilit olurdu.
    */
   const ad = normalizeUsername(username);
-  if (ad && usernameTaken(data.members, ad)) return { error: "ad-dolu" };
+  if (ad && usernameTaken(data.members, ad)) return { yaz: false, sonuc: { error: "ad-dolu" } };
 
   /*
    * Şifre çakışması denetimi YALNIZ adsız katılımda. Ad varsa kimlik adla
@@ -272,10 +331,12 @@ export async function acceptInvite(
    */
   if (!ad && plainPassword) {
     for (const m of data.members) {
-      if (await compare(plainPassword, m.passwordHash)) return { error: "sifre-dolu" };
+      if (await compare(plainPassword, m.passwordHash))
+        return { yaz: false, sonuc: { error: "sifre-dolu" } };
     }
     const kurucu = await findUserById(treeId);
-    if (kurucu && (await compare(plainPassword, kurucu.passwordHash))) return { error: "sifre-dolu" };
+    if (kurucu && (await compare(plainPassword, kurucu.passwordHash)))
+      return { yaz: false, sonuc: { error: "sifre-dolu" } };
   }
 
   const member: Member = {
@@ -288,8 +349,8 @@ export async function acceptInvite(
   };
   invite.usedAt = new Date().toISOString();
   data.members.push(member);
-  await saveTreeAccess(treeId, data);
-  return { treeId, member };
+  return { yaz: true, sonuc: { treeId, member } };
+  });
 }
 
 /**
@@ -349,16 +410,18 @@ export async function findMemberByUsername(
 }
 
 export async function removeMember(treeId: string, memberId: string): Promise<void> {
-  const data = await getTreeAccess(treeId);
-  data.members = data.members.filter((m) => m.id !== memberId);
-  await saveTreeAccess(treeId, data);
+  return mutate<void>(treeId, (data) => {
+    data.members = data.members.filter((m) => m.id !== memberId);
+    return { yaz: true, sonuc: undefined };
+  });
 }
 
 /** Bekleyen (kullanılmamış) bir daveti özet-hash ile iptal et. */
 export async function revokeInvite(treeId: string, tokenHash: string): Promise<void> {
-  const data = await getTreeAccess(treeId);
-  data.invites = data.invites.filter((iv) => iv.tokenHash !== tokenHash);
-  await saveTreeAccess(treeId, data);
+  return mutate<void>(treeId, (data) => {
+    data.invites = data.invites.filter((iv) => iv.tokenHash !== tokenHash);
+    return { yaz: true, sonuc: undefined };
+  });
 }
 
 /* ── Herkese açık salt-okunur paylaşım (üyeliksiz görüntüleme) ──────────────── */
@@ -393,15 +456,16 @@ function isExpired(s: ShareLink): boolean {
 
 /** Ağacın tüm paylaşım bağlantıları (en yeni önce). */
 export async function listShares(treeId: string): Promise<ShareLink[]> {
-  const data = await getTreeAccess(treeId);
-  const shares = normalizeShares(data);
-  // Eski tekil share'i kalıcı olarak diziye yaz (bir kereye mahsus geçiş).
-  if (data.share && !Array.isArray(data.shares)) {
-    data.shares = shares;
-    data.share = undefined;
-    await saveTreeAccess(treeId, data);
-  }
-  return shares;
+  return mutate<ShareLink[]>(treeId, (data) => {
+    const shares = normalizeShares(data);
+    // Eski tekil share'i kalıcı olarak diziye yaz (bir kereye mahsus geçiş).
+    if (data.share && !Array.isArray(data.shares)) {
+      data.shares = shares;
+      data.share = undefined;
+      return { yaz: true, sonuc: shares };
+    }
+    return { yaz: false, sonuc: shares };
+  });
 }
 
 /** Yeni bir paylaşım bağlantısı oluşturur. */
@@ -428,17 +492,17 @@ export async function createShare(
     views: 0,
     visits: [],
   };
-  const data = await getTreeAccess(treeId);
-  const shares = normalizeShares(data);
-  shares.unshift(share);
-  if (shares.length > MAX_SHARES) shares.length = MAX_SHARES;
-  data.shares = shares;
-  data.share = undefined;
-  await saveTreeAccess(treeId, data);
-  // Güncel listeyi DE döndür: çağıran, yazdıktan hemen sonra tekrar OKUMASIN.
-  // Blob `list()` eventually-consistent'tır; yeni yazılan kayıt hemen
-  // görünmeyebilir ve yanıt boş dönerdi ("bağlantı oluşmuyor" hatası, #3).
-  return { share, shares };
+  return mutate<{ share: ShareLink; shares: ShareLink[] }>(treeId, (data) => {
+    const shares = normalizeShares(data);
+    shares.unshift(share);
+    if (shares.length > MAX_SHARES) shares.length = MAX_SHARES;
+    data.shares = shares;
+    data.share = undefined;
+    // Güncel listeyi DE döndür: çağıran, yazdıktan hemen sonra tekrar OKUMASIN.
+    // Blob `list()` eventually-consistent'tır; yeni yazılan kayıt hemen
+    // görünmeyebilir ve yanıt boş dönerdi ("bağlantı oluşmuyor" hatası, #3).
+    return { yaz: true, sonuc: { share, shares } };
+  });
 }
 
 /** Bir paylaşımın seçeneklerini günceller (jeton değişmez). */
@@ -451,10 +515,10 @@ export async function updateShare(
     scope?: ShareScope[] | null;
   }
 ): Promise<ShareLink[] | null> {
-  const data = await getTreeAccess(treeId);
+  return mutate<ShareLink[] | null>(treeId, (data) => {
   const shares = normalizeShares(data);
   const s = shares.find((x) => x.id === id);
-  if (!s) return null;
+  if (!s) return { yaz: false, sonuc: null };
   if (opts.hideLiving !== undefined) s.hideLiving = opts.hideLiving;
   if (opts.label !== undefined) s.label = opts.label.trim() || undefined;
   if (opts.expiresDays !== undefined) s.expiresAt = daysToExpiry(opts.expiresDays);
@@ -469,27 +533,28 @@ export async function updateShare(
   if (opts.scope !== undefined) s.scope = opts.scope ?? undefined;
   data.shares = shares;
   data.share = undefined;
-  await saveTreeAccess(treeId, data);
-  return shares;
+  return { yaz: true, sonuc: shares };
+  });
 }
 
 /** Bir paylaşım bağlantısını siler (kalıcı). Güncel listeyi döndürür. */
 export async function deleteShare(treeId: string, id: string): Promise<ShareLink[]> {
-  const data = await getTreeAccess(treeId);
-  const shares = normalizeShares(data).filter((s) => s.id !== id);
-  data.shares = shares;
-  data.share = undefined;
-  await saveTreeAccess(treeId, data);
-  return shares;
+  return mutate<ShareLink[]>(treeId, (data) => {
+    const shares = normalizeShares(data).filter((s) => s.id !== id);
+    data.shares = shares;
+    data.share = undefined;
+    return { yaz: true, sonuc: shares };
+  });
 }
 
 /** Bir ağacın tüm paylaşım bağlantılarını temizler (ör. demo sıfırlaması). */
 export async function resetShares(treeId: string): Promise<void> {
-  const data = await getTreeAccess(treeId);
-  if ((data.shares?.length ?? 0) === 0 && !data.share) return;
-  data.shares = [];
-  data.share = undefined;
-  await saveTreeAccess(treeId, data);
+  return mutate<void>(treeId, (data) => {
+    if ((data.shares?.length ?? 0) === 0 && !data.share) return { yaz: false, sonuc: undefined };
+    data.shares = [];
+    data.share = undefined;
+    return { yaz: true, sonuc: undefined };
+  });
 }
 
 /** Genel görüntüleme için: jeton geçerli, etkin ve süresi dolmamış mı? */
@@ -536,10 +601,18 @@ export async function recordShareVisit(
      * `getTreeAccess` artık bu durumda fırlatıyor ve dıştaki `catch` yutuyor:
      * ziyaret sayılmaz, kayıt korunur.
      */
-    const data = await getTreeAccess(treeId);
+    /*
+     * Çakışma koruması BURADA özellikle değerli: sayaç okunup bir artırılıp
+     * geri yazılıyor ve bu, kayıp güncellemenin ders kitabı örneği. Aynı
+     * bağlantı bir gruba gönderildiğinde birkaç kişinin aynı anda açması
+     * beklenen durum; korumasızken sayaç birden fazla ziyareti tek ziyaret
+     * sayıyordu — ve aynı yazma erişim kaydının TAMAMINI geri yazdığı için
+     * arada eklenen bir üye ya da davet de siliniyordu.
+     */
+    await mutate<void>(treeId, (data) => {
     const shares = normalizeShares(data);
     const s = shares.find((x) => x.id === id);
-    if (!s) return;
+    if (!s) return { yaz: false, sonuc: undefined };
     s.views = (s.views ?? 0) + 1;
     const entry = { at: new Date().toISOString(), ...visit };
     s.visits = [entry, ...(s.visits ?? [])].slice(0, MAX_VISITS);
@@ -552,7 +625,8 @@ export async function recordShareVisit(
      * yeniden yazmak demekti — ziyaretçi sayısıyla ölçeklenen, işi olmayan
      * bir yazma yükü.
      */
-    await saveTreeAccess(treeId, data, { mirror: false });
+    return { yaz: true, sonuc: undefined };
+    }, { mirror: false });
   } catch {
     /* istatistik yazımı görüntülemeyi engellemez */
   }
@@ -627,10 +701,10 @@ export async function createPairInvite(
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + ttlDays * 86400_000).toISOString(),
   };
-  const data = await getTreeAccess(treeId);
-  data.pairInvites = [...(data.pairInvites ?? []), invite];
-  await saveTreeAccess(treeId, data);
-  return token;
+  return mutate<string>(treeId, (data) => {
+    data.pairInvites = [...(data.pairInvites ?? []), invite];
+    return { yaz: true, sonuc: token };
+  });
 }
 
 /**
@@ -649,41 +723,63 @@ export async function acceptPairInvite(
   if (inviterTreeId === accepterTreeId) return { error: "Bir ağacı kendisiyle eşleştiremezsiniz." };
 
   const hash = sha256(parsed.secret);
-  const inviterData = await getTreeAccess(inviterTreeId);
-  const invite = (inviterData.pairInvites ?? []).find((iv) => iv.tokenHash === hash);
-  if (!invite) return { error: "Davet bulunamadı ya da kullanılmış." };
-  if (new Date(invite.expiresAt).getTime() < Date.now()) return { error: "Davetin süresi dolmuş." };
 
-  const inviterName = invite.inviterName;
+  /*
+   * İKİ AĞAÇ, İKİ AYRI BLOB — dolayısıyla İKİ ayrı korumalı yazma.
+   *
+   * Çakışma koruması ağaç başına çalışıyor; iki blob'u tek bir işlemde
+   * yazmanın yolu bu mimaride yok (ve eskiden de yoktu — bu değişiklik o
+   * eksiği getirmiyor, var olanı koruyor). Yarıda kalırsa ortaya tek yönlü
+   * bir eşleşme çıkıyor ve `arePaired` iki tarafı da sorduğu için o hâl
+   * "eşleşme yok" gibi davranıyor: davet tüketilmiş ama eşleşme kurulmamış.
+   * Gürültüsüz ama güvenli yön — ters hâl (tek taraflı erişim) daha kötü
+   * olurdu.
+   */
+  const ilk = await mutate<{ inviterName: string } | { error: string }>(
+    inviterTreeId,
+    (inviterData) => {
+      const invite = (inviterData.pairInvites ?? []).find((iv) => iv.tokenHash === hash);
+      if (!invite)
+        return { yaz: false, sonuc: { error: "Davet bulunamadı ya da kullanılmış." } };
+      if (new Date(invite.expiresAt).getTime() < Date.now())
+        return { yaz: false, sonuc: { error: "Davetin süresi dolmuş." } };
 
-  // Daveti tüket + karşılıklı eşleştirme yaz (iki ayrı blob).
-  inviterData.pairInvites = (inviterData.pairInvites ?? []).filter((iv) => iv.tokenHash !== hash);
-  if (!(inviterData.pairings ?? []).some((p) => p.peerTreeId === accepterTreeId)) {
-    inviterData.pairings = [
-      ...(inviterData.pairings ?? []),
-      { peerTreeId: accepterTreeId, peerName: accepterName, createdAt: new Date().toISOString() },
-    ];
-  }
-  await saveTreeAccess(inviterTreeId, inviterData);
+      // Daveti tüket + karşılıklı eşleştirme yaz.
+      inviterData.pairInvites = (inviterData.pairInvites ?? []).filter(
+        (iv) => iv.tokenHash !== hash
+      );
+      if (!(inviterData.pairings ?? []).some((p) => p.peerTreeId === accepterTreeId)) {
+        inviterData.pairings = [
+          ...(inviterData.pairings ?? []),
+          { peerTreeId: accepterTreeId, peerName: accepterName, createdAt: new Date().toISOString() },
+        ];
+      }
+      return { yaz: true, sonuc: { inviterName: invite.inviterName } };
+    }
+  );
+  if ("error" in ilk) return ilk;
+  const { inviterName } = ilk;
 
-  const accepterData = await getTreeAccess(accepterTreeId);
-  if (!(accepterData.pairings ?? []).some((p) => p.peerTreeId === inviterTreeId)) {
+  await mutate<void>(accepterTreeId, (accepterData) => {
+    if ((accepterData.pairings ?? []).some((p) => p.peerTreeId === inviterTreeId))
+      return { yaz: false, sonuc: undefined };
     accepterData.pairings = [
       ...(accepterData.pairings ?? []),
       { peerTreeId: inviterTreeId, peerName: inviterName, createdAt: new Date().toISOString() },
     ];
-    await saveTreeAccess(accepterTreeId, accepterData);
-  }
+    return { yaz: true, sonuc: undefined };
+  });
 
   return { inviterTreeId, inviterName };
 }
 
 /** Eşleştirmeyi kaldır — her iki taraftan da siler. */
 export async function removePairing(treeId: string, peerTreeId: string): Promise<void> {
-  const a = await getTreeAccess(treeId);
-  const vardi = (a.pairings ?? []).some((p) => p.peerTreeId === peerTreeId);
-  a.pairings = (a.pairings ?? []).filter((p) => p.peerTreeId !== peerTreeId);
-  await saveTreeAccess(treeId, a);
+  const vardi = await mutate<boolean>(treeId, (a) => {
+    const vardiMi = (a.pairings ?? []).some((p) => p.peerTreeId === peerTreeId);
+    a.pairings = (a.pairings ?? []).filter((p) => p.peerTreeId !== peerTreeId);
+    return { yaz: true, sonuc: vardiMi };
+  });
 
   /*
    * KARŞI TARAFA yalnız gerçekten eşleşme VARSA dokunuluyor.
@@ -698,7 +794,8 @@ export async function removePairing(treeId: string, peerTreeId: string): Promise
    * Katı okuma da şart: boş bir kayıt üstüne yazmak yerine hata versin.
    */
   if (!vardi) return;
-  const b = await getTreeAccess(peerTreeId);
-  b.pairings = (b.pairings ?? []).filter((p) => p.peerTreeId !== treeId);
-  await saveTreeAccess(peerTreeId, b);
+  await mutate<void>(peerTreeId, (b) => {
+    b.pairings = (b.pairings ?? []).filter((p) => p.peerTreeId !== treeId);
+    return { yaz: true, sonuc: undefined };
+  });
 }

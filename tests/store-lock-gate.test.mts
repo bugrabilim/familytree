@@ -70,6 +70,48 @@ for (const ad of depolar) {
   check(iSon > iDongu, "fırlatma döngünün DIŞINDA (yani gerçekten tükendiğinde)");
 }
 
+/* ══ ERİŞİM KAYDI da korumalı ═════════════════════════════════════════ */
+/*
+ * `lib/members.ts` `*-store.ts` desenine uymuyor (adı öyle değil) ama aynı
+ * işi yapıyor ve içindekiler daha kritik: üyeler, davetler, PAYLAŞIM
+ * BAĞLANTILARI ve eşleşmeler. Burada kaybolan bir satır yalnız veri değil
+ * YETKİ kaybı — silinen bir üye satırı erişim kaybı, silinen bir paylaşım
+ * bağlantısı dışarıya verilmiş bir adresin ölmesi demek.
+ *
+ * Desene uymadığı için yukarıdaki tarama onu görmüyordu; ayrıca soruluyor.
+ */
+{
+  const m = kodu(read("../lib/members.ts"));
+  check(/mutateStore\(/.test(m), "erişim kaydı ortak korumayı kullanıyor");
+  const iSarmal = m.indexOf("function mutate<T>(");
+  const sarmalSonu = m.indexOf("\n}", iSarmal);
+  const disarida = [...m.matchAll(/await saveTreeAccess\(/g)].filter(
+    (x) => x.index! < iSarmal || x.index! > sarmalSonu
+  );
+  check(disarida.length === 0, `sarmalayıcı dışında yazma yok (${disarida.length})`);
+  /*
+   * Damga ZORUNLU tipte dönüyor: `TreeAccess`te isteğe bağlı ama
+   * `normalizeAccess` her okumada bir değer koyuyor. Tipin bunu söylemesi
+   * şart — `undefined === undefined` her ESKİ ağacı "değişmemiş" gösterirdi,
+   * yani koruma tam da en eski ağaçlarda çalışmazdı.
+   */
+  check(/Promise<TreeAccess & \{ updatedAt: string \}>/.test(m), "okuyucu damgayı zorunlu kılıyor");
+  check(/data\.updatedAt = new Date\(\)\.toISOString\(\);/.test(m), "her yazma damgayı tazeliyor");
+  const ta = kodu(read("../lib/tree-access.ts"));
+  check(/updatedAt: typeof data\.updatedAt === "string"/.test(ta), "eski dosyaya başlangıç damgası veriliyor");
+
+  /*
+   * ZİYARET SAYACI kayıp güncellemenin ders kitabı örneği: oku, bir artır,
+   * geri yaz. Aynı bağlantı bir gruba gönderildiğinde birkaç kişinin aynı
+   * anda açması beklenen durum — ve aynı yazma erişim kaydının TAMAMINI geri
+   * yazdığı için arada eklenen bir üye de siliniyordu.
+   */
+  const iZiyaret = m.indexOf("export async function recordShareVisit");
+  const ziyaret = m.slice(iZiyaret, m.indexOf("\n}", m.indexOf("mirror: false }", iZiyaret)));
+  check(/await mutate<void>\(treeId,/.test(ziyaret), "ziyaret sayacı korumalı");
+  check(/mirror: false/.test(ziyaret), "sayaç yazması aynayı çağırmıyor (gereksiz yük)");
+}
+
 /* ══ A5: yarım kalan ayna güncel görünmüyor ════════════════════════════ */
 /*
  * En tehlikeli yarım hâl: damga yazıldı, kişiler yazılamadı. O anda Postgres

@@ -110,5 +110,33 @@ function depo(baslangic: Kutu) {
   check(hata && n === 2, "tek deneme istendiğinde tek tur koşuyor");
 }
 
+/* ── Değiştirici ASENKRON olabiliyor ────────────────────────────────────── */
+/*
+ * Erişim kaydı (`lib/members.ts`) karar verirken `await` istiyor: davet
+ * kabulünde şifre çakışması `bcrypt.compare` ile denetleniyor. Senkron
+ * zorunluluğu o depoyu korumanın DIŞINDA bırakırdı.
+ *
+ * Asenkron gövde pencereyi genişletmiyor: doğrulama okuması gövdeden SONRA,
+ * yazmadan hemen önce yapılıyor. Aşağıdaki senaryo tam da bunu sınıyor —
+ * gövde beklerken araya biri giriyor ve yine de kimse kaybolmuyor.
+ */
+{
+  const d = depo({ items: ["a"], updatedAt: "t0" });
+  let girdi = false;
+  const r = await mutateStore<Kutu, number>(d.oku, d.yaz, async (k) => {
+    /* Gövde "yavaş": bu sırada başkası yazıyor. */
+    await new Promise((res) => setTimeout(res, 0));
+    if (!girdi) {
+      girdi = true;
+      d.durum.kutu = { items: ["a", "baskasi"], updatedAt: "t-baska" };
+    }
+    k.items.push("benim");
+    return { yaz: true, sonuc: k.items.length };
+  }, "test");
+  check(typeof r === "number", "asenkron gövdenin sonucu dönüyor");
+  check(d.durum.kutu.items.includes("baskasi"), "yavaş gövde sırasında giren yazma korunuyor");
+  check(d.durum.kutu.items.includes("benim"), "kendi değişikliğim de yazıldı");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
