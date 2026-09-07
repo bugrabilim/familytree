@@ -15,7 +15,20 @@ create table if not exists public.trees (
   owner_account text not null,                   -- founder (NextAuth) hesap kimliği
   name          text not null default '',
   is_home       boolean not null default false,
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  -- Ağacın SÜRÜM DAMGASI (madde 1 / #287). İyimser kilitleme bunu okuyor.
+  --
+  -- NULL OLABİLİR ve bilerek öyle: bu sütun canlı veritabanına sonradan
+  -- eklendi (`add_trees_updated_at` göçü) ve var olan ağaçlarda boş. Kod
+  -- boşluğu zaten karşılıyor — `pickVersion` damga yoksa kişilerin en yeni
+  -- `updated_at`ine düşüyor (`lib/version-stamp.ts`). `not null default now()`
+  -- yazsaydık şema dosyası canlıyla AYRIŞIRDI.
+  --
+  -- Sütunun burada OLMAMASI sessiz bir felaketti: `saveFamilyData` aynayı
+  -- yazarken önce damgayı vuruyor, damga çağrısı hata verince aynı bloktaki
+  -- kişi yazmaları hiç çalışmıyor — yani bu dosyadan kurulmuş her ortamda
+  -- Postgres aynası tümüyle ölürdü.
+  updated_at    timestamptz
 );
 create index if not exists trees_owner_idx on public.trees (owner_account);
 
