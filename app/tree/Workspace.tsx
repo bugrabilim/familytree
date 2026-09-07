@@ -6,6 +6,9 @@ import dynamic from "next/dynamic";
 import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
 import type { DeletedTreeItem, TreeItem } from "@/components/TreeSwitcher";
+import type { Recipe } from "@/types/recipe";
+import type { Letter } from "@/types/letter";
+import type { Obituary } from "@/types/obituary";
 import TopBar, { type ViewKey } from "@/components/TopBar";
 import { allows, firstAllowed } from "@/lib/share-scope";
 import { useBonds } from "@/lib/useBonds";
@@ -106,6 +109,21 @@ export default function Workspace(props: {
    */
   allowedViews?: string[];
   /**
+   * PAYLAŞIM BAĞLANTISINDA sunucudan gelen yan koleksiyonlar.
+   *
+   * Bu üç sekme verisini oturum isteyen uçlardan okuyordu ve `/g/<token>`
+   * ziyaretçisinin oturumu yok: istek 401 dönüyor, sekme hata gösteriyordu.
+   * Kapsam listesinde seçilebilen üç sekme, seçildiğinde ÇALIŞMIYORDU.
+   *
+   * Veri sunucuda okunuyor ve YALNIZ kapsam izin veriyorsa: kapsam dışıysa
+   * prop hiç geçilmiyor, yani sayfanın RSC yüküne de girmiyor. "Getir ama
+   * gösterme" demek, veriyi sayfa kaynağında bırakmak olurdu — taziye
+   * şeridinde de aynı gerekçe yazılı.
+   */
+  publicRecipes?: Recipe[];
+  publicLetters?: Letter[];
+  publicObituaries?: Obituary[];
+  /**
    * Bu oturumun kayıt sahipliği kimliği (`ctx.authorId`).
    *
    * Katkı verici KENDİ eklediğini düzenleyebiliyor; arayüzün "kaydet" mi
@@ -156,6 +174,9 @@ function WorkspaceInner({
   initialSelectedId,
   publicView,
   allowedViews,
+  publicRecipes,
+  publicLetters,
+  publicObituaries,
 }: {
   people: Person[];
   version: string;
@@ -172,6 +193,9 @@ function WorkspaceInner({
   publicView?: boolean;
   hideLivingForced?: boolean;
   allowedViews?: string[];
+  publicRecipes?: Recipe[];
+  publicLetters?: Letter[];
+  publicObituaries?: Obituary[];
 }) {
   const router = useRouter();
   const { readOnly } = useReadOnly();
@@ -842,14 +866,14 @@ function WorkspaceInner({
         ) : view === "takvim" ? (
           <CalendarView people={people} onSelect={setSelectedId} />
         ) : view === "taziye" ? (
-          <ObituaryView people={people} onSelect={setSelectedId} />
+          <ObituaryView people={people} onSelect={setSelectedId} initial={publicObituaries} />
         ) : view === "mektup" ? (
           // Kilitli mektupların metni buraya HİÇ gelmez; sunucu çıkarır.
-          <LettersView people={people} onSelect={setSelectedId} />
+          <LettersView people={people} onSelect={setSelectedId} initial={publicLetters} />
         ) : view === "tarifler" ? (
           // Tarifler ağacın verisinden DEĞİL kendi ucundan okur; `people`
           // yalnız "kimden geldi" seçicisi ve rozet için geçilir.
-          <RecipesView people={people} onSelect={setSelectedId} />
+          <RecipesView people={people} onSelect={setSelectedId} initial={publicRecipes} />
         ) : (
           <PanelView
             people={people}

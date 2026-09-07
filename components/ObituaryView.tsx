@@ -24,18 +24,40 @@ import { useT } from "@/lib/i18n";
 export default function ObituaryView({
   people,
   onSelect,
+  initial,
 }: {
   people: Person[];
   onSelect: (id: string) => void;
+  /**
+   * Sunucudan gelen liste (paylaşım bağlantısı). Verilirse uca gidilmez.
+   *
+   * Paylaşım yolunda bu liste `readPublicObituaries`ten geliyor: ailenin
+   * YAYIMLAMAYI seçtikleri. Ziyaretçi, sayfanın üstündeki şeritte gördüğü
+   * kümenin aynısını sekmede de görüyor — iki yüzey aynı kuraldan besleniyor.
+   */
+  initial?: Obituary[];
 }) {
   const t = useT();
   const { readOnly } = useReadOnly();
-  const [list, setList] = useState<Obituary[] | null>(null);
+  const [list, setList] = useState<Obituary[] | null>(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Obituary | "new" | null>(null);
 
+  /**
+   * PAYLAŞIM BAĞLANTISINDA VERİ SUNUCUDAN GELİR, UÇTAN DEĞİL.
+   *
+   * Bu görünüm verisini oturum isteyen bir uçtan okuyordu. `/g/<token>`
+   * ziyaretçisinin oturumu yok: istek 401 dönüyor ve sekme hata gösteriyordu.
+   * Yani paylaşım kapsamı listesinde seçilebilen bu sekme, seçildiğinde
+   * ÇALIŞMIYORDU — tutulamayan bir söz.
+   *
+   * Sunucu tarafı ayrıca bir gizlilik sınırı: kapsam dışıysa veri sayfanın
+   * RSC yüküne HİÇ girmiyor. "Getir ama gösterme" demek, veriyi sayfa
+   * kaynağında bırakmak olurdu (taziye şeridinde aynı gerekçe yazılı).
+   */
   useEffect(() => {
+    if (initial) return;
     let alive = true;
     (async () => {
       try {
@@ -49,7 +71,7 @@ export default function ObituaryView({
       }
     })();
     return () => { alive = false; };
-  }, [t]);
+  }, [t, initial]);
 
   const call = async (method: "POST" | "PUT" | "DELETE", body: unknown) => {
     setBusy(true);
