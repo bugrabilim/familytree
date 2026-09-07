@@ -67,12 +67,42 @@ export async function rateLimitShared(key: string, opts: RateOpts): Promise<Rate
     if (!row || typeof row.allowed !== "boolean") throw new Error("beklenmeyen yanıt");
 
     return { ok: row.allowed, retryAfter: Number(row.retry_after) || 0 };
-  } catch {
+  } catch (e) {
     /*
      * Paylaşımlı katman çalışmıyor. İsteği REDDETMİYORUZ — bizim altyapı
      * sorunumuz kullanıcının uygulamayı kullanamamasına dönüşmemeli. Yerel
      * kovaya düşüyoruz: zayıf, ama sınırsız değil.
+     *
+     * AMA SESSİZ DEĞİL. İlk hâlinde `catch {}` boştu ve düşüş hiçbir iz
+     * bırakmıyordu; sonuç, bu depoda daha önce Postgres aynasının aylarca
+     * ölü kalmasıyla aynı arıza türüydü: kalıcı bir bozulma (RPC kaldırılmış,
+     * şema değişmiş, anahtar dönmüş) "her şey çalışıyor" gibi görünüyor,
+     * sınır sessizce ÖRNEK BAŞINA sınıra iniyor ve korumaya çalıştığımız
+     * global kaynak (Gemini kotası ve faturası) savunmasız kalıyor.
      */
+    sharedFallbackWarn((e as Error).message);
     return rateLimit(key, opts);
   }
+}
+
+/** Son uyarının anı — kısılmayı bu tutuyor. */
+let sonUyari = 0;
+/** İki uyarı arasındaki en az süre. */
+const UYARI_ARALIGI_MS = 60_000;
+
+/**
+ * Düşüşü günlüğe yazar — ama dakikada en fazla bir kez.
+ *
+ * Kısma şart: paylaşımlı katman bozulduğunda HER istek buradan geçer.
+ * Kısılmamış bir uyarı, arızayı görünür kılmak yerine günlüğü kullanılamaz
+ * hâle getirir ve maliyet çıkarır. Dakikada bir satır, "bu hâlâ sürüyor"u
+ * anlatmaya yeter.
+ */
+function sharedFallbackWarn(sebep: string) {
+  const now = Date.now();
+  if (now - sonUyari < UYARI_ARALIGI_MS) return;
+  sonUyari = now;
+  console.warn(
+    `[hiz-siniri] paylasimli katman calismiyor, ORNEK-ICI kovaya dusuldu: ${sebep}`
+  );
 }

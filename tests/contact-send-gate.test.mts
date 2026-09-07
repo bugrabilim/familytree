@@ -34,7 +34,7 @@ const cikisSayfa = kodu(read("../app/contact/cikis/[token]/page.tsx"));
  */
 check(/if \(!canEmailContact\(kisi\)\) continue;/.test(cK), "bildirim gönderimi tek kapıdan geçiyor");
 check(!/contactConsent === "onayli"/.test(cK), "cron onay denetimini KENDİ yazmıyor");
-check(/planAsk\(kisi, today\)/.test(cK), "soru kararı da saf katmanda");
+check(/planAsk\(kisi\)/.test(cK), "soru kararı da saf katmanda");
 
 /* --- ÇIKIŞ BAĞLANTISI OLMADAN HİÇ GÖNDERİLMİYOR -------------------------- */
 /*

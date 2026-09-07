@@ -50,6 +50,15 @@ export const maxDuration = 300;
  * görüntüsü `backups/<gün>/` altına alınmış oluyor ve saklama süresi boyunca
  * elle geri getirilebiliyor. Ters sırada silinen ağacın son yedeği hiç
  * alınmamış olurdu.
+ *
+ * AMA "SONRA" DEMEK "YEDEK BAŞARILIYSA" DEMEK DEĞİL. İlk hâlinde temizlik
+ * yedeğin `try` bloğunun İÇİNDEYDİ: depo listelenemediğinde ya da yedeğin
+ * herhangi bir adımı fırlattığında akış doğrudan `catch`e atlıyor, temizlik
+ * hiç çağrılmıyordu — ve bunu söyleyen tek bir satır bile yoktu. Sonuç,
+ * ilgisiz bir altyapı arızasının kullanıcının SİLME TALEBİNİ süresiz askıya
+ * alması olurdu: 30 günü dolmuş veri, kimsenin haberi olmadan durmaya devam
+ * eder. Bu iki iş artık ayrı bloklarda; biri düşse öbürü koşuyor ve ikisi de
+ * her koşuda günlüğe yazıyor.
  */
 
 /** Kaç günlük görüntü saklanacak. */
@@ -65,8 +74,20 @@ export async function GET(req: NextRequest) {
   const keep = Number(process.env.BACKUP_KEEP_DAYS ?? DEFAULT_KEEP);
   const stamp = stampOf(new Date());
 
+  const summary: BackupSummary = {
+    stamp,
+    copied: 0,
+    bytes: 0,
+    failed: 0,
+    removed: 0,
+    keptSnapshots: 0,
+  };
+  /** Yedek düştüyse sebebi — yanıtın durum kodunu bu belirliyor. */
+  let yedekHatasi: string | null = null;
+
+  /* ── 1) YEDEK ──────────────────────────────────────────────────────────── */
   try {
-    // 1) Depodaki her şeyi listele (sayfalı).
+    // Depodaki her şeyi listele (sayfalı).
     const hepsi: string[] = [];
     let cursor: string | undefined;
     do {
@@ -75,10 +96,9 @@ export async function GET(req: NextRequest) {
       cursor = res.hasMore ? res.cursor : undefined;
     } while (cursor);
 
-    // 2) Kaynakları seç — yedeğin yedeği ALINMAZ (`lib/backup.ts`).
+    // Kaynakları seç — yedeğin yedeği ALINMAZ (`lib/backup.ts`).
     const kaynaklar = backupSources(hepsi);
 
-    let copied = 0, bytes = 0, failed = 0;
     for (const yol of kaynaklar) {
       try {
         /*
@@ -95,7 +115,7 @@ export async function GET(req: NextRequest) {
          * bozuktu — belgelenmiş elle yedek de çalışmıyormuş.
          */
         const okunan = await get(yol, { access: "private", useCache: false });
-        if (!okunan || okunan.statusCode !== 200) { failed++; continue; }
+        if (!okunan || okunan.statusCode !== 200) { summary.failed++; continue; }
         const buf = Buffer.from(await new Response(okunan.stream).arrayBuffer());
         await put(snapshotPath(stamp, yol), buf, {
           access: "private",
@@ -104,91 +124,90 @@ export async function GET(req: NextRequest) {
           allowOverwrite: true,
           contentType: "application/json",
         });
-        copied++; bytes += buf.length;
+        summary.copied++; summary.bytes += buf.length;
       } catch {
         /*
          * Tek dosyanın hatası bütün yedeği düşürmesin — eksik bir yedek,
          * hiç yedek almamaktan iyidir. Sayı yanıtta dönüyor ki eksiklik
          * görünür olsun.
          */
-        failed++;
+        summary.failed++;
       }
     }
 
     /*
-     * 3) Saklama. SİLME YALNIZ KOPYALAMA BAŞARILIYSA yapılır: bu koşuda hiç
+     * Saklama. SİLME YALNIZ KOPYALAMA BAŞARILIYSA yapılır: bu koşuda hiç
      * dosya yazılamadıysa (ör. depo erişimi bozuk) eski görüntüleri silmek,
      * elde hiçbir yedek bırakmamak olurdu.
      */
-    let removed = 0;
-    let plan = { keep: [] as string[], remove: [] as string[] };
-    if (copied > 0) {
+    if (summary.copied > 0) {
       const sonrakiListe = [
         ...hepsi,
         ...kaynaklar.map((yol) => snapshotPath(stamp, yol)),
       ];
-      plan = planRetention(sonrakiListe, keep);
+      const plan = planRetention(sonrakiListe, keep);
+      summary.keptSnapshots = plan.keep.length;
       for (const p of plan.remove) {
         try {
           await del(p);
-          removed++;
+          summary.removed++;
         } catch {
           /* silinemeyen dosya bir sonraki koşuda yine denenecek */
         }
       }
     }
-
-    /*
-     * SİLME TEMİZLİĞİ — yedekten sonra (yukarıdaki gerekçe). Hata bütün işi
-     * düşürmesin: yedek alınmışken 500 dönmek, sağlayıcı günlüğünde yedeği de
-     * başarısız gösterirdi. Özet yanıtta ve günlükte görünür.
-     */
-    let sweep = { purgedAccounts: 0, purgedTrees: 0, failed: [] as string[] };
-    try {
-      sweep = await sweepExpired(new Date());
-    } catch (e) {
-      console.error("[temizlik] koşu başarısız:", (e as Error).message);
-      sweep.failed.push(`sweep:${(e as Error).message}`);
-    }
-
-    const summary: BackupSummary = {
-      stamp,
-      copied,
-      bytes,
-      failed,
-      removed,
-      keptSnapshots: plan.keep.length,
-    };
-
-    /*
-     * ÖZET GÜNLÜĞE YAZILIYOR — yanıt gövdesi kimsenin görmediği yere gidiyor.
-     *
-     * Bu işi bir cron tetikliyor; yanıtı okuyan bir insan ya da istemci yok.
-     * Sağlayıcı günlüğünde yalnız durum kodu görünüyordu ve bir yedek işi için
-     * asıl tehlikeli hâl "200 döndü ama SIFIR dosya kopyaladı": hata yok,
-     * uyarı yok, yedek de yok. Aynı sessizlik türü bu depoda bir kez
-     * Postgres aynasını aylarca ölü tuttu.
-     *
-     * `copied === 0` ayrıca `warn` seviyesinde: 200 yanıtı içinde saklı bir
-     * başarısızlık, günlükte de başarısızlık gibi görünmeli.
-     */
-    const satir =
-      `[yedek] ${stamp} — kopyalanan ${copied}, atlanan ${failed}, ` +
-      `silinen ${removed}, saklanan görüntü ${plan.keep.length}, ${bytes} bayt`;
-    if (copied === 0) console.warn(`${satir} — HİÇBİR ŞEY KOPYALANMADI`);
-    else console.log(satir);
-
-    if (sweep.purgedAccounts || sweep.purgedTrees || sweep.failed.length) {
-      console.log(
-        `[temizlik] ${stamp} — kalıcı silinen hesap ${sweep.purgedAccounts}, ` +
-          `ağaç ${sweep.purgedTrees}, silinemeyen yol ${sweep.failed.length}`
-      );
-    }
-
-    return NextResponse.json({ ok: true, ...summary, sweep });
   } catch (e) {
-    // Aynı gerekçe: yanıtı okuyan kimse yok, hata günlüğe düşmeli.
-    console.error(`[yedek] ${stamp} — BAŞARISIZ:`, (e as Error).message);
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    // Yanıtı okuyan kimse yok, hata günlüğe düşmeli.
+    yedekHatasi = (e as Error).message;
+    console.error(`[yedek] ${stamp} — BAŞARISIZ:`, yedekHatasi);
   }
+
+  /*
+   * ÖZET GÜNLÜĞE YAZILIYOR — yanıt gövdesi kimsenin görmediği yere gidiyor.
+   *
+   * Bu işi bir cron tetikliyor; yanıtı okuyan bir insan ya da istemci yok.
+   * Sağlayıcı günlüğünde yalnız durum kodu görünüyordu ve bir yedek işi için
+   * asıl tehlikeli hâl "200 döndü ama SIFIR dosya kopyaladı": hata yok,
+   * uyarı yok, yedek de yok. Aynı sessizlik türü bu depoda bir kez
+   * Postgres aynasını aylarca ölü tuttu.
+   *
+   * `copied === 0` ayrıca `warn` seviyesinde: 200 yanıtı içinde saklı bir
+   * başarısızlık, günlükte de başarısızlık gibi görünmeli.
+   */
+  const satir =
+    `[yedek] ${stamp} — kopyalanan ${summary.copied}, atlanan ${summary.failed}, ` +
+    `silinen ${summary.removed}, saklanan görüntü ${summary.keptSnapshots}, ${summary.bytes} bayt`;
+  if (summary.copied === 0) console.warn(`${satir} — HİÇBİR ŞEY KOPYALANMADI`);
+  else console.log(satir);
+
+  /* ── 2) SİLME TEMİZLİĞİ ────────────────────────────────────────────────── */
+  /*
+   * YEDEKTEN BAĞIMSIZ. Yukarıdaki blok düşse de burası koşar — gerekçe dosya
+   * başında. Kendi hatası da yanıtı düşürmüyor; özete ve günlüğe yazılıyor.
+   */
+  const sweep = { purgedAccounts: 0, purgedTrees: 0, failed: [] as string[] };
+  try {
+    const r = await sweepExpired(new Date());
+    sweep.purgedAccounts = r.purgedAccounts;
+    sweep.purgedTrees = r.purgedTrees;
+    sweep.failed.push(...r.failed);
+  } catch (e) {
+    console.error("[temizlik] koşu başarısız:", (e as Error).message);
+    sweep.failed.push(`sweep:${(e as Error).message}`);
+  }
+
+  /*
+   * HER KOŞUDA yazılıyor, "iş vardı" koşuluna bağlı DEĞİL. Eskiden yalnız bir
+   * şey silindiğinde satır düşüyordu; "sıfır" ile "hiç koşmadı" günlükte aynı
+   * görünüyordu ve tam da bu iş sessizce koşmayı bırakabilen iş.
+   */
+  console.log(
+    `[temizlik] ${stamp} — kalıcı silinen hesap ${sweep.purgedAccounts}, ` +
+      `ağaç ${sweep.purgedTrees}, silinemeyen yol ${sweep.failed.length}`
+  );
+
+  return NextResponse.json(
+    { ok: !yedekHatasi, ...summary, ...(yedekHatasi ? { error: yedekHatasi } : {}), sweep },
+    { status: yedekHatasi ? 500 : 200 }
+  );
 }

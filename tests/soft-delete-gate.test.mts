@@ -210,7 +210,33 @@ const kodu = (src: string) =>
 /* ══ 6. Zamanlanmış posta ══════════════════════════════════════════════ */
 {
   const src = kodu(read("../app/api/cron/reminders/route.ts"));
-  check(/isSoftDeleted\(u\)\) continue/.test(src), "silinmekte olan hesaba hatırlatma postası gitmiyor");
+
+  /*
+   * BU İDDİA KENDİ KURALINI KORUMUYORDU.
+   *
+   * İlk hâli tek bir `isSoftDeleted(u)) continue` arıyordu — DOSYANIN
+   * TAMAMINDA. Rotada ise İKİ ayrı hesap döngüsü var: birincisi hesap
+   * sahibine posta atıyor, ikincisi ağacın içindeki ÜÇÜNCÜ KİŞİLERE. Denetim
+   * yalnız birincisindeydi; ikincisi hiç bakmıyordu ve test yine de yeşildi,
+   * çünkü ilk döngüdeki eşleşme iddiayı doyurmaya yetiyordu.
+   *
+   * Kaçırdığı arıza küçük değildi: hesabını silmiş birinin ağacındaki
+   * akrabalara "sana bir soru var" postası gidiyor, üstelik jetonu yazmak
+   * için silinmekte olan ağaca YAZIYORdu.
+   *
+   * Bu yüzden iddia artık SAYIYOR ve döngüleri tek tek geziyor: her hesap
+   * döngüsünün kendi denetimi olmalı.
+   */
+  const dongular = [...src.matchAll(/for \(const u of [^{]*\{/g)];
+  check(dongular.length >= 2, `rotada en az iki hesap döngüsü var (${dongular.length})`);
+  let denetimsiz = 0;
+  for (const d of dongular) {
+    /* Döngü başından sonraki ~800 karakter: gövdenin girişi. */
+    const govde = src.slice(d.index!, d.index! + 800);
+    if (!/isSoftDeleted\(u\)\) continue/.test(govde)) denetimsiz++;
+  }
+  check(denetimsiz === 0,
+    `her hesap döngüsü silinmekte olan hesabı atlıyor (${denetimsiz} döngüde denetim yok)`);
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

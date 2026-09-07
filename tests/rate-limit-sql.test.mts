@@ -78,9 +78,29 @@ check(/alter table public\.rate_limits\s+enable row level security/.test(sql),
    * altyapı sorunumuz kullanıcıyı uygulamadan edemez. Ama "sınır yok" da
    * olmamalı — yerel kovaya düşülüyor.
    */
-  const catchBlok = lib.slice(lib.lastIndexOf("} catch {"));
+  /*
+   * KAPSAM `rateLimitShared`IN GÖVDESİ.
+   *
+   * Önceki hâli `lib.lastIndexOf("} catch {")` ile kesiyordu ve bu kırılgan
+   * bir dayanaktı: `catch` bir hata değişkeni alır almaz (`catch (e) {`)
+   * arama -1 döndü, `slice(-1)` dosyanın SON KARAKTERİNİ verdi ve iki
+   * iddia birden anlamını yitirdi — biri sahte kırmızıya düştü, olumsuz olan
+   * ise boş dizgede kendiliğinden yeşil kaldı. Kapsam artık işlev adından
+   * kuruluyor.
+   */
+  const iFn = lib.indexOf("export async function rateLimitShared");
+  const govde = lib.slice(iFn, lib.indexOf("\n}", iFn));
+  const iCatch = govde.search(/\} catch\b/);
+  check(iFn > -1 && iCatch > -1, "rateLimitShared ve catch bloğu bulundu");
+  const catchBlok = govde.slice(iCatch);
   check(/return rateLimit\(key, opts\)/.test(catchBlok), "hata durumunda yerel kovaya düşülüyor");
   check(!/return \{ ok: true/.test(catchBlok), "hata durumunda sınır tamamen kalkmıyor");
+  /*
+   * Ve düşüş SESSİZ DEĞİL: boş bir `catch {}` kalıcı bir bozulmayı (RPC
+   * kaldırılmış, şema değişmiş) tamamen görünmez kılıyordu.
+   */
+  check(!/\} catch \{/.test(govde), "boş `catch {}` yok");
+  check(/sharedFallbackWarn\(/.test(catchBlok), "düşüş günlüğe yazılıyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
