@@ -19,6 +19,19 @@ export interface User {
    */
   recoveryCodeIndex?: string;
   createdAt: string;
+  /**
+   * OTURUM ÇAĞI — bu andan ÖNCE verilmiş oturumlar geçersiz (ISO).
+   *
+   * Hem NextAuth çerezi (30 gün) hem mobil JWT (60 gün) imzalandıktan sonra
+   * geri çağrılamıyor: sunucu tarafında saklanan bir oturum kaydı yok. Şifre
+   * sıfırlamanın anlamı ise tam olarak "artık o şifreyi bilen giremesin" —
+   * oysa hesabı ele geçirmiş biri elindeki çerezle aylarca içeride
+   * kalabiliyordu. Sıfırlama bu damgayı ileri alıyor ve `resolveActiveTree`
+   * daha eski `iat` taşıyan her oturumu reddediyor.
+   *
+   * Yokluğu "hiç sıfırlanmadı" demek; eski hesaplar etkilenmiyor.
+   */
+  sessionEpoch?: string;
   /** Bildirim e-posta adresi (opt-in). Giriş surname+şifre olduğundan e-posta
    *  yalnız hatırlatma/bildirim için, kullanıcının açık onayıyla saklanır. */
   notifyEmail?: string;

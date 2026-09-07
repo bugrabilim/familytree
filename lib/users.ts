@@ -283,6 +283,21 @@ export async function updateUserPassword(
    */
   user.resetTokenHash = undefined;
   user.resetTokenExpires = undefined;
+  /*
+   * VAR OLAN OTURUMLAR DÜŞÜYOR.
+   *
+   * Şifre sıfırlamanın anlamı "artık o şifreyi bilen giremesin". Ama girişte
+   * verilen NextAuth çerezi (30 gün) ve mobil JWT (60 gün) imzalandıktan
+   * sonra geri çağrılamıyor — sunucuda bir oturum kaydı yok. Yani hesabı ele
+   * geçirmiş biri, kullanıcı şifresini değiştirdikten sonra da elindeki
+   * çerezle aylarca içeride kalabiliyordu; sıfırlama saldırganı değil yalnız
+   * gelecekteki girişleri etkiliyordu.
+   *
+   * Damgayı ileri alıyoruz; `resolveActiveTree` bundan eski `iat` taşıyan
+   * her oturumu reddediyor. Kullanıcının kendi öbür cihazları da düşüyor —
+   * doğru olan bu: sıfırlama zaten "bir şeyler ters gitti" demek.
+   */
+  user.sessionEpoch = new Date().toISOString();
   await saveUsersData(data);
   // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
   try {
@@ -320,6 +335,21 @@ export async function applyRecoveryReset(
   if (patch.recoveryCodeIndex) user.recoveryCodeIndex = patch.recoveryCodeIndex;
   user.resetTokenHash = undefined;
   user.resetTokenExpires = undefined;
+  /*
+   * VAR OLAN OTURUMLAR DÜŞÜYOR.
+   *
+   * Şifre sıfırlamanın anlamı "artık o şifreyi bilen giremesin". Ama girişte
+   * verilen NextAuth çerezi (30 gün) ve mobil JWT (60 gün) imzalandıktan
+   * sonra geri çağrılamıyor — sunucuda bir oturum kaydı yok. Yani hesabı ele
+   * geçirmiş biri, kullanıcı şifresini değiştirdikten sonra da elindeki
+   * çerezle aylarca içeride kalabiliyordu; sıfırlama saldırganı değil yalnız
+   * gelecekteki girişleri etkiliyordu.
+   *
+   * Damgayı ileri alıyoruz; `resolveActiveTree` bundan eski `iat` taşıyan
+   * her oturumu reddediyor. Kullanıcının kendi öbür cihazları da düşüyor —
+   * doğru olan bu: sıfırlama zaten "bir şeyler ters gitti" demek.
+   */
+  user.sessionEpoch = new Date().toISOString();
   await saveUsersData(data);
   try {
     await dbUpdateAccountPassword(user.familyName, patch.passwordHash);
@@ -398,6 +428,35 @@ export async function deletedAccountIds(): Promise<Set<string>> {
   const ids = new Set(users.filter((u) => isSoftDeleted(u)).map((u) => u.id));
   silinmisOnbellek = { ids, at: now };
   return ids;
+}
+
+/**
+ * Hesabın oturum çağı (ISO) — yoksa `null`.
+ *
+ * `deletedAccountIds` ile AYNI önbelleği kullanmıyor ama aynı desende: her
+ * istekte bir hesap listesi okumamak için kısa ömürlü bir harita. Pencere
+ * (ONBELLEK_MS) boyunca sıfırlanmış bir şifrenin eski oturumu çalışmaya
+ * devam edebilir — saniyeler mertebesinde ve kabul edilebilir; alternatifi
+ * her API çağrısında bir blob okuması olurdu.
+ *
+ * Okuma başarısız olursa `null`: kimseyi kendi altyapı hatamız yüzünden
+ * uygulamasından etmeyiz.
+ */
+let cagOnbellek: { map: Map<string, string>; at: number } | null = null;
+
+export async function sessionEpochOf(accountId: string): Promise<string | null> {
+  const now = Date.now();
+  if (!cagOnbellek || now - cagOnbellek.at >= ONBELLEK_MS) {
+    try {
+      const { users } = await getUsersData();
+      const map = new Map<string, string>();
+      for (const u of users) if (u.sessionEpoch) map.set(u.id, u.sessionEpoch);
+      cagOnbellek = { map, at: now };
+    } catch {
+      return null;
+    }
+  }
+  return cagOnbellek.map.get(accountId) ?? null;
 }
 
 /**
