@@ -614,5 +614,29 @@ check(buildContent("recipes", { uydurmaAlan: "x" }).ok, "tanınmayan alan burada
   eq(kindOf({ kind: "icerik" }), "icerik", "tür okunuyor");
 }
 
+/* ── Geri alma korumaları (denetim C1/C5/C6) ─────────────────────────────── */
+/*
+ * Bu üç kural saf katmanda DEĞİL (`lib/proposal-apply.ts` çalışma zamanı
+ * `@/` içe aktarımı taşıyor, birim testi koşulamıyor), o yüzden burada
+ * yalnız DAYANAKLARI sınanıyor: geri almanın "arada ne oldu?" sorusunu
+ * sorabilmesi için önerinin taşıması gereken kayıt.
+ */
+{
+  /* Geri alma kaydı `undo` alanında ve `markUndone` onu siliyor. */
+  const p = oneri();
+  const onayli = decide(p, "onaylandi", "y", "Y", "2026-09-07T00:00:00.000Z");
+  check(onayli.ok, "onaylandı");
+  if (onayli.ok) {
+    const kayitli = { ...onayli.proposal, undo: { createdId: "k1", person: kisi(), refs: [] } };
+    const g = markUndone(kayitli, "2026-09-07T01:00:00.000Z");
+    check(g.undo === undefined, "geri alma sonrası kayıt siliniyor");
+    /*
+     * Silinmesi ŞART: duran bir kayıt ikinci bir geri almayı mümkün kılardı
+     * — ağaçta artık olmayan bir değişikliği bir kez daha "geri almak".
+     */
+    eq(g.status, "bekliyor", "öneri kuyruğa dönüyor");
+  }
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

@@ -207,10 +207,26 @@ check(!/catch[^{]*\{\s*return empty\(\);/.test(store), "catch içinde boş dön�
     const i = uygula.indexOf('kindOf(p) === "silme"');
     const j = uygula.indexOf("const uygula = applyProposal", i);
     const dal = i > -1 && j > i ? uygula.slice(i, j) : "";
-    check(/filter\(\(x\) => x\.id !== silinen\)/.test(dal), "kayıt siliniyor");
-    check(/parentIds/.test(dal) && /spouseIds/.test(dal), "ebeveyn ve eş bağları temizleniyor");
-    check(/formerSpouseIds/.test(dal), "eski eş bağları da temizleniyor");
-    check(/associations/.test(dal), "çevre bağları da temizleniyor");
+    /*
+     * TEMİZLİK ORTAK İŞLEVDEN.
+     *
+     * İddialar eskiden buradaki ELLE yazılmış temizliğin alanlarını tek tek
+     * sayıyordu — ve tam da bu yüzden eksikliği göremiyorlardı:
+     * `parentLinks` listede yoktu, kodda da yoktu, iddia yeşildi. Doğrudan
+     * silme yolu `scrubDeleted` kullanıp onu temizliyordu; iki yol
+     * ayrışmıştı.
+     *
+     * Alan listesi saymak yanlış soruydu. Doğru soru: aynı işi yapan ORTAK
+     * işlev mi çağrılıyor?
+     */
+    check(/scrubDeleted\(data\.people, \[silinen\]\)/.test(dal), "silme ORTAK temizleyiciyi çağırıyor");
+    check(!/filter\(\(x\) => x\.id !== silinen\)/.test(dal), "elle yazılmış temizlik kalmadı");
+    {
+      /* Ortak temizleyici gerçekten hepsini kapsıyor mu — dayanağı burada. */
+      const scrub = kodu(read("../lib/scrub.ts"));
+      for (const alan of ["parentIds", "spouseIds", "formerSpouseIds", "associations", "parentLinks"])
+        check(scrub.includes(alan), `scrubDeleted ${alan} temizliyor`);
+    }
   }
 
   /* Üç tür de aynı iyimser kilidin ARKASINDA. */
@@ -467,7 +483,8 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
    * ebeveyn olarak listelemiyor ve bu, kaydın kendi `parentIds`inden
    * türetilemez.
    */
-  check(/const refs: RemovedRef\[\] = \[\]/.test(uygula), "koparılan bağlar toplanıyor");
+  check(/const refs = baglayanlar\(data\.people, silinen\)/.test(uygula), "koparılan bağlar toplanıyor");
+  check(/function baglayanlar\(/.test(uygula), "başvuru tarama tek işlevde");
   check(/undo: \{ person: kayit, refs \}/.test(uygula), "silinen kaydın tam hâli saklanıyor");
   /* Geri koyma EKLEMELİ: dizinin tamamı yazılsaydı, silmeden SONRA eklenen bir bağ kaybolurdu. */
   {
@@ -478,7 +495,15 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
     check(!/x\.parentIds = ref\./.test(dal), "dizinin tamamı geri YAZILMIYOR");
   }
   /* "ekleme"de oluşan kaydın kimliği onay anında yazılıyor: sonradan türetilemez. */
-  check(/undo: \{ createdId: kur\.person\.id \}/.test(uygula), "oluşan kaydın kimliği saklanıyor");
+  check(/createdId: kur\.person\.id/.test(uygula), "oluşan kaydın kimliği saklanıyor");
+  /*
+   * Kimlik TEK BAŞINA yetmiyor: geri alma, aradan geçen sürede kayda ne
+   * olduğunu da bilmek zorunda. Anlık görüntü ve o an bağlayanlar da
+   * saklanmazsa geri alma, onay sonrası eklenen biyografiyi/fotoğrafı/eşi
+   * kimseye sormadan siler.
+   */
+  check(/person: kur\.person/.test(uygula), "oluşan kaydın anlık görüntüsü saklanıyor");
+  check(/refs: baglayanlar\(data\.people, kur\.person\.id\)/.test(uygula), "o an bağlayanlar saklanıyor");
   {
     const patch = rota.slice(rota.indexOf("export async function PATCH"));
     check(/undo: uygula\.undo/.test(patch), "onay, geri alma kaydını öneriye yazıyor");
@@ -581,6 +606,68 @@ check((icerik.match(/ok: false, error:/g) ?? []).length >= 3, "her depo için re
   const post = rota.slice(rota.indexOf("export async function POST"), rota.indexOf("export async function PATCH"));
   check(/buildContent\(body\.store, body\.item\)/.test(post), "içerik gövdesi saf katmanda kuruluyor");
   check(/body\.kind === "icerik"/.test(post), "tür kabul ediliyor");
+}
+
+/* --- 15. Geri alma korumaları (denetim C1 / C5 / C6) --------------------- */
+{
+  /*
+   * C1 — "ekleme" geri alması ARADA NE OLDUĞUNA bakmadan silmemeli.
+   *
+   * "alan" dalı onaydan sonraki değişiklikleri bayatlık denetimiyle
+   * koruyor; bu dalda öyle bir denetim yoktu. Üye "Nine" eklemeyi öneriyor,
+   * yönetici onaylıyor, aile bir hafta boyunca biyografi/fotoğraf/eş/çocuk
+   * bağlıyor — sonra "geri al" hepsini kaydetmeden siliyordu.
+   *
+   * İKİ denetim gerekiyor ve biri ötekini görmüyor: kaydın KENDİSİ değişti
+   * mi, ve kaydı GÖSTEREN başvurular değişti mi (çocuk eklenince yalnız
+   * çocuğun `parentIds`i değişir, kaydın kendisi hiç değişmez).
+   */
+  const i = uygula.indexOf('kindOf(p) === "ekleme"', uygula.indexOf("export function undoApplied"));
+  const dal = i > -1 ? uygula.slice(i, uygula.indexOf('kindOf(p) === "silme"', i)) : "";
+  check(i > -1, "geri almanın ekleme dalı bulundu");
+  check(/damga\(mevcut\) !== damga\(u\.person\)/.test(dal), "kaydın KENDİSİ değiştiyse reddediliyor");
+  check(/damga\(baglayanlar\(data\.people, u\.createdId\)\) !== damga\(u\.refs\)/.test(dal),
+    "kaydı GÖSTEREN başvurular değiştiyse reddediliyor");
+  check(/kod: "degismis"/.test(dal), "gerekçe ayrı bir hata türü");
+  check(/if \(!mevcut\) return \{ ok: true \};/.test(dal), "kayıt zaten yoksa sessizce geçiliyor");
+
+  /*
+   * C5 — geri konan kaydın KENDİ bağları da süzülmeli. Karşı taraf (`refs`)
+   * için koruma vardı (`if (!x) continue`), kaydın kendi tarafı korunmuyordu:
+   * eşi arada silinmiş bir kaydı geri koymak `danglingSpouse` üretiyordu.
+   */
+  const iSil = uygula.indexOf('kindOf(p) === "silme"', uygula.indexOf("export function undoApplied"));
+  const dalSil = iSil > -1 ? uygula.slice(iSil) : "";
+  check(/const varOlan = new Set\(data\.people\.map/.test(dalSil), "var olan kimlikler çıkarılıyor");
+  check(/parentIds: \(anlik\.parentIds \?\? \[\]\)\.filter\(\(id\) => varOlan\.has\(id\)\)/.test(dalSil),
+    "kaydın kendi ebeveyn bağları süzülüyor");
+  check(/spouseIds: \(anlik\.spouseIds \?\? \[\]\)\.filter/.test(dalSil), "eş bağları süzülüyor");
+  check(/parentLinks/.test(dalSil), "ebeveyn notları da süzülüyor");
+
+  /*
+   * C6 — iki ebeveyn sınırı geri almada da geçerli. Sessizce ATLAMAK yerine
+   * REDDEDİLİYOR: atlamak, geri alındığı sanılan bir bağı kimseye söylemeden
+   * kaybetmek olurdu.
+   */
+  check(/if \(x\.parentIds\.length >= 2\) return \{ ok: false, fail: \{ kod: "iki-ebeveyn" \} \};/.test(dalSil),
+    "üçüncü ebeveyn reddediliyor");
+}
+
+/* --- 16. "Tekrar onayla" tavsiyesi TÜRE göre ---------------------------- */
+/*
+ * Önceki hâli her tür için "tekrar onaylayabilirsin" diyordu ve gerekçe
+ * olarak `applyProposal`ın idempotentliğini gösteriyordu — ama o işlev
+ * yalnız "alan" yolunda çalışıyor. "ekleme" kişiyi ikizliyor, "icerik"
+ * deftere ikinci kopya ekliyor, "silme" ise öneriyi kalıcı olarak
+ * onaylanamaz hâle sokuyor.
+ */
+{
+  const patch = rota.slice(rota.indexOf("export async function PATCH"));
+  check(/kindOf\(kitap\.get\(ids\[0\]\)/.test(patch), "tavsiye önerinin TÜRÜNE bakıyor");
+  check(/TEKRAR ONAYLAMAYIN/.test(patch), "idempotent olmayan türde tekrar onay UYARILIYOR");
+  check(/=== "alan"/.test(patch), "yalnız alan türünde tekrar onay öneriliyor");
+  /* Mesaj "ağaca uygulandı" demiyor: içerik onayı ağaca hiç dokunmuyor. */
+  check(!/Değişiklik ağaca uygulandı/.test(patch), "yanlış 'ağaca uygulandı' ifadesi kalmadı");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
