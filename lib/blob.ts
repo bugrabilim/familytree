@@ -1,4 +1,5 @@
 import { withTimeout, MIRROR_TIMEOUT_MS } from "@/lib/with-timeout";
+import { normalizeStamp } from "@/lib/version-stamp";
 import { put, list, get } from "@vercel/blob";
 import type { FamilyData, Person } from "@/types/family";
 import {
@@ -97,31 +98,6 @@ async function readRawFromBlob(userId: string): Promise<FamilyData | null> {
   }
 }
 
-/**
- * SALT BLOB okuma — Postgres'e hiç bakmaz. Yoksa `null`.
- *
- * `getFamilyData` Faz 2d'den beri ÖNCE Postgres'e bakıyor ve ağaç orada varsa
- * Blob'a hiç inmiyor. Bu, uygulamanın okuma yolu için doğru; ama iki iş için
- * YANLIŞ, çünkü ikisi de tam olarak "Blob ne diyor" sorusunu soruyor:
- *
- * · Göç (`/api/admin/migrate`) — Blob'u Postgres'e kopyalar. `getFamilyData`
- *   ile okursa, ağaç satırı yeni açıldığı için Postgres'ten BOŞ liste alır ve
- *   göç sıfır kişi taşır.
- * · Kayma denetimi (`/api/admin/drift`) — iki kaynağı karşılaştırır.
- *   `getFamilyData` ile okursa Postgres'i Postgres'le karşılaştırır ve her
- *   zaman "ayrışma yok" der; yani denetim aracının verebileceği en kötü yanıt.
- *
- * Bu yüzden ikisi de bu işlevi kullanmak ZORUNDA. `tests/blob-source.test.mts`
- * kilitliyor.
- */
-export async function readFamilyFromBlob(userId: string): Promise<FamilyData | null> {
-  return readRawFromBlob(userId);
-}
-
-async function readMetaFromBlob(userId: string): Promise<{ coverPhoto?: string }> {
-  const d = await readRawFromBlob(userId);
-  return { coverPhoto: d?.coverPhoto };
-}
 
 /**
  * Sağlık kontrolü: Blob deposuna gerçekten ulaşılıyor mu? (sır sızdırmaz)
@@ -141,6 +117,27 @@ export async function pingBlob(): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
+/**
+ * SALT BLOB okuma — Postgres'e hiç bakmaz. Yoksa `null`.
+ *
+ * `getFamilyData` Faz 2d'den beri ÖNCE Postgres'e bakıyor. Bu, uygulamanın
+ * okuma yolu için doğru; ama iki iş için YANLIŞ, çünkü ikisi de tam olarak
+ * "Blob ne diyor" sorusunu soruyor:
+ *
+ * · Göç (`/api/admin/migrate`) — Blob'u Postgres'e kopyalar. `getFamilyData`
+ *   ile okursa, ağaç satırı yeni açıldığı için Postgres'ten BOŞ liste alır ve
+ *   göç sıfır kişi taşır.
+ * · Kayma denetimi (`/api/admin/drift`) — iki kaynağı karşılaştırır.
+ *   `getFamilyData` ile okursa Postgres'i Postgres'le karşılaştırır ve her
+ *   zaman "ayrışma yok" der; yani denetim aracının verebileceği en kötü yanıt.
+ *
+ * Bu yüzden ikisi de bu işlevi kullanmak ZORUNDA. `tests/blob-source.test.mts`
+ * kilitliyor.
+ */
+export async function readFamilyFromBlob(userId: string): Promise<FamilyData | null> {
+  return readRawFromBlob(userId);
+}
+
 export async function getFamilyData(
   userId: string,
   opts?: { skipCache?: boolean }
@@ -157,39 +154,62 @@ export async function getFamilyData(
   try {
     const fromDb = await dbGetFamilyData(userId);
     /*
-     * AYNASI BOŞALMIŞ AĞAÇ, BOŞ AĞAÇ DEĞİLDİR.
+     * AYNASI GERİDE KALMIŞ AĞAÇ, KÜÇÜLMÜŞ AĞAÇ DEĞİLDİR.
      *
-     * `dbGetFamilyData` yalnız AĞAÇ SATIRI yoksa `null` dönüyor; kişiler
-     * boşsa `{people: []}` dönüyordu ve yedek hiç devreye girmiyordu. Yani
-     * ayna bir kez bozulursa (çift-yazma en iyi çaba ve 4 sn zaman aşımı
-     * var) kullanıcı ağacını BOŞ görüyor, hiçbir uyarı çıkmıyordu — sessiz
-     * ve en kötü türden bir arıza: veri duruyor ama yokmuş gibi görünüyor.
+     * Okuma yolu Faz 2d'de Postgres'e döndü ama yazma yolu değişmedi:
+     * rota OKUDUĞUNU değiştirip Blob'a yazıyor. Yani ayna eksik döndüyse o
+     * eksiklik bir sonraki kaydetmede KAYNAĞA geçiyor — Blob artık "canlı
+     * yedek" değil, aynanın kopyası. Çift-yazma en iyi çaba ve 4 sn zaman
+     * aşımlı olduğu için kısmi ayna beklenen bir durum, kaza değil.
      *
-     * Boş gelen ağaçta Blob'a da bakılıyor. Gerçekten boş bir ağaçta (yeni
-     * kurulmuş) bedeli tek bir fazladan okuma; aynası bozuk bir ağaçta ise
-     * bütün verinin geri gelmesi. Blob'da kayıt VARSA bu bir ayna boşluğudur
-     * ve gürültülü şekilde günlüğe yazılıyor — sessiz kalması, sorunu
-     * bulunamaz kılardı.
+     * Önceki koruma yalnız "Postgres 0 kişi" hâlini yakalıyordu; 300
+     * kişiden 297'si gelen bir aynayı hiç görmüyordu ve o üç kişi ilk
+     * kaydetmede kalıcı olarak siliniyordu.
+     *
+     * Blob ZATEN OKUNUYOR — kapak fotoğrafı Postgres'te tutulmadığı için
+     * (`readRawFromBlob`). Yani karşılaştırma bedava; eskiden boş ağaçta
+     * dosya İKİ KEZ okunuyordu, şimdi bir kez.
+     *
+     * İki sinyal var ve ikisi de "ayna geride" demek; ayna güncelken
+     * hiçbiri doğru olamaz:
+     *   · Blob'un damgası Postgres jetonundan YENİ,
+     *   · Blob'da DAHA ÇOK kişi var.
+     * Damga karşılaştırması eski (hiç damgalanmamış) ağaçlarda anlamsız
+     * olduğu için sayı karşılaştırması onun kör noktasını kapatıyor.
+     *
+     * Ters yön (Postgres'te fazla kişi = yayılmamış silme) bu koruma
+     * ALTINDA DEĞİL: orada hangi tarafın haklı olduğunu okuma anında
+     * bilemiyoruz ve yanlış tahmin silinmiş kişiyi diriltir. Onun yeri
+     * kayma denetimi (`/admin/drift`).
      */
-    if (fromDb && fromDb.people.length === 0) {
+    if (fromDb) {
+      let yedek: FamilyData | null = null;
       try {
-        const yedek = await readFromBlob(userId);
-        if (yedek.people.length > 0) {
+        yedek = await readRawFromBlob(userId);
+      } catch { /* Blob okunamadıysa elimizdeki Postgres sonucuyla devam */ }
+
+      if (yedek) {
+        // Blob-only meta'yı (kapak fotoğrafı) birleştir — DB bunu tutmaz.
+        if (yedek.coverPhoto) fromDb.coverPhoto = yedek.coverPhoto;
+
+        const damgaYeni =
+          normalizeStamp(yedek.updatedAt) > normalizeStamp(fromDb.updatedAt);
+        const kisiFazla = (yedek.people?.length ?? 0) > fromDb.people.length;
+        if (damgaYeni || kisiFazla) {
+          /*
+           * Gürültülü — sessiz kalması sorunu bulunamaz kılardı. Hangi
+           * sinyalin yandığı da yazılıyor: damga farkı bir yazma
+           * hatasını, kişi farkı kısmi bir aynayı işaret eder.
+           */
           console.error(
-            `[ayna-boslugu] ${userId}: Postgres 0 kişi, Blob ${yedek.people.length} kişi — Blob kullanıldı`
+            `[ayna-geride] ${userId}: Blob ${yedek.people?.length ?? 0} kişi/${yedek.updatedAt}, ` +
+              `Postgres ${fromDb.people.length} kişi/${fromDb.updatedAt} — ` +
+              `Blob kullanıldı (${damgaYeni ? "damga" : ""}${damgaYeni && kisiFazla ? "+" : ""}${kisiFazla ? "kişi" : ""})`
           );
+          cache.set(userId, { json: JSON.stringify(yedek), at: Date.now() });
           return yedek;
         }
-      } catch {
-        /* Blob da okunamadıysa aşağıdaki boş sonuç dönsün */
       }
-    }
-    if (fromDb) {
-      // Blob-only meta'yı (kapak fotoğrafı) birleştir — DB bunu tutmaz.
-      try {
-        const meta = await readMetaFromBlob(userId);
-        if (meta.coverPhoto) fromDb.coverPhoto = meta.coverPhoto;
-      } catch { /* meta okunamazsa yoksay */ }
       cache.set(userId, { json: JSON.stringify(fromDb), at: Date.now() });
       return fromDb;
     }
