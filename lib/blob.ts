@@ -286,7 +286,27 @@ export async function saveFamilyData(
          * Ters sıra üçüncü bir durum üretirdi: kişiler silinmiş ama jeton
          * eski — yani düzeltmeye çalıştığımız dirilme hatasının ta kendisi.
          */
-        await dbSetTreeUpdatedAt(userId, data.updatedAt);
+        /*
+         * Damga hatası KİŞİ AYNASINI DÜŞÜRMEMELİ.
+         *
+         * İlk hâlinde çağrı çıplaktı ve bu blok tek bir `async` gövde:
+         * damga çağrısı hata verirse gövde orada reddediyor ve ALTINDAKİ
+         * kişi yazmaları hiç çalışmıyordu. Yani #287'den sonra bütün ayna,
+         * tek bir sütunun varlığına bağlanmış oldu — ve `supabase/schema.sql`
+         * o sütunu taşımadığı için bu dosyadan kurulmuş her ortamda ayna
+         * sessizce tümüyle ölürdü (şema da bu turda düzeltildi).
+         *
+         * Damga hâlâ ÖNCE deneniyor (sıranın gerekçesi aşağıda duruyor),
+         * ama artık kendi kapsülünde: düşerse gürültüyle günlüğe geçiyor ve
+         * kişiler yine yazılıyor.
+         */
+        let damgaDustu = false;
+        try {
+          await dbSetTreeUpdatedAt(userId, data.updatedAt);
+        } catch (e) {
+          damgaDustu = true;
+          console.warn(`[cift-yazma] damga→postgres (${userId}):`, (e as Error).message);
+        }
         if (freshOldJson) {
           const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
           const { changed, removed } = diffPeople(oldPeople, data.people);
@@ -294,6 +314,22 @@ export async function saveFamilyData(
           if (removed.length) await dbDeletePeople(userId, removed);
         } else {
           await dbReplacePeople(userId, data.people);
+        }
+        /*
+         * Damga düştüyse kişiler yazıldıktan SONRA bir kez daha denenir.
+         *
+         * Geçici bir hatada jeton yine ilerlesin diye: damgasız kalan bir
+         * kaydetmede jeton kişilerden türeyen değere düşüyor ve o değer bir
+         * SİLMEDE geriye gidebiliyor — düzeltmeye çalıştığımız dirilme
+         * hatasının penceresi. İkinci deneme de düşerse yapacak bir şey yok;
+         * o zaman en azından iki satır günlük var.
+         */
+        if (damgaDustu) {
+          try {
+            await dbSetTreeUpdatedAt(userId, data.updatedAt);
+          } catch (e) {
+            console.warn(`[cift-yazma] damga→postgres ikinci deneme (${userId}):`, (e as Error).message);
+          }
         }
       })(),
       MIRROR_TIMEOUT_MS,

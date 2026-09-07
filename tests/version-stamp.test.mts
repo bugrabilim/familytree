@@ -137,5 +137,61 @@ const drift = kodu(read("../app/api/admin/drift/route.ts"));
   check(iDamga > iSil, "onarım, silmeden sonra damgayı ilerletiyor");
 }
 
+/* ---------------------------------------------------------------- 4. Şema */
+
+/*
+ * SÜTUN ŞEMA DOSYASINDA OLMALI.
+ *
+ * Canlı veritabanına göçle eklenmişti ama `supabase/schema.sql` taşımıyordu.
+ * Bu, sessiz bir felaketti: aynayı yazan blok önce damgayı vuruyor, damga
+ * çağrısı "böyle sütun yok" diye hata verince aynı gövdedeki KİŞİ yazmaları
+ * da hiç çalışmıyordu — yani bu dosyadan kurulmuş her ortamda Postgres
+ * aynası tümüyle ölürdü ve kimse fark etmezdi (ayna en iyi çaba, hatası
+ * yalnız günlüğe düşüyor).
+ *
+ * Denetim ŞEMANIN KENDİSİNE bakıyor, göç geçmişine değil: yeni bir ortam
+ * bu dosyadan kuruluyor.
+ */
+{
+  const sema = read("../supabase/schema.sql");
+  const i = sema.indexOf("create table if not exists public.trees");
+  const blok = i > -1 ? sema.slice(i, sema.indexOf(");", i)) : "";
+  check(i > -1, "trees tablosu şemada bulundu");
+  check(/updated_at\s+timestamptz/.test(blok), "trees.updated_at şemada VAR");
+  /*
+   * NULL olabilmeli: sütun sonradan eklendi ve var olan ağaçlarda boş.
+   * `not null` yazsaydık şema canlıyla ayrışırdı ve `pickVersion`ın boşluğu
+   * karşılayan yolu ölü kod olurdu.
+   */
+  check(!/updated_at\s+timestamptz\s+not null/.test(blok), "trees.updated_at NULL olabiliyor (canlıyla aynı)");
+}
+
+/* ------------------------------------------------- 5. Damga hatası ayna öldürmesin */
+
+/*
+ * Damga çağrısı KENDİ kapsülünde olmalı.
+ *
+ * Blok tek bir `async` gövde; çıplak bir `await` orada hata verirse altındaki
+ * kişi yazmaları hiç çalışmaz. Yani damga ile kişi aynası aynı kadere
+ * bağlanır ve tek bir sütun sorunu bütün aynayı sessizce durdurur.
+ */
+{
+  const i = blob.indexOf("export async function saveFamilyData");
+  const govde = blob.slice(i);
+  const iDamga = govde.indexOf("dbSetTreeUpdatedAt(userId");
+  const oncesi = govde.slice(Math.max(0, iDamga - 260), iDamga);
+  check(/try \{/.test(oncesi), "damga çağrısı try içinde");
+  check(/damgaDustu = true/.test(govde), "damga hatası işaretleniyor");
+  check(/\[cift-yazma\] damga/.test(govde), "damga hatası günlüğe yazılıyor");
+  /* Kişi yazmaları damga hatasına RAĞMEN çalışmalı. */
+  const iSil = govde.indexOf("dbDeletePeople(userId");
+  const iCatch = govde.indexOf("damgaDustu = true");
+  check(iCatch > -1 && iSil > iCatch, "kişi yazmaları damga catch'inden SONRA (yani hata onları kesmiyor)");
+  /* Geçici hatada jeton yine ilerlesin: kişilerden sonra ikinci deneme. */
+  check(/if \(damgaDustu\) \{/.test(govde), "damga düştüyse ikinci deneme var");
+  const iIkinci = govde.lastIndexOf("dbSetTreeUpdatedAt(userId");
+  check(iIkinci > iSil, "ikinci deneme kişi yazmalarından SONRA");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
