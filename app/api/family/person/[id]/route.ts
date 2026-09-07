@@ -38,7 +38,7 @@ export async function PUT(
   const { id } = await params;
   const body = await req.json();
   const data = await getFamilyData(userId, { skipCache: true });
-  if (versionMismatch(req, data.updatedAt)) return conflict();
+  if (versionMismatch(req, data.updatedAt, ctx.treeId)) return conflict();
 
   const index = data.people.findIndex((p) => p.id === id);
   if (index === -1)
@@ -157,7 +157,7 @@ export async function DELETE(
   const userId = ctx.treeId;
   const { id } = await params;
   const data = await getFamilyData(userId, { skipCache: true });
-  if (versionMismatch(req, data.updatedAt)) return conflict();
+  if (versionMismatch(req, data.updatedAt, ctx.treeId)) return conflict();
 
   const person = data.people.find((p) => p.id === id);
   if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });

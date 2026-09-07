@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
    * bu arada başka bir düzenleyicinin eklediği kişi sessizce silinirdi —
    * "küçük bir alan" olması, yazmanın küçük olduğu anlamına gelmiyor.
    */
-  if (versionMismatch(req, r.data.updatedAt)) return conflict();
+  if (versionMismatch(req, r.data.updatedAt, r.ctx.treeId)) return conflict();
 
   const kisi = r.data.people[r.index];
   const plan = planContactChange(kisi, body.contactEmail);

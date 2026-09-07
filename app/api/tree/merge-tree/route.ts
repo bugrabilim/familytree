@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
    * İYİMSER KİLİT. Başlık gelmezse `versionMismatch` `false` döner, yani
    * başlığı göndermeyen çağıranlar (mobil, betikler) etkilenmez.
    */
-  if (versionMismatch(req, mine.updatedAt))
+  if (versionMismatch(req, mine.updatedAt, ctx.treeId))
     return NextResponse.json(
       { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

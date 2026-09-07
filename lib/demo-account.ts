@@ -1,4 +1,5 @@
 import { saveFamilyData } from "@/lib/blob";
+import { DEMO_USER_ID } from "./demo-id.ts";
 import { dbUpsertTree } from "@/lib/db";
 import { listTrees, purgeTree } from "@/lib/trees";
 import { DEMO_PEOPLE } from "@/lib/demo-data";
@@ -6,7 +7,14 @@ import type { SessionUser } from "@/lib/credentials";
 
 /** Herkesin şifresiz girebildiği ortak demo. */
 export const DEMO_FAMILY_NAME = "Demirtaş (demo)";
-export const DEMO_USER_ID = "demo-hesap";
+/*
+ * Kimliğin TANIMI `lib/demo-id.ts`e taşındı, evi ise burası olmaya devam
+ * ediyor: yirmi kadar çağıran `@/lib/demo-account`tan içe aktarıyor ve o
+ * satırların hiçbiri değişmedi. Taşımanın sebebi bir içe aktarma döngüsü —
+ * gerekçesi o dosyanın başında yazılı; dizgeyi buraya geri kopyalamayın,
+ * iki tanım noktası sessizce ayrışır.
+ */
+export { DEMO_USER_ID };
 
 /**
  * DEMO BİR HESAP DEĞİL, BİR VİTRİNDİR.

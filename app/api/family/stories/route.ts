@@ -207,7 +207,7 @@ export async function PATCH(req: NextRequest) {
    * hiç yazılmamış olurdu — ve bir daha uygulanamazdı, çünkü `applyApproval`
    * yalnız "bekliyor" durumunu kabul ediyor. Hikâye sessizce kaybolurdu.
    */
-  if (versionMismatch(req, data.updatedAt)) return conflict();
+  if (versionMismatch(req, data.updatedAt, g.ctx.treeId)) return conflict();
 
   /*
    * RET ağaca dokunmuyor: tek adım, doğrudan damga.

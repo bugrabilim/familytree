@@ -16,16 +16,24 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 
 /* --- Davranış: başlık yoksa engel yok (geriye dönük uyumlu) -------------- */
 /*
- * `lib/blob.ts` çalışma zamanında `@/` içe aktarıyor (server-only), yani
- * strip-types koşucusunda içe aktarılamaz — deponun kendi kuralı. O yüzden
- * kural KAYNAK düzeyinde kilitleniyor; buradaki tek kritik özellik geriye
- * dönük uyumluluk: başlık göndermeyen çağıranlar (mobil, betikler)
- * engellenmemeli, yoksa bu değişiklik onları kırardı.
+ * Kilidin gövdesi artık `lib/version-lock.ts`te (bağımsız, birim testi
+ * koşulabilen dosya); `lib/blob.ts` onu yalnız yeniden dışa aktarıyor —
+ * rotaların içe aktarma satırı değişmesin diye. Bu blok gövdeyi orada
+ * arıyor, ayrıca yeniden dışa aktarımın durduğunu da denetliyor: o satır
+ * silinirse on yedi rota dosyası birden derlenmez.
+ *
+ * Buradaki kritik özellik geriye dönük uyumluluk: başlık göndermeyen
+ * çağıranlar (mobil, betikler) engellenmemeli, yoksa bu değişiklik onları
+ * kırardı.
  */
 {
   const blob = readFileSync(new URL("../lib/blob.ts", import.meta.url), "utf8");
-  const i = blob.indexOf("export function versionMismatch");
-  const govde = blob.slice(i, blob.indexOf("\n}", i));
+  check(/export \{ versionMismatch \} from "@\/lib\/version-lock";/.test(blob),
+    "blob.ts kilidi yeniden dışa aktarıyor (rota içe aktarımları bozulmadı)");
+
+  const kilit = readFileSync(new URL("../lib/version-lock.ts", import.meta.url), "utf8");
+  const i = kilit.indexOf("export function versionMismatch");
+  const govde = kilit.slice(i, kilit.indexOf("\n}", i));
   check(i > 0, "versionMismatch bulundu");
   check(/return\s+!!base\s+&&/.test(govde), "başlık yoksa çakışma YOK (geriye dönük uyumlu)");
   check(/base\s*!==\s*current/.test(govde), "sürüm farkı çakışma sayılıyor");

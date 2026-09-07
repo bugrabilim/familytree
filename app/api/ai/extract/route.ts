@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
    * denetim atlanır (mobil ve betikler etkilenmez).
    */
   const mevcutVeri = await getFamilyData(ctx.treeId, { skipCache: true });
-  if (versionMismatch(req, mevcutVeri.updatedAt))
+  if (versionMismatch(req, mevcutVeri.updatedAt, ctx.treeId))
     return NextResponse.json(
       { error: "Bu ağaç siz bakarken değişti. Sayfayı yenileyip tekrar deneyin." },
       { status: 409 }

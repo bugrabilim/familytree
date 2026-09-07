@@ -130,7 +130,7 @@ check(/buildChanges\(person, istek\)/.test(rota), "değişiklikler KAYIT ile kar
    * alanları koruyor, ağaç ise tek dosya. Okuma ile yazma arasında başkası
    * başka bir kişiyi kaydettiyse bu yazma onu ezerdi.
    */
-  check(/if \(versionMismatch\(req, data\.updatedAt\)\)/.test(patch), "iyimser kilit var");
+  check(/if \(versionMismatch\(req, data\.updatedAt, ctx\.treeId\)\)/.test(patch), "iyimser kilit var");
   {
     const iKilit = patch.indexOf("versionMismatch(req");
     const iYaz = patch.indexOf("await saveFamilyData(");
@@ -491,7 +491,7 @@ check(!/saveFamilyData/.test(cek), "geri çekme ağacı YAZMIYOR");
   check(/p\.status !== "onaylandi"/.test(geri), "yalnız onaylanmış öneri geri alınıyor");
 
   /* İyimser kilit, yazmadan ÖNCE — öbür yazan uçlarla aynı kural. */
-  check(/if \(versionMismatch\(req, data\.updatedAt\)\)/.test(geri), "iyimser kilit var");
+  check(/if \(versionMismatch\(req, data\.updatedAt, ctx\.treeId\)\)/.test(geri), "iyimser kilit var");
   {
     const iKilit = geri.indexOf("versionMismatch(req");
     const iYaz = geri.indexOf("await saveFamilyData(");
