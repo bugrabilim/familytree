@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -90,7 +91,7 @@ export default function ShareDialog({
         if (!res.ok) throw new Error(data?.error ?? t("share.failed"));
         setShares(data.shares ?? []);
       } catch (e) {
-        if (alive) setError((e as Error).message);
+        if (alive) setError(userMessage(e, t("err.generic")));
       }
     })();
     return () => { alive = false; };

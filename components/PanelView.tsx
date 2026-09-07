@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useMemo, useState } from "react";
 import { mutationHeaders } from "@/lib/actions";
 import { useRouter } from "next/navigation";
@@ -258,7 +259,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
       setSelPairs(new Set());
       router.refresh();
     } catch (e) {
-      setBulkError((e as Error).message);
+      setBulkError(userMessage(e, t("err.generic")));
     } finally {
       setBulkBusy(false);
     }

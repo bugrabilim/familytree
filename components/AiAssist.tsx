@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import type { Person } from "@/types/family";
 import { useLang, useT } from "@/lib/i18n";
@@ -39,7 +40,7 @@ export default function AiAssist({ person }: { person: Person }) {
       if (!res.ok) throw new Error(data?.error ?? t("ai.story.failed"));
       setText(data.text);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

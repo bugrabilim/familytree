@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import AuthShell from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
@@ -40,7 +41,7 @@ export default function ContactAnswerClient({
       if (!res.ok) throw new Error(data?.error ?? t("contactAsk.failed"));
       setDurum(answer === "onayla" ? "onaylandi" : "reddedildi");
     } catch (e) {
-      setMesaj((e as Error).message);
+      setMesaj(userMessage(e, t("err.generic")));
       setDurum("hata");
     }
   };

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useEffect, useState } from "react";
 import { RSVP_ANSWERS, type RsvpAnswer } from "@/types/gathering";
 import AuthShell from "@/components/AuthShell";
@@ -54,7 +55,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
         if (!res.ok) throw new Error(data?.error ?? t("rsvp.failed"));
         setGathering(data.gathering as PublicGathering);
       } catch (e) {
-        if (!iptal) setError((e as Error).message);
+        if (!iptal) setError(userMessage(e, t("err.generic")));
       } finally {
         if (!iptal) setLoading(false);
       }
@@ -76,7 +77,7 @@ export default function RsvpForm({ treeId, token }: { treeId: string; token: str
       if (data.gathering) setGathering(data.gathering as PublicGathering);
       setDone(true);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

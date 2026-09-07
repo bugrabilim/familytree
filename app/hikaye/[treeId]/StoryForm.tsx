@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import AuthShell from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
@@ -48,7 +49,7 @@ export default function StoryForm({ treeId, token }: { treeId: string; token: st
         if (!res.ok) throw new Error(data?.error ?? t("story.failed"));
         setIstek(data as PublicRequest);
       } catch (e) {
-        if (!iptal) setError((e as Error).message);
+        if (!iptal) setError(userMessage(e, t("err.generic")));
       } finally {
         if (!iptal) setLoading(false);
       }
@@ -70,7 +71,7 @@ export default function StoryForm({ treeId, token }: { treeId: string; token: st
       if (!res.ok) throw new Error(data?.error ?? t("story.failed"));
       setDone(true);
     } catch (err) {
-      setError((err as Error).message);
+      setError(userMessage(err, t("err.generic")));
     } finally {
       setBusy(false);
     }

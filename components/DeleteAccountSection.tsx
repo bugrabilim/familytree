@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -87,7 +88,7 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -109,7 +110,7 @@ export default function DeleteAccountSection({ familyName, treeCount, peopleCoun
        */
       await signOut({ redirect: false });
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }

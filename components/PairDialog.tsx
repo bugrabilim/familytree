@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -37,7 +38,7 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
         if (!res.ok) throw new Error(data?.error ?? t("pair.failed"));
         setPairings(data.pairings ?? []);
       } catch (e) {
-        if (alive) setError((e as Error).message);
+        if (alive) setError(userMessage(e, t("err.generic")));
       }
     })();
     return () => {
@@ -55,7 +56,7 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error(data?.error ?? t("pair.failed"));
       setInvite(data);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -74,7 +75,7 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error(t("pair.failed"));
       setPairings((cur) => (cur ?? []).filter((p) => p.peerTreeId !== peerTreeId));
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

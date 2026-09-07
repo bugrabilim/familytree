@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import { mutationHeaders } from "@/lib/actions";
 import { useRouter } from "next/navigation";
@@ -50,7 +51,7 @@ export default function MergeDialog({
       onClose();
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setBusy(false);
     }
   };

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
@@ -256,7 +257,7 @@ export default function AiChat({
         }
         // action=none → soru-cevaba düş (aşağıda)
       } catch (e) {
-        setError((e as Error).message);
+        setError(userMessage(e, t("err.generic")));
         setBusy(false);
         scrollToEnd();
         return;
@@ -281,7 +282,7 @@ export default function AiChat({
       if (!res.ok) throw new Error(data?.error ?? t("ai.story.failed"));
       setMessages((m) => [...m, { role: "ai", text: data.answer ?? "" }]);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
       scrollToEnd();

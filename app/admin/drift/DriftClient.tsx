@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import Link from "next/link";
 import type { DriftReport, TreeDrift } from "@/lib/drift";
@@ -132,7 +133,7 @@ export default function DriftClient() {
       const res = await fetch("/api/admin/drift", { cache: "no-store" });
       setRapor((await res.json()) as Rapor);
     } catch (e) {
-      setRapor({ error: (e as Error).message } as Rapor);
+      setRapor({ error: userMessage(e, "Denetim tamamlanamadı.") } as Rapor);
     } finally {
       setLoading("");
     }
@@ -149,7 +150,7 @@ export default function DriftClient() {
       const tekrar = await fetch("/api/admin/drift", { cache: "no-store" });
       setRapor((await tekrar.json()) as Rapor);
     } catch (e) {
-      setOnarim({ error: (e as Error).message });
+      setOnarim({ error: userMessage(e, "Onarım tamamlanamadı.") });
     } finally {
       setLoading("");
     }

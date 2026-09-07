@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -39,7 +40,7 @@ export default function MigrateClient() {
       setResult(data);
       setKind(which);
     } catch (e) {
-      setResult({ error: (e as Error).message });
+      setResult({ error: userMessage(e, "İşlem tamamlanamadı.") });
       setKind(which);
     } finally {
       setLoading("");

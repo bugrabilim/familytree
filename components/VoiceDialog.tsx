@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import type { VoiceFact, VoicePerson } from "@/lib/voice";
@@ -103,7 +104,7 @@ export default function VoiceDialog({
         setChecked(new Set());
         setStep("onay");
       } catch (e) {
-        setError((e as Error).message);
+        setError(userMessage(e, t("err.generic")));
       } finally {
         setBusy(false);
       }
@@ -142,7 +143,7 @@ export default function VoiceDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setBusy(false);
     }
   }, [subject, facts, checked, transcript, audioUrl, promptId, onSaved, onClose, t]);

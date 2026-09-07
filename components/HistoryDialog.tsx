@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -50,7 +51,7 @@ export default function HistoryDialog({
         if (!res.ok) throw new Error(data?.error ?? t("history.failed"));
         setEntries(data.entries ?? []);
       } catch (e) {
-        if (alive) setError((e as Error).message);
+        if (alive) setError(userMessage(e, t("err.generic")));
       }
     })();
     return () => { alive = false; };
@@ -70,7 +71,7 @@ export default function HistoryDialog({
       if (!res.ok) throw new Error(data?.error ?? t("history.failed"));
       onRestored();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setBusyId(null);
     }
   };

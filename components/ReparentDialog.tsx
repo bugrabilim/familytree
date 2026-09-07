@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import { applyReparent, planReparent, summarize, type ReparentError } from "@/lib/reparent";
@@ -68,7 +69,7 @@ export default function ReparentDialog({
       onSaved();
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setBusy(false);
     }
   };

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import type { Person } from "@/types/family";
 import type { Letter } from "@/types/letter";
@@ -48,7 +49,7 @@ export default function LettersView({
         if (!res.ok) throw new Error(data?.error ?? t("letters.failed"));
         setLetters(data.letters ?? []);
       } catch (e) {
-        if (alive) { setError((e as Error).message); setLetters([]); }
+        if (alive) { setError(userMessage(e, t("err.generic"))); setLetters([]); }
       }
     })();
     return () => { alive = false; };
@@ -82,7 +83,7 @@ export default function LettersView({
       setLetters(data.letters ?? []);
       setEditing(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

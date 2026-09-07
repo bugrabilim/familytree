@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { mutationHeaders, setBaseVersion } from "@/lib/actions";
@@ -138,9 +139,9 @@ export default function ProposalsDialog({ onClose, onApplied }: {
         return yeni;
       });
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     }
-  }, []);
+  }, [t]);
 
   /*
    * İlk yükleme, `yukle`yi doğrudan çağırmıyor: bileşen sökülmüşken
@@ -157,11 +158,11 @@ export default function ProposalsDialog({ onClose, onApplied }: {
         if (!res.ok) throw new Error(d?.error ?? "Yüklenemedi.");
         setList(d.proposals as Proposal[]);
       } catch (e) {
-        if (alive) setHata((e as Error).message);
+        if (alive) setHata(userMessage(e, t("err.generic")));
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [t]);
 
   const karar = async (id: string, decision: "onaylandi" | "reddedildi") => {
     setBusy(id);
@@ -200,7 +201,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       if (decision === "onaylandi") onApplied?.();
       await yukle();
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -228,7 +229,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       if (!res.ok) throw new Error(d?.error ?? "İşlem başarısız.");
       await yukle();
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -288,7 +289,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       setSecili(new Set());
       await yukle();
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -320,7 +321,7 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       onApplied?.();
       await yukle();
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import type { Person } from "@/types/family";
 import { useLang, useT } from "@/lib/i18n";
@@ -31,7 +32,7 @@ export default function RecordHints({ person }: { person: Person }) {
       if (!res.ok) throw new Error(data?.error ?? t("records.failed"));
       setResults(data.results ?? []);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setResults([]);
     } finally {
       setBusy(false);

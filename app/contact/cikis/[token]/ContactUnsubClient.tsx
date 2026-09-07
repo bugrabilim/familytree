@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import AuthShell from "@/components/AuthShell";
 import Button from "@/components/ui/Button";
@@ -23,7 +24,7 @@ export default function ContactUnsubClient({ token }: { token: string }) {
       if (!res.ok) throw new Error(data?.error ?? t("contactUnsub.failed"));
       setDurum("tamam");
     } catch (e) {
-      setMesaj((e as Error).message);
+      setMesaj(userMessage(e, t("err.generic")));
       setDurum("hata");
     }
   };
