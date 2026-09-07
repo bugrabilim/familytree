@@ -6,6 +6,7 @@ import {
   snapshotPath,
   snapshotStamp,
   stampOf,
+  verifySample,
 } from "../lib/backup.ts";
 
 let ok = 0, fail = 0;
@@ -174,6 +175,36 @@ check(snapshotStamp(snapshotPath("2026-09-03", "a/b.json")) === "2026-09-03", "k
 }
 
 check(BACKUP_PREFIX === "backups/", "önek sabiti");
+
+/* ── DOĞRULAMA ÖRNEĞİ ────────────────────────────────────────────────────── */
+/*
+ * `put`ın dönmesi dosyanın okunabilir olduğunu kanıtlamıyor; bu depoda tam
+ * olarak bu sessizlik bir kez yaşandı (özel depoya düz `fetch`, her gün 200,
+ * sıfır dosya). Yedek artık yazdığının bir örneğini geri okuyor. Örnek
+ * RASTGELE DEĞİL: kritik dosya doğrulanmayan koşular olmamalı.
+ */
+{
+  const yazilan = [
+    "backups/2026-09-06/tree-access-a.json",
+    "backups/2026-09-06/family-data-t1.json",
+    "backups/2026-09-06/users.json",
+    "backups/2026-09-06/account-trees-a.json",
+    "backups/2026-09-06/family-data-t2.json",
+  ];
+  const s = verifySample(yazilan, 3);
+  check(s.length === 3, "örnek sınırı aşılmıyor");
+  check(s[0].endsWith("users.json"), "kimlik deposu HER ZAMAN ilk sırada");
+  check(s.some((p) => p.includes("family-data-")), "ağaç verisi de örnekte");
+  check(new Set(s).size === s.length, "aynı dosya iki kez seçilmiyor");
+  check(s.every((p) => yazilan.includes(p)), "yalnız gerçekten yazılanlar doğrulanıyor");
+}
+{
+  /* Kritik dosya yoksa örnek yine dolar — doğrulama hiç yapılmamış olmaz. */
+  const s = verifySample(["backups/g/a.json", "backups/g/b.json"], 3);
+  check(s.length === 2, "az dosya varsa hepsi seçiliyor");
+  check(verifySample([], 3).length === 0, "hiç yazılmadıysa örnek boş");
+  check(verifySample(["backups/g/a.json"], 0).length === 0, "sınır sıfırsa doğrulama yok");
+}
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

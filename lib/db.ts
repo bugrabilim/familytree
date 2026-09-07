@@ -259,14 +259,29 @@ export async function dbGetFamilyData(treeId: string): Promise<FamilyData | null
  */
 export async function dbGetTreeRow(
   treeId: string
-): Promise<{ id: string; name: string; owner_account: string; is_home: boolean } | null> {
+): Promise<{
+  id: string;
+  name: string;
+  owner_account: string;
+  is_home: boolean;
+  /*
+   * Sürüm damgası — `updated_at` sütunu SONRADAN eklendi (`lib/version-stamp.ts`),
+   * bu yüzden eski satırlarda `null` olabilir. Ayna taraması damgaları
+   * karşılaştırıyor ve okunamayan damgayı "eşit" sayıyor; seçilmemesi ise
+   * her ağaç için sessizce "damga yok" demek olurdu.
+   */
+  updated_at: string | null;
+} | null> {
+  type Satir = {
+    id: string; name: string; owner_account: string; is_home: boolean; updated_at: string | null;
+  };
   const { data, error } = await supabaseAdmin()
     .from("trees")
-    .select("id, name, owner_account, is_home")
+    .select("id, name, owner_account, is_home, updated_at")
     .eq("id", treeId)
     .maybeSingle();
   if (error) throw new Error(`tree row: ${error.message}`);
-  return (data as { id: string; name: string; owner_account: string; is_home: boolean } | null) ?? null;
+  return (data as Satir | null) ?? null;
 }
 
 /**

@@ -131,4 +131,52 @@ export interface BackupSummary {
   failed: number;
   removed: number;
   keptSnapshots: number;
+  /** Geri okunup doğrulanan görüntü sayısı (`verifySample`). */
+  verified: number;
+  /** Geri okunamayan ya da bozuk çıkan görüntüler. Boş olmalı. */
+  verifyFailed: string[];
+}
+
+/**
+ * DOĞRULANACAK ÖRNEK — hangi görüntüler geri okunsun?
+ *
+ * ## Neden doğrulama gerekiyordu
+ *
+ * `put` çağrısının dönmesi, dosyanın okunabilir olduğunu KANITLAMIYOR. Bu
+ * depoda tam olarak bu tür bir sessizlik bir kez yaşandı: yedek işi her gün
+ * 200 dönüyordu ama `private` depoya düz `fetch` attığı için hiçbir dosya
+ * kopyalanmıyordu — aylarca. Yazdığını geri okumayan bir yedek, yedek
+ * olduğunu yalnız iddia eder.
+ *
+ * ## Neden HEPSİ değil, örnek
+ *
+ * Her dosyayı geri okumak işin süresini ikiye katlar ve bütçe zaten sabit
+ * (`maxDuration`). Örnek, doğrulamanın maliyetini sabit tutuyor.
+ *
+ * ## Örnek NASIL seçiliyor
+ *
+ * Rastgele değil. Önce KRİTİK dosyalar: `users.json` (kimlik deposu —
+ * kaybı herkesin hesabını kaybetmesi demek), sonra ağaç verisi. Kalan yerler
+ * listenin başından dolduruluyor. Rastgele seçim, kritik dosyanın
+ * doğrulanmadığı koşular üretirdi ve doğrulamanın anlamı tam da onları
+ * doğrulamak.
+ */
+export const VERIFY_SAMPLE = 3;
+
+export function verifySample(
+  written: readonly string[],
+  limit: number = VERIFY_SAMPLE
+): string[] {
+  if (limit <= 0) return [];
+  const secilen: string[] = [];
+  const ekle = (p: string) => {
+    if (secilen.length < limit && !secilen.includes(p)) secilen.push(p);
+  };
+  /* Kimlik deposu her zaman ilk sırada. */
+  for (const p of written) if (/(^|\/)users\.json$/.test(p)) ekle(p);
+  /* Sonra ağaç verisi — kullanıcının asıl kaybedeceği şey. */
+  for (const p of written) if (/family-data-/.test(p)) ekle(p);
+  /* Kalan yer varsa listenin başından. */
+  for (const p of written) ekle(p);
+  return secilen;
 }

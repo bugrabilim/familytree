@@ -163,5 +163,40 @@ check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
   check(/console\.warn\(/.test(govde), "uyarı `warn` seviyesinde");
 }
 
+/* ══ 6. Sağlık ucu DIŞARIDAN izlenebilir ═════════════════════════════════ */
+/*
+ * Bu uç yalnız oturum kabul ediyordu. Her sağlık izleme aracı (UptimeRobot,
+ * bir cron, bir kontrol paneli) oturumsuz çağırır ve 401 alırdı — yani "her
+ * şey çalışıyor mu" sorusunu ancak birinin aklına gelip elle bakması hâlinde
+ * yanıtlayabilen bir sağlık ucu, yani sağlık ucu değil.
+ */
+{
+  const health = kodu(read("../app/api/health/route.ts"));
+  check(/auth_ === `Bearer \$\{secret\}`/.test(health), "makine kimliği kabul ediliyor");
+  /*
+   * KAPALI DÜŞÜYOR: sır tanımsızsa bu yol yok, yalnız oturum kalıyor.
+   * "Sır yoksa serbest" davranışı ucu herkese açardı.
+   */
+  check(/const makine = !!secret &&/.test(health), "sır yoksa makine yolu KAPALI");
+  check(/if \(!makine\) \{/.test(health), "makine değilse oturum denetimi sürüyor");
+  check(/canManage\(session\.user\.role\)/.test(health), "oturum yolunda yönetici şartı duruyor");
+  /* Sır sorgu dizesinden okunmuyor: erişim günlüklerine ve geçmişe düşerdi. */
+  check(!/searchParams\.get\("token"\)/.test(health), "sır sorgu dizesinden alınmıyor");
+
+  /*
+   * AYNA SAĞLIK HESABINA KATILIYOR. Eskiden katılmıyordu ve gerekçesi
+   * "henüz uygulamaya bağlı değil (Faz 2)" idi; o gerekçe geçersiz — okuma
+   * yolu artık ÖNCE Postgres'e bakıyor ve yazma yolu iki yere birden yazıyor.
+   * Ayna ölüyken uygulama Blob'a düşerek çalışmaya devam ediyor (kullanıcı
+   * bir şey fark etmiyor) ama her yazma aynadan kaçıyor ve ayrışma birikiyor.
+   */
+  check(/const healthy = blob\.ok && cloudinary\.ok && \(!aynaGerekli \|\| supabase\.ok\)/.test(health),
+    "ayna yapılandırılmışsa sağlık hesabına katılıyor");
+  check(/isSupabaseConfigured\(\)/.test(health),
+    "yapılandırılmamış kurulumda ayna eksikliği arıza sayılmıyor");
+  /* İki zamanlanmış iş de buna bağlı; yokluğu hiçbir hata üretmiyor. */
+  check(/CRON_SECRET: !!secret/.test(health), "cron sırrının varlığı yanıtta görünüyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
