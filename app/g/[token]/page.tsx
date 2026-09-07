@@ -10,7 +10,7 @@ import PublicObituaries from "@/components/PublicObituaries";
 import { readPublicObituaries } from "@/lib/obituary-store";
 import { translate } from "@/lib/i18n-dict";
 import Invalid from "./Invalid";
-import { allows, scopeOrAll } from "@/lib/share-scope";
+import { allows, needsPeople, scopeOrAll } from "@/lib/share-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +122,20 @@ export default async function SharePage({
   const allowedViews = scopeOrAll(valid.share.scope);
 
   /*
+   * KİŞİ LİSTESİ DE KAPSAMA BAĞLI.
+   *
+   * Taziye şeridi için bu kural zaten uygulanıyordu ("çizme ama gönder"
+   * demek, veriyi sayfa kaynağında bırakmaktır) — ama kişi listesi için
+   * uygulanmıyordu ve kapsam yalnız SEKMELERİ gizliyordu. Yani yalnız
+   * "tarifler" paylaşan bir bağlantı, ağacın bütün kişilerini (maskeli de
+   * olsa) RSC yükünde taşıyordu: sahibin paylaşmamayı SEÇTİĞİ veriyi.
+   *
+   * `/embed` ve genel okuma API'si aynı jetonu bu yüzden reddediyor; bu
+   * sayfa o ikisinden ayrışmıştı.
+   */
+  const paylasilanKisiler = needsPeople(valid.share.scope) ? safePeople : [];
+
+  /*
    * Taziye şeridi de kapsama bağlı ve verisi kapsam dışıysa HİÇ OKUNMUYOR.
    * Yalnız gizlemek yetmezdi: sunucu bileşeninden istemciye geçen proplar
    * RSC yüküne serileştiriliyor, yani "çizme ama gönder" demek, kapsam
@@ -147,7 +161,7 @@ export default async function SharePage({
         />
       )}
       <Workspace
-      people={safePeople}
+      people={paylasilanKisiler}
       version={updatedAt}
       familyName={valid.share.treeName}
       role="uye"

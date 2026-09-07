@@ -7,7 +7,7 @@ import type { Person } from "@/types/family";
 import type { TreeRole } from "@/types/user";
 import type { DeletedTreeItem, TreeItem } from "@/components/TreeSwitcher";
 import TopBar, { type ViewKey } from "@/components/TopBar";
-import { firstAllowed } from "@/lib/share-scope";
+import { allows, firstAllowed } from "@/lib/share-scope";
 import { useBonds } from "@/lib/useBonds";
 import ReparentDialog from "@/components/ReparentDialog";
 import GatheringsDialog from "@/components/GatheringsDialog";
@@ -193,7 +193,14 @@ function WorkspaceInner({
    * tarifler) kapsam dışı bir sekmeyle açılır ve ziyaretçi ilk gördüğü şey
    * olarak boş bir ekrana bakardı.
    */
-  const [view, setView] = useState<ViewKey>(() => firstAllowed(allowedViews) as ViewKey);
+  /*
+   * Açılış görünümü kapsamın ilk ÇİZİLEBİLİR görünümü. `firstAllowed` kip
+   * olan kapsamları (kitap) atlıyor; hiçbiri kalmazsa `null` dönüyor ve
+   * "agac" varsayılmıyor — paylaşılmamış ağacı açmak olurdu. O durumda
+   * aşağıdaki kapsam kapısı devreye giriyor ve kitap kipi açılıyor.
+   */
+  const [view, setView] = useState<ViewKey>(() => (firstAllowed(allowedViews) ?? "agac") as ViewKey);
+
   const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
   /** Ağaçta gezinirken merkeze alınan/vurgulanan kişi — detay panelinden ayrı */
   const [treeFocus, setTreeFocus] = useState<string | undefined>(initialSelectedId);
@@ -201,7 +208,22 @@ function WorkspaceInner({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [bookOpen, setBookOpen] = useState(false);
+  /*
+   * Kapsamda yalnız KİTAP varsa kitap AÇIK başlıyor.
+   *
+   * "Aile kitabını göndereyim" diyen sahibin bağlantısında ziyaretçiye
+   * gösterilecek bir sekme yok; kitap bir kip ve açılması gerekiyor. Yoksa
+   * ziyaretçi, sahibin paylaştığı TEK şeyi görmenin hiçbir yolu olmayan bir
+   * sayfaya bakar.
+   *
+   * Başlangıç değeri olarak hesaplanıyor, bir `useEffect` içinde
+   * `setBookOpen` çağrılarak DEĞİL: ikincisi fazladan bir çizim turu
+   * doğuruyor ve kitap bir kare boyunca kapalı görünüyor.
+   */
+  const [bookOpen, setBookOpen] = useState(
+    () => !!publicView && !!allowedViews && !firstAllowed(allowedViews) && allows(allowedViews, "kitap")
+  );
+
   /** Aile Kitabı kapak fotoğrafı (header). */
   const [coverPhoto, setCoverPhotoState] = useState<string | undefined>(initialCoverPhoto);
   /** Kişi merkezli "Çevre" grafiği — açıksa bu kişiyle merkezlenir. */
@@ -674,7 +696,23 @@ function WorkspaceInner({
           selected ? "sm:pr-[340px]" : ""
         }`}
       >
-        {isEmpty ? (
+        {/*
+          * KAPSAM KAPISI — render zincirinin ÖNÜNDE.
+          *
+          * Zincirin sonunda bir yakala-hepsini `else` var ve o İSTATİSTİK
+          * paneli çiziyor. Yani eşleşmeyen her `view` değeri, kapsam ne
+          * olursa olsun, bütün ağacın toplamlarını gösteriyordu — sızıntı
+          * "kitap" üstünden çıkmıştı ama sebep tek bir anahtar değil,
+          * kapının hiç olmamasıydı.
+          *
+          * Kapı burada, tek yerde: kapsam dışı bir görünüm ana alanda ASLA
+          * çizilmiyor. Yeni bir sekme eklendiğinde de korunuyor.
+          */}
+        {!allows(allowedViews, view) ? (
+          <div className="h-full grid place-items-center p-8">
+            <p className="text-sm text-text-muted text-center max-w-xs">{t("share.viewNotShared")}</p>
+          </div>
+        ) : isEmpty ? (
           <EmptyState
             onAdd={openAdd}
             onStarter={createStarter}

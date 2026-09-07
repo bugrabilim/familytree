@@ -60,6 +60,43 @@ export function parseScope(raw: unknown): ShareScope[] | undefined {
   return liste.length === SHARE_SCOPES.length ? undefined : liste;
 }
 
+/**
+ * SEKME DEĞİL, KİP olan kapsamlar.
+ *
+ * "kitap" bir görünüm gibi seçiliyor ama `Workspace` onu `view` durumuna hiç
+ * yazmıyor: `TopBar.onViewChange` yakalayıp bir modal açıyor. Yani ana
+ * alanda `view === "kitap"` diye bir dal YOK.
+ *
+ * Bunu bilmemek bir kapsam sızıntısı üretmişti: yalnız "kitap" paylaşan bir
+ * bağlantıda açılış görünümü "kitap" seçiliyor, hiçbir dal eşleşmiyor ve
+ * render zincirinin son `else`i devreye giriyordu — o da İSTATİSTİK paneli.
+ * Ziyaretçinin ilk gördüğü şey, sahibin kapsam dışı bıraktığı görünümün
+ * içeriğiydi.
+ */
+export const MODAL_SCOPES: readonly ShareScope[] = ["kitap"];
+
+/** Kişi verisi İSTEYEN görünümler — geri kalanı kendi ucundan okuyor. */
+export const PEOPLE_SCOPES: readonly ShareScope[] = [
+  "agac", "cevre", "soy", "yelpaze", "liste", "zaman", "harita",
+  "istatistik", "iliski", "takvim", "kitap",
+];
+
+/**
+ * Bu paylaşımın kişi verisine ihtiyacı var mı?
+ *
+ * Sunucu bileşeninden istemciye geçen proplar RSC yüküne serileştiriliyor,
+ * yani kişi listesini "çizme ama gönder" demek onu SAYFA KAYNAĞINDA
+ * bırakmaktır. Taziye şeridi için bu kural zaten uygulanıyordu; kişi
+ * listesi için uygulanmıyordu ve kapsam yalnız sekmeleri gizliyordu.
+ *
+ * Yani yalnız "tarifler" paylaşan bir bağlantı, ağacın bütün kişilerini
+ * (maskeli de olsa) sayfa kaynağında taşıyordu — sahibin paylaşmamayı
+ * SEÇTİĞİ veriyi.
+ */
+export function needsPeople(scope?: readonly string[] | null): boolean {
+  return scopeOrAll(scope).some((k) => PEOPLE_SCOPES.includes(k));
+}
+
 /** Bu bağlantı o görünümü açıyor mu? */
 export function allows(scope: readonly string[] | null | undefined, key: string): boolean {
   if (!scope || scope.length === 0) return true;
@@ -73,11 +110,17 @@ export function scopeOrAll(scope?: readonly string[] | null): ShareScope[] {
 }
 
 /**
- * Kısıtlı bir bağlantıda açılacak İLK görünüm.
+ * Kısıtlı bir bağlantıda açılacak İLK görünüm — ya da hiçbiri.
  *
- * Varsayılan sekme "agac" ama paylaşım onu içermeyebilir; o durumda sayfa,
- * kapsam dışı bir sekmeyle açılır ve ziyaretçi boş bir ekran görürdü.
+ * Varsayılan sekme "agac" ama paylaşım onu içermeyebilir; o durumda sayfa
+ * kapsam dışı bir sekmeyle açılırdı.
+ *
+ * KİP olan kapsamlar (`MODAL_SCOPES`) buradan DÖNMÜYOR: onların ana alanda
+ * bir dalı yok ve seçilirlerse render zinciri son `else`e düşüyor — sızıntı
+ * tam buradan çıkmıştı. Kapsamda çizilebilir hiçbir görünüm yoksa `null`
+ * dönüyor; çağıran o durumda ne göstereceğine kendisi karar veriyor
+ * ("agac" varsaymak, paylaşılmamış ağacı açmak olurdu).
  */
-export function firstAllowed(scope?: readonly string[] | null): ShareScope {
-  return scopeOrAll(scope)[0] ?? "agac";
+export function firstAllowed(scope?: readonly string[] | null): ShareScope | null {
+  return scopeOrAll(scope).find((k) => !MODAL_SCOPES.includes(k)) ?? null;
 }
