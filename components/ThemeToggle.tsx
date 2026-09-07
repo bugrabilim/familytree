@@ -13,6 +13,26 @@ export const THEME_SCRIPT = `
 })();
 `;
 
+/**
+ * Kayıtlı tema tercihini DOM'a uygular — `THEME_SCRIPT` ile AYNI kural, ama
+ * çalışma anında çağrılabilen hâli.
+ *
+ * Neden ayrıca gerekiyor: `THEME_SCRIPT` kök yerleşimin `<head>`inde duruyor.
+ * Sunucu çizimi sırasında bir hata olursa Next kök yerleşimi değil, kendi
+ * asgari belgesini döndürüyor (`<html id="__next_error__">`, bkz. kılavuz:
+ * "the built-in 500 page renders its own document"). Global stiller o belgede
+ * de yükleniyor ama betik HİÇ çalışmıyor — sonuç: koyu tema seçmiş kullanıcı
+ * hata ekranını beyaz zeminde görüyordu. `app/error.tsx` bağlanınca bunu
+ * çağırıp tercihi geri koyuyor.
+ */
+export function applyStoredTheme() {
+  try {
+    document.documentElement.classList.toggle("dark", localStorage.getItem("tema") === "dark");
+  } catch {
+    // localStorage erişilemiyorsa (gizli mod) varsayılan açık tema kalır.
+  }
+}
+
 /* Tema, DOM üzerindeki `.dark` sınıfında yaşıyor — React state'i değil.
    useSyncExternalStore ile o dış kaynağa abone oluyoruz. */
 let listeners: Array<() => void> = [];

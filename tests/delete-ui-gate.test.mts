@@ -39,7 +39,7 @@ const account = kodu(read("../components/DeleteAccountSection.tsx"));
 const settings = kodu(read("../components/SettingsDialog.tsx"));
 const actions = kodu(read("../lib/actions.ts"));
 const scopeList = kodu(read("../components/DeleteScopeList.tsx"));
-const login = kodu(read("../app/login/page.tsx"));
+const login = kodu(read("../app/login/LoginForm.tsx"));
 
 /** `i` konumundan sonraki ilk açılış iminden başlayıp dengeli bloğu döndürür. */
 function blok(src: string, i: number): string {
