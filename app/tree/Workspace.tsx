@@ -755,7 +755,18 @@ function WorkspaceInner({
                   onClick={() => setLinkMode((v) => !v)}
                   aria-pressed={linkMode}
                   title={t("reparent.modeHint")}
-                  className={`absolute bottom-4 left-4 z-10 h-9 px-3 rounded-xl border text-xs font-medium shadow-card transition-colors ${
+                  /*
+                    G1 — `lg:bottom-48`: mini harita YALNIZ lg'de çiziliyor
+                    (FamilyTree `!hidden lg:!block !bottom-6`), kutusu 202x152 ve
+                    alt kenarı 24px. Düğme `bottom-4` + `h-9` ile 16..52px
+                    bandını kaplıyordu; ikisi 73x13px kesişiyordu. Kesişimde
+                    düğme z-10, harita z-5 olduğu için ÜSTTE düğme kalıyor ve
+                    haritanın sol alt köşesine yapılan kaydırma dokunuşu bağ
+                    kurma kipini açıyordu — sessiz ve kafa karıştırıcı.
+                    192px, haritanın üst kenarından (24+152=176) 16px yukarısı.
+                    lg altında harita yok, düğme köşede kalıyor.
+                  */
+                  className={`absolute bottom-4 lg:bottom-48 left-4 z-10 h-9 px-3 rounded-xl border text-xs font-medium shadow-card transition-colors ${
                     linkMode
                       ? "bg-primary text-primary-text border-primary"
                       : "bg-bg-elevated/90 backdrop-blur border-border text-text-muted hover:text-text"
@@ -1102,12 +1113,22 @@ function TreeDepthControl({
   ];
 
   return (
-    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-wrap lg:flex-nowrap items-center gap-1.5 gap-y-1 min-h-9 py-1 lg:py-0 lg:h-9 pl-1.5 pr-12 md:pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card">
+    /*
+      H5 — panel artık SARMIYOR, KAYIYOR.
+      `flex-wrap` + `right-4` ile dar ekranda iki satıra çıkıp 87px yüksekliğe
+      ulaşıyordu; tuval genişliğinin %90-92'sini örten bu blok, fitView'in
+      üstte bıraktığı kenar boşluğunu (yüksekliğin ~%15'i) aşıp kişi
+      kartlarının dokunmasını yutuyordu — 320px'te dört kart hiç açılamıyordu.
+      Tek satır + yatay kaydırma yüksekliği 44px'te sabitliyor, yani panel
+      boşluğun içinde kalıyor; sığmayan kısma parmakla kaydırarak ulaşılıyor.
+      `pr-12 md:pr-2` kaldırıldı: sağda 48px ayırıyordu ama orada bir şey yok.
+    */
+    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-nowrap items-center gap-1.5 h-11 lg:h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card overflow-x-auto no-scrollbar">
       {focusPerson && (
         <button
           onClick={onGoToFocus}
           title={t("ws.depth.focusTitle")}
-          className="flex items-center gap-1.5 h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
+          className="flex items-center gap-1.5 h-9 lg:h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
         >
           <Avatar person={focusPerson} size="xs" />
           <span className="text-[11px] font-medium text-text whitespace-nowrap max-w-20 truncate">
@@ -1116,13 +1137,14 @@ function TreeDepthControl({
         </button>
       )}
       <span className="h-4 w-px bg-border shrink-0" />
-      <div className="flex items-center gap-0.5 shrink-0">
+      {/* Dokunmada 36px (24px'ti, aralığı 2px'ti); farede eskisi gibi kompakt. */}
+      <div className="flex items-center gap-1 lg:gap-0.5 shrink-0">
         {sayilar.map((d) => (
           <button
             key={d}
             onClick={() => onChange(d)}
             title={t("ws.depth.genHint", { d })}
-            className={`h-6 w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
+            className={`h-9 w-9 lg:h-6 lg:w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
               depth === d
                 ? "bg-primary text-primary-text"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
@@ -1136,7 +1158,7 @@ function TreeDepthControl({
             key={o.d}
             onClick={() => onChange(o.d)}
             title={o.ipucu}
-            className={`h-6 px-1.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
+            className={`h-9 lg:h-6 px-2 lg:px-1.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
               depth === o.d
                 ? "bg-primary text-primary-text"
                 : "text-text-muted hover:text-text hover:bg-surface-2"

@@ -180,7 +180,7 @@ export default function HistoryDialog({
                       onChange={() => toggleSel(e.id)}
                       disabled={busyId !== null}
                       aria-label={t("history.select")}
-                      className="shrink-0 accent-[var(--primary)]"
+                      className="ui-check"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-text tabular-nums leading-tight">{fmt(e.at)}</p>

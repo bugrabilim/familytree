@@ -182,7 +182,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
                         checked={g.rsvpOpen}
                         disabled={busy}
                         onChange={(e) => void gonder("PUT", { id: g.id, rsvpOpen: e.target.checked })}
-                        className="mt-0.5 shrink-0"
+                        className="ui-check mt-0.5"
                       />
                       <span>
                         {t("gathering.rsvpOpen")}

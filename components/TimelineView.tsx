@@ -84,7 +84,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
         <div className="min-w-0">
           {/* Genel görünüm — zaman içinde yaşayan üye sayısı (alan grafiği) */}
           <div className="flex border-b border-border bg-surface-2/40">
-            <div className="w-28 sm:w-40 shrink-0 border-r border-border/60 px-3 py-2 flex flex-col justify-center">
+            <div className="w-36 sm:w-52 shrink-0 border-r border-border/60 px-3 py-2 flex flex-col justify-center">
               <span className="text-[11px] font-medium text-text-muted leading-tight">
                 {t("timeline.overview")}
               </span>
@@ -123,7 +123,7 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
 
           {/* Yıl ekseni (yapışkan) */}
           <div className="sticky top-0 z-10 flex bg-bg/95 backdrop-blur border-b border-border">
-            <div className="w-28 sm:w-40 shrink-0 border-r border-border" />
+            <div className="w-36 sm:w-52 shrink-0 border-r border-border" />
             <div className="relative flex-1 h-7">
               {ticks.map((y, i) => {
                 // Uç etiketleri içeride tut: ilki sağa açılır, sonuncusu sola —
@@ -159,10 +159,19 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
                       isSel ? "bg-primary-soft" : ""
                     }`}
                   >
-                    <span className="w-28 sm:w-40 shrink-0 px-3 py-1.5 border-r border-border/60 min-w-0 flex items-center gap-2">
+                    {/*
+                      Ad sütunu genişletildi ve `truncate` yerine iki satıra
+                      izin veriliyor. 112px'lik sütunda ada 51px kalıyordu;
+                      "Turgud oğlu Mehmed" gibi patronimik adlar (ki bu ağacın
+                      çoğunluğu) "Turgud …" diye kesiliyordu. Görünümün tek
+                      amacı "kim ne zaman yaşadı" — adı okunmayan bir çubuk
+                      hiçbir işe yaramıyor, o yüzden yatay yeri çubuktan alıp
+                      ada vermek doğru takas.
+                    */}
+                    <span className="w-36 sm:w-52 shrink-0 px-3 py-1.5 border-r border-border/60 min-w-0 flex items-center gap-2">
                       <Avatar person={p} size="xs" />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-xs text-text truncate leading-tight">{fullName(p)}</span>
+                        <span className="block text-xs text-text leading-tight line-clamp-2 break-words">{fullName(p)}</span>
                         <span className="block text-[10px] text-text-subtle tabular-nums leading-tight">
                           {r.startYear}
                           {r.living ? `–${t("timeline.living")}` : `–${r.endYear}`}

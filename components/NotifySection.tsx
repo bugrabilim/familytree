@@ -100,7 +100,7 @@ export default function NotifySection() {
     <label className="flex items-start gap-2.5 cursor-pointer">
       <input
         type="checkbox"
-        className="mt-0.5 accent-primary"
+        className="ui-check mt-0.5"
         checked={durum[alan]}
         disabled={adresYok || yukleniyor}
         onChange={(e) => setDurum((d) => ({ ...d, [alan]: e.target.checked }))}

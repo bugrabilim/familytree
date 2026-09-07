@@ -49,7 +49,16 @@ export const VIEWS: Array<{ key: ViewKey; icon: string }> = VIEW_GROUPS.flat().m
 
 /** Görünüm sekmeleri — üç mantıksal grup, her biri KENDİ segmentli kabuğunda
  *  (ayrı arka plan + kenarlık). Böylece gruplar gerçekten ayrı görünür; aradaki
- *  boşluk onları birbirinden ayırır. Masaüstünde ortalanır, mobilde kaydırılır. */
+ *  boşluk onları birbirinden ayırır.
+ *
+ *  Şerit `xl` ALTINDA gerçekten KAYDIRILIR, `xl` ve üstünde ortalanıp sarar.
+ *  (Yorum eskiden de "mobilde kaydırılır" diyordu ama şerit `flex-wrap` ile
+ *  SARIYORDU. Sarma iki ayrı arıza üretiyordu: başlık iki satıra çıkıp
+ *  320px'te ekranın %28'ini yiyordu, ve her satır kendi içinde ortalandığı
+ *  için gruplar genişlik değiştikçe yer değiştiriyordu — 390'da ikinci grup
+ *  birinci satırda, 320'de ikinci satırda. Kas hafızası tutmuyordu.
+ *  Kaydırma her genişlikte AYNI sırayı korur; masaüstünde ise sarma zaten
+ *  doğru davranış, çünkü orada 14 sekmenin hepsi aynı anda görünür.) */
 function ViewTabs({
   view,
   onViewChange,
@@ -79,7 +88,7 @@ function ViewTabs({
       {gruplar.map((group, gi) => (
         <div
           key={gi}
-          className="flex items-center gap-0.5 p-1 rounded-xl bg-surface-2 border border-border shrink-0"
+          className="flex items-center gap-1 xl:gap-0.5 p-1 rounded-xl bg-surface-2 border border-border shrink-0"
         >
           {group.map((key) => (
             <button
@@ -87,10 +96,21 @@ function ViewTabs({
               onClick={() => onViewChange(key)}
               title={t(`view.${key}.hint`)}
               aria-current={view === key}
+              /*
+                H4 — 31x36px'ti; dokunma eşiği 44x44. Sınır `xl`, çünkü
+                şeridin kaydırma/sarma sınırı da orada: `xl` altında şerit
+                kayar ve hedefler parmağa göre (44px), `xl` üstünde sarar ve
+                hedefler fareye göre (32px). Tek sınır, tek hikâye — iki ayrı
+                eşik olsaydı 1024-1279 bandı ikisinin de yarısını alırdı
+                (ölçümde 1024x768 tam olarak bu yüzden 17 eşik-altı hedefle
+                kalmıştı).
+                `min-w-11`: ikon-only hâlde (`hidden sm:inline` etiket) genişlik
+                dolgudan gelmiyordu, 31px'te kalıyordu.
+              */
               className={`
-                flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-1.5
-                h-9 sm:h-8 px-2 sm:px-3 rounded-lg text-xs font-medium
-                transition-all duration-150 min-w-0 whitespace-nowrap
+                flex-none flex items-center justify-center xl:justify-start gap-1.5
+                h-11 xl:h-8 min-w-11 xl:min-w-0 px-2.5 xl:px-3 rounded-lg text-xs font-medium
+                transition-all duration-150 whitespace-nowrap
                 ${
                   view === key
                     ? "bg-bg-elevated text-text shadow-soft"
@@ -239,7 +259,7 @@ export default function TopBar({
         {/* Görünüm sekmeleri — xl'de aksiyonlardan ÖNCE (order-2), aksiyonlar
             order-3; xl altında w-full + order-3 ile alt kata iner. */}
         <nav
-          className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3"
+          className="order-3 w-full xl:order-2 xl:w-auto xl:flex-1 flex flex-nowrap xl:flex-wrap items-center justify-start xl:justify-center gap-1.5 sm:gap-3 overflow-x-auto xl:overflow-x-visible no-scrollbar"
           aria-label={t("topbar.viewAria")}
         >
           <ViewTabs view={view} onViewChange={onViewChange} allowedViews={allowedViews} t={t} />
@@ -249,7 +269,7 @@ export default function TopBar({
         <div className="order-2 xl:order-3 flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto">
           <button
             onClick={onSearch}
-            className="flex items-center gap-2 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
+            className="flex items-center justify-center gap-2 h-11 xl:h-9 min-w-11 xl:min-w-0 pl-2.5 pr-2 md:pr-3 rounded-lg border border-border bg-surface hover:bg-surface-2 hover:border-border-strong text-text-muted transition-colors"
             aria-label={t("topbar.search")}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -268,7 +288,7 @@ export default function TopBar({
               onClick={onAiChat}
               title={t("ai.chat.menu")}
               aria-label={t("ai.chat.menu")}
-              className="flex items-center gap-1.5 h-9 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:brightness-105 transition-all"
+              className="flex items-center justify-center gap-1.5 h-11 xl:h-9 min-w-11 xl:min-w-0 pl-2.5 pr-2 md:pr-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:brightness-105 transition-all"
             >
               <span className="text-sm leading-none" aria-hidden>✨</span>
               <span className="hidden md:inline text-xs font-medium">{t("ai.chat.short")}</span>
@@ -278,7 +298,7 @@ export default function TopBar({
           {publicView ? (
             <a
               href="/register"
-              className="flex items-center gap-2 h-9 px-3 rounded-lg bg-primary text-primary-text text-xs font-medium hover:brightness-110 transition-all whitespace-nowrap"
+              className="flex items-center justify-center gap-2 h-11 xl:h-9 px-3 rounded-lg bg-primary text-primary-text text-xs font-medium hover:brightness-110 transition-all whitespace-nowrap"
             >
               {t("public.createOwn")}
             </a>
@@ -289,7 +309,7 @@ export default function TopBar({
               aria-label={t("topbar.menu")}
               aria-expanded={menuOpen}
               /* `relative`: bekleyen öneri noktası bu düğmeye göre konumlanıyor. */
-              className="relative w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+              className="relative w-11 h-11 xl:w-9 xl:h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <circle cx="12" cy="5" r="1.7" />
@@ -310,7 +330,7 @@ export default function TopBar({
 
             {menuOpen && (
               <>
-                <div className="absolute right-0 top-11 z-20 w-48 rounded-xl border border-border bg-bg-elevated shadow-float animate-scale-in origin-top-right py-1">
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-48 rounded-xl border border-border bg-bg-elevated shadow-float animate-scale-in origin-top-right py-1">
                   <MenuBtn
                     label={t("menu.share")}
                     onClick={() => { setMenuOpen(false); onOpenShare(); }}

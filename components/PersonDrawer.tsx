@@ -304,8 +304,16 @@ export default function PersonDrawer({
               görünür, basılır ve 403 dönerdi. Sebebi anlaşılmayan bir ret,
               görünmeyen bir düğmeden kötüdür.
             */}
+            {/*
+              `ml-auto` KALDIRILDI. Yıkıcı eylemi uzaklaştırmak niyeti doğruydu
+              ama sonucu değildi: iki satıra sarınca "Sil" panelin sağ kenarına
+              fırlıyor, ikinci satırdaki komşusuyla arasında 163px boşluk
+              kalıyor ve bir düğmeden çok kopmuş bir bağlantı gibi duruyordu.
+              Ayrımı boşlukla değil, önüne konan dikey ayraçla yapıyoruz —
+              sarma hangi noktada olursa olsun ayraç "Sil"in yanında kalır.
+            */}
             {!readOnly && authority.canEditAll && (
-              <div className="ml-auto">
+              <div className="flex items-center gap-2 pl-2 border-l border-border">
                 {confirmDelete ? (
                   <div className="flex gap-1.5">
                     <Button size="sm" variant="danger" onClick={handleDelete} disabled={deleting}>
@@ -666,7 +674,8 @@ export default function PersonDrawer({
               {!readOnly && !masked && (
                 <button
                   onClick={() => onQuickAdd("associate", person.id)}
-                  className="mt-1.5 flex items-center gap-1.5 text-xs text-accent hover:underline font-medium"
+                  /* 16px'ti — bkz. aşağıdaki `emptyAction` düğmesindeki gerekçe. */
+                  className="mt-1.5 -mx-1.5 px-1.5 min-h-11 lg:min-h-0 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
                     <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -1061,7 +1070,13 @@ function RelationGroup({
       {emptyAction && (
         <button
           onClick={emptyAction.onClick}
-          className="mt-1 flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+          /*
+            H6 — 16px yüksekliğindeydi: metin bağlantısı gibi çiziliyordu ama
+            işlevi bir düğme. Parmakla 16px'lik bir hedefe basmak, yanındaki
+            metni seçmekle aynı olasılıkta. Dokunmada 44px, farede eskisi gibi
+            sıkı. `-mx-1.5 px-1.5`: kutu büyürken metnin hizası bozulmasın.
+          */
+          className="mt-1 -mx-1.5 px-1.5 min-h-11 lg:min-h-0 lg:mt-1 flex items-center gap-1.5 rounded-lg text-xs text-primary hover:underline hover:bg-primary-soft/50 lg:hover:bg-transparent font-medium"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

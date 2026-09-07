@@ -386,9 +386,33 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   }, [nodes, setRfNodes]);
   useEffect(() => setRfEdges(edges), [edges, setRfEdges]);
 
-  const onInit = useCallback((rf: ReactFlowInstance) => {
-    requestAnimationFrame(() => rf.fitView({ padding: 0.15, duration: 0 }));
+  /*
+   * Tuval ölçeğini bir CSS değişkeni olarak yayınla.
+   *
+   * Kart kenarındaki hızlı-ekle düğmeleri tuvalin `transform: scale()`
+   * altında; ölçek 0.2'ye inince 24px'lik düğme ekranda 6px oluyordu. Onları
+   * ölçeğin tersiyle karşı-ölçekleyebilmek için CSS'in ölçeği BİLMESİ gerek
+   * (bkz. globals.css `.ft-nub`).
+   *
+   * Neden React state değil: `useStore(s => s.transform[2])` bu bileşeni her
+   * zoom karesinde yeniden çizerdi — 366 düğümlü ağaçta pahalı. Tek bir DOM
+   * yazımı, React'e hiç uğramadan aynı işi görüyor. Değişken `:root`ta,
+   * çünkü aynı anda tek tuval görünür ve ref zincirini React Flow'un sarmalayıcı
+   * div'ine uzatmak gereksiz kırılganlık.
+   */
+  const yayinlaOlcek = useCallback((z: number) => {
+    document.documentElement.style.setProperty("--ft-zoom", String(z));
   }, []);
+
+  const onInit = useCallback(
+    (rf: ReactFlowInstance) => {
+      requestAnimationFrame(() => {
+        rf.fitView({ padding: 0.15, duration: 0 });
+        yayinlaOlcek(rf.getZoom());
+      });
+    },
+    [yayinlaOlcek]
+  );
 
   /* Görünür kişi kümesi değiştiğinde yeniden sığdır.
      onInit tek başına yetmiyor: düğümler mount'tan sonra bir effect ile
@@ -403,9 +427,14 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     if (fitKey.current === key) return;
     const first = fitKey.current === "";
     fitKey.current = key;
-    const t = setTimeout(() => fitView({ padding: 0.15, duration: first ? 0 : 300 }), 60);
+    const t = setTimeout(() => {
+      fitView({ padding: 0.15, duration: first ? 0 : 300 });
+      // Süreli sığdırmada `onMove` animasyonun sonunda gelir; ölçeği bir de
+      // burada yazmak, düğmelerin geçiş boyunca doğru boyda kalmasını sağlar.
+      setTimeout(() => yayinlaOlcek(getZoom()), first ? 0 : 320);
+    }, 60);
     return () => clearTimeout(t);
-  }, [nodeCount, depth, fitView]);
+  }, [nodeCount, depth, fitView, getZoom, yayinlaOlcek]);
 
   // Kamera OTOMATİK oynamaz. Yalnız kullanıcı profilde "Odakla"ya basınca
   // (locateReq.seq artar) bir kereliğine o kişiye gider. Seçmek ya da zoom
@@ -434,6 +463,7 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
+      onMove={(_, vp) => yayinlaOlcek(vp.zoom)}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onInit={onInit}
@@ -452,12 +482,23 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
       className="bg-bg"
     >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
+      {/*
+        Denetim kümesi TUVALİN KÖŞESİNE çekildi (`!bottom-4`).
+        Öncesinde `!bottom-24` ile ekranın altından 96px yukarıdaydı ve tek
+        sütun hâlinde 28x106px yer kaplıyordu: 366 kişilik ağaçta fitView
+        ölçeği ~0.2'ye düştüğü için bir kişi kartı 28x25px oluyor, yani sütun
+        TAM DÖRT KARTI örtüyordu. Kartın merkezi düğmenin altında kalınca kart
+        hiç açılamıyordu (ölçüm: 390 ve 360'ta 1 kart, 320'de pan sonrası daha
+        fazlası). Köşeye alınca ve dar ekranda tek satıra (4x1) dönüştürünce
+        küme, fitView'in bıraktığı kenar boşluğunun (yüksekliğin ~%15'i)
+        içinde kalıyor (bkz. globals.css .react-flow__controls).
+      */}
       <Controls
         showInteractive={false}
         showZoom={false}
         showFitView={false}
         position="bottom-right"
-        className="!bottom-24 lg:!bottom-6 !right-4"
+        className="!bottom-4 lg:!bottom-6 !right-4"
       >
         {/* Yakınlaştır / Uzaklaştır — React Flow'un varsayılan düğmeleri kapatıldı
            (İngilizce ipucu veriyorlardı); yerine i18n başlıklı düğmeler (#5). */}

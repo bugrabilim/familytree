@@ -170,7 +170,7 @@ export default function CalendarExport({ people }: Props) {
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-text-muted">{t("cal.export.types")}</span>
           <label className="flex items-center gap-1.5 text-[11px] text-text cursor-pointer select-none">
-            <input type="checkbox" checked={allTypesOn} onChange={(e) => (e.target.checked ? allTypes() : noTypes())} className="accent-[var(--primary)]" />
+            <input type="checkbox" checked={allTypesOn} onChange={(e) => (e.target.checked ? allTypes() : noTypes())} className="ui-check" />
             {t("cal.export.all")}
           </label>
         </div>
@@ -199,7 +199,7 @@ export default function CalendarExport({ people }: Props) {
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-text-muted">{t("cal.export.people")}</span>
           <label className="flex items-center gap-1.5 text-[11px] text-text cursor-pointer select-none">
-            <input type="checkbox" checked={allPeopleOn} onChange={(e) => (e.target.checked ? allPeople() : noPeople())} className="accent-[var(--primary)]" />
+            <input type="checkbox" checked={allPeopleOn} onChange={(e) => (e.target.checked ? allPeople() : noPeople())} className="ui-check" />
             {t("cal.export.everyone")}
           </label>
         </div>
@@ -217,7 +217,7 @@ export default function CalendarExport({ people }: Props) {
                   type="checkbox"
                   checked={personChecked(p.id)}
                   onChange={() => togglePerson(p.id)}
-                  className="shrink-0 accent-[var(--primary)]"
+                  className="ui-check"
                 />
                 <Avatar person={p} size="xs" />
                 <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(p)}</span>
