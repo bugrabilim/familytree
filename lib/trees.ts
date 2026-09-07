@@ -241,17 +241,47 @@ export async function purgeTreeStorage(treeId: string): Promise<string[]> {
   return failed;
 }
 
-/** Ağacı kayıttan çıkarır ve kalıcı siler. Silinemeyen yolları döndürür. */
+/**
+ * Ağacı kalıcı siler ve kayıttan çıkarır. Silinemeyen yolları döndürür.
+ *
+ * SIRA: ÖNCE DEPO, KAYIT EN SON — `lib/account-lifecycle.ts`teki
+ * `purgeAccount` ile aynı kural, aynı sebeple.
+ *
+ * İlk hâlinde ters yazılmıştı: kayıt satırı siliniyor, sonra depo
+ * temizleniyordu. Depo silme en iyi çaba (blob tek tek siliniyor, Postgres
+ * ayrı bir çağrı) ve yarıda kalabilir. Kayıt önce silindiğinde yarıda kalan
+ * temizlik YETİM VERİ bırakıyordu: `treeId` artık hiçbir kayıtta yok, yani
+ * `duePurgeTrees` onu bir daha hiç görmüyor, kimse bir daha denemiyor —
+ * silinmiş sayılan ağacın kişileri depoda kalıyordu. Kullanıcıya "sildik"
+ * denmiş, veri duruyor.
+ *
+ * Bu sırayla en kötü ihtimal, kaydı duran ama deposu boşalmış bir ağaç: bir
+ * sonraki koşu aynı işi tekrarlar (silme idempotent) ve kaydı da kapatır.
+ */
 export async function purgeTree(accountId: string, treeId: string): Promise<string[]> {
   if (treeId === accountId) return [`ana-agac:${treeId}`]; // hesap akışının işi
+
+  const failed = await purgeTreeStorage(treeId);
+  /*
+   * Depo tam temizlenmediyse KAYIT DURUYOR. Böylece bir sonraki temizlik
+   * koşusu aynı ağacı yeniden görüp kalanı silmeyi deniyor. Kaydı burada
+   * kapatmak, o tekrar denemeyi imkânsız kılardı.
+   */
+  if (failed.length > 0) return failed;
+
   const owned = await readRegistry(accountId);
   if (owned.some((x) => x.treeId === treeId)) {
-    await writeRegistry(
-      accountId,
-      owned.filter((x) => x.treeId !== treeId)
-    );
+    try {
+      await writeRegistry(
+        accountId,
+        owned.filter((x) => x.treeId !== treeId)
+      );
+    } catch (e) {
+      console.warn(`[silme] ağaç kaydı güncellenemedi (${treeId}):`, (e as Error).message);
+      failed.push(`account-trees-${accountId}.json`);
+    }
   }
-  return purgeTreeStorage(treeId);
+  return failed;
 }
 
 /** Hesabın kayıttaki BÜTÜN ağaçları (silinmiş olanlar dahil) — hesap silme için. */

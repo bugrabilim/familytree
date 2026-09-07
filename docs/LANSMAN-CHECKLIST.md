@@ -12,6 +12,13 @@ Zorunlu:
 - [ ] Supabase: `SUPABASE_URL` (ya da `NEXT_PUBLIC_SUPABASE_URL`),
       `SUPABASE_SERVICE_ROLE_KEY` (ya da `SUPABASE_SECRET_KEY`),
       `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] `CRON_SECRET` — `openssl rand -hex 32`. **İki zamanlanmış iş de buna
+      bağlı** (`/api/cron/reminders`, `/api/cron/backup`) ve ikisi de kapalı
+      düşüyor: değişken yoksa istek 401 alır, yani günlük hatırlatma
+      postaları HİÇ gitmez ve günlük yedek HİÇ alınmaz. Kapalı düşmek
+      bilinçli (bu uçlar bütün depoyu okuyup yazıyor), ama sessiz: dışarıdan
+      bakınca uygulama sorunsuz çalışıyor görünür. Ayarlandıktan sonra
+      **7) duman testi**ndeki cron satırıyla doğrula.
 
 Önerilen:
 - [ ] `NEXT_PUBLIC_SITE_URL` — gerçek alan adı (OG/sitemap/robots mutlak URL).
@@ -81,6 +88,15 @@ Tam liste ve açıklamalar: `.env.local.example`.
 - [ ] AI özellikleri (anahtar varsa): dosyadan içe aktarma + sohbet.
 - [ ] Paylaşım linki + salt-okunur görünüm.
 - [ ] `/robots.txt`, `/sitemap.xml`, `/manifest.webmanifest`, `/opengraph-image.png` açılıyor.
+- [ ] **Zamanlanmış işler gerçekten koşuyor mu?** Vercel > Logs'ta ertesi gün
+      `[yedek] …` ve `[hatirlatma] …` satırlarını ara. İkisi de her koşuda tek
+      satır yazıyor; satır YOKSA iş hiç koşmamıştır (çoğu zaman `CRON_SECRET`
+      eksiktir) ve bu, hiçbir hata üretmeyen bir arıza türüdür. Elle tetiklemek
+      için: `curl -H "Authorization: Bearer $CRON_SECRET" https://<alan>/api/cron/backup`
+- [ ] `[yedek]` satırında **kopyalanan 0** yazmıyor. Yazıyorsa iş koştu ama
+      hiçbir dosya yedeklenmedi — 200 yanıtın içinde saklı bir başarısızlık.
+      (Bu tam olarak bir kez oldu: depo `private` olduğu hâlde blob URL'ine düz
+      `fetch` atılıyordu.)
 
 ## 8) Mağazaya mobil derleme çıkmadan önce
 

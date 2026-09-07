@@ -1,5 +1,4 @@
 import {
-  REASK_DAYS,
   applyAnswer,
   applyContactChange,
   applyUnsubscribe,
@@ -133,7 +132,7 @@ const gunOnce = (n: number) => new Date(SIMDI.getTime() - n * 86_400_000).toISOS
 
 {
   const p = (c: ContactConsent) => {
-    const r = planAsk(c, SIMDI);
+    const r = planAsk(c);
     return r.kind === "sor" ? "sor" : r.reason;
   };
 
@@ -151,18 +150,37 @@ const gunOnce = (n: number) => new Date(SIMDI.getTime() - n * 86_400_000).toISOS
   check(p({ contactEmail: "a@b.com", contactConsent: "red", contactAskedAt: gunOnce(3650) }) === "reddetti",
     "on yıl geçse de reddedene sorulmuyor — red zaman aşımına uğramıyor");
 
-  /* Bekleyene sık sorulmaz: ısrar, tam olarak istenmeyen postanın tanımı. */
-  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(1) }) === "yakinda-soruldu",
+  /*
+   * BİR KEZ SORULUR, BİR DAHA SORULMAZ.
+   *
+   * Postanın metni bunu vaat ediyor ("bir daha sorulmaz"). Önceki kural 30
+   * günde bir yeniden soruyordu ve `contactAskedAt` her seferinde
+   * tazelendiği için döngünün sonu yoktu: hiç yanıtlamayan bir üçüncü kişiye
+   * yılda on iki "tek seferlik" soru. Aşağıdaki uzun aralıklar tam da o
+   * gerilemeyi yakalamak için: kural yeniden süreye bağlanırsa bunlar kırılır.
+   */
+  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(1) }) === "zaten-soruldu",
     "dün sorulmuşsa bugün sorulmuyor");
-  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(REASK_DAYS - 1) }) === "yakinda-soruldu",
-    "süre dolmadan sorulmuyor");
-  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(REASK_DAYS) }) === "sor",
-    "tam sınırda yeniden soruluyor");
-  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(REASK_DAYS + 1) }) === "sor",
-    "süre dolunca yeniden soruluyor");
+  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(29) }) === "zaten-soruldu",
+    "bir ay dolmadan sorulmuyor");
+  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(30) }) === "zaten-soruldu",
+    "otuz gün geçmesi yeniden sormak için sebep DEĞİL");
+  check(p({ contactEmail: "a@b.com", contactAskedAt: gunOnce(3650) }) === "zaten-soruldu",
+    "on yıl geçse de yanıt vermeyene yeniden sorulmuyor");
+  /*
+   * Ama ADRES değişirse yeniden sorulur — sorulan şey adres, kişi değil.
+   * Bunu sağlayan `applyContactChange`: yeni adreste damgayı temizliyor.
+   */
+  {
+    const yeni = applyContactChange(
+      planContactChange({ contactEmail: "a@b.com", contactAskedAt: gunOnce(1) }, "c@d.com")
+    );
+    check(!!yeni && p({ ...yeni, contactAskedAt: yeni.contactAskedAt }) === "sor",
+      "adres değişince yeni adrese soruluyor");
+  }
 }
 {
-  const r = planAsk({ contactEmail: "  a@b.com  " }, SIMDI);
+  const r = planAsk({ contactEmail: "  a@b.com  " });
   check(r.kind === "sor" && r.email === "a@b.com", "sorulacak adres kırpılmış dönüyor");
 }
 
@@ -209,7 +227,7 @@ const gunOnce = (n: number) => new Date(SIMDI.getTime() - n * 86_400_000).toISOS
    * kalınca "bu kişi istemedi" bilgisi de kalıyor.
    */
   check(c.contactEmail === "a@b.com", "adres SİLİNMİYOR, red işaretleniyor");
-  check(planAsk(c, SIMDI).kind === "sorma", "çıkan kişiye bir daha sorulmuyor");
+  check(planAsk(c).kind === "sorma", "çıkan kişiye bir daha sorulmuyor");
 }
 
 /* ── Uçtan uca: adresi giren kişi onay veremez ───────────────────────────── */
@@ -225,15 +243,14 @@ const gunOnce = (n: number) => new Date(SIMDI.getTime() - n * 86_400_000).toISOS
   kayit = { ...kayit, ...d1 };
   check(!canEmailContact(kayit), "adres girildi ama gönderim KAPALI");
 
-  const istek = planAsk(kayit, SIMDI);
+  const istek = planAsk(kayit);
   check(istek.kind === "sor", "onay postası gönderilecek");
   kayit = { ...kayit, contactTokenHash: "ozet", contactAskedAt: SIMDI.toISOString() };
   check(!canEmailContact(kayit), "soru gönderildi, gönderim hâlâ kapalı");
 
-  /* Kişi susarsa: ne gönderilir ne de yeniden sorulur. */
-  const birHafta = new Date(SIMDI.getTime() + 7 * 86_400_000);
+  /* Kişi susarsa: ne gönderilir ne de yeniden sorulur — HİÇBİR ZAMAN. */
   check(!canEmailContact(kayit), "sessizlik onay sayılmıyor");
-  check(planAsk(kayit, birHafta).kind === "sorma", "sessiz kalana bir hafta sonra da sorulmuyor");
+  check(planAsk(kayit).kind === "sorma", "sessiz kalana bir daha sorulmuyor");
 
   /* Kişi kendi tıklarsa: tek kapı açılıyor. */
   kayit = applyAnswer(kayit, "onayla");

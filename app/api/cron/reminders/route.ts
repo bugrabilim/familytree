@@ -11,6 +11,7 @@ import { getHistorySnapshot, listHistorySnapshots } from "@/lib/history";
 import { canEmailContact, planAsk } from "@/lib/contact-consent";
 import { isUnsubConfigured, makeAskToken, makeUnsubToken } from "@/lib/contact-token";
 import { stripPrivateFields } from "@/lib/privacy";
+import { makeBudget, rotateForDay } from "@/lib/cron-budget";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,30 @@ export const maxDuration = 60;
  * Güvenlik: `CRON_SECRET` ile korunur (Vercel cron `Authorization: Bearer
  * <CRON_SECRET>` gönderir). E-posta yapılandırılmamışsa (anahtar yok) hiçbir
  * şey göndermez, no-op döner.
+ *
+ * ## Süre bütçesi ve döndürme
+ *
+ * İki döngü de hesap sayısıyla büyüyor, işlevin ömrü ise sabit
+ * (`maxDuration`). İlk hâlinde bütçe yoktu: gün gelip iş sığmadığında işlev
+ * ORTADA kesiliyor, ve liste her koşuda aynı yerden başladığı için hep aynı
+ * hesaplar işleniyordu — kuyruktakiler hatırlatmayı HİÇ almıyordu, üstelik
+ * sessizce (iş 200 dönüyor, günlükte hiçbir şey yok).
+ *
+ * Şimdi `lib/cron-budget.ts`teki iki kural geçerli: liste günlük döndürülüyor
+ * (sona kalanlar her gün değişiyor) ve bütçe dolunca döngü DÜZGÜN bitip
+ * özetini yazıyor. Bütçe `maxDuration`ın altında; aradaki fark, özetin
+ * yazılıp yanıtın dönmesi için.
+ *
+ * ## Günlük
+ *
+ * Her koşu tek satır yazıyor — "sıfır" ile "hiç koşmadı"yı ayırmanın tek
+ * yolu bu. Bu iş kimsenin okumadığı bir yanıt döndürüyor; sessizce çalışmayı
+ * bırakması, hiç fark edilmeyecek bir arıza türü.
  */
+
+/** İşin harcayabileceği süre — `maxDuration` 60 sn, özete pay bırakılıyor. */
+const BUDGET_MS = 50_000;
+
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization") ?? "";
@@ -62,9 +86,18 @@ export async function GET(req: NextRequest) {
   const gun = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+  const butce = makeBudget(BUDGET_MS);
+  /** Bütçe dolduğu için sıraya gelmeyen hesap sayısı — günlükte görünüyor. */
+  let skipped = 0;
+
   try {
     const { users } = await getUsersData();
-    for (const u of users) {
+    /*
+     * DÖNDÜRÜLMÜŞ liste: kesilme her gün başka hesapları vurur (dosya başı).
+     */
+    const sira = rotateForDay(users, today);
+    for (const u of sira) {
+      if (butce.spent()) { skipped++; continue; }
       /*
        * SİLİNMEKTE OLAN HESABA POSTA GİTMEZ. Veri bekleme süresi boyunca
        * duruyor, yani hatırlatmalar hesaplanabilir hâlde — ama hesabını
@@ -186,7 +219,18 @@ export async function GET(req: NextRequest) {
   if (isUnsubConfigured()) {
     try {
       const { users } = await getUsersData();
-      for (const u of users) {
+      for (const u of rotateForDay(users, today)) {
+        /*
+         * SİLİNMEKTE OLAN HESABIN AĞACINA DOKUNULMAZ. Yukarıdaki döngüde bu
+         * denetim baştan beri vardı, burada YOKTU — ve bu döngü daha ileri
+         * gidiyor: hesap sahibine değil ÜÇÜNCÜ KİŞİLERE posta atıyor ve
+         * jetonları yazmak için silinmekte olan ağaca YAZIYOR. Yani hesabını
+         * silmiş birinin ağacındaki akrabalara, hesap bekleme süresindeyken
+         * "sana bir soru var" postası gidiyordu; hesap kalıcı silindiğinde o
+         * bağlantılar da ölüyordu. Silmenin en kötü yarım hâli.
+         */
+        if (isSoftDeleted(u)) continue;
+        if (butce.spent()) { skipped++; continue; }
         try {
           const data = await getFamilyData(u.id, { skipCache: true });
 
@@ -218,10 +262,17 @@ export async function GET(req: NextRequest) {
           let kalanSoru = 25;
 
           for (let i = 0; i < data.people.length; i++) {
+            /*
+             * İÇ DÖNGÜ DE bütçeye bakıyor: tek bir büyük ağaç (yüzlerce
+             * adres) bütçenin tamamını yiyip sonraki hesapları aç bırakabilir.
+             * Çıkış `break` — toplanan jetonlar aşağıda yine YAZILIYOR,
+             * yoksa gönderilmiş sorular işaretlenmemiş kalırdı.
+             */
+            if (butce.spent()) break;
             const kisi = data.people[i];
 
             /* 1) Onay sorusu — henüz sorulmamış ya da süresi geçmiş adreslere. */
-            const plan = planAsk(kisi, today);
+            const plan = planAsk(kisi);
             if (plan.kind === "sor") {
               if (kalanSoru <= 0) continue;
               const { token, hash } = makeAskToken({ treeId: u.id, personId: kisi.id });
@@ -310,5 +361,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, considered, sent, newsletters, asked, contacted });
+  const ozet = { ok: true, considered, sent, newsletters, asked, contacted, skipped };
+  /*
+   * HER KOŞUDA tek satır. `skipped > 0` uyarı seviyesinde: iş 200 dönüyor
+   * ama bazı hesaplar bugün hiç işlenmedi ve bu, büyüme sınırına gelindiğinin
+   * tek görünür işareti.
+   */
+  const satir =
+    `[hatirlatma] bakilan ${considered}, gonderilen ${sent}, bulten ${newsletters}, ` +
+    `soru ${asked}, kisiye ${contacted}, ${butce.elapsed()} ms`;
+  if (skipped > 0) console.warn(`${satir} — BUTCE DOLDU, ${skipped} hesap atlandi`);
+  else console.log(satir);
+
+  return NextResponse.json(ozet);
 }

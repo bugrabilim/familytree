@@ -55,10 +55,40 @@ check(/for \(const p of plan\.remove\)/.test(rota), "yalnız plandaki yollar sil
    * eski görüntüleri silmek, elde hiçbir yedek bırakmamak olurdu — yedeğin
    * kendisinin yol açabileceği en ağır zarar.
    */
-  check(/if \(copied > 0\) \{/.test(rota), "silme yalnız kopyalama başarılıysa");
-  const iKosul = rota.indexOf("if (copied > 0)");
+  check(/if \(summary\.copied > 0\) \{/.test(rota), "silme yalnız kopyalama başarılıysa");
+  const iKosul = rota.indexOf("if (summary.copied > 0)");
   const iDel = rota.indexOf("await del(");
   check(iKosul > 0 && iDel > iKosul, "silme çağrısı o koşulun içinde");
+}
+
+/* --- TEMİZLİK YEDEĞE BAĞLI DEĞİL --------------------------------------- */
+{
+  /*
+   * 30 günü dolmuş verinin kalıcı silinmesi (`sweepExpired`) bu işin son
+   * adımı — ama yedeğin BAŞARISINA bağlı değil. İlk hâlinde çağrı yedeğin
+   * `try` bloğunun içindeydi: depo listelenemediğinde akış doğrudan `catch`e
+   * atlıyor ve temizlik hiç çağrılmıyordu. Yani ilgisiz bir altyapı arızası,
+   * kullanıcının silme talebini süresiz askıya alıyordu — sessizce.
+   *
+   * İddia konumla kuruluyor: `sweepExpired` çağrısı, yedek bloğunu kapatan
+   * `catch`ten SONRA gelmeli.
+   */
+  const iYedekCatch = rota.indexOf("yedekHatasi = (e as Error).message;");
+  const iSweep = rota.indexOf("await sweepExpired(");
+  check(iYedekCatch > 0, "yedek bloğunun kendi `catch`i var");
+  check(iSweep > iYedekCatch, "temizlik, yedeğin catch'inden SONRA — yani her hâlükârda koşuyor");
+  /*
+   * Ve temizlik yedekten SONRA: silinen verinin o günkü görüntüsü alınmış
+   * olsun. Sıranın iki yönü de kural.
+   */
+  check(iSweep > rota.indexOf("await put(snapshotPath("), "temizlik kopyalamadan SONRA");
+  /* Temizliğin kendi hatası yanıtı düşürmüyor, özete yazılıyor. */
+  check(/sweep\.failed\.push\(`sweep:/.test(rota), "temizlik hatası özete yazılıyor");
+  /* Her koşuda satır: "sıfır" ile "hiç koşmadı" ayrılabilsin. */
+  const iTemizlikLog = rota.indexOf("`[temizlik] ${stamp}");
+  check(iTemizlikLog > 0, "temizlik günlüğe yazılıyor");
+  const oncekiSatir = rota.slice(rota.lastIndexOf("\n", rota.lastIndexOf("console.log(", iTemizlikLog)), iTemizlikLog);
+  check(!/if \(/.test(oncekiSatir), "temizlik günlüğü KOŞULSUZ (sıfır de yazılıyor)");
 }
 
 /* --- Kütüphanedeki kurallar hâlâ yerinde -------------------------------- */
@@ -105,13 +135,13 @@ for (const [ad, kaynak] of [["rota", kodu(rota)], ["betik", kodu(betik)]] as con
  * tuttu — orada da her şey "başarılı" görünüyordu.
  */
 check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
-check(/if \(copied === 0\) console\.warn\(/.test(rota),
+check(/if \(summary\.copied === 0\) console\.warn\(/.test(rota),
   "sıfır kopya UYARI seviyesinde (200 içinde saklı başarısızlık)");
 check(/console\.error\(`\[yedek\]/.test(rota), "sert hata da günlüğe düşüyor");
 {
   // Özet, kararı verdiren sayıları taşımalı — yoksa günlük yine okunamaz.
   const iOzet = rota.indexOf("const satir =");
-  const ozet = rota.slice(iOzet, rota.indexOf("return NextResponse.json({ ok: true", iOzet));
+  const ozet = rota.slice(iOzet, rota.indexOf("console.warn(`${satir}", iOzet));
   for (const alan of ["copied", "failed", "removed", "bytes"])
     check(ozet.includes(`${alan}`), `günlük satırı ${alan} taşıyor`);
 }

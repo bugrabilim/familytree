@@ -227,8 +227,15 @@ export async function sweepExpired(now: Date = new Date()): Promise<SweepSummary
       continue;
     }
     for (const t of dueTrees) {
-      ozet.failed.push(...(await purgeTree(u.id, t.treeId)));
-      ozet.purgedTrees++;
+      const kalan = await purgeTree(u.id, t.treeId);
+      ozet.failed.push(...kalan);
+      /*
+       * YALNIZ TAM BİTEN SİLME sayılıyor. `purgeTree` yarıda kalırsa ağacın
+       * kaydı bilerek duruyor (orada anlatıldı) ve bir sonraki koşu aynı işi
+       * tekrar deneyecek — onu "silindi" diye saymak, günlükte bitmiş
+       * görünen ama her gün yeniden denenen bir iş yaratırdı.
+       */
+      if (kalan.length === 0) ozet.purgedTrees++;
     }
   }
 

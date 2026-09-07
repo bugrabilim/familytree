@@ -148,12 +148,9 @@ export function applyContactChange(
 
 /* ── Onay isteği ──────────────────────────────────────────────────────────── */
 
-/** Aynı adrese yeniden sormadan önce beklenecek süre (gün). */
-export const REASK_DAYS = 30;
-
 export type AskPlan =
   | { kind: "sor"; email: string }
-  | { kind: "sorma"; reason: "adres-yok" | "zaten-onayli" | "reddetti" | "yakinda-soruldu" };
+  | { kind: "sorma"; reason: "adres-yok" | "zaten-onayli" | "reddetti" | "zaten-soruldu" };
 
 /**
  * Onay postası gönderilmeli mi?
@@ -164,22 +161,34 @@ export type AskPlan =
  * Kişinin uygulamada hesabı yok; kendini savunmasının tek yolu o "reddet"
  * bağlantısıydı ve ona saygı gösterilmeli.
  *
- * ## Bekleyene de sık sorulmaz
+ * ## Yanıt vermeyene BİR DAHA sorulmaz
  *
- * Yanıt vermemiş birine her gün hatırlatma göndermek, onay istemek değil
- * ısrar etmektir — ve tam olarak istenmeyen postanın tanımıdır. `REASK_DAYS`
- * geçmeden tekrar sorulmuyor.
+ * Gönderilen postanın metni bunu açıkça vaat ediyor: "Yanıt vermezsen hiçbir
+ * posta gönderilmez ve bir daha sorulmaz. Hiçbir şey yapmamak da geçerli bir
+ * yanıt." (`app/api/cron/reminders/route.ts`)
+ *
+ * İlk hâlinde bu vaat tutulmuyordu: 30 gün geçince aynı adrese yeniden
+ * soruluyordu, ve `contactAskedAt` her seferinde tazelendiği için bu döngü
+ * SONSUZA DEK sürüyordu. Yani "tek seferlik" denilen soru, hiçbir zaman
+ * yanıtlamayan birine yılda on iki kez gidiyordu — hesabı olmayan, kendini
+ * ancak o postadaki bağlantıyla savunabilen bir üçüncü kişiye.
+ *
+ * Sessizlik onay değil; ama sessizlik ısrar sebebi de değil. Bir kez
+ * soruldu mu (`contactAskedAt` doldu mu) o adres için iş bitmiştir.
+ *
+ * Adres DEĞİŞİRSE yeniden sorulur: `applyContactChange` yeni adreste
+ * `contactAskedAt`i temizliyor. Sorulan şey adres, kişi değil.
+ *
+ * Kararın artık SAATLE ilgisi yok; bu yüzden `now` parametresi de kalktı.
+ * Bir zaman ölçüsü taşımak, kuralın er geç yeniden süreye bağlanacağını
+ * ima ederdi.
  */
-export function planAsk(c: ContactConsent, now: Date): AskPlan {
+export function planAsk(c: ContactConsent): AskPlan {
   const adres = c.contactEmail?.trim();
   if (!adres) return { kind: "sorma", reason: "adres-yok" };
   if (c.contactConsent === "onayli") return { kind: "sorma", reason: "zaten-onayli" };
   if (c.contactConsent === "red") return { kind: "sorma", reason: "reddetti" };
-
-  if (c.contactAskedAt) {
-    const gecen = now.getTime() - new Date(c.contactAskedAt).getTime();
-    if (gecen < REASK_DAYS * 86_400_000) return { kind: "sorma", reason: "yakinda-soruldu" };
-  }
+  if (c.contactAskedAt) return { kind: "sorma", reason: "zaten-soruldu" };
   return { kind: "sor", email: adres };
 }
 
