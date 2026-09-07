@@ -92,11 +92,19 @@ export default function AuthShell({
           <span className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] px-3 py-1 rounded-full bg-white/10 backdrop-blur">
             {t("auth.kicker")}
           </span>
-          <h2 className="font-serif text-[2.6rem] xl:text-5xl font-semibold leading-[1.1] max-w-lg mt-5">
+          {/*
+            BAŞLIK DEĞİL, SÜS. Bu satır masaüstü yan panelindeki pazarlama
+            metni; sayfanın konusu değil. `h2` olarak yazıldığında DOM'da
+            sayfanın gerçek `h1`inden ("Tekrar hoş geldin") ÖNCE geliyordu ve
+            başlıklar arasında gezinen ekran okuyucu kullanıcısı sayfanın ne
+            olduğunu ikinci sırada duyuyordu. Görünüm aynı kaldı; yalnız
+            başlık ana hattından çıktı.
+          */}
+          <p className="font-serif text-[2.6rem] xl:text-5xl font-semibold leading-[1.1] max-w-lg mt-5">
             {t("auth.heroTitle1")}
             <br />
             {t("auth.heroTitle2")}
-          </h2>
+          </p>
           <p className="mt-5 text-[15px] leading-relaxed opacity-85 max-w-md">{t("auth.heroBody")}</p>
         </div>
 

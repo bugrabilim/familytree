@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { frameHeaders, hasBearerApi, isPublicPath } from "@/lib/public-routes";
+import { hasBearerApi, isPublicPath, securityHeaders } from "@/lib/public-routes";
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -17,7 +17,7 @@ export default auth((req) => {
    * yerde birden koymak "hangi dalda unuttuk" sorusunu ortadan kaldırıyor.
    */
   const damgala = (res: NextResponse) => {
-    for (const [k, v] of Object.entries(frameHeaders(pathname))) res.headers.set(k, v);
+    for (const [k, v] of Object.entries(securityHeaders(pathname))) res.headers.set(k, v);
     return res;
   };
 

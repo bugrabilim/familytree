@@ -31,5 +31,5 @@ export default async function HomePage() {
   const session = await auth();
   if (session && session.user?.id !== DEMO_USER_ID) redirect("/tree");
   const platform = await getPlatformStats();
-  return <Landing platform={platform ?? undefined} />;
+  return <Landing platform={platform ?? undefined} year={new Date().getFullYear()} />;
 }

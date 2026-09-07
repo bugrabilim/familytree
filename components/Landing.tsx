@@ -243,7 +243,24 @@ const DIFF = [
 const STEPS = ["1", "2", "3"] as const;
 const FAQS = ["1", "2", "3", "4"] as const;
 
-export default function Landing({ platform }: { platform?: { trees: number; people: number } }) {
+/*
+ * `year` PROP OLARAK GELİYOR, burada hesaplanmıyor. Landing bir istemci
+ * bileşeni; `new Date().getFullYear()` burada çağrılsaydı sunucunun bastığı
+ * yıl ile istemcinin hesapladığı yıl yılbaşı gecesinde ayrışabilir ve React
+ * hidrasyon uyuşmazlığı verirdi. Çağıranların ikisi de sunucu bileşeni,
+ * dolayısıyla yılı orada hesaplamak hem doğru hem bedava.
+ *
+ * Sabit yazmak da seçenek değildi: alt bilgide "© 2013" duruyordu ve 2026'da
+ * tek başına siteyi terk edilmiş gösteriyordu. Elle güncellenen bir yıl,
+ * güncellenmediği ilk gün aynı hatayı geri getirir.
+ */
+export default function Landing({
+  platform,
+  year,
+}: {
+  platform?: { trees: number; people: number };
+  year: number;
+}) {
   const t = useT();
   const [demoLoading, setDemoLoading] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -658,7 +675,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
           </div>
 
           <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted">
-            <p>© 2013 {t("auth.brand")}</p>
+            <p>© 2013–{year} {t("auth.brand")}</p>
             <p>{t("land.footer.madeby")}</p>
           </div>
         </div>

@@ -1,4 +1,7 @@
-import { hasBearerApi, isPublicPath, PUBLIC_PREFIXES, frameHeaders, isFrameable } from "../lib/public-routes.ts";
+import {
+  hasBearerApi, isPublicPath, PUBLIC_PREFIXES, frameHeaders, isFrameable,
+  securityHeaders, carriesSecretInUrl, SECRET_IN_URL_PREFIXES,
+} from "../lib/public-routes.ts";
 
 let ok = 0, fail = 0;
 function check(cond: boolean, msg: string) {
@@ -104,6 +107,41 @@ check(!isFrameable("/api/family"), "API gömülemez");
    * çalışmaz.
    */
   check(!("X-Frame-Options" in gomulebilir), "gömülebilir yolda X-Frame-Options hiç yok");
+}
+
+/* --- Güvenlik başlıkları ------------------------------------------------- */
+{
+  /*
+   * `securityHeaders` `frameHeaders`i KAPSAMAK zorunda. Ayrı iki liste
+   * dolaşılırsa birine eklenen başlık ötekinde unutulur; proxy'nin tek bir
+   * kapısı olsun diye bu işlev var.
+   */
+  const korumali = securityHeaders("/tree");
+  eq(korumali["X-Frame-Options"], "DENY", "güvenlik başlıkları çerçeveleme başlığını kapsıyor");
+  eq(korumali["X-Content-Type-Options"], "nosniff", "nosniff her yolda");
+  eq(korumali["Referrer-Policy"], "strict-origin-when-cross-origin", "sırsız yolda kırpılmış referrer");
+
+  const gomulebilir = securityHeaders("/embed/tok3n");
+  eq(gomulebilir["Content-Security-Policy"], "frame-ancestors *", "gömülebilir yolda çerçeveleme korunuyor");
+  eq(gomulebilir["X-Content-Type-Options"], "nosniff", "gömülebilir yolda da nosniff");
+
+  /*
+   * Sırrı adres çubuğunda taşıyan yollarda `no-referrer`. Jeton bir kez
+   * sızdığında geri alınamaz; "modern tarayıcının varsayılanı zaten kırpıyor"
+   * bir güvence değil.
+   */
+  for (const yol of ["/g/tok3n", "/reset-password/abc", "/join/dav3t", "/verify-email/x", "/hikaye/t1", "/rsvp/t1", "/contact/c1", "/pair/p1"]) {
+    check(carriesSecretInUrl(yol), `sır taşıyan yol tanınmalı: ${yol}`);
+    eq(securityHeaders(yol)["Referrer-Policy"], "no-referrer", `no-referrer: ${yol}`);
+  }
+  // Sır taşımayan yollar listeye SIZMAMALI — hepsine no-referrer vermek
+  // kendi sayfalarımız arası gezinmede yolu da gizlerdi.
+  for (const yol of ["/login", "/privacy", "/tanitim", "/tree", "/"]) {
+    check(!carriesSecretInUrl(yol), `sır taşımayan yol: ${yol}`);
+  }
+  // Çıplak startsWith tuzağı: "/gizli" `/g` önekiyle eşleşmemeli.
+  check(!carriesSecretInUrl("/gizli"), "/gizli, /g önekiyle eşleşmiyor");
+  check(SECRET_IN_URL_PREFIXES.every((p) => p.startsWith("/")), "önekler / ile başlıyor");
 }
 
 // Gömülebilir yol aynı zamanda oturumsuz da açılabilmeli — yoksa iframe
