@@ -218,3 +218,59 @@ export async function deleteAccountAuthUser(accountId: string): Promise<void> {
     throw new Error(error.message);
   }
 }
+
+/* ── Faz 4 kapısı — SALT OKUMA envanteri ────────────────────────────────── */
+
+/** `auth.users` satırının kapı için gereken üç alanı. */
+export interface AuthUserOzeti {
+  id: string;
+  email: string | null;
+  /** Hiç giriş yapılmamışsa `null` — Faz 4 kapısının aradığı asıl kanıt. */
+  lastSignInAt: string | null;
+}
+
+/** Tek istekte çekilen kullanıcı sayısı ve en fazla kaç sayfa denenecek. */
+const AUTH_PAGE = 200;
+const AUTH_MAX_PAGES = 25;
+
+/**
+ * `auth.users` envanteri — Faz 4 kapısı için (`app/api/admin/phase4`).
+ *
+ * Neden `authUserExists` yetmiyor: (1) o işlev yalnız `getUserById` yapıyor
+ * ve kimliği UUID OLMAYAN hesaplar (demo: `demo-hesap`) için hiç bakmadan
+ * `null` dönüyor — oysa kapının cevaplaması gereken sorulardan biri tam da
+ * demo hesabının Auth'ta olup olmadığı; (2) `last_sign_in_at`i hiç
+ * getirmiyor, oysa "bu giriş yolu üretimde çalışıyor mu" sorusunun tek
+ * kanıtı o alan.
+ *
+ * HATA FIRLATIR, boş liste DÖNMEZ. Bilerek: boş liste "Auth'ta kimse yok"
+ * diye okunur ve kapı bunu "hiçbir hesap taşınmamış" sanır — ya da daha
+ * kötüsü, ölçüm düştüğü hâlde bir sonuç üretmiş sayılır. Çağıran, hatayı
+ * yakalayıp olguyu `olculemedi` işaretlemeli (`lib/phase4-readiness.ts`
+ * başlığındaki "şüphede daima hazır değil" kuralı).
+ *
+ * Salt okuma: hiçbir kullanıcı oluşturmaz, güncellemez, silmez.
+ */
+export async function listAuthUsers(): Promise<AuthUserOzeti[]> {
+  if (!isSupabaseConfigured()) throw new Error("Supabase yapılandırılmamış");
+  const out: AuthUserOzeti[] = [];
+  for (let page = 1; page <= AUTH_MAX_PAGES; page++) {
+    const { data, error } = await supabaseAdmin().auth.admin.listUsers({ page, perPage: AUTH_PAGE });
+    if (error) throw new Error(error.message);
+    const users = data?.users ?? [];
+    for (const u of users) {
+      out.push({
+        id: u.id,
+        email: u.email ?? null,
+        lastSignInAt: u.last_sign_in_at ?? null,
+      });
+    }
+    if (users.length < AUTH_PAGE) return out;
+  }
+  /*
+   * Sayfa sınırına DAYANDIK. Elimizdeki liste eksik olabilir ve eksik bir
+   * envanterle "şu hesabın Auth kaydı yok" demek yanlış olur — bu yüzden
+   * kısmi sonucu döndürmek yerine ölçümü düşmüş sayıyoruz.
+   */
+  throw new Error(`Auth kullanıcı listesi ${AUTH_MAX_PAGES} sayfada bitmedi — envanter eksik sayılıyor`);
+}
