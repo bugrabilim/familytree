@@ -35,7 +35,9 @@ npx expo run:android    # Android (Android Studio)
   - `(app)/ai.tsx` — yapay zekâ soru-cevap
   - `(app)/menu.tsx` — hesap bilgisi + gezinme + paylaş + çıkış
 - `src/lib/`
-  - `config.ts` — API kök adresi
+  - `config.ts` — API kök adresi (`https://soylus.com`)
+  - `roles.ts` — ROL KURALININ TEK YERİ (eski rol adlarını çevirir; her yetki
+    kararı buradan geçer)
   - `api.ts` — Bearer'lı fetch istemcisi + kimlik/CRUD/AI/upload uçları
   - `auth.tsx` — jeton bağlamı (SecureStore ile kalıcı)
   - `family.tsx` — ağaç verisini bir kez çekip tüm ekranlara veren bağlam
@@ -51,7 +53,10 @@ npx expo run:android    # Android (Android Studio)
 - ✅ Aşama 5 (gezilebilir ağaç görünümü).
 - ✅ Aşama 6 (yerler ekranı → Google Maps).
 - ✅ Aşama 7 (aile kitabı — yatay sayfalar).
-- ✅ Aşama 8 (yapay zekâ soru-cevap + ağaç paylaşımı).
+- ✅ Aşama 8 (yapay zekâ soru-cevap).
+- ⚠️ "Ağacı paylaş" **gerçek paylaşım bağlantısı üretmiyor**: sistem paylaşım
+  sayfasına yalnız sitenin kök adresini gönderiyor. `/api/tree/share` (ve
+  `/g/<jeton>` bağlantısı, kapsam seçimi) mobilde henüz yok.
 - ⏭️ Aşama 9 (mağaza derlemesi + push): aşağıya bakın. Bkz. `docs/MOBIL-NATIVE-PLAN.md`.
 
 ## Mağaza derlemesi (EAS)
@@ -66,12 +71,47 @@ eas build --platform android    # Play Store için .aab
 eas submit --platform ios       # App Store Connect'e gönder
 eas submit --platform android   # Play Console'a gönder
 ```
-Üretim API adresi `eas.json > build.production.env.EXPO_PUBLIC_API_URL` içinde;
-kendi alan adınla değiştir.
+Üretim API adresi `eas.json`un ÜÇ profilinde de (`development`/`preview`/
+`production`) `EXPO_PUBLIC_API_URL` olarak yazılı, ayrıca `app.json >
+expo.extra.apiBaseUrl` ve `src/lib/config.ts` içinde. Beşi de `https://soylus.com`
+olmalı; biri unutulursa hangi profille derlendiğine bağlı olarak uygulama
+açılışta "Bağlantı kurulamadı" der.
+
+## Roller ve katkı akışı
+İki kademe var (`lib/roles.ts` — sunucudaki `types/user.ts` + `lib/roles.ts`
+ile birebir aynı olmak zorunda):
+
+- **yonetici** — doğrudan yazar (kişi ekle/düzenle/sil, yapay zekâ).
+- **uye** — okur ve **önerir**. Formda "Kaydet" yerine "Öneri gönder" çıkar;
+  istek `POST /api/family/proposals`a gider ve yönetici onaylayınca ağaca
+  işlenir. Kişi uçları (`POST/PUT/DELETE /api/family/person`) üyeye 403 döner.
+
+Telefonda saklı rol **bayat olabilir** (jeton 60 gün geçerli, rolü tazeleyen uç
+yok). O yüzden okunan rol her zaman `roles.ts` üzerinden normalleştirilir:
+eski adlar (`admin/editor/contributor/viewer`) bugünkü kademeye çevrilir.
+
+## Eşzamanlılık ve oturum
+- Yazma istekleri `x-base-version` başlığını taşır (`GET /api/family` →
+  `updatedAt`). Sunucu bu başlık **yoksa** çakışma denetimini hiç yapmaz, yani
+  başlığı düşürmek sessiz veri kaybı demektir. 409 gelirse form kırmızı bir
+  uyarı ve "Yenile" düğmesi gösterir.
+- Sunucudan **401** gelen her jetonlu istek oturumu temizler ve kullanıcıyı
+  giriş ekranına atar (sebebi orada yazar). Hesabı silinmiş ya da ağaçtan
+  çıkarılmış kullanıcı sonsuz "Unauthorized" ekranında kalmasın diye.
 
 ## Bilinen sonraki adımlar
 - **GEDCOM dışa aktarma:** `/api/family/export` Bearer ile çekilip cihazda
   dosyaya yazılıp paylaşılabilir (`expo-file-system` + `expo-sharing` gerekir).
+- **Öneri kuyruğu ekranı:** üye kendi önerilerini (`GET /api/family/proposals`)
+  ve durumlarını mobilde göremiyor; gönderdikten sonra sonucu ancak ağaç
+  değişince anlıyor. Geri çekme (`/proposals/withdraw`) da yok.
+- **Gizlilik ("view") katmanı:** `GET /api/family` HAM veri döndürüyor ve
+  maskeleme web'de istemci tarafında yapılıyor (`lib/privacy.ts`). Mobilde
+  karşılığı yok — üye, gizli/yaşayan kişilerin tüm alanlarını görüyor.
+- **Hesabı geri getirme:** web'de girişte "hesabını geri getir" kutusu var
+  (`POST /api/account/restore`); mobilde yok.
+- **Çoklu ağaç:** `apiFetch` `x-tree-id` başlığını destekliyor ama hiçbir çağrı
+  yerinde verilmiyor; kurucu mobilde hep ana ağacını görüyor.
 - **Push bildirimleri:** doğum günü/yıldönümü bildirimleri için `expo-notifications`
   + sunucuda cihaz-jetonu deposu ve gönderim işi gerekir (backend işi).
 

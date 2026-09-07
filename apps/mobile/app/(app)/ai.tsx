@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { askAi, ApiError } from "@/lib/api";
+import { canEdit } from "@/lib/roles";
 import { colors } from "@/lib/theme";
 
 interface Msg {
@@ -21,9 +22,15 @@ interface Msg {
   text: string;
 }
 
-/** Ağaç hakkında yapay zekâya soru-cevap (Gemini). Yalnız düzenleyiciler. */
+/**
+ * Ağaç hakkında yapay zekâya soru-cevap (Gemini).
+ *
+ * Kapı YÖNETİCİDE: `/api/ai/chat` `canEdit` istiyor ve üyeye 403 dönüyor.
+ * Ekrandaki metinlerde "düzenleyici" yazıyordu — o rol (`editor`) kalktı ve
+ * kullanıcı, kendisinde olmayan bir kademenin adını okuyordu.
+ */
 export default function AiScreen() {
-  const { token, user } = useAuth();
+  const { token, role } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,7 +51,7 @@ export default function AiScreen() {
         e instanceof ApiError && e.status === 503
           ? "Yapay zekâ bu ağaçta yapılandırılmamış."
           : e instanceof ApiError && e.status === 403
-            ? "AI yalnız düzenleyicilere açık."
+            ? "Yapay zekâ yalnız ağacın yöneticisine açık."
             : e instanceof Error
               ? e.message
               : "AI hatası.";
@@ -55,8 +62,8 @@ export default function AiScreen() {
     }
   };
 
-  /* İki kademe: yönetici doğrudan yazar, üye yazamaz (bkz. madde 35). */
-  const viewer = user?.role !== "yonetici";
+  /* İki kademe: yönetici yapay zekâya sorabilir, üye soramaz (bkz. madde 35). */
+  const kapali = !canEdit(role);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["left", "right", "bottom"]}>
@@ -81,9 +88,9 @@ export default function AiScreen() {
           }
           renderItem={({ item }) => <Bubble msg={item} />}
         />
-        {viewer ? (
-          <Text style={{ color: colors.danger, textAlign: "center", padding: 12 }}>
-            AI yalnız düzenleyicilere açık.
+        {kapali ? (
+          <Text style={{ color: colors.textMuted, textAlign: "center", padding: 12, lineHeight: 20 }}>
+            Yapay zekâ yalnız ağacın yöneticisine açık.
           </Text>
         ) : (
           <View

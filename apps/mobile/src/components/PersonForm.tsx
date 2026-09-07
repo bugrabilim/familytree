@@ -13,7 +13,17 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
-import { createPerson, deletePerson, updatePerson, type RelationType } from "@/lib/api";
+import {
+  ApiError,
+  createPerson,
+  deletePerson,
+  proposeDelete,
+  proposeFields,
+  proposeNewPerson,
+  updatePerson,
+  type RelationType,
+} from "@/lib/api";
+import { canEdit as rolCanEdit } from "@/lib/roles";
 import { displayToStored, storedToDisplay } from "@/lib/format";
 import { colors } from "@/lib/theme";
 import type { Gender, Person } from "@/lib/types";
@@ -32,8 +42,8 @@ export function PersonForm({
   initial?: Person;
   relation?: { type: RelationType; targetId: string; targetName: string };
 }) {
-  const { token, user } = useAuth();
-  const { refresh } = useFamily();
+  const { token, role } = useAuth();
+  const { refresh, baseVersion } = useFamily();
   const router = useRouter();
   const editing = !!initial;
 
@@ -54,8 +64,55 @@ export function PersonForm({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  /** Sunucu 409 döndü: ağaç bu form açıkken başka bir yerde değişti. */
+  const [conflict, setConflict] = useState(false);
 
   const deceased = !!death.trim();
+
+  /*
+   * KİM NE YAPABİLİR — karar `lib/roles.ts`ten geliyor, burada ROL DİZGESİ
+   * KARŞILAŞTIRILMIYOR.
+   *
+   * Eskiden burada `user?.role === "yonetici"` yazıyordu ve telefonda hâlâ
+   * eski adı (`"admin"`) saklı olan bir KURUCU kendi ağacında "yetkin yok"
+   * görüyordu — oysa sunucu onu kabul ediyordu. Kural tek yere alındı.
+   */
+  const yazabilir = rolCanEdit(role);
+  /** Üye doğrudan yazamaz; yazdığı öneri kuyruğuna gider (`canPropose`). */
+  const oneriMi = !yazabilir;
+
+  /** Formdaki alanları taze kayıttan yeniden doldurur (çakışma sonrası). */
+  const applyFresh = (p: Person) => {
+    setPhoto(p.photo);
+    setFirstName(p.firstName ?? "");
+    setLastName(p.lastName ?? "");
+    setGender(p.gender !== "unknown" ? p.gender : undefined);
+    setNickname(p.nickname ?? "");
+    setPatronymic(p.patronymic ?? "");
+    setBirth(storedToDisplay(p.birthDate));
+    setDeath(storedToDisplay(p.deathDate));
+    setBirthPlace(p.birthPlace ?? "");
+    setBurialPlace(p.burialPlace ?? "");
+    setOccupation(p.occupation ?? "");
+    setBio(p.bio ?? "");
+  };
+
+  /**
+   * Çakışmadan çıkış yolu: ağacı yenile, düzenlenen kaydın GÜNCEL hâlini
+   * forma bas. Kullanıcının yazdıkları gider — bilerek: alternatif, güncel
+   * veriyi görmeden üstüne yazmaktı ve bulgunun kendisi buydu.
+   */
+  const tazele = async () => {
+    setSaving(true);
+    const data = await refresh();
+    if (data && initial) {
+      const fresh = data.people.find((p) => p.id === initial.id);
+      if (fresh) applyFresh(fresh);
+    }
+    setConflict(false);
+    setError("");
+    setSaving(false);
+  };
 
   const save = async () => {
     if (!token) return;
@@ -68,6 +125,7 @@ export function PersonForm({
       return;
     }
     setError("");
+    setConflict(false);
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
@@ -84,18 +142,37 @@ export function PersonForm({
         bio: bio.trim(),
         photo: photo ?? "",
       };
-      if (editing) {
-        await updatePerson(token, initial!.id, payload);
-      } else {
-        await createPerson(
-          token,
-          payload,
-          relation ? { type: relation.type, targetId: relation.targetId } : undefined
+      const bag = relation ? { type: relation.type, targetId: relation.targetId } : undefined;
+
+      if (oneriMi) {
+        /*
+         * ÜYENİN YOLU. Kişi uçları `canEdit` istiyor ve üyeye 403 dönüyor;
+         * öneri ucu `canPropose` istiyor ve üyeyi kabul ediyor. Sunucu
+         * değişmeyen alanları kendi eliyor, o yüzden formun tamamını
+         * göndermek güvenli (`lib/proposals.ts` → `sameValue`).
+         */
+        if (editing) await proposeFields(token, initial!.id, payload);
+        else await proposeNewPerson(token, payload, bag);
+        setSaving(false);
+        Alert.alert(
+          "Önerin gönderildi",
+          "Yönetici onayladığında değişiklik ağaçta görünecek.",
+          [{ text: "Tamam", onPress: () => router.back() }]
         );
+        return;
       }
+
+      /*
+       * SÜRÜM DAMGASI (madde 9). Başlık gönderilmezse sunucu çakışma
+       * denetimini HİÇ yapmıyor; damgasız kaydetmek, arada başka bir yerde
+       * yapılmış düzeltmeyi uyarısız geri almak demekti.
+       */
+      if (editing) await updatePerson(token, initial!.id, payload, baseVersion);
+      else await createPerson(token, payload, bag, baseVersion);
       await refresh();
       router.back();
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) setConflict(true);
       setError(e instanceof Error ? e.message : "Kaydedilemedi.");
       setSaving(false);
     }
@@ -103,18 +180,34 @@ export function PersonForm({
 
   const remove = () => {
     if (!editing || !token) return;
-    Alert.alert("Kişiyi sil", `${firstName} kalıcı olarak silinsin mi?`, [
+    const baslik = oneriMi ? "Silinmesini öner" : "Kişiyi sil";
+    const soru = oneriMi
+      ? `${firstName} kaydının silinmesi yöneticiye önerilsin mi?`
+      : `${firstName} kalıcı olarak silinsin mi?`;
+    Alert.alert(baslik, soru, [
       { text: "Vazgeç", style: "cancel" },
       {
-        text: "Sil",
-        style: "destructive",
+        text: oneriMi ? "Öner" : "Sil",
+        style: oneriMi ? "default" : "destructive",
         onPress: async () => {
           setSaving(true);
+          setConflict(false);
           try {
-            await deletePerson(token, initial!.id);
+            if (oneriMi) {
+              await proposeDelete(token, initial!.id);
+              setSaving(false);
+              Alert.alert(
+                "Önerin gönderildi",
+                "Yönetici onayladığında kayıt silinecek.",
+                [{ text: "Tamam", onPress: () => router.back() }]
+              );
+              return;
+            }
+            await deletePerson(token, initial!.id, baseVersion);
             await refresh();
             router.replace("/(app)/home");
           } catch (e) {
+            if (e instanceof ApiError && e.status === 409) setConflict(true);
             setError(e instanceof Error ? e.message : "Silinemedi.");
             setSaving(false);
           }
@@ -123,13 +216,7 @@ export function PersonForm({
     ]);
   };
 
-  /*
-   * ROL MODELİ İKİ KADEMEYE İNDİ (madde 35): `yonetici` ve `uye`.
-   * Eskiden "viewer değilse düzenleyebilir" yeterliydi; artık DOĞRUDAN
-   * yazabilen tek kademe yönetici. Üyenin yolu öneri kuyruğu ve mobilde o
-   * ekran henüz yok, o yüzden burada düzenleme kapalı — sunucu da reddederdi.
-   */
-  const canEdit = user?.role === "yonetici";
+  const kaydetEtiketi = oneriMi ? "Öneri gönder" : editing ? "Kaydet" : "Kişiyi ekle";
 
   return (
     <KeyboardAvoidingView
@@ -140,10 +227,62 @@ export function PersonForm({
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        {!canEdit ? (
-          <Text style={{ color: colors.danger, marginBottom: 12 }}>
-            Bu ağaçta düzenleme yetkin yok (izleyici).
-          </Text>
+        {/*
+          ÜYEYE TEK VE NET BİR CÜMLE. Buradaki eski metin "Bu ağaçta düzenleme
+          yetkin yok (izleyici)." idi: hem "izleyici" diye bir rol artık yok,
+          hem de doğru değil — üye katkı YAPABİLİR, sadece yolu onaydan geçer.
+        */}
+        {oneriMi ? (
+          <View
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface2,
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>
+              Bu ağaçta üyesin: doldurduğun bilgi doğrudan yazılmaz, yöneticinin
+              onayına gider.
+            </Text>
+          </View>
+        ) : null}
+
+        {conflict ? (
+          <View
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.danger,
+              backgroundColor: "#fdecea",
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ color: colors.danger, fontSize: 14, lineHeight: 20 }}>
+              Ağaç, sen bu formu açtıktan sonra başka bir yerde değişti.
+              “Yenile” dersen ekrandaki bilgiyi güncelle değiştiririz (yazdıkların
+              gider); tekrar kaydedersen senin değerlerin güncelin üstüne yazılır.
+            </Text>
+            <Pressable
+              onPress={tazele}
+              disabled={saving}
+              style={{
+                marginTop: 12,
+                height: 42,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: colors.danger,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: colors.danger, fontWeight: "700" }}>Yenile</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {relation ? (
@@ -215,7 +354,7 @@ export function PersonForm({
 
         <Pressable
           onPress={save}
-          disabled={saving || !canEdit}
+          disabled={saving}
           style={{
             height: 52,
             borderRadius: 12,
@@ -223,19 +362,19 @@ export function PersonForm({
             alignItems: "center",
             justifyContent: "center",
             marginTop: 22,
-            opacity: saving || !canEdit ? 0.6 : 1,
+            opacity: saving ? 0.6 : 1,
           }}
         >
           {saving ? (
             <ActivityIndicator color={colors.primaryText} />
           ) : (
             <Text style={{ color: colors.primaryText, fontWeight: "700", fontSize: 15 }}>
-              {editing ? "Kaydet" : "Kişiyi ekle"}
+              {kaydetEtiketi}
             </Text>
           )}
         </Pressable>
 
-        {editing && canEdit ? (
+        {editing ? (
           <Pressable
             onPress={remove}
             disabled={saving}
@@ -249,7 +388,9 @@ export function PersonForm({
               marginTop: 12,
             }}
           >
-            <Text style={{ color: colors.danger, fontWeight: "600" }}>Kişiyi sil</Text>
+            <Text style={{ color: colors.danger, fontWeight: "600" }}>
+              {oneriMi ? "Silinmesini öner" : "Kişiyi sil"}
+            </Text>
           </Pressable>
         ) : null}
       </ScrollView>
