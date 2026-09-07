@@ -12,6 +12,14 @@ function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; cons
  * kimin çağırabildiği, neyin kopyalandığı ve neyin silinebildiği.
  */
 
+/*
+ * YORUMLAR AYIKLANIYOR. Olumsuz bir iddia, yasakladığı kalıbı ANLATAN yorum
+ * metnine takılıp boşuna kırmızı yanabiliyor — bu depoda birkaç kez oldu.
+ * Bir kuralın varlığını kanıtlarken koda bakmalı, kodun anlatımına değil.
+ */
+const kodu = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
 const rota = readFileSync(new URL("../app/api/cron/backup/route.ts", import.meta.url), "utf8");
 const lib = readFileSync(new URL("../lib/backup.ts", import.meta.url), "utf8");
 
@@ -55,8 +63,9 @@ check(/for \(const p of plan\.remove\)/.test(rota), "yalnız plandaki yollar sil
    * eski görüntüleri silmek, elde hiçbir yedek bırakmamak olurdu — yedeğin
    * kendisinin yol açabileceği en ağır zarar.
    */
-  check(/if \(summary\.copied > 0\) \{/.test(rota), "silme yalnız kopyalama başarılıysa");
-  const iKosul = rota.indexOf("if (summary.copied > 0)");
+  check(/if \(summary\.copied > 0 && summary\.verifyFailed\.length === 0\) \{/.test(rota),
+    "silme yalnız kopyalama başarılıysa");
+  const iKosul = rota.indexOf("if (summary.copied > 0");
   const iDel = rota.indexOf("await del(");
   check(iKosul > 0 && iDel > iKosul, "silme çağrısı o koşulun içinde");
 }
@@ -91,6 +100,61 @@ check(/for \(const p of plan\.remove\)/.test(rota), "yalnız plandaki yollar sil
   check(!/if \(/.test(oncekiSatir), "temizlik günlüğü KOŞULSUZ (sıfır de yazılıyor)");
 }
 
+/* --- YAZDIĞINI GERİ OKU --------------------------------------------------- */
+{
+  /*
+   * `put`ın dönmesi, dosyanın okunabilir olduğunu KANITLAMIYOR. Bu depoda tam
+   * olarak bu tür bir sessizlik bir kez yaşandı: iş her gün 200 dönüyordu ama
+   * `private` depoya düz `fetch` attığı için hiçbir dosya kopyalanmıyordu —
+   * aylarca, ve dışarıdan bakınca yedek vardı.
+   */
+  check(/verifySample\(yazilanlar\)/.test(rota), "yazılan görüntülerden örnek geri okunuyor");
+  check(/JSON\.parse\(metin\)/.test(rota),
+    "içerik AYRIŞTIRILIYOR (yalnız boy bakmak yarım dosyayı sağlam sayardı)");
+  check(/summary\.verifyFailed\.push/.test(rota), "başarısız doğrulama kayda geçiyor");
+  /*
+   * DOĞRULAMA DÜŞTÜYSE ESKİ GÖRÜNTÜLER SİLİNMEZ: yazdığını geri okuyamayan
+   * bir koşunun elindekini atmaya hakkı yok.
+   */
+  check(/if \(summary\.copied > 0 && summary\.verifyFailed\.length === 0\)/.test(rota),
+    "doğrulama düştüyse saklama temizliği yapılmıyor");
+  const iDogrula = rota.indexOf("verifySample(yazilanlar)");
+  check(iDogrula > 0 && iDogrula < rota.indexOf("for (const p of plan.remove)"),
+    "doğrulama silmeden ÖNCE");
+  check(/GERİ OKUMA BAŞARISIZ/.test(rota), "başarısızlık günlükte uyarı seviyesinde");
+}
+
+/* --- AYNA TARAMASI ------------------------------------------------------- */
+{
+  /*
+   * `/api/admin/drift` tam denetimi yapıyor ama yalnız ELLE, yalnız giriş
+   * yapmış founder'ın kendi ağaçları için, ve o düğmeyi kimse görmüyor.
+   * Günlük ucuz tarama, "ayrışma var ama kimsenin haberi yok" hâlini
+   * ortadan kaldırıyor.
+   */
+  check(/await scanMirror\(/.test(rota), "günlük ayna taraması koşuyor");
+  check(/mirrorScanPossible\(\)/.test(rota), "Supabase yoksa tarama denenmiyor");
+  check(/console\.warn\(satir\)/.test(rota), "ayrışma UYARI seviyesinde");
+  /*
+   * TARAMA ONARMIYOR. Onarım Blob'u kaynak alıp Postgres'te kayıt SİLİYOR;
+   * kimsenin bakmadığı bir zamanlanmış işin böyle bir yetkisi olmamalı.
+   */
+  const scan = kodu(readFileSync(new URL("../lib/mirror-scan.ts", import.meta.url), "utf8"));
+  for (const yasak of ["dbUpsertPeople", "dbDeletePeople", "dbReplacePeople", "saveFamilyData"]) {
+    check(!new RegExp(yasak).test(scan), `tarama ${yasak} ÇAĞIRMIYOR (onarmıyor)`);
+  }
+  /*
+   * SALT BLOB. `getFamilyData` Postgres'i öne alıyor ve ağaç orada varsa
+   * Blob'a hiç inmiyor — yani ayna kendisiyle karşılaştırılır ve tarama her
+   * ağaç için "eşit" derdi. Bir denetim aracının verebileceği en kötü yanıt.
+   */
+  check(/readFamilyFromBlob\(/.test(scan), "kaynak doğrudan Blob'dan okunuyor");
+  check(!/getFamilyData\(/.test(scan), "Postgres'i öne alan okuyucu KULLANILMIYOR");
+  /* Yedekle aynı iki kural: bütçe ve döndürme. */
+  check(/butce\.spent\(\)/.test(scan), "tarama bütçeye bakıyor");
+  check(/rotateForDay\(/.test(scan), "tarama listesi günlük döndürülüyor");
+}
+
 /* --- Kütüphanedeki kurallar hâlâ yerinde -------------------------------- */
 check(/if \(s === null\) continue;/.test(lib), "tanınmayan damga silinmiyor");
 check(/Number\.isFinite\(keep\)/.test(lib), "sayı olmayan `keep` hepsini silmeye dönüşmüyor");
@@ -116,8 +180,6 @@ const betik = readFileSync(new URL("../scripts/backup.mjs", import.meta.url), "u
  * önce de olan bir tuzak (import satırına eşleşen kapı testleri). Bir kuralın
  * varlığını kanıtlarken koda bakmalı, kodun anlatımına değil.
  */
-const kodu = (src: string) =>
-  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 for (const [ad, kaynak] of [["rota", kodu(rota)], ["betik", kodu(betik)]] as const) {
   check(/await get\(/.test(kaynak), `${ad}: özel depo okuyucusu (get) kullanılıyor`);

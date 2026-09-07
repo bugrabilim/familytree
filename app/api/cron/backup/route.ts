@@ -5,9 +5,12 @@ import {
   planRetention,
   snapshotPath,
   stampOf,
+  verifySample,
   type BackupSummary,
 } from "@/lib/backup";
 import { sweepExpired } from "@/lib/account-lifecycle";
+import { makeBudget } from "@/lib/cron-budget";
+import { mirrorScanPossible, scanMirror } from "@/lib/mirror-scan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -59,6 +62,19 @@ export const maxDuration = 300;
  * alması olurdu: 30 günü dolmuş veri, kimsenin haberi olmadan durmaya devam
  * eder. Bu iki iş artık ayrı bloklarda; biri düşse öbürü koşuyor ve ikisi de
  * her koşuda günlüğe yazıyor.
+ *
+ * ## Neden AYNA TARAMASI da burada
+ *
+ * `/api/admin/drift` Blob ile Postgres'i kayıt kayıt karşılaştırıyor ve
+ * doğru aracın ta kendisi — ama yalnız ELLE, yalnız giriş yapmış founder'ın
+ * KENDİ ağaçları için çalışıyor, ve o düğmeyi kimse görmüyor. Yani ayrışma
+ * varsa da kimsenin haberi olmuyor.
+ *
+ * Bu işin son adımı ucuz bir tarama (`lib/mirror-scan.ts`): sayılar ve
+ * damgalar tutuyor mu? Yanıt hayırsa günlüğe uyarı düşüyor ve insan gelip
+ * asıl aracı çalıştırıyor. ONARMIYOR — onarım Blob'u kaynak alıp Postgres'te
+ * kayıt siliyor ve kimsenin bakmadığı bir zamanlanmış işin böyle bir yetkisi
+ * olmamalı.
  */
 
 /** Kaç günlük görüntü saklanacak. */
@@ -81,6 +97,8 @@ export async function GET(req: NextRequest) {
     failed: 0,
     removed: 0,
     keptSnapshots: 0,
+    verified: 0,
+    verifyFailed: [],
   };
   /** Yedek düştüyse sebebi — yanıtın durum kodunu bu belirliyor. */
   let yedekHatasi: string | null = null;
@@ -98,6 +116,8 @@ export async function GET(req: NextRequest) {
 
     // Kaynakları seç — yedeğin yedeği ALINMAZ (`lib/backup.ts`).
     const kaynaklar = backupSources(hepsi);
+    /** Bu koşuda GERÇEKTEN yazılan görüntüler — doğrulama örneği bundan seçiliyor. */
+    const yazilanlar: string[] = [];
 
     for (const yol of kaynaklar) {
       try {
@@ -125,6 +145,7 @@ export async function GET(req: NextRequest) {
           contentType: "application/json",
         });
         summary.copied++; summary.bytes += buf.length;
+        yazilanlar.push(snapshotPath(stamp, yol));
       } catch {
         /*
          * Tek dosyanın hatası bütün yedeği düşürmesin — eksik bir yedek,
@@ -136,11 +157,39 @@ export async function GET(req: NextRequest) {
     }
 
     /*
+     * DOĞRULAMA — yazdığını GERİ OKU. Saklamadan (silmeden) ÖNCE.
+     *
+     * `put`ın dönmesi, dosyanın okunabilir olduğunu kanıtlamıyor. Bu depoda
+     * tam olarak bu tür bir sessizlik bir kez yaşandı: iş her gün 200
+     * dönüyordu ama `private` depoya düz `fetch` attığı için hiçbir dosya
+     * kopyalanmıyordu — aylarca, ve dışarıdan bakınca yedek vardı.
+     *
+     * Örnek `lib/backup.ts`te seçiliyor (kritik dosyalar önce) ve JSON olarak
+     * AYRIŞTIRILIYOR: yalnız boy karşılaştırmak, yarım yazılmış ama doğru
+     * uzunlukta bir dosyayı sağlam sayardı.
+     */
+    for (const yol of verifySample(yazilanlar)) {
+      try {
+        const geri = await get(yol, { access: "private", useCache: false });
+        if (!geri || geri.statusCode !== 200) throw new Error(`okunamadı (${geri?.statusCode ?? "yanıt yok"})`);
+        const metin = await new Response(geri.stream).text();
+        if (!metin.trim()) throw new Error("boş");
+        JSON.parse(metin);
+        summary.verified++;
+      } catch (e) {
+        summary.verifyFailed.push(`${yol}: ${(e as Error).message}`);
+      }
+    }
+
+    /*
      * Saklama. SİLME YALNIZ KOPYALAMA BAŞARILIYSA yapılır: bu koşuda hiç
      * dosya yazılamadıysa (ör. depo erişimi bozuk) eski görüntüleri silmek,
      * elde hiçbir yedek bırakmamak olurdu.
+     *
+     * DOĞRULAMA DÜŞTÜYSE DE SİLİNMEZ: yazdığını geri okuyamayan bir koşunun,
+     * elindeki eski görüntüleri atmaya hakkı yok.
      */
-    if (summary.copied > 0) {
+    if (summary.copied > 0 && summary.verifyFailed.length === 0) {
       const sonrakiListe = [
         ...hepsi,
         ...kaynaklar.map((yol) => snapshotPath(stamp, yol)),
@@ -176,11 +225,40 @@ export async function GET(req: NextRequest) {
    */
   const satir =
     `[yedek] ${stamp} — kopyalanan ${summary.copied}, atlanan ${summary.failed}, ` +
-    `silinen ${summary.removed}, saklanan görüntü ${summary.keptSnapshots}, ${summary.bytes} bayt`;
+    `silinen ${summary.removed}, saklanan görüntü ${summary.keptSnapshots}, ` +
+    `doğrulanan ${summary.verified}, ${summary.bytes} bayt`;
   if (summary.copied === 0) console.warn(`${satir} — HİÇBİR ŞEY KOPYALANMADI`);
+  else if (summary.verifyFailed.length > 0)
+    console.warn(`${satir} — GERİ OKUMA BAŞARISIZ: ${summary.verifyFailed.join(" | ")}`);
   else console.log(satir);
 
-  /* ── 2) SİLME TEMİZLİĞİ ────────────────────────────────────────────────── */
+  /* ── 2) AYNA TARAMASI ──────────────────────────────────────────────────── */
+  /*
+   * Yedekten ve temizlikten BAĞIMSIZ, kendi bütçesiyle. `maxDuration` 300 sn;
+   * tarama en fazla 60 saniye harcıyor ki yedeğin ve temizliğin süresini
+   * yemesin — tarama bir teşhis, öbür ikisi ise işin kendisi.
+   */
+  let mirror: { checked: number; clean: number; problems: number; skipped: number } | null = null;
+  if (mirrorScanPossible()) {
+    try {
+      const r = await scanMirror(makeBudget(60_000), new Date());
+      mirror = { checked: r.checked, clean: r.clean, problems: r.problems.length, skipped: r.skipped };
+      const satir = `[ayna] ${stamp} — ${r.line}${r.skipped ? ` (bütçe: ${r.skipped} atlandı)` : ""}`;
+      /*
+       * AYRIŞMA UYARI SEVİYESİNDE. Bu tam da "her şey yolunda görünüyor ama
+       * kaynak ile ayna ayrışmış" hâli; `log` seviyesinde yazılsa
+       * gürültünün içinde kaybolurdu.
+       */
+      if (r.problems.length > 0) console.warn(satir);
+      else console.log(satir);
+    } catch (e) {
+      console.error("[ayna] tarama başarısız:", (e as Error).message);
+    }
+  } else {
+    console.log(`[ayna] ${stamp} — Supabase yapılandırılmamış, tarama yapılmadı`);
+  }
+
+  /* ── 3) SİLME TEMİZLİĞİ ────────────────────────────────────────────────── */
   /*
    * YEDEKTEN BAĞIMSIZ. Yukarıdaki blok düşse de burası koşar — gerekçe dosya
    * başında. Kendi hatası da yanıtı düşürmüyor; özete ve günlüğe yazılıyor.
@@ -207,7 +285,7 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json(
-    { ok: !yedekHatasi, ...summary, ...(yedekHatasi ? { error: yedekHatasi } : {}), sweep },
+    { ok: !yedekHatasi, ...summary, ...(yedekHatasi ? { error: yedekHatasi } : {}), mirror, sweep },
     { status: yedekHatasi ? 500 : 200 }
   );
 }

@@ -79,6 +79,14 @@ Tam liste ve açıklamalar: `.env.local.example`.
 
 - [ ] `scripts/backup.mjs` çalıştığını doğrula; günlük yedeği planla.
 - [ ] Supabase otomatik yedeği açık mı (plan gerektirir).
+- [ ] **Geri yükleme tatbikatı yapıldı mı?** Denenmemiş yedek, yedek değildir —
+      ve bunu öğrenmek için en kötü an gerçek bir kayıp anıdır. Adımlar ve
+      sonuç tablosu `docs/YEDEKLEME.md` > "Tatbikat".
+- [ ] **Harici hedef** kararı verildi mi? Depo içindeki kopya, deponun
+      tamamının kaybına karşı korumaz.
+- [ ] `/api/health` bir izleme aracına bağlandı mı?
+      `curl -H "Authorization: Bearer $CRON_SECRET" https://<alan>/api/health`
+      → 200 ve `"healthy": true`. Oturum gerektirmeyen tek yol bu.
 - Ayrıntı: `docs/YEDEKLEME.md`.
 
 ## 7) Yayın sonrası duman testi
