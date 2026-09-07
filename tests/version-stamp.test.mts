@@ -193,5 +193,57 @@ const drift = kodu(read("../app/api/admin/drift/route.ts"));
   check(iIkinci > iSil, "ikinci deneme kişi yazmalarından SONRA");
 }
 
+/* ----------------------------------- 6. Jeton, istemciye dönen değerin TA KENDİSİ */
+
+/*
+ * İKİ TARAF AYNI DAMGAYI TAŞIMALI.
+ *
+ * Kaydetme yolu Blob'a `data.updatedAt` yazıyor ve o değeri istemciye
+ * `version` olarak veriyor (öneri onayı bunu `x-base-version` diye geri
+ * gönderiyor). Aynaya basılan KİŞİ SATIRLARI ise kendi "şimdi"sini
+ * yazıyordu — Blob yazmasından birkaç milisaniye sonrasını.
+ *
+ * Jeton ikisinin BÜYÜĞÜ olduğu için (`pickVersion`) sonuç hep kişi damgası
+ * oluyordu: istemcinin elindeki sürüm daha doğduğu anda bayat. Sonucu, arka
+ * arkaya yapılan her İKİNCİ onayın "ağaç bu sırada başka bir yerde değişti"
+ * diye 409 yemesi — yani kuyruğun asıl kullanımının (toplu onay, art arda
+ * onay) kırılması.
+ *
+ * `pickVersion` bunu tek başına düzeltemez: elindeki iki değerden büyüğünü
+ * seçmek zorunda, küçüğünü seçmek silme dirilmesini geri getirirdi. Düzeltme
+ * kaynağında: iki tarafa AYNI damgayı yazmak.
+ */
+{
+  const db = kodu(read("../lib/db.ts"));
+  check(/function personToRow\(treeId: string, p: Person, stamp\?: string\)/.test(db),
+    "satır kurucusu damga alabiliyor");
+  check(/updated_at: stamp \?\? new Date\(\)\.toISOString\(\)/.test(db),
+    "damga verilmişse o yazılıyor");
+  check(/personToRow\(treeId, p, stamp\)/.test(db), "damga satır kurucusuna geçiyor");
+
+  const i = blob.indexOf("export async function saveFamilyData");
+  const govde = blob.slice(i);
+  check(/dbUpsertPeople\(userId, changed, data\.updatedAt\)/.test(govde),
+    "hedefli yazmada damga geçiyor");
+  check(/dbReplacePeople\(userId, data\.people, data\.updatedAt\)/.test(govde),
+    "tam yenilemede damga geçiyor");
+  /*
+   * AYNI değer olmalı, "yakın" değil: `data.updatedAt` dışında bir kaynak
+   * (ör. yeni bir `new Date()`) yazılsaydı fark yine milisaniye olurdu ama
+   * jeton yine istemcininkinden büyük çıkardı.
+   */
+  const iDamga = govde.indexOf("dbSetTreeUpdatedAt(userId");
+  check(/dbSetTreeUpdatedAt\(userId, data\.updatedAt\)/.test(govde) && iDamga > -1,
+    "ağaç damgası da AYNI değerden");
+}
+
+/* Sonuç: her iki taraf da aynı damgayı taşırsa jeton tam olarak o değerdir. */
+{
+  const t = "2026-09-07T04:00:00.123Z";
+  check(pickVersion(t, [t, t, t]) === t, "iki taraf aynıysa jeton istemciye dönen değerin ta kendisi");
+  /* Postgres biçimi de aynı ana çözülüyor — normalize bunun için var. */
+  check(pickVersion("2026-09-07T04:00:00.123+00:00", [t]) === t, "Postgres yazımı da aynı jetona iniyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

@@ -310,10 +310,10 @@ export async function saveFamilyData(
         if (freshOldJson) {
           const oldPeople = (JSON.parse(freshOldJson) as FamilyData).people ?? [];
           const { changed, removed } = diffPeople(oldPeople, data.people);
-          if (changed.length) await dbUpsertPeople(userId, changed);
+          if (changed.length) await dbUpsertPeople(userId, changed, data.updatedAt);
           if (removed.length) await dbDeletePeople(userId, removed);
         } else {
-          await dbReplacePeople(userId, data.people);
+          await dbReplacePeople(userId, data.people, data.updatedAt);
         }
         /*
          * Damga düştüyse kişiler yazıldıktan SONRA bir kez daha denenir.
