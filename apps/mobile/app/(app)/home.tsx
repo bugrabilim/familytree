@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { useOutbox } from "@/lib/outbox-store";
 import { colors } from "@/lib/theme";
 import { fullName, isRainbow, lifeSpan } from "@/lib/format";
 import type { Person } from "@/lib/types";
@@ -96,6 +97,16 @@ export default function Home() {
             }}
           />
         </View>
+
+        {/*
+          ÇEVRİMDIŞI KUYRUK ŞERİDİ (madde 44).
+
+          Kuyruk sessiz olmamalı: uygulama kullanıcının yazdığını cihazda
+          saklıyorsa bunu SÖYLEMELİ, yoksa kullanıcı yazdığının gittiğini
+          sanır (ya da tersi — gitmediğini hiç bilmez). Çakışma varsa şerit
+          kırmızıya dönüyor, çünkü orada bir KARAR bekleniyor.
+        */}
+        <KuyrukSeridi />
       </View>
 
       {loading ? (
@@ -163,6 +174,39 @@ export default function Home() {
         </Link>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+/** Bekleyen çevrimdışı yazmaları duyuran şerit; boş kuyrukta hiç çizilmiyor. */
+function KuyrukSeridi() {
+  const { kuyruk, cakisan, hatali, gonderiliyor } = useOutbox();
+  if (kuyruk.length === 0) return null;
+  const dikkat = cakisan > 0 || hatali > 0;
+  return (
+    <Link href="/(app)/outbox" asChild>
+      <Pressable
+        style={{
+          marginTop: 12,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: dikkat ? colors.danger : colors.border,
+          backgroundColor: dikkat ? "#fdecea" : colors.surface,
+        }}
+      >
+        <Text style={{ color: dikkat ? colors.danger : colors.text, fontSize: 13, fontWeight: "600" }}>
+          {dikkat
+            ? `${cakisan + hatali} yazma senin kararını bekliyor`
+            : gonderiliyor
+              ? `${kuyruk.length} yazma gönderiliyor…`
+              : `${kuyruk.length} yazma cihazda bekliyor`}
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+          {dikkat ? "Dokun ve karar ver." : "Bağlantı gelince kendiliğinden gönderilecek."}
+        </Text>
+      </Pressable>
+    </Link>
   );
 }
 

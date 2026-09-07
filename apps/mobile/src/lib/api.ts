@@ -177,16 +177,27 @@ export function askAi(token: string, question: string, lang: "tr" | "en" = "tr")
 /** İlişki bağı: yeni kişiyi hedefin ebeveyni/çocuğu/eşi/kardeşi olarak ekler. */
 export type RelationType = "parent" | "child" | "spouse" | "sibling";
 
+/**
+ * `treeId` ÇAĞRI YERİNDEN verilebiliyor.
+ *
+ * Ekranlar vermiyor (modüldeki aktif ağaç zaten doğru), ama ÇEVRİMDIŞI
+ * KUYRUK vermek ZORUNDA: kuyruktaki yazma saatler önce, belki başka bir
+ * ağaca bakılırken yakalandı. Gönderim anında aktif ağaç değişmiş olabilir
+ * ve modüldeki değere güvenmek, bir ağacın düzeltmesini öbür ağaca yazmak
+ * olurdu (`src/lib/outbox.ts` → `kuyrukSuz`).
+ */
 export function createPerson(
   token: string,
   payload: Record<string, unknown>,
   relation?: { type: RelationType; targetId: string },
-  baseVersion?: string | null
+  baseVersion?: string | null,
+  treeId?: string
 ) {
   return apiFetch<{ id: string }>("/api/family/person", {
     method: "POST",
     token,
     baseVersion,
+    treeId,
     body: relation ? { ...payload, relation } : payload,
   });
 }
@@ -195,21 +206,29 @@ export function updatePerson(
   token: string,
   id: string,
   payload: Record<string, unknown>,
-  baseVersion?: string | null
+  baseVersion?: string | null,
+  treeId?: string
 ) {
   return apiFetch<{ id: string }>(`/api/family/person/${id}`, {
     method: "PUT",
     token,
     baseVersion,
+    treeId,
     body: payload,
   });
 }
 
-export function deletePerson(token: string, id: string, baseVersion?: string | null) {
+export function deletePerson(
+  token: string,
+  id: string,
+  baseVersion?: string | null,
+  treeId?: string
+) {
   return apiFetch<{ success: boolean }>(`/api/family/person/${id}`, {
     method: "DELETE",
     token,
     baseVersion,
+    treeId,
   });
 }
 
@@ -236,11 +255,13 @@ export interface ProposalResult {
 export function proposeFields(
   token: string,
   personId: string,
-  changes: Record<string, unknown>
+  changes: Record<string, unknown>,
+  treeId?: string
 ) {
   return apiFetch<ProposalResult>("/api/family/proposals", {
     method: "POST",
     token,
+    treeId,
     body: { kind: "alan", personId, changes },
   });
 }
@@ -249,20 +270,23 @@ export function proposeFields(
 export function proposeNewPerson(
   token: string,
   person: Record<string, unknown>,
-  relation?: { type: RelationType; targetId: string }
+  relation?: { type: RelationType; targetId: string },
+  treeId?: string
 ) {
   return apiFetch<ProposalResult>("/api/family/proposals", {
     method: "POST",
     token,
+    treeId,
     body: relation ? { kind: "ekleme", person, relation } : { kind: "ekleme", person },
   });
 }
 
 /** Kaydın silinmesi önerisi. */
-export function proposeDelete(token: string, personId: string) {
+export function proposeDelete(token: string, personId: string, treeId?: string) {
   return apiFetch<ProposalResult>("/api/family/proposals", {
     method: "POST",
     token,
+    treeId,
     body: { kind: "silme", personId },
   });
 }
