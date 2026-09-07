@@ -29,5 +29,5 @@ export const metadata: Metadata = {
  */
 export default async function TanitimPage() {
   const platform = await getPlatformStats();
-  return <Landing platform={platform ?? undefined} />;
+  return <Landing platform={platform ?? undefined} year={new Date().getFullYear()} />;
 }

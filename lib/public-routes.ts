@@ -176,3 +176,62 @@ export function frameHeaders(pathname: string): Record<string, string> {
     "X-Frame-Options": "DENY",
   };
 }
+
+/**
+ * SIRRI ADRES ÇUBUĞUNDA TAŞIYAN YOLLAR.
+ *
+ * Bu sayfalarda kimlik jetonun KENDİSİ ve jeton yolun bir parçası — yani
+ * tam URL, onu ele geçiren herkese erişim veriyor. Bu yüzden bu yollarda
+ * `Referrer-Policy: no-referrer`: sayfadan dışarıya tıklanan bir bağlantı
+ * (ör. gizlilik metnindeki bir kaynak) hedef siteye `Referer` başlığıyla
+ * jetonu TAŞIMASIN. Modern tarayıcıların varsayılanı zaten kaynağı kırpıyor,
+ * ama "varsayılan böyle" bir güvence değil: varsayılan değişebilir, eski
+ * tarayıcı tam URL yollar, ve jeton bir kez sızdığında geri alınamaz.
+ *
+ * Listeye girme ölçütü tek: yolun kendisi bir sır taşıyor mu? `/login` ya da
+ * `/privacy` taşımıyor, `/g/<jeton>` taşıyor.
+ */
+export const SECRET_IN_URL_PREFIXES: readonly string[] = [
+  "/g",
+  "/reset-password",
+  "/verify-email",
+  "/join",
+  "/pair",
+  "/contact",
+  "/rsvp",
+  "/hikaye",
+];
+
+export function carriesSecretInUrl(pathname: string): boolean {
+  return SECRET_IN_URL_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+  );
+}
+
+/**
+ * Bir yola konacak GÜVENLİK başlıklarının tamamı.
+ *
+ * `frameHeaders` yalnız çerçevelemeyi anlatıyordu; bu işlev onu kapsayıp iki
+ * eksik başlığı ekliyor. Ayrı bir işlev olmasının sebebi çağırana tek bir
+ * kapı bırakmak: proxy iki ayrı liste dolaşırsa, birine eklenen başlık
+ * ötekinde unutulur.
+ *
+ * `X-Content-Type-Options: nosniff` — tarayıcı içerik türünü tahmin etmeye
+ * çalışmasın. Bu uygulama kullanıcıdan dosya alıyor (fotoğraf, GEDCOM, PDF)
+ * ve tahmin, metin diye sunulan bir dosyanın betik olarak çalıştırılmasına
+ * kapı açar.
+ *
+ * `Referrer-Policy` — sırrı adres çubuğunda taşıyan yollarda `no-referrer`,
+ * geri kalanında `strict-origin-when-cross-origin`. İkincisi kendi
+ * sayfalarımız arası gezinmede tam yolu korur (analitik ve hata ayıklama
+ * için değerli), dışarıya çıkarken yalnız kaynağı yollar.
+ */
+export function securityHeaders(pathname: string): Record<string, string> {
+  return {
+    ...frameHeaders(pathname),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": carriesSecretInUrl(pathname)
+      ? "no-referrer"
+      : "strict-origin-when-cross-origin",
+  };
+}
