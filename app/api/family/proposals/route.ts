@@ -481,10 +481,41 @@ async function bildir(accountId: string, p: Proposal): Promise<void> {
   const adres = u?.notifyEmail?.trim();
   if (!adres) return;
 
-  const alanlar = Object.keys(p.changes).length;
+  /*
+   * METİN TÜRE GÖRE.
+   *
+   * Eskiden tek bir cümle vardı ve `changes` alanlarını sayıyordu: "… kaydı
+   * için N alanda değişiklik öneriyor." Ama `changes` yalnız "alan"
+   * türündeki öneride dolu. Yeni kişi ekleme, kayıt silme ve tarif/etkinlik/
+   * mektup önerilerinde boş — yani posta "0 ALANDA DEĞİŞİKLİK ÖNERİYOR"
+   * diyordu. Sahibi, kendi ağacına birinin ne önerdiğini postadan
+   * anlayamıyor, üstelik önerinin önemsiz olduğunu düşünüp açmayabilirdi;
+   * oysa gelen şey yeni bir kişi ya da bir SİLME önerisi olabilir.
+   *
+   * Değerler yine yok (aşağıdaki gerekçe) — değişen yalnız ne olduğunun
+   * doğru söylenmesi.
+   */
+  const kim = p.byName || "Bir katkı verici";
+  const kimin = p.personName || "bir kişi";
+  const tur = kindOf(p);
+  const alanlar = Object.keys(p.changes ?? {}).length;
+  const intro =
+    tur === "ekleme"
+      ? `${kim}, ağacına yeni bir kişi eklemeyi öneriyor: ${kimin}.`
+      : tur === "silme"
+        ? `${kim}, ${kimin} kaydının SİLİNMESİNİ öneriyor.`
+        : tur === "icerik"
+          ? `${kim}, ağacına yeni bir kayıt eklemeyi öneriyor${p.personName ? ` (${p.personName})` : ""}.`
+          : `${kim}, ${kimin} kaydı için ${alanlar} alanda değişiklik öneriyor.`;
+
   const { html, text } = renderEmail({
-    title: "Ağacında bir değişiklik önerisi var",
-    intro: `${p.byName || "Bir katkı verici"}, ${p.personName || "bir kişi"} kaydı için ${alanlar} alanda değişiklik öneriyor.`,
+    title:
+      tur === "silme"
+        ? "Ağacında bir silme önerisi var"
+        : tur === "ekleme"
+          ? "Ağacında bir ekleme önerisi var"
+          : "Ağacında bir değişiklik önerisi var",
+    intro,
     /*
      * Önerilen DEĞERLER postaya konmuyor, yalnız sayısı. Gövde, ağaçtaki
      * kişisel bilgiyi (doğum tarihi, adres, hastalık) gizlilik katmanından

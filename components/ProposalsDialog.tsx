@@ -97,13 +97,46 @@ export default function ProposalsDialog({ onClose, onApplied }: {
   const [topluOnay, setTopluOnay] = useState(false);
   /** Toplu işlemin özeti — kaç tanesi geçti. */
   const [ozet, setOzet] = useState("");
+  /*
+   * C7 — sunucunun "istemci bunu BİLMELİ" dediği bayrak, hiçbir istemci
+   * tarafından okunmuyordu.
+   *
+   * Toplu onayda ağaç yazıldı ama öneri damgası yazılamadıysa sunucu
+   * `stampFailed: true` dönüyor. O durumda kuyrukta hâlâ "bekliyor" görünen
+   * öneriler ASLINDA UYGULANMIŞ olabilir; kullanıcı onları yeniden
+   * onaylarsa ekleme türünde ikinci bir kopya oluşuyor. Bayrak okunmayınca
+   * yanıt "kısmen başarılı" gibi görünüyor ve kullanıcı tam olarak yapmaması
+   * gereken şeyi yapmaya davet ediliyordu.
+   */
+  const [damgaUyarisi, setDamgaUyarisi] = useState(false);
 
   const yukle = useCallback(async () => {
     try {
       const res = await fetch("/api/family/proposals", { cache: "no-store" });
       const d = await res.json();
       if (!res.ok) throw new Error(d?.error ?? "Yüklenemedi.");
-      setList(d.proposals as Proposal[]);
+      const gelen = d.proposals as Proposal[];
+      setList(gelen);
+      /*
+       * C8 — BAYATLIK UYARISI ARTIK TEMİZLENİYOR.
+       *
+       * `stale` haritasına yalnız EKLENİYORDU; hiçbir yerde silinmiyordu.
+       * Sonuç: bir kez "bu öneri yazıldığından beri alan değişti" uyarısı
+       * çıkan kart, öneri sonradan reddedilip listeden düşse ya da kullanıcı
+       * kaydı düzeltip öneri geçerli hâle gelse bile uyarıyı diyalog kapanana
+       * kadar taşıyordu. Kalıcı bir uyarı, bir süre sonra okunmayan bir
+       * uyarıdır — ve bu uyarının işi tam olarak okunmak.
+       *
+       * Kuyrukta artık BULUNMAYAN önerilerin kaydı düşüyor. Duranlarınki
+       * duruyor: sunucu onları hâlâ bayat sayıyor olabilir ve tazelemek
+       * uyarıyı haksız yere silmek olurdu.
+       */
+      const kalanlar = new Set(gelen.map((p) => p.id));
+      setStale((s) => {
+        const yeni: Record<string, string[]> = {};
+        for (const [id, alanlar] of Object.entries(s)) if (kalanlar.has(id)) yeni[id] = alanlar;
+        return yeni;
+      });
     } catch (e) {
       setHata((e as Error).message);
     }
@@ -157,6 +190,13 @@ export default function ProposalsDialog({ onClose, onApplied }: {
        * değişti" 409'u yiyordu. Kuyruğun asıl kullanımı arka arkaya onay.
        */
       if (typeof d?.version === "string") setBaseVersion(d.version);
+      /* Karar geçtiyse o önerinin bayatlık uyarısının işi bitti (C8). */
+      setStale((s) => {
+        if (!(id in s)) return s;
+        const yeni = { ...s };
+        delete yeni[id];
+        return yeni;
+      });
       if (decision === "onaylandi") onApplied?.();
       await yukle();
     } catch (e) {
@@ -225,8 +265,16 @@ export default function ProposalsDialog({ onClose, onApplied }: {
       /* Bayat alanlar kart kart gösteriliyor — toplu bir hata satırı hangi öneride ne olduğunu söylemezdi. */
       const yeniStale: Record<string, string[]> = {};
       for (const r of sonuclar) if (Array.isArray(r.stale)) yeniStale[r.id] = r.stale;
-      if (Object.keys(yeniStale).length) setStale((s) => ({ ...s, ...yeniStale }));
+      setStale((s) => {
+        const yeni = { ...s, ...yeniStale };
+        /* Geçen önerilerin eski uyarısı düşüyor — yalnız eklenmiyor (C8). */
+        for (const r of sonuclar) if (r.ok && !yeniStale[r.id]) delete yeni[r.id];
+        return yeni;
+      });
       if (!res.ok && sonuclar.length === 0) throw new Error(d?.error ?? "İşlem başarısız.");
+
+      /* Sunucu "damga yazılamadı" dediyse kullanıcı bunu GÖRMELİ (C7). */
+      setDamgaUyarisi(d?.stampFailed === true);
 
       if (typeof d?.version === "string") setBaseVersion(d.version);
       const done = Number(d?.done ?? 0);
@@ -301,6 +349,17 @@ export default function ProposalsDialog({ onClose, onApplied }: {
         {hata && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{hata}</p>}
         {!list && <p className="text-sm text-text-muted">…</p>}
         {ozet && <p className="text-xs text-text-muted bg-primary-soft px-3 py-2.5 rounded-xl">{ozet}</p>}
+        {/*
+          C7 — `hata` değil `warning` tonunda ve AYRI: bu bir başarısızlık
+          değil, YARIM BAŞARI. "Bir şey olmadı" ile "oldu ama izi
+          yazılamadı" farklı iki durum ve ikincisinde kullanıcının yapmaması
+          gereken belirli bir şey var.
+        */}
+        {damgaUyarisi && (
+          <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-3 py-2.5 rounded-xl">
+            {t("proposal.stampFailed")}
+          </p>
+        )}
         {list && bekleyen.length === 0 && gecmis.length === 0 && (
           <p className="text-sm text-text-muted">{t("proposal.empty")}</p>
         )}
