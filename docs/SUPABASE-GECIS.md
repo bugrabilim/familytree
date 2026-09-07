@@ -174,17 +174,85 @@ ayrı kayma türüne ayrı ayrı bakar:
 - Göç edilmemiş ağaç **temiz sayılmaz**; okunamayan ağaç da temiz sayılmaz.
 
 Faz 4'e geçmeden önce beklenen durum: **her ağaç için `clean: true`.**
+Bu, Faz 4'ün ön koşullarından yalnız BİRİ; hepsini bir arada ölçen kapı
+`GET /api/admin/phase4` (aşağıda).
 
 ---
 
 ## Faz 4 — Eski yolu kaldırma (temizlik)
 
-Faz 3c–3e oturduktan, tüm hesaplar Supabase Auth'a taşındıktan **ve kayma
-denetimi her ağaç için temiz döndükten** sonra:
+Yapılacak iş:
 
 - NextAuth Credentials bcrypt yedeği kaldırılır (giriş tümüyle Supabase Auth).
 - Blob tabanlı `users.json` kimlik deposu emekliye ayrılır (veri zaten
   Postgres + Auth'ta). Blob yalnız gerekiyorsa dosya için kalır.
+
+Bu, depodaki tek **geri dönüşü olmayan** iş: bcrypt yedeği kalktıktan sonra
+Auth kaydı olmayan bir hesabın giriş yolu kalıcı olarak yok olur.
+
+### Ön koşullar artık düzyazı değil — `GET /api/admin/phase4`
+
+Bu bölüm eskiden şunu yazıyordu: *"Faz 3c–3e oturduktan, tüm hesaplar
+Supabase Auth'a taşındıktan ve kayma denetimi her ağaç için temiz döndükten
+sonra…"*. Cümle doğruydu ama **hiçbir yerde hesaplanmıyordu** — yani
+"hazır mıyız?" sorusunun tek cevabı o gün belgeyi okuyan kişinin kanaatiydi
+ve geri dönüşü olmayan iş ölçülmeden basılabiliyordu.
+
+Artık ölçülüyor:
+
+| parça | ne yapar |
+|---|---|
+| `GET /api/admin/phase4` | **Salt okuma.** Olguları ölçer, kararı döndürür. POST **yok** — bu uç Faz 4'ü uygulamaz. |
+| `lib/phase4-readiness.ts` | Saf karar katmanı (bağımlılıksız, testli): ölçülmüş olgular → `{ hazir, engeller[] }`. |
+| `tests/phase4-readiness.test.mts` | Karar kurallarını mutasyonla sınar. |
+| `tests/phase4-gate.test.mts` | Ucün salt okuma olduğunu, yetki kapısının drift ucununkiyle aynı olduğunu ve ölçümün `readFamilyFromBlob` kullandığını kilitler. |
+
+Yetki drift ucuyla aynı: founder + `canManage` + `isSupabaseConfigured`.
+Ağaç kapsamı çağıranın ağaçlarıyla sınırlı; hesap kapsamı zorunlu olarak
+geneldir (bir başka hesabın kilitlenmesi kapıya görünmeli), ama başkasının
+aile adı rapora **girmez** — yalnız kimliği.
+
+#### Engel sözlüğü
+
+| kod | ağırlık | ne demek |
+|---|---|---|
+| `ayna-eksik` | engel | Bir ağacın Postgres'teki kişi sayısı Blob'unkinden az, ya da ağaç hiç göç etmemiş. Faz 4 Blob'u bırakıyor → eksik kişiler **kalıcı** kaybolur. |
+| `kayma-var` | engel | Alan düzeyi kayma temiz değil (`lib/drift.ts`). Sayı eşitliği eşitlik değildir. |
+| `auth-eksik` | engel | `auth.users`ta karşılığı olmayan hesap var → bcrypt yedeği kalkınca bir daha giremez. |
+| `demo-acikta` | engel | Demo hesabının Auth kaydı yok ama kimliği `users.json`da duruyor. |
+| `giris-denenmemis` | engel | Hiçbir hesap Supabase Auth ile giriş yapmamış (`last_sign_in_at` boş). Faz 4 sonrası **tek** giriş yolu bu olacak. |
+| `damga-yok` | uyarı | `trees.updated_at` boş. Veri kaybettirmiyor (sürüm jetonu kişi damgalarına düşüyor); yazma yolunun o ağaçta henüz işlemediğini gösterir. |
+| `olculemedi` | değişken | Olgu **ölçülemedi**. Ölçülemeyen olgunun ağırlığı, o olgunun en kötü olası değerinin ağırlığıdır. |
+
+İki karar kapının varlık sebebi ve testle kilitli:
+
+1. **Şüphede daima "hazır değil".** Bir olgu ölçülemediyse (Blob okunamadı,
+   Auth sorgusu düştü) bu asla "sorun yok" sayılmaz. Geri dönüşü olmayan bir
+   işin kapısında "bilmiyorum" ile "temiz" aynı şey değildir: birincisi
+   ölçümü tekrarlamayı, ikincisi düğmeye basmayı gerektirir.
+2. **Boş envanter "temiz" değildir.** Sıfır ağaç ölçüldüğünde
+   `[].every(clean)` → `true` döner; bu "her ağaç temiz" değil, "hiç ölçüm
+   yok" demektir ve `olculemedi` engeliyle işaretlenir.
+
+### Bugünkü cevap (2026-09-07 — üretim veritabanına soruldu)
+
+Faz 4 **HAZIR DEĞİL**. Üç bağımsız engel var; bir sonraki okuyan bunu
+baştan araştırmasın:
+
+| # | engel | ölçülen |
+|---|---|---|
+| 1 | `ayna-eksik` | `accounts` 3 · `trees` 3 · `people` 373 (demo 366, misafir 7, **Pirci 0**) · `tree_members` 0. Kurucunun kendi ağacı Postgres'te boş. |
+| 2 | `demo-acikta` | `demo-hesap` için `auth.users` kaydı **yok**; `lib/demo-account.ts` onu şifreli normal hesap olarak `users.json`'a yazıyor. Kimliği UUID olmadığı için `importAccountToAuth` de onu 1:1 eşlemiyor. |
+| 3 | `giris-denenmemis` | `auth.users` 2 kayıt, **ikisinin de** `last_sign_in_at` = `null` → Supabase Auth ile üretimde hiç giriş yapılmamış; `SUPABASE_AUTH_LOGIN` bayrağı kapalı. |
+
+Ayrıca uyarı: üç ağacın da `trees.updated_at` değeri `null` (`damga-yok`) —
+damga bir SONRAKİ kaydetmede oluşuyor, Faz 4'ü durdurmuyor.
+
+**Sıra:** (1) `/api/admin/migrate` ile hesapları ve ağaçları Auth + Postgres'e
+taşı → (2) `/api/admin/drift` temiz dönene kadar onar → (3) demo hesabının
+kimliğine karar ver (Auth'a aktar ya da demo girişini `users.json`dan tamamen
+ayır) → (4) `SUPABASE_AUTH_LOGIN=1` açıp bir süre koştur, `last_sign_in_at`
+dolsun → (5) `GET /api/admin/phase4` → `hazir: true` → ancak o zaman Faz 4.
 
 ---
 
