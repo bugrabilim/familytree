@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DeleteTreeDialog from "./DeleteTreeDialog";
@@ -123,7 +124,7 @@ export default function TreeSwitcher({
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -146,7 +147,7 @@ export default function TreeSwitcher({
       setCreating(false);
       setNewName("");
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setBusy(false);
     }
   };
@@ -167,7 +168,7 @@ export default function TreeSwitcher({
       setRenameName("");
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -180,7 +181,7 @@ export default function TreeSwitcher({
       await restoreTree(treeId, t("tree.restoreFailed"));
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

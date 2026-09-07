@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadAudio } from "@/lib/actions";
 import { useT } from "@/lib/i18n";
@@ -54,12 +55,12 @@ export default function AudioRecorder({ onUploaded, onFile, disabled }: Props) {
         const url = await uploadAudio(file);
         onUploaded(url);
       } catch (e) {
-        setError((e as Error).message);
+        setError(userMessage(e, t("err.generic")));
       } finally {
         setUploading(false);
       }
     },
-    [onUploaded, onFile]
+    [onUploaded, onFile, t]
   );
 
   const start = useCallback(async () => {

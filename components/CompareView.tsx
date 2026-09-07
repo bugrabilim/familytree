@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -52,7 +53,7 @@ export default function CompareView({
       setFullDone({ added: data.added ?? 0, linked: data.linked ?? 0 });
       router.refresh();
     } catch (e) {
-      setFullDone((e as Error).message);
+      setFullDone(userMessage(e, t("err.generic")));
     } finally {
       setFullBusy(false);
     }
@@ -71,7 +72,7 @@ export default function CompareView({
       setStatus((s) => ({ ...s, [peerRootId]: { added: data.added ?? 0, linked: data.linked ?? 0 } }));
       router.refresh();
     } catch (e) {
-      setStatus((s) => ({ ...s, [peerRootId]: (e as Error).message }));
+      setStatus((s) => ({ ...s, [peerRootId]: userMessage(e, t("err.generic")) }));
     }
   };
 

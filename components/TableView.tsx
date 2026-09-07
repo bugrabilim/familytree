@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { mutationHeaders } from "@/lib/actions";
 import { createPortal } from "react-dom";
@@ -201,7 +202,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       }
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     }
   };
 
@@ -220,7 +221,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       setConfirmDel(false);
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -274,7 +275,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
       setImpMsg(t("table.tpl.imported", { count: d?.count ?? 0 }));
       onChanged();
     } catch (e) {
-      setImpMsg((e as Error).message || t("table.tpl.importFailed"));
+      setImpMsg(userMessage(e, t("table.tpl.importFailed")));
     } finally {
       setImpBusy(false);
       if (fileRef.current) fileRef.current.value = "";

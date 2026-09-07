@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
@@ -31,7 +32,7 @@ export default function VerifyEmailClient({ token }: { token: string }) {
       setMesaj(data.email ?? "");
       setDurum("tamam");
     } catch (e) {
-      setMesaj((e as Error).message);
+      setMesaj(userMessage(e, t("err.generic")));
       setDurum("hata");
     }
   };

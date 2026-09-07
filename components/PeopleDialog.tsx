@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import Modal from "./ui/Modal";
@@ -68,7 +69,7 @@ export default function PeopleDialog({
       if (!res.ok) throw new Error(data?.error ?? t("gedcom.clearFailed"));
       onCleared();
     } catch (err) {
-      setError((err as Error).message);
+      setError(userMessage(err, t("err.generic")));
       setBusy(false);
     }
   };

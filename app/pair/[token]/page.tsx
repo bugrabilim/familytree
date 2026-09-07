@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,7 +38,7 @@ export default function AcceptPairPage({ params }: { params: Promise<{ token: st
       if (!res.ok) throw new Error(data?.error ?? t("pair.acceptFailed"));
       router.push(`/p/${encodeURIComponent(data.peerTreeId)}`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

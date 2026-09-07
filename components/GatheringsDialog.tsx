@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import type { Gathering } from "@/types/gathering";
 import { tally } from "@/lib/gathering";
@@ -59,7 +60,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
         setList(data.gatherings as Gathering[]);
       } catch (e) {
         if (!alive) return;
-        setError((e as Error).message);
+        setError(userMessage(e, t("err.generic")));
         setList([]);
       }
     })();
@@ -94,7 +95,7 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
       setList(data.gatherings as Gathering[]);
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       return false;
     } finally {
       setBusy(false);
@@ -123,7 +124,22 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
       <div className="space-y-4">
         <p className="text-xs text-text-subtle leading-snug">{t("gathering.hint")}</p>
 
-        {list === null ? (
+        {/*
+          Hata İÇERİĞİN ÜSTÜNDE. En altta duruyordu ve uzun bir listede
+          ekranın dışında kalıyordu: gösterilen ama görülmeyen bir hata,
+          gösterilmeyen bir hatadan farksız.
+        */}
+        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+
+        {/*
+          G3 — HATA VARKEN "boş" ya da "yükleniyor" GÖSTERİLMİYOR.
+          Yükleme başarısız olduğunda `catch` listeyi boş diziye çekiyordu ve
+          ekran aynı anda iki şey söylüyordu: "bir hata oldu" ve "henüz hiç
+          etkinlik yok". İkincisi YANLIŞ — etkinlikler olabilir, okunamadı —
+          ve ikisi yan yana durduğunda kullanıcı hangisine inanacağını
+          bilemiyor. Hata varken tek doğru cümle hatanın kendisi.
+        */}
+        {error ? null : list === null ? (
           <p className="text-xs text-text-subtle">{t("rsvp.loading")}</p>
         ) : list.length === 0 && !draft ? (
           <p className="text-xs text-text-subtle">{t("gathering.empty")}</p>
@@ -284,7 +300,6 @@ export default function GatheringsDialog({ treeId, editable, onClose }: Props) {
           </div>
         )}
 
-        {error && <p className="text-xs text-danger">{error}</p>}
         {bilgi && <p className="text-xs text-text bg-primary-soft px-3 py-2.5 rounded-xl">{bilgi}</p>}
       </div>
     </Modal>

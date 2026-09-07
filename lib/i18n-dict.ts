@@ -1023,6 +1023,8 @@ export const tr: Dict = {
   "proposal.becomes": "önerilen",
   "proposal.stale":
     "Bu öneri yazıldığından beri alanlar değişmiş; onaylamak yeni bilgiyi silerdi. Öneriyi reddedip kişiden güncel hâlini isteyebilirsin.",
+  "err.generic":
+    "İşlem tamamlanamadı. Bağlantını kontrol edip tekrar dene; sorun sürerse sayfayı yenile.",
   "proposal.staleFields": "Değişen alanlar",
   "proposal.stampFailed":
     "Değişiklikler ağaca UYGULANDI ama önerilerin damgası yazılamadı: bazıları kuyrukta hâlâ \"bekliyor\" görünebilir. Onları TEKRAR ONAYLAMAYIN — yeni kişi önerilerinde ikinci bir kopya oluşur. Kuyruğu tazeleyin; hâlâ bekliyor görünüyorlarsa reddedin.",
@@ -3215,6 +3217,8 @@ export const en: Dict = {
   "proposal.becomes": "suggested",
   "proposal.stale":
     "Fields have changed since this suggestion was written; approving it would erase the newer information. You can reject it and ask for an updated suggestion.",
+  "err.generic":
+    "Something went wrong. Check your connection and try again; if it keeps happening, refresh the page.",
   "proposal.staleFields": "Changed fields",
   "proposal.stampFailed":
     "The changes WERE applied to the tree, but the suggestions could not be stamped: some may still show as \"pending\" in the queue. Do NOT approve those again — for new-person suggestions that would create a second copy. Refresh the queue; if they still show as pending, reject them.",

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { mutationHeaders } from "@/lib/actions";
@@ -83,7 +84,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
       if (!res.ok) throw new Error(d?.error ?? t("stories.failed"));
       uygula(d);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
       setRequests([]);
     }
   }, [t, uygula]);
@@ -99,7 +100,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
         uygula(d);
       } catch (e) {
         if (!alive) return;
-        setError((e as Error).message);
+        setError(userMessage(e, t("err.generic")));
         setRequests([]);
       }
     })();
@@ -123,7 +124,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
       setSentTo("");
       await yukle();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -145,7 +146,7 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
       await yukle();
       if (k === "onayla") onApplied?.();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import type { Person } from "@/types/family";
 import type { Obituary } from "@/types/obituary";
@@ -44,7 +45,7 @@ export default function ObituaryView({
         if (!res.ok) throw new Error(data?.error ?? t("obit.failed"));
         setList(data.obituaries ?? []);
       } catch (e) {
-        if (alive) { setError((e as Error).message); setList([]); }
+        if (alive) { setError(userMessage(e, t("err.generic"))); setList([]); }
       }
     })();
     return () => { alive = false; };
@@ -64,7 +65,7 @@ export default function ObituaryView({
       setList(data.obituaries ?? []);
       setEditing(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
@@ -102,7 +103,14 @@ export default function ObituaryView({
             )}
             {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
 
-            {list.length === 0 ? (
+            {/*
+              G3 — hata varken "hiç duyuru yok" GÖSTERİLMİYOR: yükleme
+              başarısız olduğunda `catch` listeyi boşaltıyor ve ekran aynı
+              anda "bir hata oldu" ile "henüz hiç duyuru yok" diyordu.
+              İkincisi yanlış (duyurular olabilir, okunamadı) ve ikisi yan
+              yana durduğunda kullanıcı hangisine inanacağını bilemiyor.
+            */}
+            {error ? null : list.length === 0 ? (
               <div className="rounded-2xl border border-border bg-surface p-5">
                 <p className="text-sm text-text">{t("obit.empty")}</p>
                 <p className="text-[11px] text-text-subtle mt-1">{t("obit.emptyHint")}</p>

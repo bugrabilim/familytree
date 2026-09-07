@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useMemo, useState } from "react";
 import {
   EDUCATION_LEVELS,
@@ -106,7 +107,7 @@ export default function PersonDrawer({
       await reorderSiblings(newIds);
       router.refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setReordering(false);
     }
@@ -199,7 +200,7 @@ export default function PersonDrawer({
       await deletePerson(person.id);
       onDeleted();
     } catch (err) {
-      setError((err as Error).message);
+      setError(userMessage(err, t("err.generic")));
       setDeleting(false);
     }
   };

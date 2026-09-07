@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useRef, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -54,7 +55,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError((err as Error).message);
+      setError(userMessage(err, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -76,7 +77,7 @@ export default function GedcomDialog({ peopleCount, onClose, onImported, onPrint
       });
       onImported(count);
     } catch (err) {
-      setError((err as Error).message);
+      setError(userMessage(err, t("err.generic")));
       setBusy("");
     } finally {
       if (fileRef.current) fileRef.current.value = "";

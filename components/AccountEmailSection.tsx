@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useState } from "react";
 import Button from "./ui/Button";
 import { useT } from "@/lib/i18n";
@@ -67,7 +68,7 @@ export default function AccountEmailSection() {
       if (d.authEmail && !d.authEmailVerified)
         setBilgi(d.deliverable ? t("account.email.pending") : t("account.email.undeliverable"));
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }

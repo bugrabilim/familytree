@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useCallback, useEffect, useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -80,7 +81,7 @@ export default function MembersDialog({ treeName, onClose }: Props) {
       setLink(`${window.location.origin}/join/${data.token}`);
       void load();
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setCreating(false);
     }

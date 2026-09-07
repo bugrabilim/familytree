@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useState } from "react";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
@@ -82,7 +83,7 @@ export default function DeleteTreeDialog({ tree, onClose, onDeleted }: Props) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }
@@ -102,7 +103,7 @@ export default function DeleteTreeDialog({ tree, onClose, onDeleted }: Props) {
       setSonuc({ purgeAt: r.purgeAt, failed: r.durum === "kismi" ? r.failed : undefined });
       onDeleted();
     } catch (e) {
-      setHata((e as Error).message);
+      setHata(userMessage(e, t("err.generic")));
     } finally {
       setBusy("");
     }

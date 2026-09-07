@@ -1,5 +1,6 @@
 "use client";
 
+import { userMessage } from "@/lib/error-text";
 import { useEffect, useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import type { Recipe } from "@/types/recipe";
@@ -50,7 +51,7 @@ export default function RecipesView({
         if (!res.ok) throw new Error(data?.error ?? t("recipes.failed"));
         setRecipes(data.recipes ?? []);
       } catch (e) {
-        if (alive) { setError((e as Error).message); setRecipes([]); }
+        if (alive) { setError(userMessage(e, t("err.generic"))); setRecipes([]); }
       }
     })();
     return () => { alive = false; };
@@ -84,7 +85,7 @@ export default function RecipesView({
       setRecipes(data.recipes ?? []);
       setEditing(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(userMessage(e, t("err.generic")));
     } finally {
       setBusy(false);
     }
