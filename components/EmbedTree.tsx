@@ -40,7 +40,7 @@ export default function EmbedTree({
   return (
     <ReadOnlyProvider forced>
       <PrivacyProvider forced forcedValue={hideLiving}>
-        <div className="relative h-dvh w-full bg-bg">
+        <div className="h-dvh w-full bg-bg">
           <FamilyTree
             people={people}
             selectedId={selectedId}
@@ -51,23 +51,32 @@ export default function EmbedTree({
              */
             onQuickAdd={() => {}}
             onDeselect={() => setSelectedId(undefined)}
-          />
+            /*
+              Künye: gömen sitede ağacın nereden geldiği görünsün ve okur tam
+              sayfaya gidebilsin. `target="_blank"` zorunlu — iframe içinde
+              aynı sekmede açmak, gömen sayfanın içinde sıkışmış bir gezinti
+              olurdu. `rel="noopener"` ile açılan sayfa `window.opener`a
+              erişemiyor.
 
-          {/*
-            Künye: gömen sitede ağacın nereden geldiği görünsün ve okur tam
-            sayfaya gidebilsin. `target="_blank"` zorunlu — iframe içinde aynı
-            sekmede açmak, gömen sayfanın içinde sıkışmış bir gezinti olurdu.
-            `rel="noopener"` ile açılan sayfa `window.opener`a erişemiyor.
-          */}
-          <a
-            href={fullUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute bottom-2 right-2 z-10 max-w-[70%] truncate px-2.5 py-1.5 rounded-lg bg-bg-elevated/90 backdrop-blur border border-border text-[11px] text-text-muted hover:text-text shadow-card"
-          >
-            {selected ? fullName(selected) : (treeName ?? poweredBy)}
-            <span aria-hidden> ↗</span>
-          </a>
+              Denetim satırında, tuvalin üstünde DEĞİL: künye `absolute
+              bottom-2 right-2` ile duruyordu ve tıklamayı yutuyordu, yani
+              o köşeye denk gelen kişi kartı açılamıyordu. Gömme kutusu
+              genelde 400-600px; orada kaybedilen bir köşe pahalı. Satırda
+              ayrıca daha iyi bir iş görüyor: seçilen kişinin adını gösterdiği
+              için gömülü görünümün tek durum satırı zaten oydu.
+            */
+            toolbar={
+              <a
+                href={fullUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 max-w-[60%] truncate px-2.5 py-1.5 rounded-lg border border-border bg-surface text-[11px] text-text-muted hover:text-text"
+              >
+                {selected ? fullName(selected) : (treeName ?? poweredBy)}
+                <span aria-hidden> ↗</span>
+              </a>
+            }
+          />
         </div>
       </PrivacyProvider>
     </ReadOnlyProvider>

@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
   ControlButton,
   MiniMap,
   Handle,
@@ -111,9 +110,21 @@ interface Props {
    */
   onReparentDrop?: (childId: string, parentId: string) => void;
   linkMode?: boolean;
+  /**
+   * Çağıranın kendi denetimleri (kuşak derinliği paneli, bağ kurma kipi,
+   * gömülü görünümün künyesi…).
+   *
+   * Neden prop, neden tuvalin yanına serbestçe konulmuyor: bu denetimlerin
+   * DURUMU çağıranda (Workspace, EmbedTree), YERİ ise burada olmalı. Eskiden
+   * çağıran onları `absolute` ile tuvalin üstüne koyuyordu; tuvalin nerede
+   * bittiğini bilen tek yer burası olduğu için, yerleşimi burada toplamak
+   * aynı hatanın bir daha yapılmasını yapısal olarak engelliyor — denetim
+   * eklemenin tek yolu bu satır.
+   */
+  toolbar?: ReactNode;
 }
 
-function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq, bonds, showBonds = false, onReparentDrop, linkMode = false }: Props) {
+function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect, onOpen, onDeselect, onQuickAdd, locateReq, bonds, showBonds = false, onReparentDrop, linkMode = false, toolbar }: Props) {
   const t = useT();
   const { fitView, setCenter, getZoom, zoomIn, zoomOut, getIntersectingNodes } = useReactFlow();
 
@@ -456,109 +467,181 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     return () => clearTimeout(t);
   }, [locateReq, positions, setCenter, getZoom, dim.w, dim.h]);
 
+  /*
+   * ═══ TUVAL ALANI GERÇEKTEN TUVALE AİT ═════════════════════════════════
+   *
+   * Denetim kapısı (H2'nin kalan yarısı). Bütün ağaç denetimleri — kuşak
+   * derinliği paneli, bağ kurma kipi, yakınlaştırma kümesi, mini harita —
+   * eskiden `absolute` + `z-10` ile tuvalin ÜSTÜNDEYDİ.
+   *
+   * #307 onları tuvalin köşesine, `fitView`in bıraktığı kenar boşluğunun
+   * içine çekmişti. O ölçüm doğruydu ama yalnız DİNLENME hâli için: boşluk
+   * `fitView`in bir defalık armağanı, garantisi yok. Kullanıcı ağacı yukarı
+   * sürüklediği anda kartlar boşluğun içine giriyor ve denetimin altında
+   * kalıyordu — tıklama gidiyor, hiçbir şey olmuyor. Bir konumlandırma
+   * ayarıyla kapatılabilecek bir açık değil bu: üst üste binen iki katman
+   * olduğu sürece, kartı denetimin altına götüren BİR sürükleme her zaman
+   * vardır.
+   *
+   * Bu yüzden denetimler katmandan çıkıp yerleşimin kendi hücrelerine
+   * taşındı: üstte tam genişlikte bir denetim satırı, sağda (lg+) mini
+   * haritanın sütunu, arada `flex-1` ile tuval. Artık tuvalin sınırları
+   * ile tıklanabilir alanın sınırları AYNI dikdörtgen; kartın denetim
+   * altında kalması, kaydırma ne yaparsa yapsın, mümkün değil.
+   *
+   * Bedeli dürüstçe: dikeyde ~56px (lg'de 48px) ve lg+'ta yatayda 192px
+   * tuval alanı. Zaten kaybedilmiş alandı — orada bir kart varsa
+   * açılamıyordu; şimdi orada kart YOK.
+   */
   return (
-    <ReactFlow
-      nodes={rfNodes}
-      edges={rfEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeDragStop={onNodeDragStop}
-      onMove={(_, vp) => yayinlaOlcek(vp.zoom)}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      onInit={onInit}
-      minZoom={0.15}
-      maxZoom={1.8}
-      proOptions={{ hideAttribution: true }}
-      /* Madde 12 — Büyük ağaçta sanallaştırma: yalnızca görünür alandaki
-         düğüm/kenarlar render edilir. Küçük ağaçlarda kapalı tutuyoruz (mount
-         sonrası ölçüm ve fitView davranışı aynı kalsın, gereksiz risk yok). */
-      onlyRenderVisibleElements={people.length > 150}
-      nodesConnectable={false}
-      /* Madde 4 — Fare tekerleği ile ZOOM: panOnScroll kaldırıldı; React Flow'un
-         varsayılanı olan zoomOnScroll etkin. Panlama sürükleyerek yapılır. */
-      selectionOnDrag={false}
-      onPaneClick={onDeselect}
-      className="bg-bg"
-    >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
+    <div className="h-full flex flex-col">
       {/*
-        Denetim kümesi TUVALİN KÖŞESİNE çekildi (`!bottom-4`).
-        Öncesinde `!bottom-24` ile ekranın altından 96px yukarıdaydı ve tek
-        sütun hâlinde 28x106px yer kaplıyordu: 366 kişilik ağaçta fitView
-        ölçeği ~0.2'ye düştüğü için bir kişi kartı 28x25px oluyor, yani sütun
-        TAM DÖRT KARTI örtüyordu. Kartın merkezi düğmenin altında kalınca kart
-        hiç açılamıyordu (ölçüm: 390 ve 360'ta 1 kart, 320'de pan sonrası daha
-        fazlası). Köşeye alınca ve dar ekranda tek satıra (4x1) dönüştürünce
-        küme, fitView'in bıraktığı kenar boşluğunun (yüksekliğin ~%15'i)
-        içinde kalıyor (bkz. globals.css .react-flow__controls).
+        Denetim satırı. Sarmıyor, KAYIYOR — üst çubuktaki sekme şeridiyle
+        (H3) aynı idiom: sarma satır yüksekliğini öngörülemez yapar ve dar
+        ekranda başlığı büyütür; tek satır + yatay kaydırma yüksekliği
+        sabitler. Yakınlaştırma kümesi `sticky right-0` ile şeridin sağ
+        ucuna çivili: şerit kayarken bile ekranda kalıyor, çünkü kaydırıp
+        aramak zorunda kalınacak son şey "uzaklaştır" düğmesidir.
       */}
-      <Controls
-        showInteractive={false}
-        showZoom={false}
-        showFitView={false}
-        position="bottom-right"
-        className="!bottom-4 lg:!bottom-6 !right-4"
+      <div
+        role="toolbar"
+        aria-label={t("tree.toolbar")}
+        className="shrink-0 flex items-center gap-2 h-14 lg:h-12 px-3 border-b border-border bg-bg-elevated overflow-x-auto no-scrollbar"
       >
-        {/* Yakınlaştır / Uzaklaştır — React Flow'un varsayılan düğmeleri kapatıldı
-           (İngilizce ipucu veriyorlardı); yerine i18n başlıklı düğmeler (#5). */}
-        <ControlButton onClick={() => zoomIn({ duration: 200 })} title={t("tree.zoomIn")} aria-label={t("tree.zoomIn")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </ControlButton>
-        <ControlButton onClick={() => zoomOut({ duration: 200 })} title={t("tree.zoomOut")} aria-label={t("tree.zoomOut")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </ControlButton>
-        {/* Ortala — seçili kişiyi ekranın ortasına getir; seçim yoksa tüm ağacı
-           sığdır. (#4) Profil kartındaki "Ortala" da aynı işi yapar. */}
-        <ControlButton
-          onClick={() => {
-            const id = selectedId ?? focusId;
-            const pos = id ? positions.get(id) : null;
-            if (pos) {
-              setCenter(pos.x + dim.w / 2, pos.y + dim.h / 2, { zoom: Math.max(getZoom(), 0.7), duration: 400 });
-            } else {
-              fitView({ padding: 0.18, duration: 400 });
-            }
-          }}
-          title={t("tree.center")}
-          aria-label={t("tree.center")}
+        {toolbar}
+        <div className="ml-auto sticky right-0 shrink-0 flex items-center pl-2 bg-bg-elevated">
+          {/*
+            Düğmeler React Flow'un `ControlButton`ı olarak kalıyor: dokunma
+            boyunu (44px, lg'de 36px) veren `.react-flow__controls-button`
+            kuralı #307'de ölçülerek konuldu, onu kaybetmenin sebebi yok.
+            Değişen yalnızca sarmalayıcı: konumlandıran `Panel` (yani
+            `<Controls>`) yerine satırın içinde akan sıradan bir kutu.
+          */}
+          <div className="flex items-center gap-px rounded-xl overflow-hidden border border-border bg-border shadow-card">
+            {/* Yakınlaştır / Uzaklaştır — React Flow'un varsayılan düğmeleri kapatıldı
+               (İngilizce ipucu veriyorlardı); yerine i18n başlıklı düğmeler (#5). */}
+            <ControlButton onClick={() => zoomIn({ duration: 200 })} title={t("tree.zoomIn")} aria-label={t("tree.zoomIn")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </ControlButton>
+            <ControlButton onClick={() => zoomOut({ duration: 200 })} title={t("tree.zoomOut")} aria-label={t("tree.zoomOut")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </ControlButton>
+            {/* Ortala — seçili kişiyi ekranın ortasına getir; seçim yoksa tüm ağacı
+               sığdır. (#4) Profil kartındaki "Ortala" da aynı işi yapar. */}
+            <ControlButton
+              onClick={() => {
+                const id = selectedId ?? focusId;
+                const pos = id ? positions.get(id) : null;
+                if (pos) {
+                  setCenter(pos.x + dim.w / 2, pos.y + dim.h / 2, { zoom: Math.max(getZoom(), 0.7), duration: 400 });
+                } else {
+                  fitView({ padding: 0.18, duration: 400 });
+                }
+              }}
+              title={t("tree.center")}
+              aria-label={t("tree.center")}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="12" cy="12" r="3" fill="currentColor" />
+                <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </ControlButton>
+            {/* Tümünü sığdır — tüm ağacı ekrana sığdır (seçimden bağımsız). */}
+            <ControlButton
+              onClick={() => fitView({ padding: 0.15, duration: 400 })}
+              title={t("tree.fitAll")}
+              aria-label={t("tree.fitAll")}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </ControlButton>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 flex">
+        <div className="relative flex-1 min-w-0">
+          <ReactFlow
+            nodes={rfNodes}
+            edges={rfEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeDragStop={onNodeDragStop}
+            onMove={(_, vp) => yayinlaOlcek(vp.zoom)}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onInit={onInit}
+            minZoom={0.15}
+            maxZoom={1.8}
+            proOptions={{ hideAttribution: true }}
+            /* Madde 12 — Büyük ağaçta sanallaştırma: yalnızca görünür alandaki
+               düğüm/kenarlar render edilir. Küçük ağaçlarda kapalı tutuyoruz (mount
+               sonrası ölçüm ve fitView davranışı aynı kalsın, gereksiz risk yok). */
+            onlyRenderVisibleElements={people.length > 150}
+            nodesConnectable={false}
+            /* Madde 4 — Fare tekerleği ile ZOOM: panOnScroll kaldırıldı; React Flow'un
+               varsayılanı olan zoomOnScroll etkin. Panlama sürükleyerek yapılır. */
+            selectionOnDrag={false}
+            onPaneClick={onDeselect}
+            className="bg-bg"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--border)" />
+          </ReactFlow>
+          {/*
+            Bağ kurma kipinin kenar şeridi. Tek `absolute` katman ve
+            `pointer-events-none` — bir DENETİM değil, kipin açık olduğunu
+            söyleyen bir işaret; tıklamayı yutmadığı için kartların üstünü
+            kapatması söz konusu değil. Tuval kutusunun İÇİNDE duruyor ki
+            çerçeve tam tuvali sarsın, denetim satırını değil.
+          */}
+          {linkMode && (
+            <div className="pointer-events-none absolute inset-0 z-[5] ring-2 ring-inset ring-primary/50" aria-hidden />
+          )}
+        </div>
+
+        {/*
+          Mini harita — kendi SÜTUNU. Denetim değil "genel bakış", ama
+          `pannable`/`zoomable` olduğu için tıklamayı yutuyor: tuvalin
+          üstünde durduğu sürece altına düşen kart açılamıyordu (#307'de
+          "Bağ kur" düğmesiyle 73x13px kesişmesi de aynı kökten geliyordu).
+          Sütun `lg` altında hiç çizilmiyor — dar ekranda 192px'i tuvalden
+          almak, haritanın verdiğinden fazlasını götürürdü; görünürlük
+          eşiği eskisiyle aynı (`!hidden lg:!block`), yani bir yetenek
+          kaybı yok.
+
+          Konumlandırmayı `Panel` yerine akış yapıyor: `position: static`
+          ile React Flow'un `absolute` kuralı iptal ediliyor, kutu sütunun
+          alt kenarına oturuyor. `MiniMap` yalnız store'dan besleniyor
+          (`useStore`/`useStoreApi`), bu yüzden `<ReactFlow>` ağacının
+          dışında ama `ReactFlowProvider` içinde çalışmaya devam ediyor.
+          Ölçüler sütunla eşleşiyor: 192px − 2×12px dolgu = 168px.
+        */}
+        <aside
+          aria-label={t("tree.overview")}
+          className="hidden lg:flex shrink-0 w-48 items-end p-3 border-l border-border bg-bg"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="3" fill="currentColor" />
-            <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-        </ControlButton>
-        {/* Tümünü sığdır — tüm ağacı ekrana sığdır (seçimden bağımsız). */}
-        <ControlButton
-          onClick={() => fitView({ padding: 0.15, duration: 400 })}
-          title={t("tree.fitAll")}
-          aria-label={t("tree.fitAll")}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </ControlButton>
-      </Controls>
-      <MiniMap
-        pannable
-        zoomable
-        position="bottom-left"
-        className="!hidden lg:!block !bottom-6 !left-4"
-        bgColor="var(--surface)"
-        maskColor="color-mix(in srgb, var(--bg) 78%, transparent)"
-        maskStrokeColor="var(--border-strong)"
-        nodeColor={(n) => {
-          if (n.type === "union") return "transparent";
-          const p = (n.data as unknown as PersonNodeData)?.person;
-          return p ? genderTone(p.gender).css : "var(--neutral)";
-        }}
-      />
-    </ReactFlow>
+          <MiniMap
+            pannable
+            zoomable
+            style={{ position: "static", margin: 0, width: 168, height: 126 }}
+            bgColor="var(--surface)"
+            maskColor="color-mix(in srgb, var(--bg) 78%, transparent)"
+            maskStrokeColor="var(--border-strong)"
+            nodeColor={(n) => {
+              if (n.type === "union") return "transparent";
+              const p = (n.data as unknown as PersonNodeData)?.person;
+              return p ? genderTone(p.gender).css : "var(--neutral)";
+            }}
+          />
+        </aside>
+      </div>
+    </div>
   );
 }
 

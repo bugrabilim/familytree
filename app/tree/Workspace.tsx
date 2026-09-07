@@ -768,47 +768,46 @@ function WorkspaceInner({
                 showBonds={showBonds}
                 linkMode={linkMode}
                 onReparentDrop={(childId, parentId) => setReparent({ childId, parentId })}
-              />
-              {/*
-                Bağ kurma kipi düğmesi — yalnız düzenleyicide. Açıkken tuval
-                kenarına bir şerit çıkıyor: kipin açık olduğunu unutup kart
-                sürüklemek, tam da kaçınmak istediğimiz sessiz bozulma.
-              */}
-              {!readOnly && (
-                <button
-                  onClick={() => setLinkMode((v) => !v)}
-                  aria-pressed={linkMode}
-                  title={t("reparent.modeHint")}
-                  /*
-                    G1 — `lg:bottom-48`: mini harita YALNIZ lg'de çiziliyor
-                    (FamilyTree `!hidden lg:!block !bottom-6`), kutusu 202x152 ve
-                    alt kenarı 24px. Düğme `bottom-4` + `h-9` ile 16..52px
-                    bandını kaplıyordu; ikisi 73x13px kesişiyordu. Kesişimde
-                    düğme z-10, harita z-5 olduğu için ÜSTTE düğme kalıyor ve
-                    haritanın sol alt köşesine yapılan kaydırma dokunuşu bağ
-                    kurma kipini açıyordu — sessiz ve kafa karıştırıcı.
-                    192px, haritanın üst kenarından (24+152=176) 16px yukarısı.
-                    lg altında harita yok, düğme köşede kalıyor.
-                  */
-                  className={`absolute bottom-4 lg:bottom-48 left-4 z-10 h-9 px-3 rounded-xl border text-xs font-medium shadow-card transition-colors ${
-                    linkMode
-                      ? "bg-primary text-primary-text border-primary"
-                      : "bg-bg-elevated/90 backdrop-blur border-border text-text-muted hover:text-text"
-                  }`}
-                >
-                  🔗 {t("reparent.mode")}
-                </button>
-              )}
-              {linkMode && (
-                <div className="pointer-events-none absolute inset-0 z-[5] ring-2 ring-inset ring-primary/50 rounded-none" aria-hidden />
-              )}
-              <TreeDepthControl
-                depth={treeDepth}
-                onChange={setTreeDepth}
-                shown={treeWithAssoc.length}
-                total={members.length}
-                focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
-                onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
+                /*
+                  DENETİMLER ARTIK TUVALİN ÜSTÜNDE DEĞİL (denetim H2/H5).
+                  Kuşak paneli ve bağ kurma düğmesi burada `absolute … z-10`
+                  ile tuvale bindiriliyordu; ağaç yukarı sürüklendiğinde
+                  kartlar altlarına giriyor ve tıklanamaz oluyordu. Konumu
+                  FamilyTree'nin denetim satırı belirliyor (bkz. oradaki
+                  `toolbar` propu); burada kalan yalnız İÇERİK ve DURUM.
+                */
+                toolbar={
+                  <>
+                    <TreeDepthControl
+                      depth={treeDepth}
+                      onChange={setTreeDepth}
+                      shown={treeWithAssoc.length}
+                      total={members.length}
+                      focusPerson={treeFocusId ? idx.get(treeFocusId) : undefined}
+                      onGoToFocus={() => treeFocusId && setSelectedId(treeFocusId)}
+                    />
+                    {/*
+                      Bağ kurma kipi düğmesi — yalnız düzenleyicide. Açıkken
+                      tuval kenarına bir şerit çıkıyor: kipin açık olduğunu
+                      unutup kart sürüklemek, tam da kaçınmak istediğimiz
+                      sessiz bozulma.
+                    */}
+                    {!readOnly && (
+                      <button
+                        onClick={() => setLinkMode((v) => !v)}
+                        aria-pressed={linkMode}
+                        title={t("reparent.modeHint")}
+                        className={`shrink-0 h-11 lg:h-9 px-3 rounded-xl border text-xs font-medium transition-colors ${
+                          linkMode
+                            ? "bg-primary text-primary-text border-primary"
+                            : "bg-surface border-border text-text-muted hover:text-text"
+                        }`}
+                      >
+                        🔗 {t("reparent.mode")}
+                      </button>
+                    )}
+                  </>
+                }
               />
             </div>
             {/* Yazdırma-özel statik şema (yalnız @media print'te görünür).
@@ -1138,16 +1137,22 @@ function TreeDepthControl({
 
   return (
     /*
-      H5 — panel artık SARMIYOR, KAYIYOR.
-      `flex-wrap` + `right-4` ile dar ekranda iki satıra çıkıp 87px yüksekliğe
-      ulaşıyordu; tuval genişliğinin %90-92'sini örten bu blok, fitView'in
-      üstte bıraktığı kenar boşluğunu (yüksekliğin ~%15'i) aşıp kişi
-      kartlarının dokunmasını yutuyordu — 320px'te dört kart hiç açılamıyordu.
-      Tek satır + yatay kaydırma yüksekliği 44px'te sabitliyor, yani panel
-      boşluğun içinde kalıyor; sığmayan kısma parmakla kaydırarak ulaşılıyor.
-      `pr-12 md:pr-2` kaldırıldı: sağda 48px ayırıyordu ama orada bir şey yok.
+      H5/H2 — panel TUVALİN ÜSTÜNDE DEĞİL, denetim satırının içinde.
+
+      Önce `flex-wrap` + `right-4` ile dar ekranda iki satıra çıkıp 87px'e
+      ulaşıyor, tuval genişliğinin %90-92'sini örtüyordu; #307 sarmayı
+      kaldırıp yüksekliği 44px'e sabitledi ve panel `fitView`in üstte
+      bıraktığı boşluğun içine sığdı. Ama boşluk bir garanti değil: ağaç
+      yukarı sürüklendiği anda kartlar panelin altına giriyordu.
+
+      Artık `absolute`/`z-10` yok — panel FamilyTree'nin denetim satırının
+      normal bir çocuğu. Kendi kabuğu (arka plan, kenarlık, gölge, blur) da
+      kalktı: satırın kendi zemini var, panelin ayrıca "yüzen kart" gibi
+      görünmesi tuvalin üstündeymiş izlenimini sürdürürdü. Kaydırma da
+      satıra devredildi (`overflow-x-auto` orada), yoksa iç içe iki yatay
+      kaydırma alanı olurdu.
     */
-    <div className="absolute top-4 left-4 right-4 lg:right-auto z-10 flex flex-nowrap items-center gap-1.5 h-11 lg:h-9 pl-1.5 pr-2 rounded-xl bg-bg-elevated/90 backdrop-blur border border-border shadow-card overflow-x-auto no-scrollbar">
+    <div className="shrink-0 flex flex-nowrap items-center gap-1.5 h-11 lg:h-9">
       {focusPerson && (
         <button
           onClick={onGoToFocus}
@@ -1160,7 +1165,10 @@ function TreeDepthControl({
           </span>
         </button>
       )}
-      <span className="h-4 w-px bg-border shrink-0" />
+      {/* Ayraç yalnız ayıracak bir şey varken: odak kişi yoksa panel satırın
+          en solunda duruyor ve baştaki çizgi neyi neyden ayırdığını
+          söylemeyen bir çentiğe dönüşüyordu. */}
+      {focusPerson && <span className="h-4 w-px bg-border shrink-0" />}
       {/* Dokunmada 36px (24px'ti, aralığı 2px'ti); farede eskisi gibi kompakt. */}
       <div className="flex items-center gap-1 lg:gap-0.5 shrink-0">
         {sayilar.map((d) => (
