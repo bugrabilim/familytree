@@ -238,7 +238,15 @@ export async function dbDeleteRateLimitsFor(id: string): Promise<void> {
  * Ağaç satırı Postgres'te yoksa hiçbir satır eşleşmez ve sessizce geçer:
  * henüz göç etmemiş ağaç zaten Blob'dan okunuyor.
  */
-export async function dbSetTreeUpdatedAt(treeId: string, iso: string): Promise<void> {
+/**
+ * Ağacın sürüm damgasını yazar.
+ *
+ * `null` KABUL EDİYOR ve bu bir kolaylık değil, bir gereklilik: çift-yazma
+ * aynası yarıda kaldığında damga GERİYE alınıyor (`lib/blob.ts`) ki yarım
+ * ayna güncel görünmesin. Ağacın hiç damgası yoksa (sütun sonradan eklendi)
+ * geri alınacak değer de yok — o zaman temizleniyor.
+ */
+export async function dbSetTreeUpdatedAt(treeId: string, iso: string | null): Promise<void> {
   const { error } = await supabaseAdmin().from("trees").update({ updated_at: iso }).eq("id", treeId);
   if (error) throw new Error(`tree stamp: ${error.message}`);
 }

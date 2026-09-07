@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -84,24 +85,36 @@ export async function readGatherings(treeId: string): Promise<Gathering[]> {
   return (await getBox(treeId)).gatherings;
 }
 
+/**
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`).
+ *
+ * Burada kayıp yazmanın en olası hâli KATILIM BİLDİRİMİ: aynı davet
+ * bağlantısı bir aileye toplu gidiyor ve birkaç kişinin aynı dakikada
+ * yanıtlaması beklenen durum, istisna değil. Korumasızken sonuncusu
+ * öncekilerin yanıtını siliyordu.
+ */
+function mutate<T>(treeId: string, degistir: (box: GatheringBox) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getBox(treeId), (b) => saveBox(treeId, b), degistir, "Etkinlik");
+}
+
 export async function addGathering(
   treeId: string,
   input: Partial<Gathering>
 ): Promise<Gathering | null> {
-  const box = await getBox(treeId);
-  if (box.gatherings.length >= MAX_GATHERINGS) return null;
-  const g = normalizeGathering(input, new Date().toISOString());
-  if (!g) return null;
-  g.id = randomUUID();
-  /*
-   * Jeton TAHMİN EDİLEMEZ olmalı: bu, anonim yazma kapısının anahtarı.
-   * Kimlik doğrulaması olmadığı için jetonun kendisi tek koruma — kısa ya
-   * da sıralı bir değer, kaba kuvvetle bulunabilirdi.
-   */
-  g.token = randomBytes(18).toString("base64url");
-  box.gatherings.push(g);
-  await saveBox(treeId, box);
-  return g;
+  return mutate<Gathering | null>(treeId, (box) => {
+    if (box.gatherings.length >= MAX_GATHERINGS) return { yaz: false, sonuc: null };
+    const g = normalizeGathering(input, new Date().toISOString());
+    if (!g) return { yaz: false, sonuc: null };
+    g.id = randomUUID();
+    /*
+     * Jeton TAHMİN EDİLEMEZ olmalı: bu, anonim yazma kapısının anahtarı.
+     * Kimlik doğrulaması olmadığı için jetonun kendisi tek koruma — kısa ya
+     * da sıralı bir değer, kaba kuvvetle bulunabilirdi.
+     */
+    g.token = randomBytes(18).toString("base64url");
+    box.gatherings.push(g);
+    return { yaz: true, sonuc: g };
+  });
 }
 
 export async function updateGathering(
@@ -109,35 +122,35 @@ export async function updateGathering(
   id: string,
   input: Partial<Gathering>
 ): Promise<Gathering | null> {
-  const box = await getBox(treeId);
-  const i = box.gatherings.findIndex((g) => g.id === id);
-  if (i === -1) return null;
-  const next = normalizeGathering(input, new Date().toISOString(), box.gatherings[i]);
-  if (!next) return null;
-  box.gatherings[i] = next;
-  await saveBox(treeId, box);
-  return next;
+  return mutate<Gathering | null>(treeId, (box) => {
+    const i = box.gatherings.findIndex((g) => g.id === id);
+    if (i === -1) return { yaz: false, sonuc: null };
+    const next = normalizeGathering(input, new Date().toISOString(), box.gatherings[i]);
+    if (!next) return { yaz: false, sonuc: null };
+    box.gatherings[i] = next;
+    return { yaz: true, sonuc: next };
+  });
 }
 
 export async function deleteGathering(treeId: string, id: string): Promise<boolean> {
-  const box = await getBox(treeId);
-  const before = box.gatherings.length;
-  box.gatherings = box.gatherings.filter((g) => g.id !== id);
-  if (box.gatherings.length === before) return false;
-  await saveBox(treeId, box);
-  return true;
+  return mutate<boolean>(treeId, (box) => {
+    const before = box.gatherings.length;
+    box.gatherings = box.gatherings.filter((g) => g.id !== id);
+    if (box.gatherings.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /** Katılımcının kendi kaydını silmek düzenleyicinin işi. */
 export async function deleteRsvp(treeId: string, gatheringId: string, rsvpId: string): Promise<boolean> {
-  const box = await getBox(treeId);
-  const g = box.gatherings.find((x) => x.id === gatheringId);
-  if (!g) return false;
-  const before = g.rsvps.length;
-  g.rsvps = g.rsvps.filter((r) => r.id !== rsvpId);
-  if (g.rsvps.length === before) return false;
-  await saveBox(treeId, box);
-  return true;
+  return mutate<boolean>(treeId, (box) => {
+    const g = box.gatherings.find((x) => x.id === gatheringId);
+    if (!g) return { yaz: false, sonuc: false };
+    const before = g.rsvps.length;
+    g.rsvps = g.rsvps.filter((r) => r.id !== rsvpId);
+    if (g.rsvps.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /**
@@ -171,22 +184,23 @@ export async function addRsvp(
   const t = token.trim();
   if (!t) return { error: "yok" };
 
-  const box = await getBox(treeId);
-  const g = box.gatherings.find((x) => x.token && x.token === t);
-  if (!g) return { error: "yok" };
+  type Sonuc = { rsvp: Rsvp } | { error: RsvpError | "yok" };
+  return mutate<Sonuc>(treeId, (box) => {
+    const g = box.gatherings.find((x) => x.token && x.token === t);
+    if (!g) return { yaz: false, sonuc: { error: "yok" } };
 
-  const res = normalizeRsvp(g, input, new Date().toISOString());
-  if ("error" in res) return res;
+    const res = normalizeRsvp(g, input, new Date().toISOString());
+    if ("error" in res) return { yaz: false, sonuc: res };
 
-  if (res.replacesId) {
-    const i = g.rsvps.findIndex((r) => r.id === res.replacesId);
-    res.rsvp.id = res.replacesId;
-    g.rsvps[i] = res.rsvp;
-  } else {
-    res.rsvp.id = randomUUID();
-    g.rsvps.push(res.rsvp);
-  }
+    if (res.replacesId) {
+      const i = g.rsvps.findIndex((r) => r.id === res.replacesId);
+      res.rsvp.id = res.replacesId;
+      g.rsvps[i] = res.rsvp;
+    } else {
+      res.rsvp.id = randomUUID();
+      g.rsvps.push(res.rsvp);
+    }
 
-  await saveBox(treeId, box);
-  return { rsvp: res.rsvp };
+    return { yaz: true, sonuc: { rsvp: res.rsvp } };
+  });
 }

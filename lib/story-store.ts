@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
@@ -134,6 +135,18 @@ export async function readStories(treeId: string): Promise<StoryBox> {
  * bağlantıyı kaybeden ağaç sahibi yeni bir talep açar. Özeti saklamanın
  * bedeli bu ve bilerek ödeniyor.
  */
+/**
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`).
+ *
+ * Buradaki en olası çakışma ANONİM KATKI: aynı soru bağlantısı bir aileye
+ * toplu gidiyor ve birkaç kişinin aynı dakikada yanıt yazması beklenen
+ * durum. Korumasızken sonuncusu öncekilerin hikâyesini siliyordu — ve
+ * dışarıdan yazılmış bir aile hikâyesinin ikinci bir kopyası yok.
+ */
+function mutate<T>(treeId: string, degistir: (box: StoryBox) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getBox(treeId), (b) => saveBox(treeId, b), degistir, "Hikâye");
+}
+
 export async function createRequest(
   treeId: string,
   input: { personId?: unknown; question?: unknown; sentTo?: unknown; days?: unknown }
@@ -142,9 +155,10 @@ export async function createRequest(
   const question = typeof input.question === "string" ? input.question.trim() : "";
   if (!personId || !question || question.length > 500) return { error: "gecersiz" };
 
-  const box = await getBox(treeId);
+  type Sonuc = { request: StoryRequest; token: string } | { error: "dolu" | "gecersiz" };
+  return mutate<Sonuc>(treeId, (box) => {
   const acik = box.requests.filter((r) => !r.closed).length;
-  if (acik >= MAX_REQUESTS) return { error: "dolu" };
+  if (acik >= MAX_REQUESTS) return { yaz: false, sonuc: { error: "dolu" } };
 
   const gun = typeof input.days === "number" && input.days > 0 && input.days <= 365
     ? Math.floor(input.days)
@@ -167,8 +181,8 @@ export async function createRequest(
     expiresAt: new Date(now.getTime() + gun * 86_400_000).toISOString(),
   };
   box.requests.push(request);
-  await saveBox(treeId, box);
-  return { request, token };
+  return { yaz: true, sonuc: { request, token } };
+  });
 }
 
 /** Ağaç sahibi talebi elle kapatır — süreden bağımsız. */
@@ -187,23 +201,24 @@ export async function closeRequestsOfPeople(
 ): Promise<number> {
   const gidenler = new Set(personIds);
   if (gidenler.size === 0) return 0;
-  const box = await getBox(treeId);
-  let kapatilan = 0;
-  for (const r of box.requests) {
-    if (r.closed || !gidenler.has(r.personId)) continue;
-    r.closed = true;
-    kapatilan++;
-  }
-  if (kapatilan) await saveBox(treeId, box);
-  return kapatilan;
+  return mutate<number>(treeId, (box) => {
+    let kapatilan = 0;
+    for (const r of box.requests) {
+      if (r.closed || !gidenler.has(r.personId)) continue;
+      r.closed = true;
+      kapatilan++;
+    }
+    return { yaz: kapatilan > 0, sonuc: kapatilan };
+  });
 }
 
 export async function closeRequest(treeId: string, id: string): Promise<boolean> {
-  const box = await getBox(treeId);
-  const r = box.requests.find((x) => x.id === id);
-  if (!r || r.closed) return false;
-  r.closed = true;
-  await saveBox(treeId, box);
+  return mutate<boolean>(treeId, (box) => {
+    const r = box.requests.find((x) => x.id === id);
+    if (!r || r.closed) return { yaz: false, sonuc: false };
+    r.closed = true;
+    return { yaz: true, sonuc: true };
+  });
   return true;
 }
 
@@ -246,7 +261,8 @@ export async function submitContribution(
   token: string,
   input: { authorName?: unknown; text?: unknown }
 ): Promise<{ ok: true } | { ok: false; error: SubmitError }> {
-  const box = await getBox(treeId);
+  type Sonuc = { ok: true } | { ok: false; error: SubmitError };
+  return mutate<Sonuc>(treeId, (box) => {
   const request = eslesen(box, token);
 
   const bekleyen = box.contributions.filter((c) => c.status === "bekliyor");
@@ -254,7 +270,7 @@ export async function submitContribution(
     forToken: request ? box.contributions.filter((c) => c.requestId === request.id).length : 0,
     pendingInTree: bekleyen.length,
   });
-  if (!plan.ok) return { ok: false, error: plan.error };
+  if (!plan.ok) return { yaz: false, sonuc: { ok: false, error: plan.error } };
 
   box.contributions.push({
     id: randomUUID(),
@@ -266,8 +282,8 @@ export async function submitContribution(
     status: "bekliyor",
     requestId: request!.id,
   });
-  await saveBox(treeId, box);
-  return { ok: true };
+  return { yaz: true, sonuc: { ok: true } };
+  });
 }
 
 /**
@@ -297,24 +313,24 @@ export async function decideContribution(
   id: string,
   karar: "onayla" | "reddet"
 ): Promise<Contribution | null> {
-  const box = await getBox(treeId);
-  const c = box.contributions.find((x) => x.id === id);
-  if (!c || c.status !== "bekliyor") return null;
-  const onceki: Contribution = { ...c };
-  c.status = karar === "onayla" ? "onaylandi" : "reddedildi";
-  await saveBox(treeId, box);
-  // Kopya "bekliyor" hâliyle dönüyor; `applyApproval` o durumu bekliyor.
-  return onceki;
+  return mutate<Contribution | null>(treeId, (box) => {
+    const c = box.contributions.find((x) => x.id === id);
+    if (!c || c.status !== "bekliyor") return { yaz: false, sonuc: null };
+    const onceki: Contribution = { ...c };
+    c.status = karar === "onayla" ? "onaylandi" : "reddedildi";
+    // Kopya "bekliyor" hâliyle dönüyor; `applyApproval` o durumu bekliyor.
+    return { yaz: true, sonuc: onceki };
+  });
 }
 
 /** Reddedilen ya da işlenmiş katkıyı kuyruktan siler (temizlik). */
 export async function deleteContribution(treeId: string, id: string): Promise<boolean> {
-  const box = await getBox(treeId);
-  const before = box.contributions.length;
-  box.contributions = box.contributions.filter((c) => c.id !== id);
-  if (box.contributions.length === before) return false;
-  await saveBox(treeId, box);
-  return true;
+  return mutate<boolean>(treeId, (box) => {
+    const before = box.contributions.length;
+    box.contributions = box.contributions.filter((c) => c.id !== id);
+    if (box.contributions.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 export { MAX_PENDING, MAX_PER_TOKEN };

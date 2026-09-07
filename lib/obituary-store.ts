@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
@@ -82,15 +83,20 @@ export async function readPublicObituaries(treeId: string): Promise<Obituary[]> 
   return publicObituaries(sortObituaries((await getBoard(treeId)).obituaries));
 }
 
+/** Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`). */
+function mutate<T>(treeId: string, degistir: (board: ObituaryBoard) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getBoard(treeId), (b) => saveBoard(treeId, b), degistir, "Duyuru");
+}
+
 export async function addObituary(treeId: string, input: Partial<Obituary>): Promise<Obituary | null> {
-  const board = await getBoard(treeId);
-  if (board.obituaries.length >= MAX_OBITUARIES) return null;
-  const o = normalizeObituary(input, new Date().toISOString());
-  if (!o) return null;
-  o.id = randomUUID();
-  board.obituaries.push(o);
-  await saveBoard(treeId, board);
-  return o;
+  return mutate<Obituary | null>(treeId, (board) => {
+    if (board.obituaries.length >= MAX_OBITUARIES) return { yaz: false, sonuc: null };
+    const o = normalizeObituary(input, new Date().toISOString());
+    if (!o) return { yaz: false, sonuc: null };
+    o.id = randomUUID();
+    board.obituaries.push(o);
+    return { yaz: true, sonuc: o };
+  });
 }
 
 export async function updateObituary(
@@ -98,23 +104,23 @@ export async function updateObituary(
   id: string,
   input: Partial<Obituary>
 ): Promise<Obituary | null> {
-  const board = await getBoard(treeId);
-  const i = board.obituaries.findIndex((o) => o.id === id);
-  if (i === -1) return null;
-  const next = normalizeObituary(input, new Date().toISOString(), board.obituaries[i]);
-  if (!next) return null;
-  board.obituaries[i] = next;
-  await saveBoard(treeId, board);
-  return next;
+  return mutate<Obituary | null>(treeId, (board) => {
+    const i = board.obituaries.findIndex((o) => o.id === id);
+    if (i === -1) return { yaz: false, sonuc: null };
+    const next = normalizeObituary(input, new Date().toISOString(), board.obituaries[i]);
+    if (!next) return { yaz: false, sonuc: null };
+    board.obituaries[i] = next;
+    return { yaz: true, sonuc: next };
+  });
 }
 
 export async function deleteObituary(treeId: string, id: string): Promise<boolean> {
-  const board = await getBoard(treeId);
-  const before = board.obituaries.length;
-  board.obituaries = board.obituaries.filter((o) => o.id !== id);
-  if (board.obituaries.length === before) return false;
-  await saveBoard(treeId, board);
-  return true;
+  return mutate<boolean>(treeId, (board) => {
+    const before = board.obituaries.length;
+    board.obituaries = board.obituaries.filter((o) => o.id !== id);
+    if (board.obituaries.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 export async function countObituaries(treeId: string): Promise<number> {

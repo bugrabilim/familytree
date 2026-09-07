@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
@@ -76,6 +77,17 @@ async function saveBox(treeId: string, box: BondBox): Promise<void> {
   });
 }
 
+/**
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`).
+ *
+ * Kilit yokken kayıp yazma gerçekti: iki kişi aynı anda bağ eklediğinde
+ * ikisi de kutuyu AYNI hâlde okuyor, sırayla yazıyor ve ikinci yazma
+ * birincinin bağını siliyordu.
+ */
+function mutate<T>(treeId: string, degistir: (box: BondBox) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getBox(treeId), (b) => saveBox(treeId, b), degistir, "Bağ");
+}
+
 export async function readBonds(treeId: string): Promise<Bond[]> {
   return (await getBox(treeId)).bonds;
 }
@@ -93,16 +105,18 @@ export async function addBond(
   treeId: string,
   input: Partial<Bond>
 ): Promise<{ bond: Bond } | { error: BondWriteError }> {
-  const box = await getBox(treeId);
-  if (box.bonds.length >= MAX_BONDS) return { error: "dolu" };
-  const bond = normalizeBond(input, new Date().toISOString());
-  if (!bond) return { error: "gecersiz" };
-  const key = pairKey(bond.a, bond.b);
-  if (box.bonds.some((x) => pairKey(x.a, x.b) === key)) return { error: "kopya" };
-  bond.id = randomUUID();
-  box.bonds.push(bond);
-  await saveBox(treeId, box);
-  return { bond };
+  type Sonuc = { bond: Bond } | { error: BondWriteError };
+  return mutate<Sonuc>(treeId, (box) => {
+    if (box.bonds.length >= MAX_BONDS) return { yaz: false, sonuc: { error: "dolu" } };
+    const bond = normalizeBond(input, new Date().toISOString());
+    if (!bond) return { yaz: false, sonuc: { error: "gecersiz" } };
+    const key = pairKey(bond.a, bond.b);
+    if (box.bonds.some((x) => pairKey(x.a, x.b) === key))
+      return { yaz: false, sonuc: { error: "kopya" } };
+    bond.id = randomUUID();
+    box.bonds.push(bond);
+    return { yaz: true, sonuc: { bond } };
+  });
 }
 
 export async function updateBond(
@@ -110,26 +124,28 @@ export async function updateBond(
   id: string,
   input: Partial<Bond>
 ): Promise<{ bond: Bond } | { error: BondWriteError }> {
-  const box = await getBox(treeId);
-  const i = box.bonds.findIndex((x) => x.id === id);
-  if (i === -1) return { error: "yok" };
-  const next = normalizeBond(input, new Date().toISOString(), box.bonds[i]);
-  if (!next) return { error: "gecersiz" };
-  // Uçlar değiştiyse yeni çift başka bir bağla çakışmamalı.
-  const key = pairKey(next.a, next.b);
-  if (box.bonds.some((x, j) => j !== i && pairKey(x.a, x.b) === key)) return { error: "kopya" };
-  box.bonds[i] = next;
-  await saveBox(treeId, box);
-  return { bond: next };
+  type Sonuc = { bond: Bond } | { error: BondWriteError };
+  return mutate<Sonuc>(treeId, (box) => {
+    const i = box.bonds.findIndex((x) => x.id === id);
+    if (i === -1) return { yaz: false, sonuc: { error: "yok" } };
+    const next = normalizeBond(input, new Date().toISOString(), box.bonds[i]);
+    if (!next) return { yaz: false, sonuc: { error: "gecersiz" } };
+    // Uçlar değiştiyse yeni çift başka bir bağla çakışmamalı.
+    const key = pairKey(next.a, next.b);
+    if (box.bonds.some((x, j) => j !== i && pairKey(x.a, x.b) === key))
+      return { yaz: false, sonuc: { error: "kopya" } };
+    box.bonds[i] = next;
+    return { yaz: true, sonuc: { bond: next } };
+  });
 }
 
 export async function deleteBond(treeId: string, id: string): Promise<boolean> {
-  const box = await getBox(treeId);
-  const before = box.bonds.length;
-  box.bonds = box.bonds.filter((x) => x.id !== id);
-  if (box.bonds.length === before) return false;
-  await saveBox(treeId, box);
-  return true;
+  return mutate<boolean>(treeId, (box) => {
+    const before = box.bonds.length;
+    box.bonds = box.bonds.filter((x) => x.id !== id);
+    if (box.bonds.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /**
@@ -162,10 +178,10 @@ export async function deleteBondsOfPeople(
 ): Promise<number> {
   const gidenler = new Set(personIds);
   if (gidenler.size === 0) return 0;
-  const box = await getBox(treeId);
-  const before = box.bonds.length;
-  box.bonds = box.bonds.filter((x) => !gidenler.has(x.a) && !gidenler.has(x.b));
-  const silinen = before - box.bonds.length;
-  if (silinen) await saveBox(treeId, box);
-  return silinen;
+  return mutate<number>(treeId, (box) => {
+    const before = box.bonds.length;
+    box.bonds = box.bonds.filter((x) => !gidenler.has(x.a) && !gidenler.has(x.b));
+    const silinen = before - box.bonds.length;
+    return { yaz: silinen > 0, sonuc: silinen };
+  });
 }

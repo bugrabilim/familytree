@@ -1,3 +1,4 @@
+import { mutateStore } from "@/lib/store-mutate";
 import "server-only";
 import { put, list, get } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
@@ -81,20 +82,31 @@ async function saveBox(treeId: string, box: LetterBox): Promise<void> {
  * gizlesin" demekten farklıdır: kilitli metin sunucudan hiç çıkmaz, dolayısıyla
  * ağ sekmesinde, RSC yükünde ya da önbellekte de bulunmaz.
  */
+/**
+ * Bu deponun oku→değiştir→yaz sarmalayıcısı (`lib/store-mutate.ts`).
+ *
+ * Kilit yokken kayıp yazma gerçekti ve buradaki içerik geri getirilemez:
+ * torununa yazılmış, yıllar sonra açılacak bir mektubun ikinci bir kopyası
+ * yok.
+ */
+function mutate<T>(treeId: string, degistir: (box: LetterBox) => { yaz: boolean; sonuc: T }): Promise<T> {
+  return mutateStore(() => getLetterBox(treeId), (b) => saveBox(treeId, b), degistir, "Mektup");
+}
+
 export async function readLetters(treeId: string, now: Date = new Date()): Promise<Letter[]> {
   const box = await getLetterBox(treeId);
   return publicViewAll(sortLetters(box.letters, now), now);
 }
 
 export async function addLetter(treeId: string, input: Partial<Letter>): Promise<Letter | null> {
-  const box = await getLetterBox(treeId);
-  if (box.letters.length >= MAX_LETTERS) return null;
-  const letter = normalizeLetter(input, new Date().toISOString());
-  if (!letter) return null;
-  letter.id = randomUUID();
-  box.letters.push(letter);
-  await saveBox(treeId, box);
-  return letter;
+  return mutate<Letter | null>(treeId, (box) => {
+    if (box.letters.length >= MAX_LETTERS) return { yaz: false, sonuc: null };
+    const letter = normalizeLetter(input, new Date().toISOString());
+    if (!letter) return { yaz: false, sonuc: null };
+    letter.id = randomUUID();
+    box.letters.push(letter);
+    return { yaz: true, sonuc: letter };
+  });
 }
 
 export async function updateLetter(
@@ -102,23 +114,23 @@ export async function updateLetter(
   id: string,
   input: Partial<Letter>
 ): Promise<Letter | null> {
-  const box = await getLetterBox(treeId);
-  const i = box.letters.findIndex((l) => l.id === id);
-  if (i === -1) return null;
-  const next = normalizeLetter(input, new Date().toISOString(), box.letters[i]);
-  if (!next) return null;
-  box.letters[i] = next;
-  await saveBox(treeId, box);
-  return next;
+  return mutate<Letter | null>(treeId, (box) => {
+    const i = box.letters.findIndex((l) => l.id === id);
+    if (i === -1) return { yaz: false, sonuc: null };
+    const next = normalizeLetter(input, new Date().toISOString(), box.letters[i]);
+    if (!next) return { yaz: false, sonuc: null };
+    box.letters[i] = next;
+    return { yaz: true, sonuc: next };
+  });
 }
 
 export async function deleteLetter(treeId: string, id: string): Promise<boolean> {
-  const box = await getLetterBox(treeId);
-  const before = box.letters.length;
-  box.letters = box.letters.filter((l) => l.id !== id);
-  if (box.letters.length === before) return false;
-  await saveBox(treeId, box);
-  return true;
+  return mutate<boolean>(treeId, (box) => {
+    const before = box.letters.length;
+    box.letters = box.letters.filter((l) => l.id !== id);
+    if (box.letters.length === before) return { yaz: false, sonuc: false };
+    return { yaz: true, sonuc: true };
+  });
 }
 
 /** Kutuda kaç mektup var — sınır iletisi için. */
