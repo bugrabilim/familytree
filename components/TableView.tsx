@@ -394,7 +394,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
             <tr className="text-left text-xs text-text-muted">
               {!readOnly && (
                 <th className="w-10 px-3 py-2">
-                  <input type="checkbox" checked={allShownSelected} onChange={toggleAll} aria-label={t("table.selectAll")} />
+                  <input type="checkbox" className="ui-check" checked={allShownSelected} onChange={toggleAll} aria-label={t("table.selectAll")} />
                 </th>
               )}
               {COLS.map((c) => (
@@ -426,7 +426,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <tr key={p.id} className={`border-b border-border/60 ${selected.has(p.id) ? "bg-primary-soft/40" : "hover:bg-surface-2/60"}`}>
                 {!readOnly && (
                   <td className="px-3 py-1.5 align-middle">
-                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={fullName(p)} />
+                    <input type="checkbox" className="ui-check" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={fullName(p)} />
                   </td>
                 )}
                 {COLS.map((c) => {
@@ -649,7 +649,7 @@ function FilterPopover({
                         return n;
                       })
                     }
-                    className="shrink-0 accent-[var(--primary)]"
+                    className="ui-check"
                   />
                   <span className={`text-xs truncate ${v === BLANK ? "text-text-subtle italic" : "text-text"}`}>{v}</span>
                 </label>
@@ -810,7 +810,7 @@ function DateFilterPopover({
             checked={isChecked(prefix)}
             disabled={covered}
             onChange={() => toggle(prefix)}
-            className="shrink-0 accent-[var(--primary)]"
+            className="ui-check"
           />
           <span className="text-xs text-text truncate tabular-nums">{label}</span>
         </label>
@@ -864,7 +864,7 @@ function DateFilterPopover({
           })}
           {hasBlank && (
             <label className="flex items-center gap-2 py-1 px-1 rounded-lg hover:bg-surface-2 cursor-pointer" style={{ paddingInlineStart: 20 }}>
-              <input type="checkbox" checked={draft.has("")} onChange={toggleBlank} className="shrink-0 accent-[var(--primary)]" />
+              <input type="checkbox" checked={draft.has("")} onChange={toggleBlank} className="ui-check" />
               <span className="text-xs text-text-subtle italic">{BLANK}</span>
             </label>
           )}

@@ -166,7 +166,12 @@ export default function BondSection({
       {!readOnly && !form && (
         <button
           onClick={() => setForm({ other: "", type: "yakin", note: "" })}
-          className="flex items-center gap-1.5 text-xs text-accent hover:underline font-medium"
+          /*
+            16px yüksekliğinde bir metin bağlantısı gibi çiziliyordu ama işlevi
+            bir düğme; parmakla basmak yandaki metni seçmekle aynı olasılıktaydı.
+            Dokunmada 44px, farede eskisi gibi sıkı.
+          */
+          className="-mx-1.5 px-1.5 min-h-11 lg:min-h-0 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

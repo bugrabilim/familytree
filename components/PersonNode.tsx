@@ -60,8 +60,14 @@ function AddNub({
       onClick={onClick}
       title={label}
       aria-label={label}
+      /*
+        `ft-nub`: tuval ölçeğinin tersiyle karşı-ölçekleme (globals.css).
+        Bu düğme React Flow'un `transform: scale()` uyguladığı katmanın
+        içinde; kalabalık ağaçta açılış ölçeği ~0.25 olduğu için 24px'lik
+        kutu ekranda 6px'e iniyordu.
+      */
       className={`
-        nodrag absolute ${pos} z-20
+        nodrag ft-nub absolute ${pos} z-20
         w-6 h-6 rounded-full grid place-items-center
         ${toneCls} shadow-float
         opacity-0 scale-75 pointer-events-none

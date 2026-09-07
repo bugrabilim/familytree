@@ -370,7 +370,8 @@ export default function ProposalsDialog({ onClose, onApplied }: {
               {canDecide && p.status === "bekliyor" && (
                 <input
                   type="checkbox"
-                  className="mt-1 accent-primary"
+                  /* `ui-check`: 13x13'lük yerel kutu yerine 18px ortak kutu (globals.css). */
+                  className="mt-1 ui-check"
                   aria-label={p.personName || "—"}
                   checked={secili.has(p.id)}
                   onChange={() => secimDegistir(p.id)}

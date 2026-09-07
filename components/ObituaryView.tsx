@@ -285,7 +285,7 @@ function ObituaryForm({
         <div className="rounded-xl border border-border bg-surface-2/50 p-3">
           <label className="flex items-start gap-2 text-sm text-text cursor-pointer">
             <input type="checkbox" checked={publicShare} onChange={(e) => setPublicShare(e.target.checked)}
-              className="mt-0.5" />
+              className="ui-check mt-0.5" />
             <span>
               {t("obit.public")}
               <span className="block text-[11px] text-text-subtle mt-0.5">{t("obit.publicNote")}</span>

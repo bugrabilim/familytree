@@ -125,7 +125,13 @@ export default function ShareDialog({
   };
 
   const create = () => {
-    if (!label.trim()) return; // Etiket zorunlu (#6)
+    /*
+     * Etiket zorunlu (#6). Düğme bu yüzden ARTIK KAPALI DEĞİL: kapalı bir
+     * düğme sebebini söylemiyor ve kullanıcı alana hiç uğramadıysa neyi
+     * eksik bıraktığını hiç öğrenemiyordu. Basılıyor, uyarı açılıyor,
+     * oluşturma yapılmıyor.
+     */
+    if (!label.trim()) { setDokunuldu(true); return; }
     const days = expiryDays.trim() ? Number(expiryDays) : 0;
     call("POST", {
       hideLiving,
@@ -150,6 +156,22 @@ export default function ShareDialog({
   const unlimitedExpiry = !Number.isFinite(days) || days <= 0; // 0/boş = süresiz (#5)
   const labelMissing = !label.trim(); // Etiket zorunlu (#6)
   /*
+   * Uyarı ANCAK kullanıcı bir şey yaptıktan sonra görünür.
+   *
+   * Alan boş açıldığı için `labelMissing` ilk çizimde zaten doğruydu:
+   * kutu kehribar kenarlıkla ve "Etiket zorunludur" yazısıyla açılıyordu —
+   * kullanıcı daha tek harf yazmadan hata almış oluyordu. Bir formun,
+   * doldurulmasını isterken doldurulmadığı için kullanıcıyı uyarması,
+   * uyarının kendisini gürültüye çeviriyor: gerçekten hata yapıldığında da
+   * aynı kehribar duruyor, yani hiçbir şey söylemiyor.
+   *
+   * `dokunuldu` iki yoldan açılıyor: alana yazınca ya da "Oluştur"a basınca.
+   * İkincisi şart — kullanıcı alana hiç uğramadan düğmeye giderse nedenini
+   * görmeli.
+   */
+  const [dokunuldu, setDokunuldu] = useState(false);
+  const labelWarn = labelMissing && dokunuldu;
+  /*
    * Hiçbir görünüm seçilmemişse bağlantı oluşturulamaz. Sunucu da ayrıca
    * reddediyor; burada düğmeyi kapatmak, kullanıcıyı formu doldurup 400
    * yemeye davet etmemek için.
@@ -167,16 +189,16 @@ export default function ShareDialog({
           <div>
             <input
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => { setDokunuldu(true); setLabel(e.target.value); }}
               placeholder={t("share.labelPlaceholder")}
               aria-required
-              className={`w-full h-10 px-3 rounded-xl bg-surface-2 border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary ${labelMissing ? "border-amber-400 dark:border-amber-600" : "border-border"}`}
+              className={`w-full h-10 px-3 rounded-xl bg-surface-2 border text-text text-sm placeholder:text-text-subtle focus:outline-none focus:border-primary ${labelWarn ? "border-amber-400 dark:border-amber-600" : "border-border"}`}
             />
-            {labelMissing && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{t("share.labelRequired")}</p>}
+            {labelWarn && <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{t("share.labelRequired")}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-              <input type="checkbox" checked={hideLiving} onChange={(e) => setHideLiving(e.target.checked)} />
+              <input type="checkbox" className="ui-check" checked={hideLiving} onChange={(e) => setHideLiving(e.target.checked)} />
               {t("share.hideLivingLabel")}
             </label>
             <div className="flex items-center gap-1.5 text-sm text-text">
@@ -195,7 +217,7 @@ export default function ShareDialog({
           {/* Tek kişilik bağlantı — mezar taşına basılan QR için. */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
-              <input type="checkbox" checked={single} onChange={(e) => setSingle(e.target.checked)} />
+              <input type="checkbox" className="ui-check" checked={single} onChange={(e) => setSingle(e.target.checked)} />
               {t("share.singleLabel")}
             </label>
             {single && (
@@ -226,7 +248,7 @@ export default function ShareDialog({
               <div className="flex flex-wrap gap-x-3 gap-y-1.5">
                 {SHARE_SCOPES.map((k) => (
                   <label key={k} className="flex items-center gap-1.5 text-xs text-text cursor-pointer">
-                    <input type="checkbox" checked={scope.includes(k)} onChange={() => scopeToggle(k)} />
+                    <input type="checkbox" className="ui-check" checked={scope.includes(k)} onChange={() => scopeToggle(k)} />
                     {t(`view.${k}.label`)}
                   </label>
                 ))}
@@ -238,7 +260,7 @@ export default function ShareDialog({
           {!hideLiving && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.livingWarn")}</p>}
           {longExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.expiryWarn")}</p>}
           {unlimitedExpiry && <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-lg">{t("share.unlimitedWarn")}</p>}
-          <Button size="sm" onClick={create} disabled={busy || labelMissing || scopeEmpty || (single && !personId)}>
+          <Button size="sm" onClick={create} disabled={busy || scopeEmpty || (single && !personId)}>
             {busy ? t("share.working") : t("share.createBtn")}
           </Button>
         </section>
@@ -345,7 +367,7 @@ function ShareCard({
       {/* Yaşayanları gizle + QR/istatistik aç-kapa */}
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <label className="flex items-center gap-2 text-text cursor-pointer">
-          <input type="checkbox" checked={s.hideLiving} disabled={busy} onChange={(e) => onToggleHide(e.target.checked)} />
+          <input type="checkbox" className="ui-check" checked={s.hideLiving} disabled={busy} onChange={(e) => onToggleHide(e.target.checked)} />
           {t("share.hideLivingLabel")}
         </label>
         <button onClick={() => setShowStats((v) => !v)} className="text-primary hover:underline font-medium">

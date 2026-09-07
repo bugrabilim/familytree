@@ -578,7 +578,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                           checked={selPairs.has(pairKey(d.aId, d.bId))}
                           onChange={() => togglePair(d.aId, d.bId)}
                           aria-label={t("history.select")}
-                          className="shrink-0 accent-[var(--primary)]"
+                          className="ui-check"
                         />
                       )}
                       <span className="text-sm truncate flex-1 min-w-0">
@@ -839,7 +839,7 @@ function LongestLived({
           type="checkbox"
           checked={livingOnly}
           onChange={(e) => setLivingOnly(e.target.checked)}
-          className="accent-[var(--primary)]"
+          className="ui-check"
         />
         {t("panel.longest.livingOnly")}
       </label>
@@ -931,7 +931,7 @@ function AgeRangeFinder({
       </div>
       <label className="flex items-center gap-2 text-sm text-text cursor-pointer select-none">
         <input type="checkbox" checked={livingOnly} onChange={(e) => setLivingOnly(e.target.checked)}
-          className="w-4 h-4 rounded border-border accent-primary" />
+          className="ui-check" />
         {t("panel.ageRange.livingOnly")}
       </label>
       <p className="text-[11px] text-text-subtle">{t("panel.ageRange.count", { count: matches.length })}</p>

@@ -1539,7 +1539,7 @@ export default function PersonForm({
               type="checkbox"
               checked={confidential}
               onChange={(e) => setConfidential(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
+              className="ui-check mt-0.5"
             />
             <span className="min-w-0">
               <span className="block text-sm text-text">{t("private.confidential")}</span>

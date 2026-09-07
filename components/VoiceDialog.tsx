@@ -235,7 +235,7 @@ export default function VoiceDialog({
                           type="checkbox"
                           checked={checked.has(i)}
                           onChange={() => toggle(i)}
-                          className="mt-0.5 shrink-0"
+                          className="ui-check mt-0.5"
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm text-text">

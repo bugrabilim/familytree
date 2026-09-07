@@ -168,7 +168,7 @@ export default function RegisterPage() {
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
+            className="ui-check mt-0.5"
           />
           <span className="text-[12px] text-text-muted leading-snug">
             <Link href="/privacy" target="_blank" className="text-primary hover:underline">

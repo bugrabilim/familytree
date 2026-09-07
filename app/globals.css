@@ -245,18 +245,52 @@ body {
 /* --------------------------------------------------------------- */
 .react-flow__attribution { display: none; }
 
+/*
+ * Yakınlaştırma kümesi.
+ *
+ * Buradaki `!important`ler süs değil: `@xyflow/react/dist/style.css`
+ * FamilyTree.tsx içinden içe aktarıldığı için Next onu bu dosyadan SONRA
+ * yüklüyor. Aynı özgüllükte (tek sınıf) yazılan kuralları kitaplık eziyordu —
+ * `width: 32px` yazılıydı ama ölçülen boy 26x26px'ti.
+ *
+ * Dar ekranda küme TEK SATIR: tek sütun hâlinde 28x106px'lik dikey bir şerit
+ * olup tuvalin içine sarkıyor ve altındaki kişi kartlarının dokunmasını
+ * yutuyordu (bkz. FamilyTree.tsx'teki Controls yorumu).
+ *
+ * Neden satır, kare değil: fitView'in bıraktığı boşluk DİKEYDE dar (yüksekliğin
+ * ~%15'i, 320x568'de ~68px), yatayda ise kartların altına düşen bir şey yok.
+ * 2x2 kare (91x91) o boşluğu 23px aşıp yine dört kartı örtüyordu — ölçüldü.
+ * 4x1 satır (179x44) tümüyle boşluğun içinde kalıyor. Düğmeler dokunmada
+ * 44px, farede (lg) tek sütun + 36px.
+ */
 .react-flow__controls {
   box-shadow: var(--shadow);
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
+  display: grid !important;
+  grid-template-columns: repeat(4, 44px);
+  gap: 1px;
+  background: var(--border);
 }
 .react-flow__controls-button {
   background: var(--surface) !important;
-  border-bottom: 1px solid var(--border) !important;
+  border: 0 !important;
   fill: var(--text-muted) !important;
-  width: 32px;
-  height: 32px;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+}
+@media (min-width: 1024px) {
+  .react-flow__controls {
+    grid-template-columns: 36px;
+  }
+  .react-flow__controls-button {
+    width: 36px !important;
+    height: 36px !important;
+  }
 }
 .react-flow__controls-button:hover {
   background: var(--surface-2) !important;
@@ -264,8 +298,29 @@ body {
 }
 .react-flow__controls-button svg {
   fill: currentColor;
-  max-width: 13px;
-  max-height: 13px;
+  max-width: 15px;
+  max-height: 15px;
+}
+
+/*
+ * Kart kenarındaki hızlı-ekle ("+") düğmeleri React Flow'un
+ * `transform: scale()` uyguladığı tuvalin İÇİNDE; ölçek küçülünce onlar da
+ * küçülüyor. 366 kişilik ağaçta açılış ölçeği ~0.25 olduğu için 24px'lik
+ * düğme ekranda 6.1px'e iniyordu — yani uygulamanın İLK AÇILDIĞI hâlde bu
+ * afordanslar pratikte yoktu.
+ *
+ * Ölçeğin tersiyle karşı-ölçekleyip ekranda sabit bir asgari boy tutuyoruz.
+ * `--ft-zoom`u FamilyTree `onMove`da yazıyor (bkz. oradaki yorum).
+ * Üst sınır 3: tam telafi (0.2 ölçekte 5x) düğmeyi 120 tuval-pikseline
+ * çıkarır ve 140px'lik kişi kartını tümüyle yutardı; 3x'te düğme kartın
+ * kenarında kalıp yine de ekranda ~18px oluyor (6.1px'in üç katı).
+ * `transform`, Tailwind'in `scale-*` yardımcılarının kullandığı bağımsız
+ * `scale` özelliğinden AYRI bir kanal — ikisi çarpışmadan birleşiyor,
+ * yani hover büyümesi ve görünürlük animasyonu olduğu gibi çalışmaya devam
+ * ediyor.
+ */
+.ft-nub {
+  transform: scale(clamp(1, calc(1 / var(--ft-zoom, 1)), 3));
 }
 .react-flow__minimap {
   border-radius: 12px;
@@ -552,3 +607,62 @@ body {
 /* — Nabız (canlı rozet) — */
 @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(31,107,71,0.42); } 70% { box-shadow: 0 0 0 12px rgba(31,107,71,0); } 100% { box-shadow: 0 0 0 0 rgba(31,107,71,0); } }
 .pulse-ring { animation: pulse-ring 2.6s ease-out infinite; }
+
+/* ---------------------------------------------------------------- */
+/* Onay kutusu — ortak görünüm (G4)                                  */
+/* ---------------------------------------------------------------- */
+/*
+ * Tarayıcının yerel onay kutusu 13x13px çiziliyordu; Takvim sekmesinde tek
+ * ekranda 363 tanesi vardı. Hem 24px'lik asgari hedefin altında, hem de
+ * uygulamanın kendi (özel yapım) anahtar/segment diliyle çelişiyordu.
+ *
+ * Yerel kutuyu kapatıp kendi kutumuzu çiziyoruz: 18px kare, tema
+ * değişkenlerinden renk, işaret bir maskeyle. `input` olarak kalmaya devam
+ * ediyor — yani klavye, `:checked`, form semantiği ve ekran okuyucu davranışı
+ * değişmiyor; yalnız görünüm değişiyor.
+ */
+.ui-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.ui-check:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.ui-check::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  transform: scale(0);
+  transition: transform 0.12s ease-out;
+  background: var(--primary-text);
+  clip-path: polygon(14% 47%, 0 61%, 40% 100%, 100% 22%, 85% 9%, 38% 71%);
+}
+.ui-check:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.ui-check:checked::before {
+  transform: scale(1);
+}
+.ui-check:indeterminate {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.ui-check:indeterminate::before {
+  transform: scale(1);
+  clip-path: polygon(0 38%, 100% 38%, 100% 62%, 0 62%);
+}
+.ui-check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

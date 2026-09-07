@@ -95,6 +95,14 @@ export default function PedigreeView({
       const availH = Math.max(vp.clientHeight - 48, 0);
       const s = Math.min(1, availW / w, availH / h);
       content.style.transform = `scale(${s})`;
+      /*
+        Ölçeği alt ağaca duyur: kart köşesindeki "bu kişiyi merkeze al"
+        düğmesi de bu `scale()`in altında ve kalabalık soy zincirinde 8.2px'e
+        iniyordu (ağaçtaki hızlı-ekle düğmeleriyle aynı arıza). `.ft-nub`
+        (globals.css) bu değişkenle karşı-ölçekliyor; değişken burada
+        tanımlandığı için FamilyTree'nin `:root`taki değerini gölgeliyor.
+      */
+      content.style.setProperty("--ft-zoom", String(s));
       box.style.width = `${w * s}px`;
       box.style.height = `${h * s}px`;
     };
@@ -296,7 +304,7 @@ function PedigreeCard({
           onClick={() => onSetRoot(person.id)}
           title={t("pedigree.setRoot")}
           className="
-            absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
+            ft-nub absolute -right-2 -top-2 w-6 h-6 rounded-full bg-bg-elevated border border-border shadow-card
             grid place-items-center text-text-subtle hover:text-primary hover:border-primary
             opacity-0 group-hover:opacity-100 transition-all
           "
