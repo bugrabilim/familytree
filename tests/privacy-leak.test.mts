@@ -148,7 +148,27 @@ for (const yol of SUNUCU_SAYFALARI) {
   const src = readFileSync(new URL(yol, import.meta.url), "utf8");
   check(/viewAll\s*\(/.test(src), `${yol} viewAll ile SUNUCUDA maskeliyor`);
   check(!/people=\{people\}/.test(src), `${yol} ham people dizisini vermiyor`);
-  check(/people=\{safePeople\}/.test(src), `${yol} maskelenmiş diziyi veriyor`);
+  /*
+   * MASKELENMİŞ DİZİYİ VERİYOR — ama artık doğrudan `safePeople` olmak
+   * zorunda değil.
+   *
+   * `/g/` paylaşım kapsamı geldiğinden beri kişi listesi kapsam dışıysa BOŞ
+   * geçiyor (`needsPeople`). Bu iddia `people={safePeople}` diye yazılıydı ve
+   * o düzeltmeyi kırmızıya düşürüyordu — oysa kural "maskeliden türeyen bir
+   * dizi ver", "tam olarak şu değişkeni ver" değil.
+   *
+   * Kilitlenen şey: ana alana giden dizi ya `safePeople`in kendisi ya da
+   * ondan türetilmiş bir değişken olmalı; ham `people` ASLA.
+   */
+  {
+    const m = src.match(/people=\{([A-Za-z0-9_]+)\}/);
+    const degisken = m?.[1] ?? "";
+    check(!!degisken, `${yol} Workspace'e bir kişi dizisi veriyor`);
+    const turemis =
+      degisken === "safePeople" ||
+      new RegExp(`(const|let)\\s+${degisken}\\s*=[^;]*safePeople`).test(src);
+    check(turemis, `${yol} verdiği dizi maskeliden (safePeople) türüyor`);
+  }
   // Sunucu bileşeni olmalı: "use client" olsaydı ham veri zaten tarayıcıda olurdu.
   check(!/^\s*"use client"/m.test(src), `${yol} sunucu bileşeni`);
 }

@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import { SHARE_SCOPES, allows, firstAllowed, parseScope, scopeOrAll } from "../lib/share-scope.ts";
+import {
+  MODAL_SCOPES, SHARE_SCOPES, allows, firstAllowed, needsPeople, parseScope, scopeOrAll,
+} from "../lib/share-scope.ts";
 
 let ok = 0, fail = 0;
 function check(cond: boolean, msg: string) { if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); } }
@@ -59,9 +61,48 @@ eq(scopeOrAll(["agac", "uydurma"]), ["agac"], "bilinmeyen anahtar süzülüyor")
  * ilk gördüğü şey olarak boş bir ekrana bakardı.
  */
 eq(firstAllowed(undefined), "agac", "kısıtsızda varsayılan agac");
-eq(firstAllowed(["kitap", "tarifler"]), "kitap", "kısıtlıda ilk açık görünüm");
 eq(firstAllowed(["tarifler"]), "tarifler", "tek görünümlü paylaşımda o görünüm");
 eq(firstAllowed([]), "agac", "boşta agac");
+
+/*
+ * KENDİ TESTİM YANLIŞ DAVRANIŞI KİLİTLEMİŞTİ.
+ *
+ * Eski iddia `firstAllowed(["kitap","tarifler"]) === "kitap"` idi ve yeşildi
+ * — ama kilitlediği şey bir kapsam sızıntısıydı. "kitap" bir SEKME DEĞİL,
+ * bir kip: `Workspace` onu `view` durumuna hiç yazmıyor ve ana alanda
+ * `view === "kitap"` diye bir dal YOK. Açılış görünümü "kitap" seçilince
+ * render zincirinin son `else`i devreye giriyor — o da İSTATİSTİK paneli.
+ *
+ * Yani yalnız kitabını paylaşan bir sahibin bağlantısında ziyaretçinin ilk
+ * gördüğü şey, sahibin kapsam DIŞI bıraktığı görünümün içeriğiydi: bütün
+ * ağacın toplamları, en yaşlı/en genç, soyadı dağılımı.
+ */
+eq(firstAllowed(["kitap", "tarifler"]), "tarifler", "kip olan kapsam açılış görünümü OLAMAZ");
+eq(firstAllowed(["kitap"]), null, "yalnız kip varsa çizilebilir görünüm YOK (null)");
+check(!MODAL_SCOPES.includes("tarifler" as never), "tarifler bir kip değil");
+check(MODAL_SCOPES.includes("kitap" as never), "kitap kip olarak işaretli");
+
+/*
+ * `null` dönmesi şart: "agac" varsayılsaydı, ağacı hiç paylaşmayan bir
+ * bağlantı ağacı açardı — düzeltilen sızıntının aynısı, ters yönden.
+ */
+
+/* ── Kişi verisi kapsama bağlı ──────────────────────────────────────────── */
+/*
+ * Sunucudan istemciye geçen proplar RSC yüküne serileştiriliyor: "çizme ama
+ * gönder" demek, veriyi SAYFA KAYNAĞINDA bırakmaktır. Taziye şeridi için bu
+ * kural uygulanıyordu, kişi listesi için uygulanmıyordu — kapsam yalnız
+ * sekmeleri gizliyordu.
+ */
+check(needsPeople(undefined), "kısıtsız paylaşım kişi verisi istiyor");
+check(needsPeople(["agac"]), "ağaç kişi istiyor");
+check(needsPeople(["kitap"]), "kitap kişi istiyor");
+check(needsPeople(["istatistik"]), "istatistik kişi istiyor");
+check(!needsPeople(["tarifler"]), "yalnız tarif paylaşımı kişi İSTEMİYOR");
+check(!needsPeople(["mektup"]), "yalnız mektup paylaşımı kişi İSTEMİYOR");
+check(!needsPeople(["taziye"]), "yalnız taziye paylaşımı kişi İSTEMİYOR");
+check(!needsPeople(["tarifler", "mektup", "taziye"]), "üçü birden de kişi istemiyor");
+check(needsPeople(["tarifler", "agac"]), "biri bile isterse kişi gidiyor");
 
 /* ── 4. Kaynak kapıları ──────────────────────────────────────────────────── */
 
@@ -147,6 +188,34 @@ check(/status.*403|, 403\)/.test(api), "API kapsam dışı isteği 403 ile redde
   check(/\.map\(\(g\) => g\.filter\(\(k\) => allows\(allowedViews, k\)\)\)/.test(topbar),
     "sekmeler kapsama göre süzülüyor");
   check(/\.filter\(\(g\) => g\.length > 0\)/.test(topbar), "boşalan grup hiç çizilmiyor");
+}
+
+/* --- Kapsam kapısı ana alanın ÖNÜNDE ------------------------------------- */
+/*
+ * Render zincirinin sonunda bir yakala-hepsini `else` var ve o İSTATİSTİK
+ * paneli çiziyor. Yani eşleşmeyen her `view` değeri, kapsam ne olursa olsun,
+ * bütün ağacın toplamlarını gösteriyordu. Sızıntı "kitap" üstünden çıkmıştı
+ * ama sebep tek bir anahtar değil, KAPININ HİÇ OLMAMASIYDI: yeni bir sekme
+ * eklendiğinde aynı delik yeniden açılırdı.
+ */
+{
+  const ws = kodu(read("../app/tree/Workspace.tsx"));
+  const iKapi = ws.indexOf("!allows(allowedViews, view)");
+  const iZincir = ws.indexOf('view === "agac" ?');
+  check(iKapi > -1, "kapsam kapısı var");
+  check(iZincir > iKapi, "kapı, görünüm zincirinin ÖNÜNDE");
+  check(/share\.viewNotShared/.test(ws), "kapsam dışı görünümde açıklama gösteriliyor");
+
+  /* Yalnız kitap paylaşılmışsa kitap AÇIK başlıyor — kip açılmazsa görülemez. */
+  check(/allows\(allowedViews, "kitap"\)/.test(ws), "yalnız kitap kapsamında kitap açılıyor");
+  check(/useState\(\s*\(\) => !!publicView/.test(ws), "kitap başlangıç değeri olarak açılıyor (effect ile değil)");
+}
+
+{
+  const sayfa = kodu(read("../app/g/[token]/page.tsx"));
+  check(/needsPeople\(valid\.share\.scope\)/.test(sayfa), "kişi listesi kapsama bağlanmış");
+  check(/\? safePeople : \[\]/.test(sayfa), "kapsam dışıysa BOŞ dizi gidiyor");
+  check(/people=\{paylasilanKisiler\}/.test(sayfa), "Workspace'e kapsamdan geçmiş dizi veriliyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

@@ -238,14 +238,23 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
       {/* ---- Üst çubuk ---- */}
       <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0">
             <div className="w-9 h-9 rounded-xl bg-primary grid place-items-center shadow-soft">
               <BrandMark stroke="var(--primary-text)" />
             </div>
-            <span className="font-serif text-lg font-semibold hidden min-[360px]:inline">{t("auth.brand")}</span>
+            <span className="font-serif text-lg font-semibold whitespace-nowrap hidden min-[360px]:inline">{t("auth.brand")}</span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1 mx-auto text-sm">
+          {/*
+            Bölüm bağlantıları `lg`den ÖNCE açılmıyor. `md` (768px) sınırında
+            açılıyorlardı ve tam o noktada sağ grup `ml-auto`sunu yitiriyordu:
+            marka + nav + iki düğmenin hepsi `shrink-0`/`whitespace-nowrap`
+            olduğu için satır kapsayıcıdan taşıyor, belge yatay kayıyor ve
+            "Hesap oluştur" ekranın dışında kalıyordu (768pxde 94px taşma).
+            Eşiği `lg`ye almak 768-1023 bandını marka + iki düğmeye indiriyor;
+            o bant zaten 740pxte sığdığı ölçülmüş bir yerleşim.
+            `min-w-0`: bir çeviri uzarsa nav taşmak yerine kendi içinde kırpılsın. */}
+          <nav className="hidden lg:flex min-w-0 items-center gap-1 mx-auto text-sm">
             <a href="#fark" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.diff")}</a>
             <a href="#ozellikler" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.features")}</a>
             <a href="#nasil" className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("land.nav.how")}</a>
@@ -253,7 +262,7 @@ export default function Landing({ platform }: { platform?: { trees: number; peop
             <button onClick={() => setAboutOpen(true)} className="px-3 py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors">{t("about.nav")}</button>
           </nav>
 
-          <div className="ml-auto md:ml-0 flex items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto lg:ml-0 shrink-0 flex items-center gap-1.5 sm:gap-2">
             {/* Dil/tema mobilde başlıkta gizli (footer'da dil anahtarı var); böylece
                 giriş yap + hesap oluştur en dar ekranda bile sığar. */}
             <LanguageSwitch className="hidden sm:flex shrink-0" />
