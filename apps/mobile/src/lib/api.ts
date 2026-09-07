@@ -57,6 +57,33 @@ function oturumDustu(status: number, tokenluMu: boolean): void {
   );
 }
 
+/* ── Aktif ağaç (çoklu ağaç) ─────────────────────────────────────────────── */
+
+/**
+ * Kurucunun o an baktığı ağacın kimliği.
+ *
+ * `resolveActiveTree` (sunucu) aktif ağacı `x-tree-id` başlığından ya da web
+ * çerezinden okuyor. Mobil başlığı HİÇ göndermiyordu, yani birden çok ağacı
+ * olan bir kurucu telefonda YALNIZ ana ağacını görebiliyordu — öbür ağaçları
+ * kurmuş, veri girmiş ve telefonda hiçbirine ulaşamıyordu.
+ *
+ * Modül düzeyinde tek bir değer, `setUnauthorizedHandler` ile aynı gerekçe:
+ * `apiFetch` bir React bileşeni değil ve bağlamı göremiyor; her çağrı yerine
+ * ayrı ayrı geçirmek ise onu unutulacak yirmi yer hâline getirirdi.
+ *
+ * `null` "ana ağaç" demek ve başlık hiç gönderilmiyor — sunucudaki
+ * varsayılanla aynı anlam.
+ */
+let aktifAgac: string | null = null;
+
+export function setActiveTreeId(id: string | null): void {
+  aktifAgac = id;
+}
+
+export function getActiveTreeId(): string | null {
+  return aktifAgac;
+}
+
 /** Bearer jetonuyla JSON isteği. `token` verilirse Authorization eklenir. */
 export async function apiFetch<T>(
   path: string,
@@ -65,6 +92,10 @@ export async function apiFetch<T>(
     body?: unknown;
     token?: string | null;
     treeId?: string;
+    /**
+     * Bu istek için ağaç kimliği. Verilmezse modüldeki aktif ağaç kullanılır;
+     * çağıranların çoğu bunu bilmek zorunda kalmasın diye.
+     */
     /**
      * İYİMSER KİLİT (madde 9) — ekrandaki verinin dayandığı sürüm damgası.
      *
@@ -80,7 +111,8 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
-  if (opts.treeId) headers["x-tree-id"] = opts.treeId;
+  const agac = opts.treeId ?? aktifAgac;
+  if (agac) headers["x-tree-id"] = agac;
   if (opts.baseVersion) headers["x-base-version"] = opts.baseVersion;
 
   let res: Response;

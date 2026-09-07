@@ -7,8 +7,17 @@ import { Text } from "react-native";
 
 export default function EditPerson() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { byId } = useFamily();
-  const person = id ? byId.get(id) : undefined;
+  /*
+   * HAM kayıt — `byId` DEĞİL.
+   *
+   * `byId` gizlilik katmanından geçmiş kopyaları taşıyor. Form bütün alanları
+   * gövdeye koyduğu için maskeli bir kopyayla kaydetmek, gizlenen alanları
+   * KALICI olarak silerdi: kullanıcı bir alanı "gizli" işaretlediği için
+   * kaybederdi. Web'de aynı ayrım `PersonDrawer` (maskeli) ile `PersonForm`
+   * (ham) arasında.
+   */
+  const { rawById } = useFamily();
+  const person = id ? rawById.get(id) : undefined;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["left", "right", "bottom"]}>
