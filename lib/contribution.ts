@@ -83,6 +83,18 @@ export interface StoryRequest {
   expiresAt: string;
   /** Ağaç sahibi kapattı mı? Süreden bağımsız, elle kapatma. */
   closed?: boolean;
+  /**
+   * Haftalık seriden doğduysa serinin kimliği (`lib/story-series.ts`).
+   *
+   * Elle açılan taleplerde YOK. İki alan da yalnız İZ: kabul kuralları
+   * (`planSubmit`) bunlara hiç bakmıyor ve bakmamalı — seriden gelen bir
+   * yanıtın elle açılmış bir talebin yanıtından farklı muamele görmesi için
+   * hiçbir sebep yok, ikisi de girişsiz yazma ve ikisi de aynı onay
+   * kuyruğuna düşüyor.
+   */
+  seriesId?: string;
+  /** Hangi soru bankası maddesinden üretildi (`lib/prompts.ts` kimliği). */
+  promptId?: string;
 }
 
 /* ── Gönderim ─────────────────────────────────────────────────────────────── */

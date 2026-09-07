@@ -5,12 +5,15 @@ import { canEdit } from "@/lib/roles";
 import { applyApproval, memoryIdFor } from "@/lib/contribution";
 import {
   closeRequest,
+  closeSeries,
   createRequest,
+  createSeries,
   decideContribution,
   deleteContribution,
   findContribution,
   readStories,
 } from "@/lib/story-store";
+import { SERIES_WEEKS } from "@/lib/story-series";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +60,21 @@ export async function GET() {
   return NextResponse.json({
     requests: box.requests.map((r) => ({ ...r, tokenHash: undefined, subject: ad.get(r.personId) ?? "?" })),
     contributions: box.contributions.map((c) => ({ ...c, subject: ad.get(c.personId) ?? "?" })),
+    /*
+     * SERİLER — yalnız yürüyenler ve yalnız İLERLEME. `asked` listesinin
+     * kendisi (hangi soruların sorulduğu) taşınmıyor: ekranın ihtiyacı
+     * "7/26" ve gereksiz her alan bir sızıntı yüzeyi.
+     */
+    series: box.series
+      .filter((s) => !s.closed)
+      .map((s) => ({
+        id: s.id,
+        personId: s.personId,
+        subject: ad.get(s.personId) ?? "?",
+        sent: s.asked.length,
+        total: SERIES_WEEKS,
+        expiresAt: s.expiresAt,
+      })),
   });
 }
 
@@ -65,7 +83,14 @@ export async function POST(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
 
-  let body: { personId?: unknown; question?: unknown; sentTo?: unknown; days?: unknown };
+  let body: {
+    personId?: unknown;
+    question?: unknown;
+    sentTo?: unknown;
+    days?: unknown;
+    /** `"seri"` → tek soru değil, haftalık seri başlat (madde 39). */
+    mode?: unknown;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -86,16 +111,48 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
 
-  const r = await createRequest(g.ctx.treeId, body);
+  /*
+   * İŞARET DEPOYA TAŞINIYOR. Yukarıdaki denetim duruyor (kullanıcıya doğru
+   * mesajı burada verebiliyoruz) ama karar artık depoda da veriliyor:
+   * `lib/story-store.ts` bu işareti görmeden talep açamıyor. İkinci yazar
+   * (haftalık cron) geldiği için tek kopya yetmez.
+   */
+  const konu = { id: kisi.id, confidential: kisi.confidential };
+
+  /* HAFTALIK SERİ — tek soru değil, kadans (madde 39). */
+  if (body.mode === "seri") {
+    const s = await createSeries(
+      g.ctx.treeId,
+      kisi.id,
+      konu,
+      typeof body.days === "number" ? body.days : undefined
+    );
+    if ("error" in s) {
+      const mesaj =
+        s.error === "zaten-var"
+          ? "Bu kişi için zaten yürüyen bir seri var."
+          : s.error === "dolu"
+            ? "Aynı anda yürüyebilecek seri sayısı doldu. Önce birkaçını durdur."
+            : s.error === "gizli"
+              ? "Gizli işaretli kayıt için dışarıya soru gönderilemez."
+              : "Kişi gerekli.";
+      return NextResponse.json({ error: mesaj }, { status: s.error === "gecersiz" ? 400 : 409 });
+    }
+    return NextResponse.json({ series: { id: s.series.id, personId: s.series.personId } });
+  }
+
+  const r = await createRequest(g.ctx.treeId, body, konu);
   if ("error" in r)
     return NextResponse.json(
       {
         error:
           r.error === "dolu"
             ? "Açık talep sayısı doldu. Önce birkaçını kapat."
-            : "Soru ve kişi gerekli.",
+            : r.error === "gizli"
+              ? "Gizli işaretli kayıt için dışarıya soru gönderilemez."
+              : "Soru ve kişi gerekli.",
       },
-      { status: r.error === "dolu" ? 409 : 400 }
+      { status: r.error === "dolu" ? 409 : r.error === "gizli" ? 403 : 400 }
     );
 
   return NextResponse.json({
@@ -113,11 +170,22 @@ export async function PATCH(req: NextRequest) {
   const g = await guard();
   if ("error" in g) return g.error;
 
-  let body: { id?: unknown; karar?: unknown; requestId?: unknown };
+  let body: { id?: unknown; karar?: unknown; requestId?: unknown; seriesId?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
+  }
+
+  /*
+   * Seriyi durdurma. Depo aynı işlemde açık haftalık talebi de kapatıyor —
+   * durdurulmuş bir serinin arkasında canlı bir yazma bağlantısı kalmasın.
+   */
+  if (typeof body.seriesId === "string") {
+    const ok = await closeSeries(g.ctx.treeId, body.seriesId);
+    return ok
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Seri bulunamadı." }, { status: 404 });
   }
 
   // Talebi kapatma da bu yöntemde: yazma değil, bir bayrak.

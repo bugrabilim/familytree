@@ -12,6 +12,11 @@ import { canEmailContact, planAsk } from "@/lib/contact-consent";
 import { isUnsubConfigured, makeAskToken, makeUnsubToken } from "@/lib/contact-token";
 import { stripPrivateFields } from "@/lib/privacy";
 import { makeBudget, rotateForDay } from "@/lib/cron-budget";
+import { issueWeekly, markWeeklySent, readSeries } from "@/lib/story-store";
+import { planWeekly } from "@/lib/story-series";
+import { promptKey, subjectFromPerson } from "@/lib/prompts";
+import { translate } from "@/lib/i18n-dict";
+import { fullName } from "@/lib/name";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +86,22 @@ export async function GET(req: NextRequest) {
    * Zamanlama sayısı değil, işin içindeki koşul değişiyor.
    */
   const ayinIlkGunu = today.getDate() === 1;
+
+  /*
+   * HAFTANIN GÜNÜ KAPISI — haftalık soru serisi neden bu GÜNLÜK işin içinde
+   *
+   * Bültenle birebir aynı gerekçe, bir kat yukarısı: Vercel Hobby planında
+   * proje başına cron sayısı sınırlı ve iki yuva da dolu (`reminders`,
+   * `backup`). "Haftalık" bir iş için üçüncü bir zamanlama YOK. Bu yüzden
+   * kadans, zamanlamanın değil işin İÇİNDEKİ bir koşulun sorumluluğu:
+   * günlük iş haftada bir kez (pazar) ek olarak seri postalarını da atıyor.
+   *
+   * Pazar seçildi: aile postasının en çok okunacağı gün ve `weekIndex`in
+   * hafta sınırı perşembeye denk geldiği için ardışık iki pazar hiçbir zaman
+   * aynı hafta numarasını taşımıyor — yani "haftada bir" gerçekten haftada
+   * bir oluyor. Gün numarası sunucunun yerel saatinden (Vercel'de UTC).
+   */
+  const hikayeGunu = today.getDay() === 0;
 
   /** "YYYY-MM-DD" (yerel) — `lib/newsletter.ts` dönemi bu biçimde bekliyor. */
   const gun = (d: Date) =>
@@ -210,6 +231,8 @@ export async function GET(req: NextRequest) {
    */
   let asked = 0;
   let contacted = 0;
+  /** Bu koşuda gönderilen haftalık seri sorusu sayısı — günlükte görünüyor. */
+  let weekly = 0;
   /*
    * Çıkış jetonu ÜRETİLEMİYORSA hiç gönderilmiyor. Abonelikten çıkma
    * bağlantısı olmayan bir bildirim postası, onayı tek yönlü bir kapıya
@@ -261,6 +284,32 @@ export async function GET(req: NextRequest) {
            */
           let kalanSoru = 25;
 
+          /*
+           * HAFTALIK SERİLER — ağaç başına TEK okuma ve yalnız pazar günü.
+           *
+           * Kişi döngüsünün içinde okunsaydı yüz kişilik bir ağaçta yüz blob
+           * isteği olurdu; öbür altı gün hiç okunmuyor, çünkü o günlerde
+           * `planWeekly` zaten hiçbir şey göndermeyecek.
+           *
+           * Okuma DÜŞERSE seri yok sayılıyor (boş liste): hikâye postasının
+           * gitmemesi, günün hatırlatmalarını da durdurmayı hak etmiyor.
+           */
+          let seriler: Awaited<ReturnType<typeof readSeries>> = [];
+          if (hikayeGunu) {
+            try {
+              seriler = await readSeries(u.id);
+            } catch {
+              /* seri okunamadı — bu ağaçta bu hafta soru gönderilmiyor */
+            }
+          }
+          const seriOf = new Map(seriler.filter((s) => !s.closed).map((s) => [s.personId, s]));
+          /*
+           * Koşu başına ağaç başına HAFTALIK POSTA TAVANI — `kalanSoru`nun
+           * eşi ve aynı gerekçe. `MAX_SERIES` deponun tavanı; bu, tek bir
+           * koşunun tek bir ağaç için harcayabileceği posta sayısı.
+           */
+          let kalanHafta = 25;
+
           for (let i = 0; i < data.people.length; i++) {
             /*
              * İÇ DÖNGÜ DE bütçeye bakıyor: tek bir büyük ağaç (yüzlerce
@@ -303,25 +352,123 @@ export async function GET(req: NextRequest) {
               continue;
             }
 
-            /* 2) Günün bildirimleri — YALNIZ onay vermiş kişiye. */
+            /*
+             * 2) Günün bildirimleri — YALNIZ onay vermiş kişiye.
+             *
+             * `canEmailContact` TEK KAPI: aşağıdaki haftalık seri de bu
+             * kapının ardında. Seri, `planAsk`ın tek seferlik onay sorusundan
+             * farklı olarak TEKRARLAYAN bir posta; kendine ait yeni bir izin
+             * kavramı uydurmak, onayı ikiye bölmek ve birini er geç unutmak
+             * olurdu. İzin bir tane: adresin sahibinin kendi tıklaması.
+             */
             if (!canEmailContact(kisi)) continue;
-            if (gunun.length === 0) continue;
+            /*
+             * Çıkış bağlantısı ikisinin de ÖNKOŞULU, o yüzden burada bir kez
+             * üretiliyor. Üretilemiyorsa bu kişiye hiçbir posta gitmiyor —
+             * çıkışsız bir bildirim postası onayı tek yönlü kapıya çevirir.
+             */
             const unsub = makeUnsubToken({ treeId: u.id, personId: kisi.id });
             if (!unsub) continue;
-            const { html, text } = renderEmail({
-              title: "Bugün ailende",
-              items: gunun,
-              button: { label: "Postaları durdur", url: `${SITE_URL}/contact/cikis/${unsub}` },
+
+            if (gunun.length > 0) {
+              const { html, text } = renderEmail({
+                title: "Bugün ailende",
+                items: gunun,
+                button: { label: "Postaları durdur", url: `${SITE_URL}/contact/cikis/${unsub}` },
+                footer:
+                  "Bu postayı, adresine gönderilen soruyu onayladığın için alıyorsun. İstemediğinde yukarıdaki bağlantıyla tek tıkla durdurabilirsin.",
+              });
+              const gunlukPosta = await sendEmail({
+                to: kisi.contactEmail!,
+                subject: `🌳 Bugün ailende (${gunun.length})`,
+                html,
+                text,
+              });
+              if (gunlukPosta.sent) contacted++;
+            }
+
+            /*
+             * 3) HAFTALIK SORU SERİSİ (madde 39) — kadans.
+             *
+             * Bugüne kadar hikâye bağlantısı HİÇ gönderilmiyordu: uç onu
+             * üretip bir kez yanıtta döndürüyor, ağaç sahibi elle
+             * kopyalıyordu. Motor (`nextPrompt`) "haftalık cron aynı hafta
+             * için aynı soruyu üretmeli" gerekçesiyle yazılmıştı ama o cron
+             * hiç var olmamıştı. Bu dal o borunun eksik parçası.
+             */
+            if (!hikayeGunu || kalanHafta <= 0) continue;
+            const seri = seriOf.get(kisi.id);
+            if (!seri) continue;
+
+            /*
+             * Karar SAF katmanda: hangi hafta, hangi soru, seri bitti mi.
+             * "bitti" ve "atla" dallarında hiçbir şey yapılmıyor — yürüyen
+             * seriyi KAPATMAK ağaç sahibinin işi, zamanlanmış işin değil.
+             * Banka tükendiğinde ekran ilerlemeyi "26/26" gösteriyor.
+             */
+            const haftalik = planWeekly(seri, subjectFromPerson(kisi, data.people), today);
+            if (haftalik.kind !== "gonder") continue;
+
+            /*
+             * Soru metni sözlükten geliyor (`memoryPrompt.<id>`), depoda
+             * kimliği duruyor. Kişi adı yer tutucuya giriyor; "self" sesli
+             * sorularda yer tutucu yok, interpolasyon zararsız geçiyor.
+             */
+            const soruMetni = translate("tr", promptKey(haftalik.promptId), {
+              name: fullName(kisi),
+            });
+            /*
+             * TEK işlemde: geçen haftanın talebi kapanıyor, bu haftanınki
+             * YENİ bir jetonla açılıyor. Gerekçe `issueWeekly`de — 100'lük
+             * talep tavanı ve tek uzun ömürlü jeton bırakmama.
+             */
+            const acilan = await issueWeekly(
+              u.id,
+              seri.id,
+              haftalik.promptId,
+              soruMetni,
+              { id: kisi.id, confidential: kisi.confidential }
+            );
+            if ("error" in acilan) continue;
+
+            const hafta = renderEmail({
+              title: "Bu haftanın sorusu",
+              intro: soruMetni,
+              button: {
+                label: "Yanıtla",
+                url: `${SITE_URL}/hikaye/${u.id}?token=${acilan.token}`,
+              },
+              /*
+               * ÇIKIŞ bağlantısı burada, `note` içinde: `renderEmail` tek
+               * düğme taşıyor ve o düğme bu postada yanıt bağlantısı olmak
+               * zorunda. Tam URL yazılıyor — düz metin sürümünde tıklanabilir
+               * geliyor, HTML sürümünde kopyalanabilir duruyor. Çıkışsız bir
+               * tekrarlayan posta göndermektense biçimden ödün veriyoruz.
+               */
+              note: `Bu haftalık soruları durdurmak için: ${SITE_URL}/contact/cikis/${unsub}`,
               footer:
-                "Bu postayı, adresine gönderilen soruyu onayladığın için alıyorsun. İstemediğinde yukarıdaki bağlantıyla tek tıkla durdurabilirsin.",
+                "Yanıtın doğrudan kayda geçmez; ağacı tutan kişi onayladıktan sonra anılara eklenir.",
             });
-            const r = await sendEmail({
+            const haftaPosta = await sendEmail({
               to: kisi.contactEmail!,
-              subject: `🌳 Bugün ailende (${gunun.length})`,
-              html,
-              text,
+              subject: "🌳 Bu haftanın sorusu",
+              html: hafta.html,
+              text: hafta.text,
             });
-            if (r.sent) contacted++;
+            /*
+             * İŞARET YALNIZ GÖNDERİM BAŞARILIYSA. Talep gönderimden ÖNCE
+             * açılmak zorunda (bağlantı postanın içinde), ama hafta damgası
+             * yalnız posta gittiyse konuyor: düşen bir gönderim, kişinin hiç
+             * görmediği bir soruyu "sorulmuş" saymamalı. Damgasız kalan
+             * hafta ertesi pazar (ya da aynı hafta içindeki bir sonraki
+             * koşuda) AYNI soruyla yeniden deneniyor ve düşen talep
+             * `issueWeekly` tarafından kapatılıyor.
+             */
+            if (haftaPosta.sent) {
+              await markWeeklySent(u.id, seri.id, haftalik.promptId, haftalik.week);
+              weekly++;
+              kalanHafta--;
+            }
           }
 
           /*
@@ -368,7 +515,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const ozet = { ok: true, considered, sent, newsletters, asked, contacted, skipped };
+  const ozet = { ok: true, considered, sent, newsletters, asked, contacted, weekly, skipped };
   /*
    * HER KOŞUDA tek satır. `skipped > 0` uyarı seviyesinde: iş 200 dönüyor
    * ama bazı hesaplar bugün hiç işlenmedi ve bu, büyüme sınırına gelindiğinin
@@ -376,7 +523,7 @@ export async function GET(req: NextRequest) {
    */
   const satir =
     `[hatirlatma] bakilan ${considered}, gonderilen ${sent}, bulten ${newsletters}, ` +
-    `soru ${asked}, kisiye ${contacted}, ${butce.elapsed()} ms`;
+    `soru ${asked}, kisiye ${contacted}, haftalik ${weekly}, ${butce.elapsed()} ms`;
   if (skipped > 0) console.warn(`${satir} — BUTCE DOLDU, ${skipped} hesap atlandi`);
   else console.log(satir);
 
