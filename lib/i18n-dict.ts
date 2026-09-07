@@ -1469,6 +1469,31 @@ export const tr: Dict = {
   "lineage.paternalGrandmother": "Babaanne hattı",
   "lineage.maternalGrandfather": "Dede hattı (anne tarafı)",
   "lineage.maternalGrandmother": "Anneanne hattı",
+  /*
+   * KUŞAK ADI / RÜTBESİ (yol haritası md. 61) — HESAPLANAN etiket.
+   *
+   * Sözcükler `lib/relations.ts` merdiveninden alınmıştır; paralel bir sözlük
+   * değildir: yukarı yön dede/nine + "büyük" önekleri, aşağı yön
+   * çocuk → torun → torun çocuğu. Adın bittiği yer de oradan geliyor
+   * (`NAMED_ANCESTOR_DEPTH` / `NAMED_DESCENDANT_DEPTH`); ötesi sayısal
+   * biçime düşüyor, çünkü "büyük büyük büyük büyük dede" bir ad değil,
+   * sayının uzun yazılmış hâlidir.
+   *
+   * Cinsiyetsiz ve tarafsız: bir kuşak hem dedeyi hem nineyi, hem amcayı hem
+   * teyzeyi kapsar. Bu yüzden "Dede / nine kuşağı" — depodaki "Amca / Dayı"
+   * biçimiyle aynı eğik çizgi kuralı.
+   */
+  "generation.same": "Aynı kuşak",
+  "generation.up.1": "Ebeveyn kuşağı",
+  "generation.up.2": "Dede / nine kuşağı",
+  "generation.up.3": "Büyük dede / nine kuşağı",
+  "generation.up.4": "Büyük büyük dede / nine kuşağı",
+  "generation.up": "{count}. kuşak ata",
+  "generation.down.1": "Çocuk kuşağı",
+  "generation.down.2": "Torun kuşağı",
+  "generation.down.3": "Torun çocuğu kuşağı",
+  "generation.down": "{count}. kuşak torun",
+  "generation.computed": "Kuşak adı ağaçtan hesaplanır — yazılan bir alan değildir.",
   // Kalıtsal örüntü — betimleme, tahmin değil
   "panel.card.heredity": "Kalıtsal örüntü",
   "panel.card.heredityHint": "Kayıtlı bir durum ailede nasıl dağılmış.",
@@ -3679,6 +3704,24 @@ export const en: Dict = {
   "lineage.paternalGrandmother": "Paternal grandmother's line",
   "lineage.maternalGrandfather": "Maternal grandfather's line",
   "lineage.maternalGrandmother": "Maternal grandmother's line",
+  /*
+   * İngilizcede ata merdiveninin gerçek bir karşılığı VAR (grandparent →
+   * great-grandparent …), o yüzden birebir çeviri uydurmaya gerek kalmadı;
+   * uydurulan tek şey olurdu diye "göbek" sözcüğü İngilizceye taşınmadı.
+   * Ad merdiveni Türkçedekiyle aynı mesafede bitiyor (bkz. `lib/generation.ts`)
+   * ve aynı noktada sayısal biçime düşüyor.
+   */
+  "generation.same": "Same generation",
+  "generation.up.1": "Parent generation",
+  "generation.up.2": "Grandparent generation",
+  "generation.up.3": "Great-grandparent generation",
+  "generation.up.4": "Great-great-grandparent generation",
+  "generation.up": "{count} generations up",
+  "generation.down.1": "Child generation",
+  "generation.down.2": "Grandchild generation",
+  "generation.down.3": "Great-grandchild generation",
+  "generation.down": "{count} generations down",
+  "generation.computed": "Generation name is computed from the tree — it is not a stored field.",
   // Hereditary pattern — description, not prediction
   "panel.card.heredity": "Hereditary pattern",
   "panel.card.heredityHint": "How a recorded condition is spread through the family.",
