@@ -30,6 +30,15 @@ export interface Person {
   spouseIds: string[];
   formerSpouseIds?: string[];
   confidential?: boolean;
+  /**
+   * ALAN-BAZLI gizlilik grupları (web `types/family.ts` ile aynı anahtarlar).
+   *
+   * Sunucu bu alanı zaten gönderiyordu; mobil tipi taşımadığı için görüntü
+   * katmanı onu HİÇ göremiyordu — yani kullanıcının "hikâyemi gizle" demesi
+   * telefonda hiçbir şey yapmıyordu. Alan burada olmadan `viewPerson` de
+   * çalışamazdı.
+   */
+  privateFields?: string[];
 }
 
 export interface FamilyData {
