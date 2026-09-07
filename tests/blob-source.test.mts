@@ -102,51 +102,70 @@ check(/blobMissing/.test(drift), "Blob dosyası yoksa ayrı bir durum olarak bil
   check(guard > 0 && guard < yaz, "Blob dosyası yoksa göç yazmaya girmiyor");
 }
 
-/* --- Aynası boşalmış ağaç, BOŞ ağaç değildir ----------------------------- */
+/* --- Aynası GERİDE KALMIŞ ağaç, küçülmüş ağaç değildir ------------------- */
 /*
- * `dbGetFamilyData` yalnız AĞAÇ SATIRI yoksa `null` dönüyor. Kişiler boşsa
- * `{people: []}` dönüyordu ve yedek hiç devreye girmiyordu: çift-yazma en iyi
- * çaba ve 4 sn zaman aşımlı olduğu için ayna bir kez boşalırsa kullanıcı
- * ağacını BOŞ görüyor, hiçbir uyarı çıkmıyordu. Veri duruyor ama yokmuş gibi
- * görünüyor — sessiz ve en kötü türden bir arıza.
+ * Okuma yolu Faz 2d'de Postgres'e döndü ama yazma yolu değişmedi: rota
+ * OKUDUĞUNU değiştirip Blob'a yazıyor. Yani ayna eksik döndüyse o eksiklik
+ * bir sonraki kaydetmede KAYNAĞA geçiyor.
  *
- * Bu iddia, yukarıdaki iki tuzağın üçüncüsü: orada "Blob sanıp Postgres
- * okumak" vardı, burada "Postgres boş diye veri yok sanmak".
+ * Önceki koruma yalnız "Postgres 0 kişi" hâlini yakalıyordu ve iddiası da
+ * öyle yazılmıştı. 300 kişiden 297'si gelen bir aynayı ne koruma ne de
+ * iddia görüyordu; o üç kişi ilk kaydetmede kalıcı olarak siliniyordu.
  */
 {
   const blob = read("../lib/blob.ts");
-  check(/fromDb && fromDb\.people\.length === 0/.test(blob),
-    "Postgres boş kişi döndürdüğünde ayrıca denetleniyor");
-  {
-    const i = blob.indexOf("fromDb.people.length === 0");
-    const j = blob.indexOf("if (fromDb) {", i);
-    const dal = i > -1 && j > i ? blob.slice(i, j) : "";
-    check(/readFromBlob\(userId\)/.test(dal), "boş aynada Blob'a düşülüyor");
-    check(/yedek\.people\.length > 0/.test(dal), "Blob'da kayıt varsa o kullanılıyor");
-    /*
-     * SESSİZ KALMAMALI. Blob'da kayıt varken Postgres boşsa bu bir ayna
-     * boşluğudur; yalnız veriyi kurtarıp susmak, sorunu bulunamaz kılardı.
-     */
-    check(/console\.error\(/.test(dal) && /ayna-boslugu/.test(dal),
-      "ayna boşluğu gürültülü şekilde günlüğe yazılıyor");
-  }
+  const i = blob.indexOf("export async function getFamilyData");
+  const govde = blob.slice(i, blob.indexOf("\n}", i));
+  check(i > -1, "getFamilyData bulundu");
+
+  /* İki sinyal de olmalı: damga farkı ve kişi sayısı farkı. */
+  check(/normalizeStamp\(yedek\.updatedAt\) >[\s\S]{0,60}normalizeStamp\(fromDb\.updatedAt\)/.test(govde),
+    "Blob damgası Postgres jetonundan yeniyse Blob kazanıyor");
+  check(/yedek\.people\?\.length \?\? 0\) > fromDb\.people\.length/.test(govde),
+    "Blob'da DAHA ÇOK kişi varsa Blob kazanıyor (yalnız 'sıfır' değil)");
+  check(/if \(damgaYeni \|\| kisiFazla\)/.test(govde), "iki sinyalden biri yetiyor");
+
+  /*
+   * SESSİZ KALMAMALI ve hangi sinyalin yandığını SÖYLEMELİ: damga farkı bir
+   * yazma hatasını, kişi farkı kısmi bir aynayı işaret eder; ikisi ayrı
+   * sorunlar ve günlükten ayırt edilebilmeli.
+   */
+  check(/console\.error\(/.test(govde) && /ayna-geride/.test(govde),
+    "ayna gerilikliği gürültülü şekilde günlüğe yazılıyor");
+  check(/damgaYeni \? "damga"/.test(govde), "günlük hangi sinyalin yandığını yazıyor");
+
+  /*
+   * BLOB TEK KEZ OKUNUYOR. Eskiden boş ağaçta dosya iki kez okunuyordu
+   * (biri kapak fotoğrafı, biri boşluk denetimi için) — oysa kapak
+   * okuması zaten dosyanın TAMAMINI getiriyor.
+   */
+  check((govde.match(/readRawFromBlob\(userId\)/g) ?? []).length === 1,
+    "Postgres yolunda Blob tek kez okunuyor");
+  check(/yedek\.coverPhoto\) fromDb\.coverPhoto = yedek\.coverPhoto/.test(govde),
+    "kapak fotoğrafı aynı okumadan birleştiriliyor");
+
   /*
    * Denetim, Postgres sonucunun ÖNBELLEĞE yazılmasından önce olmalı: sonra
-   * olsaydı boş sonuç önbelleğe girer ve ayna boşluğu, TTL boyunca yedeğe
-   * hiç düşmeden servis edilirdi.
+   * olsaydı geride kalmış sonuç önbelleğe girer ve TTL boyunca yedeğe hiç
+   * düşmeden servis edilirdi.
    *
    * İddia `getFamilyData` GÖVDESİNE bağlı. İlk hâlinde dosyanın tamamında
    * `indexOf("cache.set(userId")` aranıyordu ve o, bu işlevden ÖNCE gelen
    * `readFromBlob` içindeki çağrıyı buluyordu — iddia kendi kapsamı
    * dışındaki bir satıra bakıp sahte kırmızıya düşüyordu.
    */
-  {
-    const i = blob.indexOf("export async function getFamilyData");
-    const govde = blob.slice(i, blob.indexOf("\n}", i));
-    const iDenetim = govde.indexOf("fromDb.people.length === 0");
-    const iOnbellek = govde.indexOf("cache.set(userId");
-    check(iDenetim > -1 && iOnbellek > iDenetim, "denetim, önbelleğe yazmadan ÖNCE");
-  }
+  const iDenetim = govde.indexOf("damgaYeni || kisiFazla");
+  const iOnbellek = govde.indexOf("cache.set(userId, { json: JSON.stringify(fromDb)");
+  check(iDenetim > -1 && iOnbellek > iDenetim, "denetim, Postgres sonucunu önbelleğe yazmadan ÖNCE");
+
+  /*
+   * TERS YÖN BU KORUMANIN ALTINDA DEĞİL ve olmamalı: Postgres'te FAZLA kişi
+   * olması yayılmamış bir silme demek olabilir, ve orada hangi tarafın
+   * haklı olduğunu okuma anında bilemeyiz — yanlış tahmin silinmiş kişiyi
+   * diriltir. Bu iddia, ileride "simetrik yapalım" diyen birine kuralın
+   * bilerek asimetrik olduğunu söylüyor.
+   */
+  check(!/fromDb\.people\.length > \(yedek/.test(govde), "ters yön (Postgres fazla) burada karara bağlanmıyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
