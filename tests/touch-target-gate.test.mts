@@ -87,23 +87,25 @@ check(/clamp\(1,/.test(css), "büyütme alt/üst sınırla kısıtlı (düğme k
   check(/ft-nub/.test(pn), "kart düğmeleri sınıfı taşıyor");
 }
 
-/* ══ 3. Denetim kümesi kartların üstünü kapatmıyor ═══════════════════════ */
+/* ══ 3. Tuval denetimlerinin dokunma boyu ═══════════════════════════════ */
 /*
  * Küme `!bottom-24` ile ekranın altından 96px yukarıdaydı ve tek sütun
  * hâlinde 28x106px yer kaplıyordu. Ölçek ~0.2'ye düştüğünde bir kişi kartı
  * 28x25px olduğu için sütun TAM DÖRT KARTI örtüyor, o kartlar hiç
  * açılamıyordu — sessiz bir arıza: tıklama gidiyor, hiçbir şey olmuyor.
+ *
+ * KONUM İDDİASI BURADAN TAŞINDI: küme artık tuvalin köşesinde değil, kendi
+ * satırında (bkz. `canvas-chrome-gate.test.mts`). Burada kalan, o onarımın
+ * DİĞER yarısı: düğmelerin dokunma boyu. React Flow'un `ControlButton`ı
+ * `Controls` sarmalayıcısı olmadan da kullanılıyor, dolayısıyla boyu veren
+ * kural hâlâ tek başına ayakta durmak zorunda.
  */
 {
   const ft = kodu(read("../components/FamilyTree.tsx"));
-  const i = ft.indexOf("<Controls");
-  const blok = ft.slice(i, ft.indexOf(">", ft.indexOf("className", i)));
-  check(i > 0, "denetim kümesi bulundu");
-  check(!/!bottom-24/.test(blok), "küme tuvalin ortasına sarkmıyor");
-  check(/!bottom-4/.test(blok), "küme köşede");
-  /* Dar ekranda TEK SATIR: dikey şerit kartların üstüne düşüyordu. */
-  check(/grid-template-columns: repeat\(4, 44px\)/.test(css), "dar ekranda 4x1 satır");
+  check(/<ControlButton/.test(ft), "tuval düğmeleri ControlButton olarak duruyor");
   check(/\.react-flow__controls-button[\s\S]{0,300}?width: 44px/.test(css), "düğmeler dokunma boyunda");
+  check(/@media \(min-width: 1024px\)[\s\S]{0,400}?\.react-flow__controls-button[\s\S]{0,200}?width: 36px/.test(css),
+    "farede kompakt (36px)");
 }
 
 /* ══ 4. Zorunlu alan uyarısı, kullanıcı bir şey yapmadan ÇIKMIYOR ════════ */

@@ -253,26 +253,19 @@ body {
  * yüklüyor. Aynı özgüllükte (tek sınıf) yazılan kuralları kitaplık eziyordu —
  * `width: 32px` yazılıydı ama ölçülen boy 26x26px'ti.
  *
- * Dar ekranda küme TEK SATIR: tek sütun hâlinde 28x106px'lik dikey bir şerit
- * olup tuvalin içine sarkıyor ve altındaki kişi kartlarının dokunmasını
- * yutuyordu (bkz. FamilyTree.tsx'teki Controls yorumu).
+ * SARMALAYICI KURALI KALDIRILDI. Düğmeler bir zamanlar React Flow'un
+ * `<Controls>` bileşeninin içindeydi ve o bileşen tanımı gereği tuvalin
+ * ÜSTÜNE mutlak konumlu bir panel çiziyordu; buradaki ızgara kuralı da o
+ * paneli dar ekranda dikey şerit olmaktan çıkarıp 4x1 satıra sokmak içindi.
+ * Denetimler tuvalin dışına, yerleşimin kendi satırına alındığında
+ * (`FamilyTree.tsx`) sarmalayıcı tümüyle bırakıldı — dolayısıyla o ızgara
+ * kuralı artık hiçbir elemana uymuyordu. Ölü kuralı bırakmak, düğme
+ * yerleşimini hâlâ buranın yönettiği izlenimi verirdi.
  *
- * Neden satır, kare değil: fitView'in bıraktığı boşluk DİKEYDE dar (yüksekliğin
- * ~%15'i, 320x568'de ~68px), yatayda ise kartların altına düşen bir şey yok.
- * 2x2 kare (91x91) o boşluğu 23px aşıp yine dört kartı örtüyordu — ölçüldü.
- * 4x1 satır (179x44) tümüyle boşluğun içinde kalıyor. Düğmeler dokunmada
- * 44px, farede (lg) tek sütun + 36px.
+ * DÜĞME kuralı yaşıyor ve asıl değerli olan o: dokunmada 44px, farede (lg)
+ * 36px. `ControlButton` sarmalayıcısız kullanıldığında da bu sınıfı taşıdığı
+ * için ölçü korunuyor.
  */
-.react-flow__controls {
-  box-shadow: var(--shadow);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  display: grid !important;
-  grid-template-columns: repeat(4, 44px);
-  gap: 1px;
-  background: var(--border);
-}
 .react-flow__controls-button {
   background: var(--surface) !important;
   border: 0 !important;
@@ -284,9 +277,6 @@ body {
   padding: 0 !important;
 }
 @media (min-width: 1024px) {
-  .react-flow__controls {
-    grid-template-columns: 36px;
-  }
   .react-flow__controls-button {
     width: 36px !important;
     height: 36px !important;
@@ -447,7 +437,6 @@ body {
     padding: 0 !important;
   }
   /* Etkileşim süsleri basılmaz */
-  body.print-view .react-flow__controls,
   body.print-view .react-flow__minimap,
   body.print-view .react-flow__background,
   body.print-view .react-flow__attribution { display: none !important; }
