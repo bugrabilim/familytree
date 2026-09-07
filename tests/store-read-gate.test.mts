@@ -79,5 +79,84 @@ for (const ad of DEPOLAR) {
   check(gercek.length === DEPOLAR.length, `depo sayısı eşleşiyor (${gercek.length}/${DEPOLAR.length})`);
 }
 
+/* --- ÇEKİRDEK DEPOLAR — kapının asıl kapsaması gerekenler ---------------- */
+/*
+ * BU BÖLÜM, KAPININ KENDİ KUSURUNDAN DOĞDU.
+ *
+ * Yukarıdaki liste `lib/*-store.ts` DOSYA ADI kalıbıyla tanımlanıyordu ve
+ * "kapsam ölü kalmasın" denetimi de yalnız o kalıptaki dosyaları sayıyordu.
+ * Yani kapı eksiksiz GÖRÜNÜYORDU, oysa uygulamanın en pahalı üç deposu
+ * kalıba girmediği için hiç denetlenmiyordu:
+ *
+ *   · `lib/users.ts`    — bütün hesapların kimliği (`users.json`)
+ *   · `lib/members.ts`  — üyeler, davetler, paylaşım bağlantıları, eşleştirmeler
+ *   · `lib/blob.ts`     — ağacın kendisi (`family-data-*`)
+ *
+ * Üçünde de hatanın orijinal hâli duruyordu: geçici bir okuma hatasında boş
+ * dönmek ve `oku → değiştir → yaz` akışında o boşluğu diske basmak. Bir
+ * denetimin "kapsamım tam" demesi, kapsamı DOSYA ADINDAN türetiyorsa hiçbir
+ * şey ifade etmiyor — bu yüzden buradaki liste ELLE yazılı.
+ */
+{
+  const cekirdek = [
+    ["users", "lib/users.ts", "getUsersData", "hesap kaydı okunamadı"],
+    ["members", "lib/members.ts", "getTreeAccess", "ağaç erişim kaydı okunamadı"],
+    ["blob", "lib/blob.ts", "readFromBlob", "aile verisi okunamadı"],
+  ] as const;
+
+  for (const [ad, yol, islev, mesaj] of cekirdek) {
+    const src = kodu(read(`../${yol}`));
+    const i = src.indexOf(`function ${islev}`);
+    const g = i > -1 ? src.slice(i, src.indexOf("\n}", i)) : "";
+    check(i > -1, `${ad}: ${islev} bulundu`);
+
+    /* Dosya GERÇEKTEN yoksa boş — yeni hesap/ilk kurulum için doğru olan bu. */
+    check(/blobs\.length === 0\) return/.test(g), `${ad}: dosya YOKSA boş dönüyor`);
+
+    /* "Var ama okuyamadım" HATA. Boş dönüş bu dalda olmamalı. */
+    check(/statusCode !== 200\)/.test(g), `${ad}: yanıt kodu denetleniyor`);
+    check(new RegExp(`statusCode !== 200\\)[\\s\\S]{0,120}?throw new Error\\(`).test(g),
+      `${ad}: okunamayan dosyada HATA yükseliyor`);
+    check(g.includes(mesaj), `${ad}: hata mesajı hangi deponun okunamadığını söylüyor`);
+
+    /*
+     * OLUMLU İDDİA — yukarıdaki bölümdeki aynı ders: yanlışın yokluğu,
+     * doğrunun varlığı demek değil. `throw` her yolu kapatıyor olabilir;
+     * başarılı yanıtın hâlâ ayrıştırıldığını ayrıca sınıyoruz.
+     */
+    check(/return (normalizeAccess|await new Response|data;|JSON\.parse)/.test(g),
+      `${ad}: başarılı yanıt hâlâ okunuyor`);
+  }
+
+  /*
+   * Ağaç okumasının SON ÇARESİ de boş dönmemeli. `getFamilyData` içindeki
+   * `catch { return emptyData(); }` yukarıdaki kuralı tek satırda iptal
+   * ediyordu: Postgres de Blob da okunamadığında kullanıcı ağacını boş
+   * görüyor ve kaydettiğinde o boşluk diske iniyordu.
+   */
+  {
+    const blob = kodu(read("../lib/blob.ts"));
+    const i = blob.indexOf("export async function getFamilyData");
+    const g = blob.slice(i, blob.indexOf("\n}", i));
+    check(i > -1, "getFamilyData bulundu");
+    check(/return await readFromBlob\(userId\);/.test(g), "son çare Blob'u okuyor");
+    check(!/catch\s*\{\s*return emptyData\(\);/.test(g), "son çarede boş ağaç dönüşü YOK");
+  }
+
+  /*
+   * Bozuk JSON önbelleğe AYRIŞTIRMADAN ÖNCE yazılmamalı: yazılırsa sonraki
+   * dört saniye boyunca aynı ağaç aynı bozuk metinden okunmaya çalışılır ve
+   * istek istek 500 ile boş arasında gidip gelir.
+   */
+  {
+    const blob = kodu(read("../lib/blob.ts"));
+    const i = blob.indexOf("async function readFromBlob");
+    const g = blob.slice(i, blob.indexOf("\n}", i));
+    const iParse = g.indexOf("JSON.parse(text)");
+    const iCache = g.indexOf("cache.set(userId");
+    check(iParse > -1 && iCache > iParse, "önbellek AYRIŞTIRMADAN SONRA yazılıyor");
+  }
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

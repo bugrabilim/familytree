@@ -26,10 +26,24 @@ function accessPathname(treeId: string) {
 
 const empty = (): TreeAccess => ({ members: [], invites: [] });
 
-export async function getTreeAccess(
-  treeId: string,
-  opts: { strict?: boolean } = {}
-): Promise<TreeAccess> {
+/**
+ * OKUNAMAYAN DOSYA, BOŞ DOSYA DEĞİLDİR.
+ *
+ * Burada tutulan şey üyeler, davetler, paylaşım bağlantıları ve eşleştirmeler.
+ * Geçici bir okuma hatasında boş kayıt dönmek, `oku → değiştir → yaz`
+ * yapan her çağıranın (davet oluştur, üye çıkar, daveti iptal et,
+ * eşleştirme kabul et…) bunların HEPSİNİ silmesi demekti.
+ *
+ * `strict` bayrağı bu tehlike için eklenmişti ama koruma eksikti: "yanıt
+ * geldi ama 200 değil" dalı bayrağa hiç BAKMIYORDU ve koşulsuz boş
+ * dönüyordu. Yani `strict: true` yazan çağıran bile korunmuyordu.
+ *
+ * Bayrak kaldırıldı. Artık tek davranış var ve güvenli olan o: dosya
+ * GERÇEKTEN yoksa boş, "var ama okuyamadım" HATA. Bir yüzey geçici hatada
+ * boş görünmeyi tercih ediyorsa bunu KENDİ çağrısında yakalamalı — orada
+ * görünür olur; burada bir bayrağın arkasında görünmez oluyordu.
+ */
+export async function getTreeAccess(treeId: string): Promise<TreeAccess> {
   const pathname = accessPathname(treeId);
 
   // (1) Önce DOĞRUDAN pathname ile `get` — YENİ yazılan kaydı hemen görür (güçlü
@@ -57,11 +71,17 @@ export async function getTreeAccess(
       (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     )[0];
     const result = await get(latest.pathname, { access: "private", useCache: false });
-    if (!result || result.statusCode !== 200) return empty();
+    if (!result || result.statusCode !== 200)
+      throw new Error(`ağaç erişim kaydı okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
     return normalizeAccess((await new Response(result.stream).json()) as TreeAccess);
   } catch (e) {
-    if (opts.strict) throw e;
-    return empty();
+    /*
+     * Yükseliyor. Eskiden burada `strict` değilse boş kayıt dönülüyordu ve
+     * bayrağı geçirmeyi unutan yedi işlev (davet oluştur/kabul et/iptal et,
+     * üye çıkar, paylaşımları sıfırla, eşleştirme oluştur/kabul et) o boş
+     * kaydı diske yazıyordu.
+     */
+    throw e;
   }
 }
 
@@ -121,13 +141,14 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 /**
  * Ağaç yumuşak silinmiş mi? (yalnız `treeId` bilen çağıranlar için).
  *
- * `strict`: okuma başarısız olursa HATA yükselir, "silinmemiş" denmez.
- * Bu bir gizleme kapısı; okunamayan dosyayı "canlı" saymak, geçici bir Blob
- * hatasında silinmiş ağacın bağlantılarını yeniden açardı. Çağıranlar
- * (girişsiz uçlar) hatayı "bağlantı geçersiz" diye karşılar.
+ * Okuma başarısız olursa HATA yükselir, "silinmemiş" denmez. Bu bir gizleme
+ * kapısı; okunamayan dosyayı "canlı" saymak, geçici bir Blob hatasında
+ * silinmiş ağacın bağlantılarını yeniden açardı. Çağıranlar (girişsiz uçlar)
+ * hatayı "bağlantı geçersiz" diye karşılar. Davranış artık `getTreeAccess`in
+ * kendisinde ve tek — ayrı bir bayrağa gerek kalmadı.
  */
 export async function isTreeDeleted(treeId: string): Promise<boolean> {
-  return isSoftDeleted(await getTreeAccess(treeId, { strict: true }));
+  return isSoftDeleted(await getTreeAccess(treeId));
 }
 
 /**
@@ -142,7 +163,7 @@ export async function isTreeDeleted(treeId: string): Promise<boolean> {
  * döndürmenin anlamı yok.
  */
 export async function markTreeDeleted(treeId: string, deletedAt: string | null): Promise<void> {
-  const data = await getTreeAccess(treeId, { strict: true });
+  const data = await getTreeAccess(treeId);
   if (deletedAt) data.deletedAt = deletedAt;
   else delete data.deletedAt;
   await saveTreeAccess(treeId, data, { mirror: false });
@@ -407,7 +428,7 @@ export async function createShare(
     views: 0,
     visits: [],
   };
-  const data = await getTreeAccess(treeId, { strict: true });
+  const data = await getTreeAccess(treeId);
   const shares = normalizeShares(data);
   shares.unshift(share);
   if (shares.length > MAX_SHARES) shares.length = MAX_SHARES;
@@ -430,7 +451,7 @@ export async function updateShare(
     scope?: ShareScope[] | null;
   }
 ): Promise<ShareLink[] | null> {
-  const data = await getTreeAccess(treeId, { strict: true });
+  const data = await getTreeAccess(treeId);
   const shares = normalizeShares(data);
   const s = shares.find((x) => x.id === id);
   if (!s) return null;
@@ -454,7 +475,7 @@ export async function updateShare(
 
 /** Bir paylaşım bağlantısını siler (kalıcı). Güncel listeyi döndürür. */
 export async function deleteShare(treeId: string, id: string): Promise<ShareLink[]> {
-  const data = await getTreeAccess(treeId, { strict: true });
+  const data = await getTreeAccess(treeId);
   const shares = normalizeShares(data).filter((s) => s.id !== id);
   data.shares = shares;
   data.share = undefined;
@@ -485,7 +506,7 @@ export async function findValidShare(
   for (let attempt = 0; attempt < 3; attempt++) {
     let data: TreeAccess | null = null;
     try {
-      data = await getTreeAccess(parsed.treeId, { strict: true });
+      data = await getTreeAccess(parsed.treeId);
     } catch {
       data = null;
     }
@@ -508,13 +529,14 @@ export async function recordShareVisit(
 ): Promise<void> {
   try {
     /*
-     * `strict`: okuma BAŞARISIZ olduğunda `getTreeAccess` sessizce BOŞ bir
-     * kayıt döndürüyor. Buradan yazmaya devam etmek, geçici bir okuma
-     * hatasında üyeleri ve davetleri boş bir kayıtla ezmek olurdu — hem de
-     * oturumsuz, anonim bir sayfa görüntülemesinin tetiklediği yazımda.
-     * Sayaç kaybetmek, erişim kaydı kaybetmekten iyidir.
+     * Okuma başarısız olursa buradan yazmaya DEVAM ETMEMEK gerekiyordu:
+     * geçici bir okuma hatasında üyeleri ve davetleri boş bir kayıtla ezmek
+     * olurdu — hem de oturumsuz, anonim bir sayfa görüntülemesinin
+     * tetiklediği yazımda. Sayaç kaybetmek, erişim kaydı kaybetmekten iyidir.
+     * `getTreeAccess` artık bu durumda fırlatıyor ve dıştaki `catch` yutuyor:
+     * ziyaret sayılmaz, kayıt korunur.
      */
-    const data = await getTreeAccess(treeId, { strict: true });
+    const data = await getTreeAccess(treeId);
     const shares = normalizeShares(data);
     const s = shares.find((x) => x.id === id);
     if (!s) return;
@@ -676,7 +698,7 @@ export async function removePairing(treeId: string, peerTreeId: string): Promise
    * Katı okuma da şart: boş bir kayıt üstüne yazmak yerine hata versin.
    */
   if (!vardi) return;
-  const b = await getTreeAccess(peerTreeId, { strict: true });
+  const b = await getTreeAccess(peerTreeId);
   b.pairings = (b.pairings ?? []).filter((p) => p.peerTreeId !== treeId);
   await saveTreeAccess(peerTreeId, b);
 }

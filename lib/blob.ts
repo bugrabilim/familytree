@@ -35,6 +35,21 @@ const cache = new Map<string, { json: string; at: number }>();
 
 const emptyData = (): FamilyData => ({ people: [], updatedAt: new Date().toISOString() });
 
+/**
+ * OKUNAMAYAN DOSYA, BOŞ DOSYA DEĞİLDİR.
+ *
+ * Bu ayrım bu depoda yedi yan depoda bulunup düzeltildi ve bir testle
+ * kilitlendi — ama kapı kapsamını `lib/*-store.ts` DOSYA ADI kalıbıyla
+ * tanımlıyordu ve asıl veri o kalıba girmiyordu. Yani hatanın en pahalı
+ * hâli tam da burada, ağacın kendisinde kalmıştı.
+ *
+ * Neden pahalı: uygulama akışı `oku → değiştir → yaz`. Geçici bir okuma
+ * hatasında boş dönmek, kullanıcıya ağacını BOŞ göstermek ve bir sonraki
+ * kaydetmede o boşluğu diske basmaktır. Kimse hata görmez; veri gider.
+ *
+ * Kural: dosya GERÇEKTEN yoksa (`blobs.length === 0`) boş — yeni hesapta
+ * doğru olan bu. "Var ama okuyamadım" ise HATA ve yükselir.
+ */
 async function readFromBlob(userId: string): Promise<FamilyData> {
   const key = blobPathname(userId);
   const { blobs } = await list({ prefix: key });
@@ -43,10 +58,20 @@ async function readFromBlob(userId: string): Promise<FamilyData> {
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
   )[0];
   const result = await get(latest.pathname, { access: "private", useCache: false });
-  if (!result || result.statusCode !== 200) return emptyData();
+  if (!result || result.statusCode !== 200)
+    throw new Error(`aile verisi okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
   const text = await new Response(result.stream).text();
+  /*
+   * ÖNBELLEK AYRIŞTIRMADAN SONRA.
+   *
+   * Önce önbelleğe yazılıyordu: bozuk bir JSON geldiğinde `JSON.parse`
+   * fırlatıyor ama BOZUK METİN önbellekte kalıyordu. Sonraki dört saniye
+   * boyunca aynı ağaç, aynı bozuk metinden okunmaya çalışılıyor ve istek
+   * istek 500 ile boş arasında gidip geliyordu.
+   */
+  const data = JSON.parse(text) as FamilyData;
   cache.set(userId, { json: text, at: Date.now() });
-  return JSON.parse(text) as FamilyData;
+  return data;
 }
 
 /**
@@ -171,11 +196,20 @@ export async function getFamilyData(
   } catch (e) {
     console.warn(`[okuma] postgres→blob yedek (${userId}):`, (e as Error).message);
   }
-  try {
-    return await readFromBlob(userId);
-  } catch {
-    return emptyData();
-  }
+  /*
+   * SON ÇARE DE BOŞ DÖNMÜYOR.
+   *
+   * Buradaki `catch` her hatayı boş ağaca çeviriyordu ve bu, yukarıdaki
+   * kuralı tek satırda iptal ediyordu: Postgres de Blob da okunamadığında
+   * kullanıcı ağacını boş görüyor, bir şey kaydettiğinde de o boşluk diske
+   * iniyordu.
+   *
+   * Artık hata yükseliyor: sayfa 500 verir. Çirkin ama DOĞRU — "ağacınız
+   * boş" demek, okuyamadığımız bir ağaç için söylenebilecek en kötü yalan.
+   * Hiç kaydı olmayan yeni hesap yine boş dönüyor; o yol `readFromBlob`
+   * içinde `blobs.length === 0` ile ayrılmış durumda.
+   */
+  return await readFromBlob(userId);
 }
 
 /* ----------------------------------------------------------------------
