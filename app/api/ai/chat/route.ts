@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
+import { forOutbound } from "@/lib/privacy";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts } from "@/lib/gemini";
@@ -50,7 +51,17 @@ export async function POST(req: NextRequest) {
         .slice(-8)
         .map((h) => ({ role: h.role as "user" | "assistant", text: String(h.text).slice(0, 2000) }))
     : [];
-  const { people } = await getFamilyData(ctx.treeId);
+  const { people: ham } = await getFamilyData(ctx.treeId);
+  /*
+   * GİDEN KANAL SÜZGECİ. Prompt bütün ağacı Gemini'ye taşıyor; gizli
+   * kayıtlar ve gizli alanlar dışarı çıkmamalı. Kural deponun kendi kuralı
+   * (`lib/privacy.ts` → `forOutbound`), posta kanalında zaten uygulanıyordu.
+   *
+   * Bedeli açık: kullanıcı gizli işaretlediği kişiler hakkında AI'a soru
+   * soramaz. `/api/ai/suggest` gizli kişide zaten "AI kapalı" diyor, yani
+   * bu davranış uygulamada zaten var.
+   */
+  const people = forOutbound(ham);
   const prompt = buildChatPrompt(people, question, lang, history);
 
   try {

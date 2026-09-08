@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
+import { forOutbound } from "@/lib/privacy";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts } from "@/lib/gemini";
@@ -40,7 +41,15 @@ export async function POST(req: NextRequest) {
   if (!message) return NextResponse.json({ error: "Mesaj gerekli." }, { status: 400 });
   const lang = body.lang === "en" ? "en" : "tr";
 
-  const { people } = await getFamilyData(ctx.treeId);
+  const { people: ham } = await getFamilyData(ctx.treeId);
+  // Giden kanal süzgeci — gerekçe `lib/privacy.ts` → `forOutbound`.
+  const people = forOutbound(ham);
+  /*
+   * Geçerli kimlikler de SÜZÜLMÜŞ listeden. Ham listeden alınsaydı, AI'ın
+   * hiç görmediği bir gizli kişiye komut üretmesi kabul edilebilirdi —
+   * göstermediğimiz bir kaydı, tahmin edilmiş bir kimlik üzerinden
+   * düzenlenebilir yapmak.
+   */
   const validIds = new Set(people.map((p) => p.id));
 
   try {
