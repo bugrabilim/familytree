@@ -193,7 +193,10 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
     try {
       const res = await fetch(`/api/family/person/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        // İyimser kilit: hücre düzenlemesi de sürüm taşımalı. Aynı dosyadaki
+        // toplu silme taşıyordu, bu çağrı taşımıyordu — yani kilit bu yolda
+        // ÖLÜYDÜ (`versionMismatch` başlık yokken hiç denetim yapmıyor).
+        headers: mutationHeaders(),
         body: JSON.stringify(patch),
       });
       if (!res.ok) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { userMessage } from "@/lib/error-text";
+import { mutationHeaders } from "@/lib/actions";
 import { useCallback, useMemo, useState } from "react";
 import type { Person } from "@/types/family";
 import type { VoiceFact, VoicePerson } from "@/lib/voice";
@@ -135,7 +136,7 @@ export default function VoiceDialog({
 
       const res = await fetch(`/api/family/person/${subject.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: mutationHeaders(),
         body: JSON.stringify(guncelleme),
       });
       const data = await res.json();
