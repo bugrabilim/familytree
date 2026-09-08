@@ -6,6 +6,7 @@ import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
 import { isSoftDeleted } from "@/lib/retention";
+import { mutateStore, type Degistirici } from "@/lib/store-mutate";
 
 const USERS_PATHNAME = "users.json";
 
@@ -24,17 +25,21 @@ const USERS_PATHNAME = "users.json";
  */
 export async function getUsersData(): Promise<UsersData> {
   const { blobs } = await list({ prefix: USERS_PATHNAME });
-  if (blobs.length === 0) return { users: [] };
+  if (blobs.length === 0) return { users: [], updatedAt: "" };
   const latest = blobs.sort(
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
   )[0];
   const result = await get(latest.pathname, { access: "private", useCache: false });
   if (!result || result.statusCode !== 200)
     throw new Error(`hesap kaydı okunamadı (HTTP ${result?.statusCode ?? "yanıt yok"})`);
-  return await new Response(result.stream).json();
+  const kutu = (await new Response(result.stream).json()) as Partial<UsersData>;
+  // Damga eski dosyalarda yok; `""` tutarlı bir başlangıç (bkz. `UsersData`).
+  return { users: kutu.users ?? [], updatedAt: kutu.updatedAt ?? "" };
 }
 
 async function saveUsersData(data: UsersData): Promise<void> {
+  // Her yazma damgayı ileri alır; koruma bunu karşılaştırıyor.
+  data.updatedAt = new Date().toISOString();
   await put(USERS_PATHNAME, JSON.stringify(data), {
     access: "private",
     addRandomSuffix: false,
@@ -42,6 +47,34 @@ async function saveUsersData(data: UsersData): Promise<void> {
     contentType: "application/json",
   });
 }
+
+/**
+ * `users.json` üzerindeki her yazma BURADAN geçer — kayıp yazma koruması.
+ *
+ * Gerekçe `lib/store-mutate.ts` başında ve `UsersData.updatedAt`ta. Kısaca:
+ * sekiz ayrı yazma yolu dosyayı okuyup tamamını geri yazıyordu, araya giren
+ * ikinci bir yazma birincinin satırını siliyordu ve kimse fark etmiyordu.
+ *
+ * `mutateStore` yazmadan HEMEN ÖNCE yeniden okuyup damgayı karşılaştırıyor;
+ * değiştiyse işlem baştan alınıyor. Pencereyi kapatmıyor, daraltıyor —
+ * kapatan tek şey koşullu yazma olurdu ve Blob'da o yok.
+ *
+ * DIŞ ETKİLER GÖVDEYE GİRMEZ: Postgres aynası, Supabase Auth ve önbellek
+ * temizliği çağıranda, mutasyon bittikten SONRA kalıyor. Gövde yeniden
+ * çalıştırılabildiği için içeride olsalardı çakışmada iki kez koşarlardı.
+ */
+function mutateUsers<T>(degistir: Degistirici<UsersData, T>, etiket = "hesap"): Promise<T> {
+  return mutateStore(getUsersData, saveUsersData, degistir, etiket);
+}
+
+/**
+ * `createUser`ın ad çakışmasında fırlattığı işaret.
+ *
+ * Kullanıcıya gösterilecek metin DEĞİL: mesajı rotalar kendi diliyle
+ * veriyor. Kitaplığın kullanıcı metni üretmesi, aynı cümlenin iki yerde
+ * ayrışması demek olurdu.
+ */
+export const AD_DOLU = "ad-dolu";
 
 /**
  * Hesabı kimliğinden bulur.
@@ -131,7 +164,6 @@ export async function createUser(
   recoveryCodeHash: string,
   recoveryCodeIndex: string
 ): Promise<User> {
-  const data = await getUsersData();
   const user: User = {
     id,
     familyName,
@@ -169,8 +201,27 @@ export async function createUser(
     }
   }
 
-  data.users.push(user);
-  await saveUsersData(data);
+  /*
+   * AD TEKİLLİĞİ ARTIK MUTASYONUN İÇİNDE.
+   *
+   * Denetim yalnız rotalarda (`findUserByFamilyName` → 409) duruyordu ve
+   * okuma ile yazma arasında saniyeler vardı: iki kişi aynı adla aynı anda
+   * kaydolduğunda ikisi de denetimi geçiyor, ikisi de yazıyordu. Sonuç ya
+   * aynı adla iki hesap ya da birinin satırının silinmesiydi — ve giriş
+   * `users.json`dan doğrulandığı için kaybeden hesaba bir daha hiç
+   * girilemiyordu (kurtarma kodu verilmiş, Auth kaydı açılmış olmasına
+   * rağmen).
+   *
+   * Rotadaki denetim KALIYOR: kullanıcıya doğru mesajı o veriyor. Burası
+   * son savunma; yarışı yalnız burası kapatabilir, çünkü tek atomik
+   * pencerede hem bakıp hem yazan tek yer burası.
+   */
+  await mutateUsers<true>((data) => {
+    if (data.users.some((u) => u.familyName.toLowerCase() === familyName.toLowerCase()))
+      throw new Error(AD_DOLU);
+    data.users.push(user);
+    return { yaz: true, sonuc: true };
+  }, "hesap");
   // Faz 3 — çift-yazma (best-effort): hesabı Postgres'e de yaz. Giriş hâlâ
   // Blob'dan doğrulanıyor; hata giriş/kayıt akışını ETKİLEMEZ.
   try {
@@ -216,9 +267,9 @@ export async function updateUserNotify(
     notifyNewsletter?: boolean;
   }
 ): Promise<boolean> {
-  const data = await getUsersData();
+  return mutateUsers<boolean>((data) => {
   const user = data.users.find((u) => u.id === id);
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: false };
   if (patch.notifyEmail !== undefined) {
     const e = (patch.notifyEmail ?? "").trim();
     user.notifyEmail = e || undefined;
@@ -231,15 +282,14 @@ export async function updateUserNotify(
       user.notifyReminders = undefined;
       user.notifyMemorials = undefined;
       user.notifyNewsletter = undefined;
-      await saveUsersData(data);
-      return true;
+      return { yaz: true, sonuc: true };
     }
   }
   if (patch.notifyReminders !== undefined) user.notifyReminders = patch.notifyReminders;
   if (patch.notifyMemorials !== undefined) user.notifyMemorials = patch.notifyMemorials;
   if (patch.notifyNewsletter !== undefined) user.notifyNewsletter = patch.notifyNewsletter;
-  await saveUsersData(data);
-  return true;
+  return { yaz: true, sonuc: true };
+  }, "bildirim tercihi");
 }
 
 /**
@@ -259,17 +309,17 @@ export async function updateUserAuthEmail(
     emailTokenExpires?: string | null;
   }
 ): Promise<boolean> {
-  const data = await getUsersData();
+  return mutateUsers<boolean>((data) => {
   const user = data.users.find((u) => u.id === id);
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: false };
   user.authEmail = patch.authEmail || undefined;
   user.authEmailVerified = patch.authEmailVerified || undefined;
   if (patch.emailTokenHash !== undefined)
     user.emailTokenHash = patch.emailTokenHash || undefined;
   if (patch.emailTokenExpires !== undefined)
     user.emailTokenExpires = patch.emailTokenExpires || undefined;
-  await saveUsersData(data);
-  return true;
+  return { yaz: true, sonuc: true };
+  }, "kimlik e-postası");
 }
 
 /**
@@ -283,24 +333,24 @@ export async function updateUserResetToken(
   id: string,
   patch: { resetTokenHash: string | null; resetTokenExpires: string | null }
 ): Promise<boolean> {
-  const data = await getUsersData();
+  return mutateUsers<boolean>((data) => {
   const user = data.users.find((u) => u.id === id);
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: false };
   user.resetTokenHash = patch.resetTokenHash || undefined;
   user.resetTokenExpires = patch.resetTokenExpires || undefined;
-  await saveUsersData(data);
-  return true;
+  return { yaz: true, sonuc: true };
+  }, "sıfırlama jetonu");
 }
 
 export async function updateUserPassword(
   familyName: string,
   newPasswordHash: string
 ): Promise<boolean> {
-  const data = await getUsersData();
+  const yazildi = await mutateUsers<string | null>((data) => {
   const user = data.users.find(
     (u) => u.familyName.toLowerCase() === familyName.toLowerCase()
   );
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: null };
   user.passwordHash = newPasswordHash;
   /*
    * ŞİFRE DEĞİŞTİ → BEKLEYEN SIFIRLAMA JETONU DÜŞER.
@@ -328,12 +378,15 @@ export async function updateUserPassword(
    * doğru olan bu: sıfırlama zaten "bir şeyler ters gitti" demek.
    */
   user.sessionEpoch = new Date().toISOString();
-  await saveUsersData(data);
+  return { yaz: true, sonuc: user.familyName };
+  }, "şifre");
+  if (!yazildi) return false;
   // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
+  // Gövdenin DIŞINDA: çakışmada gövde yeniden koşuyor, ayna iki kez yazmasın.
   try {
-    await dbUpdateAccountPassword(user.familyName, newPasswordHash);
+    await dbUpdateAccountPassword(yazildi, newPasswordHash);
   } catch (e) {
-    console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
+    console.warn(`[cift-yazma] account password→postgres (${yazildi}):`, (e as Error).message);
   }
   return true;
 }
@@ -357,9 +410,9 @@ export async function applyRecoveryReset(
   id: string,
   patch: { passwordHash: string; recoveryCodeHash?: string; recoveryCodeIndex?: string }
 ): Promise<boolean> {
-  const data = await getUsersData();
+  const yazildi = await mutateUsers<string | null>((data) => {
   const user = data.users.find((u) => u.id === id);
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: null };
   user.passwordHash = patch.passwordHash;
   if (patch.recoveryCodeHash) user.recoveryCodeHash = patch.recoveryCodeHash;
   if (patch.recoveryCodeIndex) user.recoveryCodeIndex = patch.recoveryCodeIndex;
@@ -380,11 +433,14 @@ export async function applyRecoveryReset(
    * doğru olan bu: sıfırlama zaten "bir şeyler ters gitti" demek.
    */
   user.sessionEpoch = new Date().toISOString();
-  await saveUsersData(data);
+  return { yaz: true, sonuc: user.familyName };
+  }, "kurtarma sıfırlaması");
+  if (!yazildi) return false;
+  // Ayna gövdenin DIŞINDA — çakışmada gövde yeniden koşuyor.
   try {
-    await dbUpdateAccountPassword(user.familyName, patch.passwordHash);
+    await dbUpdateAccountPassword(yazildi, patch.passwordHash);
   } catch (e) {
-    console.warn(`[cift-yazma] account password→postgres (${user.id}):`, (e as Error).message);
+    console.warn(`[cift-yazma] account password→postgres (${id}):`, (e as Error).message);
   }
   return true;
 }
@@ -403,9 +459,9 @@ export async function applyRecoveryReset(
  * `users.json` zaten kimliğin tek kaynağı.
  */
 export async function setUserDeletedAt(id: string, deletedAt: string | null): Promise<boolean> {
-  const data = await getUsersData();
+  const ok = await mutateUsers<boolean>((data) => {
   const user = data.users.find((u) => u.id === id);
-  if (!user) return false;
+  if (!user) return { yaz: false, sonuc: false };
   if (deletedAt) user.deletedAt = deletedAt;
   else delete user.deletedAt;
   /*
@@ -420,19 +476,24 @@ export async function setUserDeletedAt(id: string, deletedAt: string | null): Pr
     user.emailTokenHash = undefined;
     user.emailTokenExpires = undefined;
   }
-  await saveUsersData(data);
-  silinmisOnbellek = null; // kapı verisi değişti → önbellek geçersiz
-  return true;
+  return { yaz: true, sonuc: true };
+  }, "hesap silme damgası");
+  if (ok) silinmisOnbellek = null; // kapı verisi değişti → önbellek geçersiz
+  return ok;
 }
 
 /** Hesabın `users.json` satırını KALICI olarak siler. */
 export async function deleteUserRow(id: string): Promise<boolean> {
-  const data = await getUsersData();
-  const kalan = data.users.filter((u) => u.id !== id);
-  if (kalan.length === data.users.length) return false;
-  await saveUsersData({ users: kalan });
-  silinmisOnbellek = null;
-  return true;
+  const ok = await mutateUsers<boolean>((data) => {
+    const kalan = data.users.filter((u) => u.id !== id);
+    if (kalan.length === data.users.length) return { yaz: false, sonuc: false };
+    // Kutu YERİNDE değiştiriliyor: `{ users: kalan }` yazmak damgayı da
+    // düşürürdü ve koruma dayanağını kaybederdi.
+    data.users = kalan;
+    return { yaz: true, sonuc: true };
+  }, "hesap satırı");
+  if (ok) silinmisOnbellek = null;
+  return ok;
 }
 
 /*

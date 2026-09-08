@@ -127,8 +127,17 @@ for (const ad of DEPOLAR) {
      * doğrunun varlığı demek değil. `throw` her yolu kapatıyor olabilir;
      * başarılı yanıtın hâlâ ayrıştırıldığını ayrıca sınıyoruz.
      */
-    check(/return (normalizeAccess|await new Response|data;|JSON\.parse)/.test(g),
-      `${ad}: başarılı yanıt hâlâ okunuyor`);
+    /*
+     * Ayrıştırma doğrudan `return`de olmak ZORUNDA değil: `users.json`
+     * okunduktan sonra kutuyu normalleştiriyor (eski dosyalarda `updatedAt`
+     * yok, kayıp yazma koruması onu istiyor). Aranan şey ayrıştırmanın
+     * yapılması ve ARDINDAN bir dönüş olması.
+     */
+    const ayristirma = /(normalizeAccess|new Response\([^)]*\)\.json\(\)|JSON\.parse)/.exec(g);
+    check(!!ayristirma, `${ad}: başarılı yanıt hâlâ okunuyor`);
+    if (ayristirma)
+      check(g.indexOf("return", ayristirma.index) > -1,
+        `${ad}: ayrıştırdıktan sonra gerçekten dönüyor`);
   }
 
   /*

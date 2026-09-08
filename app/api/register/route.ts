@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
+import {
+  AD_DOLU, findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
 import { isDemoFamilyName } from "@/lib/demo-account";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -75,8 +76,16 @@ export async function POST(req: NextRequest) {
     // Düz kod YALNIZ burada, bir kez dönüyor; depoda yalnız hash'i ve indeksi var.
     return NextResponse.json({ success: true, recoveryCode: kurtarma.code }, { status: 201 });
   } catch (err) {
-    console.error("Register error:", err);
     const message = err instanceof Error ? err.message : String(err);
+    /*
+     * AD ÇAKIŞMASI — yukarıdaki ön denetimden SONRA, yazma anında yakalandı.
+     * Yarışı yalnız `createUser` kapatabiliyor (tek atomik pencerede hem
+     * bakıp hem yazan tek yer orası); kullanıcıya söylenecek şey ise
+     * ön denetimin verdiğiyle aynı.
+     */
+    if (message === AD_DOLU)
+      return NextResponse.json({ error: "Bu adla zaten bir hesap var." }, { status: 409 });
+    console.error("Register error:", err);
     const isBlobAuth = message.includes("No blob credentials") || message.includes("BLOB_READ_WRITE_TOKEN");
     return NextResponse.json(
       {
