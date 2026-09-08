@@ -99,6 +99,52 @@ create table if not exists public.accounts (
 create unique index if not exists accounts_family_name_key
   on public.accounts (lower(family_name));
 
+/*
+ * KİMLİĞİN GERİ KALANI (Faz 4 / parça 2'nin ön koşulu).
+ *
+ * Tablo beş sütunla açılmıştı ve `docs/SUPABASE-GECIS.md` parça 2'yi
+ * "veri zaten Postgres + Auth'ta" diye tarif ediyordu. DEĞİLDİ: `User`
+ * tipinin on sekiz alanının on üçü yalnız `users.json`da yaşıyordu.
+ *
+ * `users.json` bu hâliyle emekliye ayrılsaydı sessizce şunlar giderdi:
+ *
+ *  · `deleted_at`        → yumuşak silinmiş hesap GERİ DİRİLİR; silme
+ *                          kararı, kullanıcının haberi olmadan iptal olur.
+ *  · `session_epoch`     → şifre sıfırlama artık oturumları düşürmez;
+ *                          çalınmış çerez yaşamaya devam eder (bu korumayı
+ *                          eklemenin tek sebebi buydu).
+ *  · `recovery_code_index` → kurtarma koduyla sıfırlama hiç çalışmaz.
+ *  · `reset_token_*`, `email_token_*` → yoldaki bütün sıfırlama ve
+ *                          doğrulama bağlantıları ölür.
+ *  · `auth_email*`       → e-postayla kurtarma yolu kapanır.
+ *  · `notify_*`          → bildirim ONAYLARI sıfırlanır (onay kaydı).
+ *
+ * Sütunlar `if not exists` ile ekleniyor: şema betiği yeniden koşturulabilir
+ * olmalı, ilk kurulumda da var olan veritabanında da aynı sonucu vermeli.
+ */
+alter table public.accounts add column if not exists recovery_code_index text;
+alter table public.accounts add column if not exists session_epoch       timestamptz;
+alter table public.accounts add column if not exists deleted_at          timestamptz;
+alter table public.accounts add column if not exists auth_email          text;
+alter table public.accounts add column if not exists auth_email_verified boolean;
+alter table public.accounts add column if not exists email_token_hash    text;
+alter table public.accounts add column if not exists email_token_expires timestamptz;
+alter table public.accounts add column if not exists reset_token_hash    text;
+alter table public.accounts add column if not exists reset_token_expires timestamptz;
+alter table public.accounts add column if not exists notify_email        text;
+alter table public.accounts add column if not exists notify_reminders    boolean;
+alter table public.accounts add column if not exists notify_memorials    boolean;
+alter table public.accounts add column if not exists notify_newsletter   boolean;
+
+/*
+ * Kurtarma kodu İNDEKSTEN bulunuyor (`findUserByRecoveryIndex`): kod tek
+ * başına hesabı gösterebiliyor, ağaç adı sorulmuyor. Okuma yolu Postgres'e
+ * döndüğünde bu arama indekssiz tam tarama olurdu.
+ */
+create index if not exists accounts_recovery_code_index_key
+  on public.accounts (recovery_code_index)
+  where recovery_code_index is not null;
+
 -- ── Paylaşımlı hız sınırı ────────────────────────────────────────────────────
 -- `lib/rate-limit.ts` örnek-içi bellekte çalışıyordu; sunucusuz ortamda her
 -- örneğin kendi kovası olduğu için bu GERÇEK bir sınır değildi: yeterince
