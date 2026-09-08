@@ -34,6 +34,13 @@ const KOK = new URL("../app/api", import.meta.url).pathname;
  */
 const OTURUM_KORUMALARI = [
   "resolveActiveTree(",   // oturum + aktif ağaç (web ve mobil ortak)
+  /*
+   * Kurucuya özel uçların ortak kapısı. `resolveActiveTree`in üstüne
+   * `isFounder` ekliyor, dolayısıyla ondan DAHA sıkı; ayrıca silinmekte
+   * olan hesap ve şifre sıfırlama çağı denetimlerini de taşıyor —
+   * `auth()` ikisini de atlıyordu (`lib/tree-context.ts`).
+   */
+  "resolveFounder(",
   "auth()",               // NextAuth oturumu
   "isAdminAccount(",      // site işletmecisi
   "CRON_SECRET",          // zamanlanmış iş sırrı (sunucudan sunucuya)

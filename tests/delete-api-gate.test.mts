@@ -126,8 +126,14 @@ const kodu = (src: string) =>
   check(/listDeletedTrees\(/.test(trees), "silinmiş ağaçlar ayrı alanda listeleniyor");
 
   const restore = kodu(read("../app/api/trees/restore/route.ts"));
-  check(/auth\(\)/.test(restore), "geri alma oturum istiyor");
-  check(/isFounder/.test(restore), "geri almayı yalnız ağaç sahibi yapabilir");
+  /*
+   * Oturum + kurucu denetimi artık ORTAK kapıda (`resolveFounder`). Kopya
+   * kapı, silinmekte olan hesabın ve çerezi çalınmış kullanıcının ağaç
+   * silip geri alabildiği boşluğun kaynağıydı: o iki denetim yalnız
+   * `resolveActiveTree` içinde yaşıyor, `auth()` ikisini de atlıyordu.
+   */
+  check(/resolveFounder\(/.test(restore), "geri alma ortak kurucu kapısından geçiyor");
+  check(!/auth\(\)/.test(restore), "kendi kopya kapısını KURMUYOR");
   check(/restoreTree\(/.test(restore), "geri alma kütüphaneye devrediyor");
 
   /* ANA AĞAÇ: kural kütüphanede, çünkü hesap akışı da aynı kuralı kullanıyor. */
