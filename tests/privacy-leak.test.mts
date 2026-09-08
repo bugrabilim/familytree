@@ -384,6 +384,47 @@ const kodu = (src: string) =>
 }
 {
   /*
+   * SAYIM ve SIRALAMA da maskeli listeden — çizimi maskelemek yetmez.
+   *
+   * `computeStats` `oldestLivingAge`, `avgLifespan`, `topBirthPlace` gibi
+   * TOPLAMLAR üretiyor. Ham listeden hesaplandığında sayının KENDİSİ
+   * gizlenen kaydı ele veriyor: `hideLiving` açıkken bile "yaşayanların en
+   * yaşlısı: 97" yazıyor, yani kartında doğum tarihi gizlenen kişinin yaşını
+   * yıl hassasiyetinde veriyordu.
+   *
+   * Aynı sınıf "en yaşlı beş" listesinde: çizim `view()`ten geçiyordu ama
+   * LİSTEYE KİMİN GİRDİĞİ ham tarihlerden hesaplanıyordu, dolayısıyla
+   * gizlenen veri listeye üye olmakla ele veriliyordu.
+   */
+  const src = kodu(read("../components/PanelView.tsx"));
+  check(/computeStats\(shown\)/.test(src), "PanelView: istatistikler maskeli listeden");
+  check(!/computeStats\(people\)/.test(src), "PanelView: ham sayım kalmadı");
+  check(/\[\.\.\.shown\]/.test(src), "PanelView: 'en yaşlı' SEÇİMİ maskeli listeden");
+  check(/<ReportCardView people=\{shown\}/.test(src),
+    "aile karnesi maskeli listeden besleniyor");
+  check(!/<ReportCardView people=\{people\}/.test(src), "karneye ham liste gitmiyor");
+  {
+    // `shown` tanımı, onu KULLANAN sayımlardan önce gelmeli.
+    const tanim = src.indexOf("const shown =");
+    const kullanim = src.indexOf("computeStats(shown)");
+    check(tanim > -1 && kullanim > tanim, "maskeli liste kullanımdan önce tanımlı");
+  }
+}
+{
+  /*
+   * AİLE KARNESİ `privateFields` gruplarını KENDİ İÇİNDE uygulamıyor:
+   * `ref()` yalnız `confidential` için adı boşaltıyor, `events` grubunu
+   * hiç sormuyordu. Karşı örnek aynı depoda — `CalendarView` `view(p).events`
+   * okuyor. Çözüm karneye maskeli liste vermek, yani gizlilik tek kapıda
+   * (`lib/privacy.ts`) kalıyor; karne kendi kopya kuralını KURMAMALI.
+   */
+  const rc = kodu(read("../lib/report-card.ts"));
+  check(!/privateFields/.test(rc), "karne kendi kopya gizlilik kuralını kurmuyor");
+  check(/confidential/.test(rc), "gizli kayıtta ad boşaltma karnede duruyor");
+}
+
+{
+  /*
    * DÜZENLENEBİLİR görünümde ek kural: gizli hücre SALT-OKUNUR olmalı.
    * Boş bir girdi kutusu gösterilseydi, kullanıcının oraya yazdığı her şey
    * arkasındaki gerçek veriyi sessizce silerdi — göremediği bir alanı
