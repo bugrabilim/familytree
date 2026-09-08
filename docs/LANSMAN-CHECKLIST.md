@@ -12,6 +12,19 @@ Zorunlu:
 - [ ] Supabase: `SUPABASE_URL` (ya da `NEXT_PUBLIC_SUPABASE_URL`),
       `SUPABASE_SERVICE_ROLE_KEY` (ya da `SUPABASE_SECRET_KEY`),
       `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] **VERCEL ÜCRETSİZ PLAN: GÜNDE 100 DAĞITIM.** 2026-09-08'de bu sınıra
+      takıldık (`api-deployments-free-per-day`) ve `main`'e birleşen kod
+      **üretime çıkmadı** — derleme reddedildi, kimse durmadı, depo ile canlı
+      arasında sessiz bir fark oluştu. Tehlikesi burada: birleşmiş bir PR
+      "yayında" sanılır.
+      Her birleştirme **iki** dağıtım üretiyor (önizleme + üretim), yani
+      günde ~50 PR tavan. Yoğun bir günde:
+        · birleştirmeyi seyrelt, ya da
+        · Pro'ya geç (sınır kalkar; ayrıca otomatik yedek ve proje
+          duraklatmama da o planda — bkz. Supabase satırı).
+      Lansman günü **art arda birleştirme yapma**; son dağıtımın gerçekten
+      `Ready` olduğunu Vercel > Deployments'tan doğrula.
+
 - [ ] **`AUTH_BCRYPT_FALLBACK` ÜRETİMDE TANIMLI OLMAMALI.** Bu değişken bir
       acil durum anahtarı: Supabase Auth kesintisinde kurucu girişini eski
       bcrypt yoluna geri açar (Faz 4/1b). Kesinti bitince **kaldırılmalı** —
