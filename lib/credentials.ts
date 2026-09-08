@@ -3,6 +3,7 @@ import { findUserByFamilyName } from "@/lib/users";
 import { findMemberByPassword, findMemberByUsername } from "@/lib/members";
 import {
   authEmailForAccount,
+  authEmailOfAccount,
   isBcryptFallbackEnabled,
   isSupabaseLoginEnabled,
   supabaseVerifyPassword,
@@ -121,7 +122,23 @@ export async function verifyLogin(
   };
 
   if (isSupabaseLoginEnabled()) {
-    if (await supabaseVerifyPassword(authEmailForAccount(user.id), password)) {
+    /*
+     * ADRES KİMLİKTEN ÇÖZÜLÜYOR, sentetik adres yalnız yedek.
+     *
+     * Kurucu gerçek e-postasını bağladığında Auth kullanıcısının adresi
+     * onunla değişiyor (`updateAccountAuthEmail`); sentetik adres o andan
+     * sonra Auth'ta kimseye ait değil. Bcrypt yedeği bunu gizliyordu —
+     * yedek kalkınca aynı durum, e-postasını bağlamış kurucu için
+     * KİLİTLENME oluyor.
+     *
+     * Arama düşerse sentetik adrese düşülüyor: ölçemediğimiz için girişi
+     * tümden kesmek, çözmeye çalıştığımız kilitlenmeyi geri getirirdi.
+     *
+     * `user.id` üçüncü argüman olarak veriliyor — oturumun gerçekten BU
+     * hesaba ait olduğu doğrulansın diye (gerekçe `supabaseVerifyPassword`).
+     */
+    const email = (await authEmailOfAccount(user.id)) ?? authEmailForAccount(user.id);
+    if (await supabaseVerifyPassword(email, password, user.id)) {
       return founderSession;
     }
   }
@@ -190,7 +207,9 @@ export async function verifyFounderPassword(
 ): Promise<boolean> {
   if (!password || !user?.passwordHash) return false;
   if (isSupabaseLoginEnabled()) {
-    if (await supabaseVerifyPassword(authEmailForAccount(user.id), password)) return true;
+    // Adres ve kimlik denetimi `verifyLogin`dekiyle aynı; gerekçe orada.
+    const email = (await authEmailOfAccount(user.id)) ?? authEmailForAccount(user.id);
+    if (await supabaseVerifyPassword(email, password, user.id)) return true;
   }
   /*
    * Aynı kapı burada da: `verifyLogin` bcrypt'i kabul etmiyorsa, hesabı
