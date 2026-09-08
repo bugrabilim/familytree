@@ -1,6 +1,7 @@
 "use client";
 
 import { userMessage } from "@/lib/error-text";
+import { mutationHeaders } from "@/lib/actions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
@@ -256,7 +257,9 @@ export default function AiChat({
           if (data.act.relation) payload.relation = data.act.relation;
           const add = await fetch("/api/family/person", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // Kilit burada özellikle önemli: araya giren `/api/ai/act` turu
+            // saniyeler sürüyor, yani okuma ile yazma arasındaki pencere geniş.
+            headers: mutationHeaders(),
             body: JSON.stringify(payload),
           });
           const addData = await add.json().catch(() => null);

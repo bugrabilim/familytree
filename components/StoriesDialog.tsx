@@ -203,6 +203,10 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
     try {
       const res = await fetch("/api/family/stories", {
         method: "PATCH",
+        // kilit-yok: `seriesId` dalı rotada iyimser kilitten ÖNCE dönüyor
+        // — ağaca değil, hikâye deposuna yazıyor ve orada `mutateStore`
+        // kayıp yazmayı zaten engelliyor. Ağaç damgasını göndermek yanlış
+        // dosyanın sürümüne bakmak olurdu.
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seriesId }),
       });
@@ -221,6 +225,8 @@ export default function StoriesDialog({ people, editable, onClose, onApplied }: 
     try {
       await fetch("/api/family/stories", {
         method: "PATCH",
+        // kilit-yok: `requestId` dalı da kilitten önce dönüyor; yaptığı
+        // şey ağaca yazmak değil, talebi kapalı işaretlemek.
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId }),
       });
