@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
+import { AD_DOLU, findUserByFamilyName, createUser, issueRecoveryCode } from "@/lib/users";
 import { isDemoFamilyName } from "@/lib/demo-account";
 import { isMobileTokenConfigured, signMobileToken } from "@/lib/mobile-token";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -59,7 +59,18 @@ export async function POST(req: NextRequest) {
   const [passwordHash, kurtarma] = await Promise.all([hash(password, 12), issueRecoveryCode()]);
   const recoveryCode = kurtarma.code;
   const id = crypto.randomUUID();
-  await createUser(id, familyName, passwordHash, kurtarma.hash, kurtarma.index);
+  try {
+    await createUser(id, familyName, passwordHash, kurtarma.hash, kurtarma.index);
+  } catch (e) {
+    /*
+     * Ad çakışması yukarıdaki ön denetimden SONRA, yazma anında yakalandı
+     * (yarışı yalnız `createUser` kapatabiliyor). Kullanıcıya söylenecek şey
+     * ön denetiminkiyle aynı; başka her hata yükseliyor.
+     */
+    if ((e as Error)?.message === AD_DOLU)
+      return NextResponse.json({ error: "Bu adla zaten bir hesap var." }, { status: 409 });
+    throw e;
+  }
 
   const token = await signMobileToken({ sub: id, name: familyName, role: "yonetici", isFounder: true, treeName: familyName });
 

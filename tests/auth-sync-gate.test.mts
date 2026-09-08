@@ -77,7 +77,12 @@ check(auth.includes("export async function syncAccountAuthPassword"), "yerine ka
   const g = users.slice(users.indexOf("export async function createUser"));
   const govde = g.slice(0, g.indexOf("\n}\n") + 3);
   const iceAktar = govde.indexOf("importAccountToAuth");
-  const yaz = govde.indexOf("saveUsersData");
+  /*
+   * Yazma artık doğrudan `saveUsersData` değil: `users.json`ın sekiz yazma
+   * yolu kayıp yazma korumasına alındı, dolayısıyla yazma `mutateUsers`ın
+   * içinden geçiyor. Aranan SIRA değişmedi — Auth önce, yerel sonra.
+   */
+  const yaz = govde.indexOf("mutateUsers");
   check(iceAktar > -1 && yaz > -1 && iceAktar < yaz,
     "içe aktarma users.json yazmasından ÖNCE (düşerse ad rezerve kalmasın)");
   check(/importAccountToAuth[\s\S]{0,300}throw new Error/.test(govde),

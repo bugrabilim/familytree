@@ -89,6 +89,23 @@ export interface User {
 
 export interface UsersData {
   users: User[];
+  /**
+   * Kutunun sürüm damgası — KAYIP YAZMA korumasının dayanağı
+   * (`lib/store-mutate.ts`).
+   *
+   * `users.json` bütün hesapların TEK dosyası, yani çakışma olasılığı bir
+   * ağacın değil SİSTEMİN toplam yazma hızıyla ölçekleniyor. Damga olmadan
+   * iki eşzamanlı kayıt birbirinin satırını siliyordu; kaybeden kullanıcı
+   * başarı ekranını ve kurtarma kodunu GÖRÜYOR, Auth kaydı ve Postgres
+   * satırı açılmış oluyor, ama giriş `users.json`dan doğrulandığı için o
+   * hesaba bir daha hiç girilemiyordu.
+   *
+   * Eski dosyalarda YOK: `getUsersData` okurken `""` ile dolduruyor. İlk
+   * başarılı yazmaya kadar iki eşzamanlı yazma aynı boş damgayı görebilir —
+   * bu tek seferlik pencere bilerek kabul edildi, kapatmanın tek yolu
+   * dosyayı önden damgalamaktı ve o da aynı yarışa açıktı.
+   */
+  updatedAt: string;
 }
 
 /**
