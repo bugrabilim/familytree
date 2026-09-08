@@ -12,6 +12,15 @@ Zorunlu:
 - [ ] Supabase: `SUPABASE_URL` (ya da `NEXT_PUBLIC_SUPABASE_URL`),
       `SUPABASE_SERVICE_ROLE_KEY` (ya da `SUPABASE_SECRET_KEY`),
       `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] **`CRON_SECRET` LANSMAN ÖNCESİ DÖNDÜRÜLECEK.** Geliştirme sırasında
+      değer bir sohbet penceresine yapıştırıldı; yani artık bir kayıtta
+      duruyor ve sır sayılamaz. MVP'de kabul edilebilir, canlıda değil:
+      bu tek değer `/api/health`, iki zamanlanmış iş ve operatör hesap
+      panelinin (`/admin/accounts` — hesap silebiliyor) TEK kapısı.
+      Yapılacak: `openssl rand -hex 32` → Vercel'de değişkeni **Edit** →
+      **yeniden dağıt**. Kod değişmiyor, hepsi aynı `process.env`i okuyor.
+      Değeri bir daha sohbete, bilet açıklamasına ya da commit'e yazma.
+
 - [ ] `CRON_SECRET` — `openssl rand -hex 32`. **İki zamanlanmış iş de buna
       bağlı** (`/api/cron/reminders`, `/api/cron/backup`) ve ikisi de kapalı
       düşüyor: değişken yoksa istek 401 alır, yani günlük hatırlatma
