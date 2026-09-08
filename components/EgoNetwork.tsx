@@ -154,9 +154,16 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg" aria-hidden>🕸️</span>
           <div className="min-w-0">
-            <p className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
+            {/*
+              B9 — bu satır zaten görünümün BAŞLIĞI; eksik olan yalnız işaret
+              diliydi (`p` idi, ekran okuyucu başlık gezinmesinde göremiyordu).
+              Görsel hiçbir şey değişmiyor: sınıflar aynı. Gizli bir `sr-only`
+              başlık eklemek yerine var olanı doğru etiketlemek, iki başlığın
+              zamanla ayrışması riskini de ortadan kaldırıyor.
+            */}
+            <h1 className="font-serif font-semibold text-[15px] leading-tight text-text truncate">
               {t("ego.title")}
-            </p>
+            </h1>
             <p className="text-[11px] leading-tight text-text-muted truncate">
               {t("ego.centeredOn", { name: fullName(center) })}
             </p>
@@ -189,7 +196,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="ml-auto lg:ml-0 w-9 h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+            className="ml-auto lg:ml-0 w-9 h-11 lg:h-9 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -312,7 +319,8 @@ function EgoCard({
       onClick={onClick}
       title={openLabel}
       style={{ left: x, top: y }}
-      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 w-[120px] group ${
+      className={`
+            absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 w-[120px] group ${
         center ? "z-10" : ""
       }`}
     >
@@ -337,8 +345,12 @@ function EgoCard({
         <span className={`block text-xs font-medium leading-tight break-words line-clamp-3 ${center || associate ? "" : "text-text"}`}>
           {fullName(person)}
         </span>
+        {/* `text-accent/80` DEĞİL: %80 saydamlık, tokenin `bg-accent-soft`
+            üzerinde ölçülen 5.17'lik oranını 3.48'e düşürüyordu — 10px'lik
+            bir alt satırda. Saydamlık, kontrast bütçesinden sessizce
+            harcanan bir hiyerarşi kaynağı. */}
         {subtitle && (
-          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : associate ? "text-accent/80" : "text-text-muted"}`}>
+          <span className={`block text-[10px] leading-tight tabular-nums truncate ${center ? "opacity-80" : associate ? "text-accent" : "text-text-muted"}`}>
             {subtitle}
           </span>
         )}

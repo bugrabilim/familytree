@@ -171,7 +171,7 @@ export default function BondSection({
             bir düğme; parmakla basmak yandaki metni seçmekle aynı olasılıktaydı.
             Dokunmada 44px, farede eskisi gibi sıkı.
           */
-          className="-mx-1.5 px-1.5 min-h-11 lg:min-h-0 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
+          className="-mx-1.5 px-1.5 min-h-11 lg:min-h-8 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -224,13 +224,13 @@ export default function BondSection({
             <button
               onClick={kaydet}
               disabled={busy || (!form.id && !form.other)}
-              className="px-3 h-8 rounded-xl bg-primary text-primary-text text-xs font-medium disabled:opacity-50"
+              className="px-3 h-11 lg:h-8 rounded-xl bg-primary text-primary-text text-xs font-medium disabled:opacity-50"
             >
               {t("bond.save")}
             </button>
             <button
               onClick={() => setForm(null)}
-              className="px-3 h-8 rounded-xl bg-surface border border-border text-xs"
+              className="px-3 h-11 lg:h-8 rounded-xl bg-surface border border-border text-xs"
             >
               {t("bond.cancel")}
             </button>

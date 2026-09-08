@@ -310,9 +310,10 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                   key={o.k}
                   onClick={() => setScope(o.k)}
                   aria-pressed={scope === o.k}
-                  className={`px-3 py-1.5 transition-colors ${
+                  className={`
+            min-h-11 lg:min-h-0 px-3 py-1.5 transition-colors ${
                     scope === o.k
-                      ? (o.k === "cevre" ? "bg-accent text-white" : "bg-primary text-primary-text")
+                      ? (o.k === "cevre" ? "bg-accent text-accent-on" : "bg-primary text-primary-text")
                       : "text-text-muted hover:text-text"
                   }`}
                 >
@@ -468,7 +469,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                     <li key={p.id}>
                       <button
                         onClick={() => onSelect(p.id)}
-                        className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                        className="min-h-11 lg:min-h-0 w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
                       >
                         <Avatar person={p} size="sm" />
                         <div className="min-w-0 flex-1">
@@ -517,7 +518,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <Button size="sm" onClick={mergeSelected} disabled={bulkBusy}>
                           {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
                         </Button>
-                        <button onClick={() => setSelConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-muted hover:text-text">
+                        <button onClick={() => setSelConfirm(false)} disabled={bulkBusy} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
                           {t("merge.cancel")}
                         </button>
                       </>
@@ -525,11 +526,11 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                       <>
                         <button
                           onClick={() => { setBulkConfirm(false); setSelConfirm(true); }}
-                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-text text-[11px] font-medium hover:brightness-110 transition-all"
+                          className="inline-flex items-center gap-1.5 h-11 lg:h-8 px-3 rounded-lg bg-primary text-primary-text text-[11px] font-medium hover:brightness-110 transition-all"
                         >
                           {t("panel.dup.mergeSelected", { count: selPairs.size })}
                         </button>
-                        <button onClick={() => setSelPairs(new Set())} className="text-[11px] text-text-muted hover:text-text">
+                        <button onClick={() => setSelPairs(new Set())} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
                           {t("history.clearSelection")}
                         </button>
                       </>
@@ -545,14 +546,14 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <Button size="sm" onClick={mergeAll} disabled={bulkBusy}>
                           {bulkBusy ? t("merge.working") : t("panel.dup.mergeAllYes")}
                         </Button>
-                        <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} className="text-[11px] text-text-muted hover:text-text">
+                        <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
                           {t("merge.cancel")}
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => setBulkConfirm(true)}
-                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary text-[11px] font-medium hover:brightness-105 transition-all"
+                        className="inline-flex items-center gap-1.5 h-11 lg:h-8 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary text-[11px] font-medium hover:brightness-105 transition-all"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
                           <path d="M8 7h8m-8 0L5 4m3 3L5 10m11-3 3-3m-3 3 3 3M6 17h12m0 0-3-3m3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -597,13 +598,13 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                         <>
                           <button
                             onClick={() => setMergePair({ a, b })}
-                            className="text-[11px] font-medium text-primary hover:underline shrink-0"
+                            className="min-h-11 lg:min-h-0 text-[11px] font-medium text-primary hover:underline shrink-0"
                           >
                             {t("panel.dup.merge")}
                           </button>
                           <button
                             onClick={() => ignorePair(d.aId, d.bId)}
-                            className="text-[11px] text-text-muted hover:text-text shrink-0"
+                            className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text shrink-0"
                           >
                             {t("panel.dup.ignore")}
                           </button>
@@ -738,7 +739,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                 <button
                   key={s.name}
                   onClick={() => openDrill(s.name, shown.filter((p) => p.lastName === s.name))}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface-3 text-xs text-text transition-colors"
+                  className="min-h-11 lg:min-h-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface-3 text-xs text-text transition-colors"
                 >
                   {s.name}
                   <span className="text-text-muted tabular-nums">{s.count}</span>
@@ -766,7 +767,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                     onSelect(p.id);
                     setDrill(null);
                   }}
-                  className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+                  className="min-h-11 lg:min-h-0 w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
                 >
                   <Avatar person={p} size="sm" />
                   <span className="text-sm text-text truncate flex-1 min-w-0 leading-tight">{fullName(p)}</span>
@@ -806,7 +807,8 @@ function MiniStat({
   );
   const cls = wide ? "col-span-2" : "";
   return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} group text-left rounded-lg -m-1 p-1 hover:bg-surface-2 transition-colors cursor-pointer`}>
+    <button type="button" onClick={onClick} className={`
+            min-h-11 lg:min-h-0 ${cls} group text-left rounded-lg -m-1 p-1 hover:bg-surface-2 transition-colors cursor-pointer`}>
       {inner}
     </button>
   ) : (
@@ -868,7 +870,7 @@ function AgeList({
         <li key={p.id}>
           <button
             onClick={() => onSelect(p.id)}
-            className="w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
+            className="min-h-11 lg:min-h-0 w-full flex items-center gap-3 px-2 py-2 -mx-2 rounded-xl hover:bg-surface-2 transition-colors text-left"
           >
             <Avatar person={p} size="sm" />
             <div className="min-w-0 flex-1">
@@ -914,7 +916,7 @@ function AgeRangeFinder({
   }, [rows, min, max, livingOnly]);
 
   const inputCls =
-    "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary";
+    "w-full h-11 lg:h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary";
 
   return (
     <div className="space-y-3">
@@ -931,7 +933,7 @@ function AgeRangeFinder({
             onChange={(e) => setMax(e.target.value)} className={inputCls} />
         </label>
       </div>
-      <label className="flex items-center gap-2 text-sm text-text cursor-pointer select-none">
+      <label className="flex items-center gap-2 min-h-11 lg:min-h-0 text-sm text-text cursor-pointer select-none">
         <input type="checkbox" checked={livingOnly} onChange={(e) => setLivingOnly(e.target.checked)}
           className="ui-check" />
         {t("panel.ageRange.livingOnly")}
@@ -1021,7 +1023,7 @@ function GenderPie({
               <button
                 type="button"
                 onClick={() => onPick(a.g, a.label)}
-                className="w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1 hover:bg-surface-2 transition-colors"
+                className="min-h-11 lg:min-h-0 w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1 hover:bg-surface-2 transition-colors"
               >
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ background: genderTone(a.g).css }} aria-hidden />
                 <span className="text-sm text-text flex-1 min-w-0 truncate">{a.label}</span>
@@ -1101,7 +1103,7 @@ function MiniDonut({
                 <button
                   type="button"
                   onClick={() => onPick(a.label, a.people)}
-                  className="w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1 hover:bg-surface-2 transition-colors"
+                  className="min-h-11 lg:min-h-0 w-full flex items-center gap-2.5 text-left rounded-lg px-1.5 py-1 hover:bg-surface-2 transition-colors"
                 >
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ background: a.color }} aria-hidden />
                   <span className="text-sm text-text flex-1 min-w-0 truncate">{a.label}</span>
@@ -1160,7 +1162,7 @@ function BarChart({
                   <button
                     type="button"
                     onClick={() => onPick!(b.label, b.people!)}
-                    className="w-full flex items-center gap-2.5 text-left rounded-lg px-1 py-0.5 hover:bg-surface-2 transition-colors"
+                    className="min-h-11 lg:min-h-0 w-full flex items-center gap-2.5 text-left rounded-lg px-1 py-0.5 hover:bg-surface-2 transition-colors"
                   >
                     {inner}
                   </button>
@@ -1228,7 +1230,7 @@ function VBarChart({
                 type="button"
                 onClick={() => onPick!(b.label, b.people!)}
                 title={`${b.label}: ${b.value}`}
-                className="flex-1 min-w-0 flex flex-col items-center rounded-lg hover:bg-surface-2 transition-colors"
+                className="min-h-11 lg:min-h-0 flex-1 min-w-0 flex flex-col items-center rounded-lg hover:bg-surface-2 transition-colors"
               >
                 {col}
               </button>
@@ -1305,7 +1307,7 @@ function RelativesFinder({
   }, [relatives, filter]);
 
   const selectCls =
-    "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
+    "w-full h-11 lg:h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
 
   return (
     <div className="space-y-3">
@@ -1328,7 +1330,7 @@ function RelativesFinder({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={t("panel.rf.filterPlaceholder")}
-            className="w-full h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
+            className="w-full h-11 lg:h-9 px-3 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
           />
           <p className="text-[11px] text-text-muted">{t("panel.rf.found", { count: relatives.length })}</p>
           <ul className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
@@ -1336,7 +1338,7 @@ function RelativesFinder({
               <li key={person.id}>
                 <button
                   onClick={() => onSelect(person.id)}
-                  className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
+                  className="min-h-11 lg:min-h-0 w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
                 >
                   <Avatar person={person} size="xs" />
                   <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(person)}</span>
@@ -1513,7 +1515,7 @@ function SevenGenerations({
                     <button
                       type="button"
                       onClick={() => onSelect(gap.childId)}
-                      className="px-2.5 py-1 rounded-lg bg-surface-2 border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
+                      className="min-h-11 lg:min-h-0 px-2.5 py-1 rounded-lg bg-surface-2 border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
                     >
                       {t(gap.missing === "father" ? "sevenGen.gapFather" : "sevenGen.gapMother", {
                         name: genitive(nameOf(gap.childId)),
@@ -1621,7 +1623,7 @@ function ActivityFeed({
             className="flex items-center gap-3 rounded-xl bg-surface-2/50 hover:bg-surface-2 transition-colors px-2 py-2"
           >
             {person ? (
-              <button onClick={() => onSelect(i.personId)} className="shrink-0">
+              <button onClick={() => onSelect(i.personId)} className="min-h-11 lg:min-h-0 shrink-0">
                 <Avatar person={person} size="sm" />
               </button>
             ) : (
@@ -1762,7 +1764,7 @@ function ResearchView({
             >
               <button
                 onClick={() => onSelect(task.personId)}
-                className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
+                className="min-h-11 lg:min-h-0 flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
               >
                 <Avatar person={person} size="sm" />
                 <div className="min-w-0 flex-1">
@@ -1782,7 +1784,7 @@ function ResearchView({
                 // `title` erişilebilir ad OLMAZ: düğmenin metni "✓" olduğu için
                 // ekran okuyucu onu okur ve ne yaptığı anlaşılmaz.
                 aria-label={t("research.markDone")}
-                className="shrink-0 w-8 h-8 grid place-items-center rounded-lg text-text-muted hover:text-accent hover:bg-accent-soft transition-colors"
+                className="shrink-0 w-11 h-11 lg:w-8 lg:h-8 grid place-items-center rounded-lg text-text-muted hover:text-accent hover:bg-accent-soft transition-colors"
               >
                 ✓
               </button>
@@ -1798,7 +1800,7 @@ function ResearchView({
         {tasks.length > görünen.length && !showAll && (
           <button
             onClick={() => setShowAll(true)}
-            className="text-[11px] text-accent hover:underline"
+            className="min-h-11 lg:min-h-0 text-[11px] text-accent hover:underline"
           >
             {t("research.more")}
           </button>
@@ -1813,7 +1815,7 @@ function ResearchView({
                 /* yoksay */
               }
             }}
-            className="text-[11px] text-text-muted hover:text-text"
+            className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text"
           >
             {t("research.resetDone", { count: done.size })}
           </button>
@@ -1872,7 +1874,8 @@ function HeredityView({
             key={c.key}
             type="button"
             onClick={() => setKey(c.key)}
-            className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+            className={`
+            min-h-11 lg:min-h-0 px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
               c.key === active
                 ? "bg-primary/10 border-primary/50 text-primary"
                 : "bg-surface-2 border-border text-text hover:bg-surface-3"
@@ -1919,7 +1922,7 @@ function HeredityView({
                     <button
                       type="button"
                       onClick={() => onSelect(l.parentId)}
-                      className="text-text hover:text-primary transition-colors"
+                      className="min-h-11 lg:min-h-0 text-text hover:text-primary transition-colors"
                     >
                       {nameOf(l.parentId)}
                     </button>
@@ -1927,7 +1930,7 @@ function HeredityView({
                     <button
                       type="button"
                       onClick={() => onSelect(l.childId)}
-                      className="text-text hover:text-primary transition-colors"
+                      className="min-h-11 lg:min-h-0 text-text hover:text-primary transition-colors"
                     >
                       {nameOf(l.childId)}
                     </button>
@@ -1947,7 +1950,7 @@ function HeredityView({
                   key={a.personId}
                   type="button"
                   onClick={() => onSelect(a.personId)}
-                  className="px-2 py-0.5 rounded bg-surface border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
+                  className="min-h-11 lg:min-h-0 px-2 py-0.5 rounded bg-surface border border-border text-[11px] text-text hover:bg-surface-3 transition-colors"
                 >
                   {nameOf(a.personId)}
                 </button>
@@ -2058,7 +2061,7 @@ function GenerationSpread({
                       <li key={p.id}>
                         <button
                           onClick={() => onSelect(p.id)}
-                          className="w-full flex items-center gap-2 px-1.5 py-1.5 -mx-1 rounded-lg hover:bg-surface transition-colors text-left"
+                          className="min-h-11 lg:min-h-0 w-full flex items-center gap-2 px-1.5 py-1.5 -mx-1 rounded-lg hover:bg-surface transition-colors text-left"
                         >
                           <Avatar person={p} size="xs" />
                           <span className="min-w-0 flex-1">
@@ -2219,7 +2222,7 @@ function DegreeViewer({
                   key={`leg-${r.deg}`}
                   type="button"
                   onClick={() => setActiveDeg(on ? null : r.deg)}
-                  className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 h-11 lg:h-7 px-2.5 rounded-lg text-xs font-medium border transition-colors ${
                     on ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-text-muted hover:text-text"
                   }`}
                 >
@@ -2262,7 +2265,7 @@ function Card({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="w-full flex items-center justify-between gap-3 text-left"
+          className="min-h-11 lg:min-h-0 w-full flex items-center justify-between gap-3 text-left"
         >
           <span className="flex items-baseline gap-2 min-w-0">
             <h2 className="font-serif text-base font-semibold text-text">{title}</h2>

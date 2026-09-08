@@ -152,7 +152,7 @@ export default function RecipesView({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("recipes.search")}
-                className="flex-1 min-w-[12rem] h-9 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary"
+                className="flex-1 min-w-[12rem] h-11 lg:h-9 px-3 rounded-xl bg-surface-2 border border-border text-text text-sm placeholder:text-text-muted focus:outline-none focus:border-primary"
               />
               <div className="flex gap-1">
                 {(["person", "occasion"] as const).map((g) => (
@@ -160,7 +160,8 @@ export default function RecipesView({
                     key={g}
                     onClick={() => setGrouping(g)}
                     aria-pressed={grouping === g}
-                    className={`text-[11px] px-2 py-1.5 rounded-lg border transition-colors ${
+                    className={`
+            min-h-11 lg:min-h-0 text-[11px] px-2 py-1.5 rounded-lg border transition-colors ${
                       grouping === g
                         ? "border-accent bg-accent-soft text-accent"
                         : "border-border text-text-muted hover:bg-surface-2"
@@ -192,7 +193,7 @@ export default function RecipesView({
                   <section key={g.key || "__yok"} className="grid gap-2">
                     <div className="flex items-center gap-2">
                       {grouping === "person" && g.key && byId.get(g.key) && (
-                        <button onClick={() => onSelect(g.key)} className="shrink-0">
+                        <button onClick={() => onSelect(g.key)} className="min-h-11 lg:min-h-0 shrink-0">
                           <Avatar person={byId.get(g.key)!} size="sm" />
                         </button>
                       )}
@@ -233,7 +234,7 @@ function RecipeCard({
   return (
     <article className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-w-0 text-left flex-1">
+        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-h-11 lg:min-h-0 min-w-0 text-left flex-1">
           <p className="text-sm font-medium text-text">{recipe.title}</p>
           {meta && <p className="text-[11px] text-text-muted mt-0.5">{meta}</p>}
         </button>
@@ -242,14 +243,14 @@ function RecipeCard({
             <button
               onClick={onEdit}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+              className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               {t("recipes.edit")}
             </button>
             <button
               onClick={onDelete}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
+              className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
             >
               {t("recipes.delete")}
             </button>

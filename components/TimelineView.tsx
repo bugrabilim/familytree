@@ -155,7 +155,8 @@ export default function TimelineView({ people, selectedId, onSelect }: Props) {
                 <li key={r.id}>
                   <button
                     onClick={() => onSelect(r.id)}
-                    className={`w-full flex items-stretch text-left border-b border-border/60 hover:bg-surface-2/60 transition-colors ${
+                    className={`
+            min-h-11 lg:min-h-0 w-full flex items-stretch text-left border-b border-border/60 hover:bg-surface-2/60 transition-colors ${
                       isSel ? "bg-primary-soft" : ""
                     }`}
                   >

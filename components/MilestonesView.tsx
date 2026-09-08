@@ -35,9 +35,13 @@ export default function MilestonesView({
       {/* Aciliyet — en üstte, çünkü zamana bağlı tek bölüm bu. */}
       {acil.length > 0 && (
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          {/* B9 — `h4` değil `h3`: bu bölüm İstatistik görünümünde bir `h2`nin
+              altında çiziliyor; h2 → h4 atlaması ekran okuyucunun başlık zincirinde
+              bir seviyeyi boş bırakıyordu. Görsel boyut sınıftan geliyor, etiketten
+              değil — düzey düzeldi, görünüm aynı kaldı. */}
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("urgency.heading")}
-          </h4>
+          </h3>
           <ul className="space-y-1">
             {acil.map((u) => {
               const p = byId.get(u.personId);
@@ -69,9 +73,9 @@ export default function MilestonesView({
       {/* Sıradaki hedefler */}
       {siradaki.length > 0 && (
         <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             {t("milestone.next")}
-          </h4>
+          </h3>
           <ul className="space-y-2">
             {siradaki.map((m) => (
               <li key={m.id} className="space-y-1">
@@ -95,9 +99,9 @@ export default function MilestonesView({
 
       {/* Ulaşılanlar */}
       <section className="space-y-1.5">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           {t("milestone.reached")}
-        </h4>
+        </h3>
         {ulasilan.length === 0 ? (
           <p className="text-xs text-text-muted">{t("milestone.none")}</p>
         ) : (

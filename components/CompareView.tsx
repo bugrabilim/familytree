@@ -107,7 +107,7 @@ export default function CompareView({
             <button
               onClick={mergeAll}
               disabled={fullBusy}
-              className="h-9 px-4 rounded-lg border border-border bg-surface-2 hover:bg-surface text-sm font-medium text-text disabled:opacity-50 shrink-0"
+              className="h-11 lg:h-9 px-4 rounded-lg border border-border bg-surface-2 hover:bg-surface text-sm font-medium text-text disabled:opacity-50 shrink-0"
             >
               {fullBusy ? t("compare.merging") : t("compare.mergeAll")}
             </button>

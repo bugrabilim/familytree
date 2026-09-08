@@ -17,7 +17,6 @@ import {
   type Node,
   type Edge,
   type NodeProps,
-  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import PersonNode, { type PersonNodeData } from "./PersonNode";
@@ -45,6 +44,60 @@ const DIMS: Record<Detail, { w: number; h: number; gap: number; nodesep: number 
   1: { w: 118, h: 98, gap: 78, nodesep: 24 },
   0: { w: 102, h: 82, gap: 60, nodesep: 20 },
 };
+
+/*
+ * ═══ AÇILIŞ ÖLÇEĞİ — B3 ÜRÜN KARARI ══════════════════════════════════════
+ *
+ * ÖLÇÜM (366 kişilik demo, açılış ekranı, `fitView({padding:0.15})`):
+ *
+ *   genişlik | ölçek | kart      | 13px adın ekranda karşılığı | nub
+ *   320      | 0.164 | 23x21     | 2.1px                       | 8.8
+ *   390      | 0.199 | 28x25     | 2.6px                       | 10.7
+ *   768      | 0.267 | 37x34     | 3.5px                       | 14.4
+ *   1440     | 0.277 | 39x35     | 3.6px                       | 15.0
+ *
+ * Ölçeği aşağı çeken kişi SAYISI değil, ağacın YÜKSEKLİĞİ: 390px'te görünen
+ * küme 27 karttan ibaret ama yerleşim kutusu 1710x2009 tuval pikseli, tuval
+ * ise 390x621. Yani "kuşakları azalt" bunu kurtarmıyor; altı kuşaklı bir
+ * ağacı bir telefona dikey sığdırmanın okunur bir ölçeği YOK.
+ *
+ * Karar: AÇILIŞTA SIĞDIRMA YOK — odak kişi, kartın TASARLANDIĞI ölçekte
+ * (1:1) ekranın ortasına gelir. Gerekçeler:
+ *
+ * 1. "Hepsini göster" varsayılanı sıfır bilgi veriyordu. Kart portresi
+ *    (avatar + ad + doğum yılı) 23x21px'lik bir karede hiçbirini
+ *    okutmuyor; ekranda kalan şey renkli noktalardan bir buluttu. Bir
+ *    genel bakış OKUNDUĞU sürece genel bakıştır.
+ * 2. Kaybedilen yetenek yok, çünkü "hepsini gör" zaten bir düğme: denetim
+ *    satırındaki "Tümünü sığdır" (ve lg+'ta mini harita) tam olarak bunu
+ *    yapıyor, üstelik kullanıcı İSTEDİĞİ için — istemeden düşülen bir
+ *    ölçek ile istenerek seçilen bir ölçek aynı şey değil.
+ * 3. Tersi kurtarılamıyordu: kullanıcı 27 gri kareye bakıp nereye
+ *    dokunacağını bilemiyor, kart adı okunmadığı için arayacağı kişiyi de
+ *    seçemiyordu. Odak kişiden başlamak "neredeyim" sorusunu cevaplıyor.
+ *
+ * Neden 1 ve daha küçük bir taban değil: ad 13px çiziliyor; 0.85'te 11px,
+ * 0.9'da 11.7px eder. Metni tasarlandığı boyun altına indiren her taban
+ * "biraz daha az okunmaz" demekten ibaret. 1:1 tek savunulabilir taban.
+ */
+const ACILIS_OLCEGI = 1;
+
+/*
+ * Hızlı-ekle nub'ları bu ölçeğin ALTINDA hiç çizilmez.
+ *
+ * Nub 44px (dokunma eşiği) ve tuvalin `scale()`i altında; `.ft-nub`
+ * ölçeğin tersiyle karşı-ölçekliyor, yani ekrandaki boyu z <= 1 iken sabit
+ * 44px. Sorun boy değil ORAN: karşı-ölçeklenen nub tuval biriminde 44/z
+ * kadar yer kaplar ve ölçek düştükçe kartı yutar. 0.8'de kart ekranda
+ * 112px, nub 44px — kartın %39'u, kenarında durabiliyor. 0.5'te kart 70px
+ * olur, nub yine 44 — kartın üstünü kapatır.
+ *
+ * Basılamayan bir hedef, olmayan hedeften kötüdür: kullanıcı deniyor ve
+ * olmuyor. Bu yüzden 0.8'in altında nub YOK. Kişi eklemenin diğer yolu
+ * (profil panelindeki "Ebeveyn/Eş/Çocuk ekle") her ölçekte açık duruyor,
+ * dolayısıyla bu bir yetenek kaybı değil.
+ */
+export const NUB_ESIGI = 0.8;
 
 /** treeDepth (0-8, büyük değer=Tümü) + görünen kişi sayısı → temel ayrıntı düzeyi */
 function detailFor(depth: number, count: number): Detail {
@@ -413,17 +466,37 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
    */
   const yayinlaOlcek = useCallback((z: number) => {
     document.documentElement.style.setProperty("--ft-zoom", String(z));
+    /*
+     * İkinci yayın: nub'lar ÇİZİLSİN Mİ? Sayıyı CSS'e vermek yetmiyor,
+     * çünkü CSS bir sayıyı karşılaştırıp kural açıp kapatamıyor. Karar
+     * burada verilip tek bir öznitelikle duyuruluyor (yine React'e
+     * uğramadan: 366 düğümlü ağaçta her zoom karesinde render pahalı).
+     */
+    document.documentElement.dataset.ftNub = z >= NUB_ESIGI ? "acik" : "kapali";
   }, []);
 
-  const onInit = useCallback(
-    (rf: ReactFlowInstance) => {
-      requestAnimationFrame(() => {
-        rf.fitView({ padding: 0.15, duration: 0 });
-        yayinlaOlcek(rf.getZoom());
-      });
+  /*
+   * Açılış kamerası. `fitView` DEĞİL — gerekçe NUB_ESIGI'nin başındaki
+   * blokta. Odak kişiyi (yoksa ilk düğümü) ekranın ortasına, kartın
+   * tasarlandığı ölçeğe (1:1) getiriyoruz.
+   *
+   * `setCenter`, `fitView` yerine bilerek: fitView'in ölçeği içeriğin
+   * kutusundan gelir, yani "okunur taban" ancak min/max'ı aynı değere
+   * kilitleyerek zorlanabilirdi — o da zaten setCenter'ın kendisi.
+   */
+  const okunurKamera = useCallback(
+    (duration: number) => {
+      const hedef = (focusId && positions.get(focusId)) || positions.values().next().value;
+      if (!hedef) return;
+      setCenter(hedef.x + dim.w / 2, hedef.y + dim.h / 2, { zoom: ACILIS_OLCEGI, duration });
+      yayinlaOlcek(ACILIS_OLCEGI);
     },
-    [yayinlaOlcek]
+    [focusId, positions, setCenter, dim.w, dim.h, yayinlaOlcek]
   );
+
+  const onInit = useCallback(() => {
+    requestAnimationFrame(() => okunurKamera(0));
+  }, [okunurKamera]);
 
   /* Görünür kişi kümesi değiştiğinde yeniden sığdır.
      onInit tek başına yetmiyor: düğümler mount'tan sonra bir effect ile
@@ -439,13 +512,13 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
     const first = fitKey.current === "";
     fitKey.current = key;
     const t = setTimeout(() => {
-      fitView({ padding: 0.15, duration: first ? 0 : 300 });
-      // Süreli sığdırmada `onMove` animasyonun sonunda gelir; ölçeği bir de
-      // burada yazmak, düğmelerin geçiş boyunca doğru boyda kalmasını sağlar.
-      setTimeout(() => yayinlaOlcek(getZoom()), first ? 0 : 320);
+      // Küme değişince de OKUNUR kalıyoruz: kuşak derinliğini artırmak
+      // "her şeyi 0.16 ölçekte göster" demek değil, "daha çoğu var" demek.
+      // Hepsini görmek isteyen için satırda "Tümünü sığdır" düğmesi var.
+      okunurKamera(first ? 0 : 300);
     }, 60);
     return () => clearTimeout(t);
-  }, [nodeCount, depth, fitView, getZoom, yayinlaOlcek]);
+  }, [nodeCount, depth, okunurKamera]);
 
   // Kamera OTOMATİK oynamaz. Yalnız kullanıcı profilde "Odakla"ya basınca
   // (locateReq.seq artar) bir kereliğine o kişiye gider. Seçmek ya da zoom
@@ -528,6 +601,17 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
    */
   return (
     <div className="h-full flex flex-col">
+      {/*
+        B9 — GÖRÜNÜMÜN BAŞLIĞI. Ekran okuyucunun başlık gezinmesi (H tuşu)
+        bu görünümde tamamen boştu: `h1..h6` sayısı sıfırdı, yani kullanıcı
+        "hangi sayfadayım" sorusunu yanıtlayamıyordu.
+
+        `sr-only`: başlık görsel olarak yok, çünkü sekme şeridi ve denetim
+        satırı zaten aynı bilgiyi gözle veriyor — ekrana ikinci bir başlık
+        koymak görsel gürültü olurdu. Metin sekmenin etiketiyle AYNI
+        sözlük anahtarından geliyor; ikisi kendiliğinden eşleşiyor.
+      */}
+      <h1 className="sr-only">{t("view.agac.label")}</h1>
       {/*
         Denetim satırı. Sarmıyor, KAYIYOR — üst çubuktaki sekme şeridiyle
         (H3) aynı idiom: sarma satır yüksekliğini öngörülemez yapar ve dar

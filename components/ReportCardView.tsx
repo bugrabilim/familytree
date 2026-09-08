@@ -41,7 +41,11 @@ function KisiListesi({
   if (kisiler.length === 0) return null;
   return (
     <section className="space-y-1">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{baslik}</h4>
+      {/* B9 — `h4` değil `h3`: bu bölüm İstatistik görünümünde bir `h2`nin
+          altında çiziliyor; h2 → h4 atlaması ekran okuyucunun başlık zincirinde
+          bir seviyeyi boş bırakıyordu. Görsel boyut sınıftan geliyor, etiketten
+          değil — düzey düzeldi, görünüm aynı kaldı. */}
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{baslik}</h3>
       <ul className="flex flex-wrap gap-1.5">
         {kisiler.map((k) => (
           <li key={k.id}>
@@ -124,7 +128,7 @@ export default function ReportCardView({
             key={y}
             onClick={() => setYil(y)}
             aria-pressed={y === yil}
-            className={`h-8 px-3 rounded-xl border text-[12px] tabular-nums transition-colors ${
+            className={`h-11 lg:h-8 px-3 rounded-xl border text-[12px] tabular-nums transition-colors ${
               y === yil
                 ? "bg-primary text-primary-text border-primary"
                 : "bg-surface-2 border-border text-text-muted hover:text-text"
@@ -144,9 +148,9 @@ export default function ReportCardView({
 
           {events.length > 0 && (
             <section className="space-y-1">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.events")}
-              </h4>
+              </h3>
               <ul className="space-y-1">
                 {events.map((e, i) => (
                   <li key={`${e.id}-${i}`} className="text-sm text-text leading-snug">
@@ -162,9 +166,9 @@ export default function ReportCardView({
 
           {anniversaries.length > 0 && (
             <section className="space-y-1">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.anniversaries")}
-              </h4>
+              </h3>
               <ul className="space-y-1">
                 {anniversaries.slice(0, 8).map((a, i) => (
                   <li key={`${a.id}-${a.kind}-${i}`} className="text-sm text-text leading-snug">
@@ -191,9 +195,9 @@ export default function ReportCardView({
           */}
           {record && (
             <section className="space-y-1 pt-1 border-t border-border/60">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {t("report.recorded")}
-              </h4>
+              </h3>
               <p className="text-[11px] text-text-muted">
                 {t("report.since", { date: record.since.slice(0, 10) })}
               </p>

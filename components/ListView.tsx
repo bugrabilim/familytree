@@ -41,7 +41,7 @@ interface Props {
 
 const advLabel = "block text-[11px] font-medium text-text-muted mb-1";
 const advField =
-  "w-full h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary";
+  "w-full h-11 lg:h-8 px-2 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary";
 
 export default function ListView({ people: rawPeople, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState("");
@@ -140,6 +140,17 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
 
   return (
     <div className="h-full flex flex-col">
+      {/*
+        B9 — GÖRÜNÜMÜN BAŞLIĞI. Ekran okuyucunun başlık gezinmesi (H tuşu)
+        bu görünümde tamamen boştu: `h1..h6` sayısı sıfırdı, yani kullanıcı
+        "hangi sayfadayım" sorusunu yanıtlayamıyordu.
+
+        `sr-only`: başlık görsel olarak yok, çünkü sekme şeridi ve denetim
+        satırı zaten aynı bilgiyi gözle veriyor — ekrana ikinci bir başlık
+        koymak görsel gürültü olurdu. Metin sekmenin etiketiyle AYNI
+        sözlük anahtarından geliyor; ikisi kendiliğinden eşleşiyor.
+      */}
+      <h1 className="sr-only">{t("view.liste.label")}</h1>
       {/* Araç çubuğu */}
       <div className="shrink-0 border-b border-border bg-bg-elevated/60 px-4 sm:px-6 py-3 space-y-3">
         <div className="flex items-center gap-2">
@@ -155,14 +166,14 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("list.searchPlaceholder")}
-              className="w-full h-9 pl-9 pr-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full h-11 lg:h-9 pl-9 pr-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
 
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-9 px-2.5 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary cursor-pointer"
+            className="h-11 lg:h-9 px-2.5 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary cursor-pointer"
             aria-label={t("list.sortAria")}
           >
             <option value="soyad">{t("list.sortSurname")}</option>
@@ -174,7 +185,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
           <button
             onClick={() => setShowAdv((s) => !s)}
             aria-expanded={showAdv}
-            className={`h-9 px-2.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+            className={`h-11 lg:h-9 min-w-11 lg:min-w-0 justify-center px-2.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
               showAdv || advCount > 0
                 ? "border-primary bg-primary-soft text-primary"
                 : "border-border bg-surface text-text-muted hover:text-text"
@@ -198,7 +209,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
             <button
               key={f.k}
               onClick={() => setFilter(f.k)}
-              className={`h-7 px-2.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`h-11 lg:h-7 px-2.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === f.k
                   ? "bg-primary text-primary-text"
                   : "bg-surface-2 text-text-muted hover:text-text"
@@ -231,7 +242,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
                           genders: on ? f.genders.filter((x) => x !== g) : [...f.genders, g],
                         }))
                       }
-                      className={`h-7 px-2 rounded-lg text-[11px] border transition-colors ${
+                      className={`h-11 lg:h-7 px-2 rounded-lg text-[11px] border transition-colors ${
                         on
                           ? "border-primary bg-primary-soft text-primary"
                           : "border-border bg-surface-2 text-text-muted hover:text-text"
@@ -317,7 +328,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
               <button
                 onClick={() => setAdv(emptyFieldFilters())}
                 disabled={advCount === 0}
-                className="h-8 px-3 rounded-lg border border-border text-xs text-text-muted hover:text-text disabled:opacity-40 transition-colors"
+                className="h-11 lg:h-8 px-3 rounded-lg border border-border text-xs text-text-muted hover:text-text disabled:opacity-40 transition-colors"
               >
                 {t("list.adv.clear")}
               </button>
@@ -345,6 +356,7 @@ export default function ListView({ people: rawPeople, selectedId, onSelect }: Pr
                   <button
                     onClick={() => onSelect(p.id)}
                     className={`
+            min-h-11 lg:min-h-0 
                       w-full flex items-center gap-3 p-3 rounded-xl text-left
                       ${isRainbow(p) ? "card-rainbow" : genderTone(p.gender).bg} transition-all duration-150
                       ${p.id === selectedId

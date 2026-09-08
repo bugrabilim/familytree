@@ -38,7 +38,7 @@ export default function GenerationStepper({
   };
 
   const btn =
-    "w-7 h-7 grid place-items-center text-base leading-none text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+    "w-11 h-11 lg:w-7 lg:h-7 grid place-items-center text-base leading-none text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
 
   return (
     <div className="flex items-center gap-2 text-xs text-text-muted">
@@ -69,7 +69,7 @@ export default function GenerationStepper({
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           }}
-          className="w-11 h-7 text-center bg-transparent border-x border-border text-text font-medium tabular-nums outline-none focus:bg-surface-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-11 h-11 lg:h-7 text-center bg-transparent border-x border-border text-text font-medium tabular-nums outline-none focus:bg-surface-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-label={label}
         />
         <button

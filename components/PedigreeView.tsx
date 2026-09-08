@@ -14,6 +14,9 @@ import type { PersonIndex } from "@/lib/relations";
 import type { RelationType } from "@/lib/actions";
 import { usePrivacy } from "./PrivacyContext";
 import { useT } from "@/lib/i18n";
+/* Eşik TEK yerde tanımlı: iki görünüm aynı `.ft-nub` sınıfını paylaşıyor,
+   iki ayrı sayı zamanla ayrışırdı. */
+import { NUB_ESIGI } from "./FamilyTree";
 
 interface Props {
   people: Person[];
@@ -77,6 +80,7 @@ export default function PedigreeView({
    * Ölçek yalnızca küçültür (≤ 1). scrollWidth/Height CSS transform'dan
    * etkilenmediği için içeriğin doğal boyutunu verir.
    */
+  const [olcek, setOlcek] = useState(1);
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -103,6 +107,13 @@ export default function PedigreeView({
         tanımlandığı için FamilyTree'nin `:root`taki değerini gölgeliyor.
       */
       content.style.setProperty("--ft-zoom", String(s));
+      /*
+       * Ölçek React'e de dönüyor — ama YALNIZ nub'ın çizilip çizilmeyeceği
+       * için. Burada bu ucuz: bu ölçek zoom hareketiyle değil, yalnız
+       * pencere boyutu ya da kuşak derinliği değişince yeniden hesaplanıyor
+       * (ağaç tuvalinde durum tersi olduğu için orada DOM'a yazılıyor).
+       */
+      setOlcek(s);
       box.style.width = `${w * s}px`;
       box.style.height = `${h * s}px`;
     };
@@ -120,10 +131,28 @@ export default function PedigreeView({
     );
   }
 
-  const cardProps = { idx, people, selectedId, onSelect, onSetRoot };
+  /*
+   * B3'ün kardeşi: "bu kişiyi merkeze al" nub'ı da bu `scale()`in altında ve
+   * kalabalık soy zincirinde ekranda 7px'e iniyordu (390px, ölçek 0.23).
+   * Basılamayan bir hedef, olmayan hedeften kötüdür — eşiğin altında hiç
+   * çizilmiyor. Yeteneği kaybetmiyoruz: merkezi değiştirmenin diğer yolu
+   * (üstteki kök seçici) her ölçekte açık duruyor.
+   */
+  const cardProps = { idx, people, selectedId, onSelect, onSetRoot, nubGoster: olcek >= NUB_ESIGI };
 
   return (
     <div className="h-full flex flex-col">
+      {/*
+        B9 — GÖRÜNÜMÜN BAŞLIĞI. Ekran okuyucunun başlık gezinmesi (H tuşu)
+        bu görünümde tamamen boştu: `h1..h6` sayısı sıfırdı, yani kullanıcı
+        "hangi sayfadayım" sorusunu yanıtlayamıyordu.
+
+        `sr-only`: başlık görsel olarak yok, çünkü sekme şeridi ve denetim
+        satırı zaten aynı bilgiyi gözle veriyor — ekrana ikinci bir başlık
+        koymak görsel gürültü olurdu. Metin sekmenin etiketiyle AYNI
+        sözlük anahtarından geliyor; ikisi kendiliğinden eşleşiyor.
+      */}
+      <h1 className="sr-only">{t("view.soy.label")}</h1>
       {/* Kontrol çubuğu */}
       <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-bg-elevated/60">
         <RootSelect
@@ -170,6 +199,8 @@ export default function PedigreeView({
 /* ---------------------------------------------------------------- */
 
 interface BranchProps {
+  /** Ölçek eşiğin altındayken kart köşesindeki nub hiç çizilmez (bkz. yukarısı). */
+  nubGoster: boolean;
   idx: PersonIndex;
   people: Person[];
   selectedId?: string;
@@ -262,6 +293,7 @@ function PedigreeCard({
   selectedId,
   onSelect,
   onSetRoot,
+  nubGoster,
 }: { person: Person; isRoot?: boolean } & BranchProps) {
   const { view } = usePrivacy();
   const t = useT();
@@ -299,7 +331,7 @@ function PedigreeCard({
         </div>
       </button>
 
-      {!isRoot && (
+      {!isRoot && nubGoster && (
         <button
           onClick={() => onSetRoot(person.id)}
           title={t("pedigree.setRoot")}

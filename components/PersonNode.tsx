@@ -46,14 +46,18 @@ function AddNub({
   /** İçerik: "+" ya da 🤝 (çevre) */
   icon?: "plus" | "friend";
 }) {
+  /* Kaydırma kutunun YARISI kadar: nub kart kenarına oturur. Kutu dokunmada
+     44, `lg`de 24 olduğu için kaydırma da 22 / 12 olarak ikiye ayrılıyor —
+     tek bir değer bırakılsaydı nub bir boyda kenarda, öbüründe havada
+     kalırdı. */
   const pos = {
-    top: "left-1/2 -translate-x-1/2 -top-3",
-    bottom: "left-1/2 -translate-x-1/2 -bottom-3",
-    right: "-right-3 top-1/2 -translate-y-1/2",
-    left: "-left-3 top-1/2 -translate-y-1/2",
-    corner: "-right-3 -bottom-3",
+    top: "left-1/2 -translate-x-1/2 -top-[22px] lg:-top-3",
+    bottom: "left-1/2 -translate-x-1/2 -bottom-[22px] lg:-bottom-3",
+    right: "-right-[22px] lg:-right-3 top-1/2 -translate-y-1/2",
+    left: "-left-[22px] lg:-left-3 top-1/2 -translate-y-1/2",
+    corner: "-right-[22px] lg:-right-3 -bottom-[22px] lg:-bottom-3",
   }[position];
-  const toneCls = tone === "accent" ? "bg-accent text-white" : "bg-primary text-primary-text";
+  const toneCls = tone === "accent" ? "bg-accent text-accent-on" : "bg-primary text-primary-text";
 
   return (
     <button
@@ -61,14 +65,16 @@ function AddNub({
       title={label}
       aria-label={label}
       /*
-        `ft-nub`: tuval ölçeğinin tersiyle karşı-ölçekleme (globals.css).
-        Bu düğme React Flow'un `transform: scale()` uyguladığı katmanın
-        içinde; kalabalık ağaçta açılış ölçeği ~0.25 olduğu için 24px'lik
-        kutu ekranda 6px'e iniyordu.
+        `ft-nub`: tuval ölçeğinin tersiyle karşı-ölçekleme (globals.css) +
+        ölçek eşiğinin altında hiç çizilmeme. Bu düğme React Flow'un
+        `transform: scale()` uyguladığı katmanın içinde.
+        Kutu 44px (dokunma eşiği); `lg`de fare için 24px'e dönüyor —
+        #329'un kalıbı. Karşı-ölçekleme z <= 1 iken tam telafi ettiği için
+        ekrandaki boy da 44 (fare: 24) kalıyor.
       */
       className={`
         nodrag ft-nub absolute ${pos} z-20
-        w-6 h-6 rounded-full grid place-items-center
+        w-11 h-11 lg:w-6 lg:h-6 rounded-full grid place-items-center
         ${toneCls} shadow-float
         opacity-0 scale-75 pointer-events-none
         group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto
@@ -78,9 +84,9 @@ function AddNub({
       `}
     >
       {icon === "friend" ? (
-        <span className="text-[11px] leading-none" aria-hidden>🤝</span>
+        <span className="text-[19px] lg:text-[11px] leading-none" aria-hidden>🤝</span>
       ) : (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+        <svg viewBox="0 0 12 12" fill="none" aria-hidden className="w-5 h-5 lg:w-3 lg:h-3">
           <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
@@ -161,7 +167,7 @@ function PersonNode({ data }: NodeProps) {
               )}
             </button>
             <span
-              className="absolute -top-1 -left-1 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
+              className="absolute -top-1 -left-1 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-accent-on text-[10px] shadow-soft"
               title={t("node.associate")}
               aria-hidden
             >
@@ -198,7 +204,7 @@ function PersonNode({ data }: NodeProps) {
         {/* Odak rozeti — ağaçta nereden başladığını gösterir */}
         {focused && !selected && (
           <span
-            className="absolute top-1 left-1 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft z-10"
+            className="absolute top-1 left-1 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-accent-on shadow-soft z-10"
             title={t("node.focusTitle")}
           >
             {t("node.focus")}
@@ -223,7 +229,7 @@ function PersonNode({ data }: NodeProps) {
       {/* Çevre (arkadaş) rozeti */}
       {associate && (
         <span
-          className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
+          className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-accent-on text-[10px] shadow-soft"
           title={t("node.associate")}
           aria-hidden
         >

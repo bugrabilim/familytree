@@ -53,8 +53,28 @@
   --primary-soft: #e6f0ea;
   --primary-text: #ffffff;
 
-  --accent: #a8763e;
+  /*
+   * `--accent` METİN olarak da çiziliyor (kuşak/akrabalık rozeti, takvimde
+   * "Bugün", haritada seçili yer etiketi) — yani AA'nın kapsamında.
+   * Eski #a8763e dört zeminde de kalıyordu: --surface 3.94, --bg 3.65,
+   * --surface-2 3.43, --surface-3 3.13, --accent-soft 3.45; üstündeki beyaz
+   * metin de 3.94.
+   *
+   * #875b29 aynı bronz (aynı ton ailesi, L* ~10 puan koyu) ama ölçüldü:
+   *   --surface #ffffff 5.90 | --bg #f7f6f2 5.46 | --surface-2 #f1efe9 5.13
+   *   | --surface-3 #e8e5dc 4.69 | --accent-soft #f6efe4 5.17
+   *   | üstünde beyaz (--accent-on) 5.90                → hepsi >= 4.5
+   * Bir tık daha açığı (#8d5f2c) --surface-3'te 4.38 ile kalıyordu; sınır
+   * gerçekten burada.
+   */
+  --accent: #875b29;
   --accent-soft: #f6efe4;
+  /*
+   * `--accent` DOLGUSUNUN üstündeki metin. Açık temada beyaz yetiyor;
+   * koyu temada YETMİYOR (bkz. `.dark`) — bu yüzden ayrı token: çağrı
+   * yerleri `text-white` yazdığı sürece koyu tema sessizce 2.36'da kalır.
+   */
+  --accent-on: #ffffff;
 
   --male: #1f6fd0;
   --male-soft: #e3eefb;
@@ -106,8 +126,19 @@
   --primary-soft: #1d3329;
   --primary-text: #0d1a13;
 
+  /* Koyu temada `--accent` METİN olarak zaten geçiyor: --bg 7.86 |
+     --surface 7.22 | --surface-2 6.52 | --surface-3 5.64 | --accent-soft
+     6.32. Değiştirilmedi. */
   --accent: #d0a065;
   --accent-soft: #2e2619;
+  /*
+   * Koyu temanın asıl arızası buradaydı: aynı altın dolgunun üstüne
+   * BEYAZ metin konuyordu — ölçülen 2.36, yani "odak" rozeti ve 🤝 nub'ı
+   * pratikte okunmuyordu. Altın açık bir renk; üstüne açık metin
+   * konamaz. Mürekkep #221a0b ile oran 7.29.
+   * (`--primary-text`in koyu temada #0d1a13 olmasıyla aynı mantık.)
+   */
+  --accent-on: #221a0b;
 
   --male: #5aa2f0;
   --male-soft: #16273a;
@@ -152,6 +183,7 @@
 
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-on: var(--accent-on);
 
   --color-male: var(--male);
   --color-male-soft: var(--male-soft);
@@ -330,22 +362,49 @@ body {
 /*
  * Kart kenarındaki hızlı-ekle ("+") düğmeleri React Flow'un
  * `transform: scale()` uyguladığı tuvalin İÇİNDE; ölçek küçülünce onlar da
- * küçülüyor. 366 kişilik ağaçta açılış ölçeği ~0.25 olduğu için 24px'lik
- * düğme ekranda 6.1px'e iniyordu — yani uygulamanın İLK AÇILDIĞI hâlde bu
- * afordanslar pratikte yoktu.
+ * küçülüyor.
  *
- * Ölçeğin tersiyle karşı-ölçekleyip ekranda sabit bir asgari boy tutuyoruz.
- * `--ft-zoom`u FamilyTree `onMove`da yazıyor (bkz. oradaki yorum).
- * Üst sınır 3: tam telafi (0.2 ölçekte 5x) düğmeyi 120 tuval-pikseline
- * çıkarır ve 140px'lik kişi kartını tümüyle yutardı; 3x'te düğme kartın
- * kenarında kalıp yine de ekranda ~18px oluyor (6.1px'in üç katı).
+ * ESKİ YORUM YANLIŞTI, DÜZELTİLDİ: "0.2 ölçekte ~18px" diyordu; tarayıcıda
+ * ÖLÇÜLEN 10.7px (390px genişlik, ölçek 0.199, 24px kutu). Sebep basit —
+ * tam telafi 5x gerektiriyordu, üst sınır 3x'ti. Yani karşı-ölçekleme tek
+ * başına hiçbir zaman dokunma eşiğine ulaşmıyordu; iddia ölçülmemişti.
+ *
+ * Onarım iki parçalı (bkz. FamilyTree.tsx içindeki ACILIS_OLCEGI /
+ * NUB_ESIGI blokları):
+ *  1. Kutu artık 44px (lg: 24px) ve açılış ölçeği 1:1 — yani nub'ın
+ *     ekrandaki boyu, düzeltilmesi gereken hâlin kendisi olmaktan çıktı.
+ *  2. Ölçek 0.8'in altına inince nub HİÇ ÇİZİLMİYOR. Basılamayan bir
+ *     hedef, olmayan hedeften kötüdür.
+ *
+ * Üst sınır 3 → 1.25. Sebebi: nub'lar artık YALNIZ 0.8..1 bandında
+ * çiziliyor (ağaçta ve — kendi eşiğiyle — Soy görünümünde), o bandın tam
+ * telafisi en fazla 1/0.8 = 1.25x. Eski 3x, nub'ın hiç çizilmediği bir
+ * bölge için hesaplanmış ölü bir paydı; bırakılsaydı eşiği kaldıran birine
+ * "ama clamp var" diye yanlış bir güvence verirdi — nitekim eski yorumun
+ * "18px" iddiası tam olarak böyle doğmuştu.
+ *
  * `transform`, Tailwind'in `scale-*` yardımcılarının kullandığı bağımsız
  * `scale` özelliğinden AYRI bir kanal — ikisi çarpışmadan birleşiyor,
  * yani hover büyümesi ve görünürlük animasyonu olduğu gibi çalışmaya devam
  * ediyor.
  */
 .ft-nub {
-  transform: scale(clamp(1, calc(1 / var(--ft-zoom, 1)), 3));
+  transform: scale(clamp(1, calc(1 / var(--ft-zoom, 1)), 1.25));
+}
+/*
+ * Eşiğin altında ağaçta nub yok. Özniteliği FamilyTree `yayinlaOlcek`
+ * yazıyor; CSS bir sayıyı karşılaştıramadığı için kararı JS veriyor, CSS
+ * uyguluyor.
+ *
+ * Seçici `.react-flow` ile KASITLI olarak daraltıldı: öznitelik `:root`ta
+ * duruyor ve ağaçtan çıkıp Soy sekmesine geçen kullanıcıda bayat kalıyor —
+ * daraltılmasaydı PedigreeView'ın nub'ları, ilgisiz bir görünümün son
+ * yakınlaştırma değeri yüzünden kaybolurdu. (Soy görünümü aynı kararı CSS
+ * ile değil React ile veriyor: oradaki ölçek yalnız pencere/kuşak
+ * değişiminde hesaplandığı için bir durum güncellemesi bedava.)
+ */
+:root[data-ft-nub="kapali"] .react-flow .ft-nub {
+  display: none;
 }
 .react-flow__minimap {
   border-radius: 12px;
@@ -645,6 +704,72 @@ body {
  * ediyor — yani klavye, `:checked`, form semantiği ve ekran okuyucu davranışı
  * değişmiyor; yalnız görünüm değişiyor.
  */
+/*
+ * ONAY KUTUSUNUN VURUŞ KUTUSU.
+ *
+ * `.ui-check` görsel olarak 18px kalıyor — 44px'lik bir tik kutusu çizmek
+ * formu tanınmaz hâle getirirdi. Bunun yerine kutuyu SARAN etiket gerçek bir
+ * yerleşim kutusu olarak 44px'e çıkıyor. Görünmez `::before` vuruş alanı
+ * yine kullanılmadı (#329'daki gerekçe): o kutu komşunun üstüne taşar ve
+ * tablo satırları 34px arayla dizildiği için üstteki satırın dokunuşunu
+ * yutardı. Yer KAPLAYAN bir kutu taşmaz, iter.
+ *
+ * Etiketi olan kutularda (satırın tamamı tıklanabilir) bu sınıfa gerek yok;
+ * orada etikete `min-h-11 lg:min-h-0` yetiyor. Bu sınıf, yanında metin
+ * OLMAYAN tek başına kutular için (tablo başlığındaki "tümünü seç" ve satır
+ * seçicileri).
+ */
+.ui-check-hit {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+@media (min-width: 1024px) {
+  .ui-check-hit {
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+/*
+ * Kaydırıcılar (harita zaman/kuşak aralığı) 16px yüksekliğindeydi: parmak
+ * için tutamağı bulmak şans işi. Kutu 44px'e çıkıyor, iz ve tutamak
+ * tarayıcı tarafından dikeyde ortalandığı için görsel olarak aynı kalıyor.
+ */
+.ui-range {
+  height: 44px;
+}
+@media (min-width: 1024px) {
+  .ui-range {
+    height: 16px;
+  }
+}
+
+/*
+ * Leaflet'in kendi yakınlaştırma düğmeleri 30x30 çiziliyor ve kaynağı bizim
+ * JSX'imiz değil — tek yer burası.
+ */
+.leaflet-container .leaflet-touch .leaflet-bar a,
+.leaflet-container .leaflet-bar a,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+.leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}
+@media (min-width: 1024px) {
+  .leaflet-container .leaflet-touch .leaflet-bar a,
+  .leaflet-container .leaflet-bar a,
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+  }
+}
+
 .ui-check {
   appearance: none;
   -webkit-appearance: none;

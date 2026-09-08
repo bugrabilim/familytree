@@ -393,7 +393,7 @@ export default function PersonDrawer({
           <button
             onClick={onClose}
             aria-label={t("drawer.close")}
-            className="absolute right-3 top-3 sm:top-4 w-8 h-8 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+            className="absolute right-3 top-3 sm:top-4 w-11 h-11 lg:w-8 lg:h-8 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -533,7 +533,7 @@ export default function PersonDrawer({
                   disabled={reordering || orderIndex === 0}
                   aria-label={t("drawer.siblingUp")}
                   title={t("drawer.siblingUp")}
-                  className="w-7 h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-11 h-11 lg:w-7 lg:h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -544,7 +544,7 @@ export default function PersonDrawer({
                   disabled={reordering || orderIndex === shownIds.length - 1}
                   aria-label={t("drawer.siblingDown")}
                   title={t("drawer.siblingDown")}
-                  className="w-7 h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-11 h-11 lg:w-7 lg:h-7 grid place-items-center rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -559,7 +559,7 @@ export default function PersonDrawer({
                   onClick={() => setReorderOpen((v) => !v)}
                   aria-expanded={reorderOpen}
                   title={t("drawer.siblingReorder")}
-                  className="h-7 px-2 rounded-lg border border-border text-[11px] font-medium text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                  className="h-11 lg:h-7 px-2 rounded-lg border border-border text-[11px] font-medium text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
                 >
                   {t("drawer.siblingReorder")}
                 </button>
@@ -948,7 +948,7 @@ export default function PersonDrawer({
                 <button
                   onClick={() => onQuickAdd("associate", person.id)}
                   /* 16px'ti — bkz. aşağıdaki `emptyAction` düğmesindeki gerekçe. */
-                  className="mt-1.5 -mx-1.5 px-1.5 min-h-11 lg:min-h-0 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
+                  className="mt-1.5 -mx-1.5 px-1.5 min-h-11 lg:min-h-8 flex items-center gap-1.5 rounded-lg text-xs text-accent hover:underline hover:bg-accent-soft/50 lg:hover:bg-transparent font-medium"
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
                     <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -1152,7 +1152,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
       <button
         onClick={onClose}
         aria-label={t("drawer.close")}
-        className="absolute right-3 top-3 w-9 h-9 grid place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+        className="absolute right-3 top-3 w-9 h-11 lg:h-9 grid place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
       >
         <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1166,7 +1166,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
             setEnhanced((v) => !v);
           }}
           aria-pressed={enhanced}
-          className={`absolute left-3 top-3 flex items-center gap-2 h-9 px-3 rounded-lg text-xs font-medium transition-colors ${
+          className={`absolute left-3 top-3 flex items-center gap-2 h-11 lg:h-9 px-3 rounded-lg text-xs font-medium transition-colors ${
             enhanced ? "bg-primary text-primary-text" : "bg-white/10 text-white/90 hover:bg-white/20"
           }`}
         >
@@ -1259,7 +1259,7 @@ function GMapsLink({ query }: { query: string }) {
       href={googleMapsUrl(query)}
       target="_blank"
       rel="noopener noreferrer"
-      className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-primary transition-colors"
+      className="shrink-0 inline-flex items-center gap-1 h-11 lg:h-7 px-2 rounded-lg border border-border bg-surface hover:bg-surface-2 text-[11px] font-medium text-primary transition-colors"
       title="Google Maps"
     >
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1358,7 +1358,7 @@ function RelationGroup({
             metni seçmekle aynı olasılıkta. Dokunmada 44px, farede eskisi gibi
             sıkı. `-mx-1.5 px-1.5`: kutu büyürken metnin hizası bozulmasın.
           */
-          className="mt-1 -mx-1.5 px-1.5 min-h-11 lg:min-h-0 lg:mt-1 flex items-center gap-1.5 rounded-lg text-xs text-primary hover:underline hover:bg-primary-soft/50 lg:hover:bg-transparent font-medium"
+          className="mt-1 -mx-1.5 px-1.5 min-h-11 lg:min-h-8 lg:mt-1 flex items-center gap-1.5 rounded-lg text-xs text-primary hover:underline hover:bg-primary-soft/50 lg:hover:bg-transparent font-medium"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

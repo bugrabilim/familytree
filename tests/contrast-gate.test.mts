@@ -71,6 +71,59 @@ for (const [ad, tema] of [["açık", acik], ["koyu", koyu]] as const) {
   }
 }
 
+/* ══ 1b. `--accent` ÇİFTİ de AA geçiyor ═════════════════════════════════ */
+/*
+ * Geçen tur yalnız `--text*` tokenlerini taramıştı; `--accent` "marka rengi"
+ * diye kapsam dışı kalmıştı. Ama o renk METİN olarak çiziliyor — kuşak /
+ * akrabalık rozeti (PersonDrawer), takvimde "Bugün" işareti, haritada seçili
+ * yer etiketi, tarif süzgeçleri — ve ölçüldüğünde dördü de eşiğin altındaydı:
+ *
+ *   #ffffff / --accent (koyu #d0a065)      2.36   ← "odak" rozeti, 🤝 nub
+ *   #ffffff / --accent (açık #a8763e)      3.94   ← aynı
+ *   --accent / --accent-soft (açık)        3.45   ← rozet + süzgeç etiketleri
+ *   --accent / --surface (açık)            3.94   ← takvim bölüm başlığı
+ *
+ * İki ayrı rol vardı ve tek token taşıyordu: ZEMİN olarak marka rengi ve
+ * METİN olarak marka rengi. Ayrıldılar — `--accent` (açık temada koyulaştı)
+ * metin rolünü, `--accent-on` ise dolgunun ÜSTÜNDEKİ metni taşıyor.
+ *
+ * Aşağısı da oranı kendisi hesaplıyor: ton değişebilir, eşik değişemez.
+ */
+for (const [ad, tema] of [["açık", acik], ["koyu", koyu]] as const) {
+  check(!!tema["--accent"], `${ad} tema: --accent tanımlı`);
+  check(!!tema["--accent-soft"], `${ad} tema: --accent-soft tanımlı`);
+  check(!!tema["--accent-on"], `${ad} tema: --accent-on tanımlı`);
+  if (!tema["--accent"] || !tema["--accent-soft"] || !tema["--accent-on"]) continue;
+  /* METİN rolü: dört zeminin hepsi + `--accent-soft` (rozetlerin zemini). */
+  for (const z of [...ZEMIN, "--accent-soft"] as const) {
+    const k = oran(tema["--accent"], tema[z]);
+    check(k >= 4.5, `${ad} tema: --accent (${tema["--accent"]}) / ${z} (${tema[z]}) = ${k.toFixed(2)} — AA eşiği 4.5`);
+  }
+  /* DOLGU rolü: `bg-accent` üzerine konan metin. */
+  const kd = oran(tema["--accent-on"], tema["--accent"]);
+  check(kd >= 4.5, `${ad} tema: --accent-on (${tema["--accent-on"]}) / --accent (${tema["--accent"]}) = ${kd.toFixed(2)} — AA eşiği 4.5`);
+}
+{
+  /*
+   * Ve `bg-accent` dolgusunun üstüne DÜZ `text-white` yazılmıyor: koyu
+   * temada tam olarak bu 2.36'yı üretiyordu ve hiçbir derleme hatası
+   * vermiyordu. İddia kaynak düzeyinde, çünkü CSS'ten görülemez.
+   */
+  const gez = (d: string, bul: string[]) => {
+    for (const e of readdirSync(new URL(d + "/", import.meta.url), { withFileTypes: true })) {
+      if (e.isDirectory()) { gez(`${d}/${e.name}`, bul); continue; }
+      if (!e.name.endsWith(".tsx")) continue;
+      const src = read(`${d}/${e.name}`).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      if (/bg-accent(?![-\w/])[^"`\n]*\btext-white\b|\btext-white\b[^"`\n]*bg-accent(?![-\w/])/.test(src)) bul.push(`${d}/${e.name}`);
+    }
+  };
+  const bulunan: string[] = [];
+  for (const d of ["../app", "../components"]) gez(d, bulunan);
+  check(bulunan.length === 0, `bg-accent üstünde text-white yok (bulundu: ${bulunan.join(", ")})`);
+  const cssKod = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  check(/--color-accent-on: var\(--accent-on\);/.test(cssKod), "@theme eşlemesi var (Tailwind `text-accent-on` üretebilsin)");
+}
+
 /* ══ 2. `--text-subtle` GERİ GELMİYOR ═══════════════════════════════════ */
 /*
  * Neden emekliye ayrıldı: kendi ton rampasında dört zeminde birden 4.5'i

@@ -291,7 +291,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("list.searchPlaceholder")}
-            className="h-9 flex-1 min-w-[140px] max-w-md px-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
+            className="h-11 lg:h-9 flex-1 min-w-[140px] max-w-md px-3 rounded-xl bg-surface border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
           />
           {!readOnly && (
             <Button size="sm" onClick={onAdd} className="shrink-0">
@@ -303,7 +303,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <button
                 onClick={downloadTemplate}
                 title={t("table.tpl.downloadHint")}
-                className="shrink-0 h-9 px-2.5 rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:border-border-strong text-xs font-medium flex items-center gap-1.5 transition-colors"
+                className="shrink-0 h-11 lg:h-9 px-2.5 rounded-xl border border-border bg-surface text-text-muted hover:text-text hover:border-border-strong text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M12 3v11m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -314,7 +314,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 onClick={() => fileRef.current?.click()}
                 disabled={impBusy}
                 title={t("table.tpl.uploadHint")}
-                className="shrink-0 h-9 px-2.5 rounded-xl border border-primary/30 bg-primary-soft text-primary hover:brightness-105 text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
+                className="shrink-0 h-11 lg:h-9 px-2.5 rounded-xl border border-primary/30 bg-primary-soft text-primary hover:brightness-105 text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M12 16V5m0 0L8 9m4-4l4 4M5 21h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -346,14 +346,14 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <button
                 key={k}
                 onClick={() => setFilters((f) => { const n = { ...f }; delete n[k]; return n; })}
-                className="h-7 px-2.5 rounded-lg bg-primary-soft border border-primary/30 text-primary text-[11px] font-medium inline-flex items-center gap-1.5 hover:brightness-105"
+                className="h-11 lg:h-7 px-2.5 rounded-lg bg-primary-soft border border-primary/30 text-primary text-[11px] font-medium inline-flex items-center gap-1.5 hover:brightness-105"
               >
                 {colByKey.get(k)?.label ?? k}
                 <span className="tabular-nums opacity-70">{v.length}</span>
                 <span aria-hidden>✕</span>
               </button>
             ))}
-            <button onClick={() => setFilters({})} className="text-[11px] text-text-muted hover:text-text">
+            <button onClick={() => setFilters({})} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
               {t("table.filter.clearAll")}
             </button>
           </div>
@@ -378,7 +378,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                 <Button size="sm" variant="danger" onClick={() => setConfirmDel(true)}>
                   {t("table.deleteSelected")}
                 </Button>
-                <button onClick={() => setSelected(new Set())} className="text-xs text-text-muted hover:text-text">
+                <button onClick={() => setSelected(new Set())} className="min-h-11 lg:min-h-0 text-xs text-text-muted hover:text-text">
                   {t("table.clearSelection")}
                 </button>
               </>
@@ -395,7 +395,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
             <tr className="text-left text-xs text-text-muted">
               {!readOnly && (
                 <th className="w-10 px-3 py-2">
-                  <input type="checkbox" className="ui-check" checked={allShownSelected} onChange={toggleAll} aria-label={t("table.selectAll")} />
+                  <label className="ui-check-hit"><input type="checkbox" className="ui-check" checked={allShownSelected} onChange={toggleAll} aria-label={t("table.selectAll")} /></label>
                 </th>
               )}
               {COLS.map((c) => (
@@ -427,7 +427,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
               <tr key={p.id} className={`border-b border-border/60 ${selected.has(p.id) ? "bg-primary-soft/40" : "hover:bg-surface-2/60"}`}>
                 {!readOnly && (
                   <td className="px-3 py-1.5 align-middle">
-                    <input type="checkbox" className="ui-check" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={fullName(p)} />
+                    <label className="ui-check-hit"><input type="checkbox" className="ui-check" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={fullName(p)} /></label>
                   </td>
                 )}
                 {COLS.map((c) => {
@@ -444,7 +444,7 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                               setGenderOverride((m) => ({ ...m, [p.id]: g }));
                               saveField(p.id, { gender: g });
                             }}
-                            className="h-8 px-1.5 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none cursor-pointer"
+                            className="h-11 lg:h-8 px-1.5 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none cursor-pointer"
                           >
                             <option value="male">{t("form.gender.male")}</option>
                             <option value="female">{t("form.gender.female")}</option>
@@ -528,7 +528,7 @@ function HeaderFilter({
         onClick={handleClick}
         aria-label={t("table.filter.aria", { col: col.label })}
         aria-expanded={open}
-        className={`shrink-0 w-5 h-5 grid place-items-center rounded transition-colors ${
+        className={`shrink-0 w-11 h-11 lg:w-5 lg:h-5 grid place-items-center rounded transition-colors ${
           active ? "text-primary bg-primary-soft" : "text-text-muted hover:text-text hover:bg-surface-2"
         }`}
       >
@@ -624,13 +624,13 @@ function FilterPopover({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("table.filter.search")}
-          className="w-full h-8 px-2.5 mb-1.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
+          className="w-full h-11 lg:h-8 px-2.5 mb-1.5 rounded-lg bg-surface-2 border border-border text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
         />
         <div className="flex items-center justify-between px-1 pb-1.5 text-[11px]">
-          <button onClick={() => setDraft(new Set(shown.map(toStored)))} className="text-primary hover:underline">
+          <button onClick={() => setDraft(new Set(shown.map(toStored)))} className="min-h-11 lg:min-h-0 text-primary hover:underline">
             {t("table.filter.selectAll")}
           </button>
-          <button onClick={() => setDraft(new Set())} className="text-text-muted hover:text-text">
+          <button onClick={() => setDraft(new Set())} className="min-h-11 lg:min-h-0 text-text-muted hover:text-text">
             {t("table.filter.clear")}
           </button>
         </div>
@@ -639,7 +639,7 @@ function FilterPopover({
             const sv = toStored(v);
             return (
               <li key={v}>
-                <label className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-surface-2 cursor-pointer">
+                <label className="flex items-center gap-2 px-1.5 py-1 min-h-11 lg:min-h-0 rounded-lg hover:bg-surface-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={draft.has(sv)}
@@ -829,10 +829,10 @@ function DateFilterPopover({
         style={{ left: pos.left, top: pos.top, width: WIDTH }}
       >
         <div className="flex items-center justify-between px-1 pb-1.5 text-[11px]">
-          <button onClick={() => setDraft(new Set(years))} className="text-primary hover:underline">
+          <button onClick={() => setDraft(new Set(years))} className="min-h-11 lg:min-h-0 text-primary hover:underline">
             {t("table.filter.selectAll")}
           </button>
-          <button onClick={() => setDraft(new Set())} className="text-text-muted hover:text-text">
+          <button onClick={() => setDraft(new Set())} className="min-h-11 lg:min-h-0 text-text-muted hover:text-text">
             {t("table.filter.clear")}
           </button>
         </div>
@@ -914,7 +914,7 @@ function Cell({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className={`w-full h-8 px-2 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none ${
+        className={`w-full h-11 lg:h-8 px-2 rounded-lg bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface text-text text-sm outline-none ${
           wide ? "min-w-[240px]" : "min-w-[150px]"
         }`}
       />

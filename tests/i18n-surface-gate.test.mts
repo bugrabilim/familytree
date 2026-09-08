@@ -91,6 +91,70 @@ for (const f of YUZEY) {
   check(sabit.length === 0, `${f.replace("../", "")}: erişilebilir ad sözlükten geliyor (sabit: ${sabit.join(", ")})`);
 }
 
+/* ══ 1b. GÖRÜNÜR etiketler de sözlükten ════════════════════════════════ */
+/*
+ * 1. bölüm yalnız ERİŞİLEBİLİR ADI (aria-label / title / label / hint)
+ * kovalıyordu. `PersonForm`da yirmi görünür alan etiketi tam da bu yüzden
+ * kapının dışında kalmıştı: "Soyad", "Cinsiyet", "Doğum tarihi", "Köken
+ * bilgileri", "Din", "Meslek", "Hikâyesi", "İptal"… Hepsi `<label>` gövdesine
+ * ya da `placeholder`a doğrudan yazılıydı, hiçbiri bir `aria-*` değildi ve
+ * sözlükte karşılıkları BÜYÜK ÖLÇÜDE HAZIRDI — eksik olan kabloydu.
+ * Sonuç: EN oturumda formun yarısı Türkçe konuşuyordu ve tek bir test bile
+ * kırmızı vermiyordu.
+ *
+ * Bu yüzden kapsam iki yeni yere uzatıldı:
+ *   (c) `placeholder="…"`  — ekranda okunan metin.
+ *   (d) JSX metin düğümleri: `<label …>Soyad</label>`, `>İptal<` …
+ *
+ * (d)'de eleme dar tutuldu: yalnız HARF içeren, en az iki karakterlik ve
+ * `{}` içermeyen düğümler. Noktalama/ayraç ("·", "—", "*") ve ifade
+ * gövdeleri metin değil.
+ */
+const GORUNUR = ["../components/PersonForm.tsx"];
+for (const f of GORUNUR) {
+  const src = kodu(read(f));
+  const sabit: string[] = [];
+  for (const m of src.matchAll(/\bplaceholder="([^"]*[A-Za-zçğıöşüÇĞİÖŞÜ][^"]*)"/g)) sabit.push(`placeholder="${m[1]}"`);
+  for (const m of src.matchAll(/\bplaceholder=\{([^}]*)\}/g)) {
+    if (/\bt\(/.test(m[1])) continue;
+    if (/"[^"]*[A-Za-zçğıöşüÇĞİÖŞÜ][^"]*"|'[^']*[A-Za-zçğıöşüÇĞİÖŞÜ][^']*'/.test(m[1])) sabit.push(`placeholder={${m[1].slice(0, 50)}}`);
+  }
+  /*
+   * JSX metin düğümü. `>` ile `<` arasında, süslü parantez GEÇMEYEN parça:
+   * `{t("…")}` ya da `{form.x}` gibi ifadeler zaten bu desene uymuyor.
+   * TypeScript jenerikleri (`useState<Foo>(…)`) `<`/`>` taşıdığı için
+   * eşleşen parçanın JSX'e benzemesi ayrıca aranıyor: içinde `(`/`)`/`=>`
+   * geçenler kod, metin değil.
+   */
+  for (const m of src.matchAll(/>([^<>{}]+)</g)) {
+    const t2 = m[1].replace(/\s+/g, " ").trim();
+    if (t2.length < 2) continue;
+    if (!/[A-Za-zçğıöşüÇĞİÖŞÜ]/.test(t2)) continue;
+    if (/[()=;]|=>/.test(t2)) continue;
+    sabit.push(`metin "${t2.slice(0, 40)}"`);
+  }
+  check(sabit.length === 0, `${f.replace("../", "")}: görünür etiketler sözlükten geliyor (sabit: ${sabit.join(", ")})`);
+}
+{
+  /*
+   * Ve bu turda BAĞLANAN anahtarlar gerçekten iki yarıda da dolu. Yalnız
+   * varlık değil ÇEVRİLMİŞ olmaları da aranıyor: iki yarıya aynı Türkçeyi
+   * yazmak pariteyi geçer, İngilizce kullanıcıya hiçbir şey kazandırmaz.
+   */
+  for (const k of [
+    "form.lastNameBare", "form.lastNameOptional", "form.gender", "form.birthDate",
+    "form.deathDate", "form.deathCause", "form.birthPlace", "form.originSection",
+    "form.optional", "form.religion", "form.denomination", "form.language",
+    "form.ethnicity", "form.nationality", "form.orientation", "form.occupation",
+    "form.occupationPlaceholder", "form.patronymic", "form.congenital", "form.health",
+    "form.healthNote", "form.bio", "form.cancel", "form.save", "form.update",
+    "form.yearOnly", "form.eventsEmpty", "form.sourcesEmpty",
+  ]) {
+    check(!!tr[k]?.trim() && !!en[k]?.trim(), `${k}: TR+EN dolu`);
+    check(tr[k] !== en[k], `${k}: iki yarı birbirinin kopyası değil`);
+  }
+}
+
 /* ══ 2. Tema düğmesinin adı gerçekten çeviriden geliyor ═════════════════ */
 {
   const src = kodu(read("../components/ThemeToggle.tsx"));

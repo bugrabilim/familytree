@@ -861,6 +861,11 @@ export const tr: Dict = {
   "form.firstName": "Ad *",
   "form.firstNamePlaceholder": "Ayşe",
   "form.lastName": "Soyad *",
+  /* Etiketin YILDIZSIZ hâli: baba adı girildiğinde soyad zorunlu olmaktan
+     çıkıyor ve yıldız yerine bir açıklama geliyor (bkz. PersonForm). Tek
+     anahtar iki hâli birden taşıyamazdı. */
+  "form.lastNameBare": "Soyad",
+  "form.lastNameOptional": "(baba adı var — opsiyonel)",
   "form.lastNamePlaceholder": "Yılmaz",
   "form.gender": "Cinsiyet",
   "form.gender.female": "Kadın",
@@ -892,6 +897,8 @@ export const tr: Dict = {
   "form.nationalityPlaceholder": "Türkiye, Almanya…",
   "form.orientation": "Cinsel yönelim",
   "form.orientationPlaceholder": "Eşcinsel, Biseksüel…",
+  "form.occupation": "Meslek",
+  "form.occupationPlaceholder": "Öğretmen, Balıkçı, Terzi…",
   "form.patronymic": "Baba adı (soyadı yoksa)",
   "form.patronymicPlaceholder": "Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)",
   "form.lineage": "Sülale / ocak",
@@ -3212,6 +3219,8 @@ export const en: Dict = {
   "form.firstName": "First name *",
   "form.firstNamePlaceholder": "Jane",
   "form.lastName": "Last name *",
+  "form.lastNameBare": "Last name",
+  "form.lastNameOptional": "(patronymic given — optional)",
   "form.lastNamePlaceholder": "Doe",
   "form.gender": "Gender",
   "form.gender.female": "Female",
@@ -3243,6 +3252,8 @@ export const en: Dict = {
   "form.nationalityPlaceholder": "Türkiye, Germany…",
   "form.orientation": "Sexual orientation",
   "form.orientationPlaceholder": "Gay, bisexual…",
+  "form.occupation": "Occupation",
+  "form.occupationPlaceholder": "Teacher, fisherman, tailor…",
   "form.patronymic": "Patronymic (if no surname)",
   "form.patronymicPlaceholder": "son of / daughter of … (before surnames)",
   "form.lineage": "Lineage / clan",

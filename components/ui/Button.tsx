@@ -16,9 +16,24 @@ const VARIANTS: Record<Variant, string> = {
     "bg-danger-soft text-danger hover:brightness-95 dark:hover:brightness-125",
 };
 
+/*
+ * DOKUNMA BOYU BURADA — 69 ayrı bulgu değil, iki satır.
+ *
+ * Denetimde eşik altı çıkan "Düzenle / Merkeze al / Ortala / Çevre grafiği /
+ * Sil" (PersonDrawer) ve "Tarif ekle / Mektup yaz / Duyuru ekle / Davet
+ * oluştur / Etkinlik ekle / Tablo" düğmelerinin ORTAK sebebi `sm`in 32px
+ * olmasıydı; `md` de 40px ile eşiğin (44) altındaydı. Çağrı yerlerine tek
+ * tek `h-11` yazmak, on ikisinden birini unutmakla eşdeğerdi.
+ *
+ * #329'un kalıbı: kutunun KENDİSİ büyüyor, `lg` üstünde (fare) eski sıkı
+ * ölçü geri geliyor. `min-w-11` ölçümden geldi: "Sil" gibi kısa etiketli
+ * düğmeler yalnız dolgudan 38px genişlikte kalıyordu — eşik iki boyutta
+ * birden geçerli. Sabit genişlik DEĞİL asgari genişlik, yani uzun etiketli
+ * düğmelerin yatay bütçesi (320px'te sarma davranışı) aynı kaldı.
+ */
 const SIZES: Record<Size, string> = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
-  md: "h-10 px-4 text-sm gap-2 rounded-xl",
+  sm: "h-11 lg:h-8 min-w-11 lg:min-w-0 px-3 text-xs gap-1.5 rounded-lg",
+  md: "h-11 lg:h-10 min-w-11 lg:min-w-0 px-4 text-sm gap-2 rounded-xl",
   lg: "h-12 px-6 text-[15px] gap-2 rounded-xl",
 };
 

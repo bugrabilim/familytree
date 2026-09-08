@@ -227,14 +227,14 @@ function LetterCard({
             <button
               onClick={onEdit}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
+              className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               {t("letters.edit")}
             </button>
             <button
               onClick={onDelete}
               disabled={busy}
-              className="text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
+              className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
             >
               {t("letters.delete")}
             </button>

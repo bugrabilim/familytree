@@ -416,7 +416,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
           <button
             onClick={() => setShowMigration((v) => !v)}
             aria-pressed={showMigration}
-            className={`flex items-center gap-2 h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
+            className={`flex items-center gap-2 h-11 lg:h-9 px-3 rounded-lg border text-xs font-medium transition-colors ${
               showMigration
                 ? "border-accent bg-accent-soft text-accent"
                 : "border-border bg-surface hover:bg-surface-2 text-text-muted"
@@ -444,7 +444,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 max={yearBounds.max}
                 value={a0}
                 onChange={(e) => setEra([Math.min(Number(e.target.value), a1), a1])}
-                className="w-20 accent-[var(--primary)]"
+                className="ui-range w-20 accent-[var(--primary)]"
                 aria-label={t("map.eraFrom")}
               />
               <span className="tabular-nums w-[5.5rem] text-center text-text">{a0}–{a1}</span>
@@ -454,11 +454,11 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 max={yearBounds.max}
                 value={a1}
                 onChange={(e) => setEra([a0, Math.max(Number(e.target.value), a0)])}
-                className="w-20 accent-[var(--primary)]"
+                className="ui-range w-20 accent-[var(--primary)]"
                 aria-label={t("map.eraTo")}
               />
               {(a0 > yearBounds.min || a1 < yearBounds.max) && (
-                <button onClick={() => setEra(null)} className="text-[11px] text-text-muted hover:text-text">
+                <button onClick={() => setEra(null)} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
                   {t("map.eraAll")}
                 </button>
               )}
@@ -477,7 +477,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 max={maxGen}
                 value={g0}
                 onChange={(e) => setGenRange([Math.min(Number(e.target.value), g1), g1])}
-                className="w-20 accent-[var(--primary)]"
+                className="ui-range w-20 accent-[var(--primary)]"
                 aria-label={t("map.genFrom")}
               />
               <span className="tabular-nums w-[3.5rem] text-center text-text">{g0}–{g1}</span>
@@ -487,11 +487,11 @@ export default function PlacesMap({ people, onSelect }: Props) {
                 max={maxGen}
                 value={g1}
                 onChange={(e) => setGenRange([g0, Math.max(Number(e.target.value), g0)])}
-                className="w-20 accent-[var(--primary)]"
+                className="ui-range w-20 accent-[var(--primary)]"
                 aria-label={t("map.genTo")}
               />
               {!genAll && (
-                <button onClick={() => setGenRange(null)} className="text-[11px] text-text-muted hover:text-text">
+                <button onClick={() => setGenRange(null)} className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text">
                   {t("map.genAll")}
                 </button>
               )}
@@ -508,7 +508,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
             <button
               onClick={() => setSurnameKey(null)}
               aria-pressed={activeSurname === null}
-              className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+              className={`
+            min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                 activeSurname === null
                   ? "border-accent bg-accent-soft text-accent"
                   : "border-border text-text-muted hover:bg-surface-2"
@@ -523,7 +524,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   key={sn.key}
                   onClick={() => setSurnameKey(on ? null : sn.key)}
                   aria-pressed={on}
-                  className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+                  className={`
+            min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                     on
                       ? "border-accent bg-accent-soft text-accent"
                       : "border-border text-text-muted hover:bg-surface-2"
@@ -595,7 +597,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   <h2 className="font-serif text-base font-semibold text-text truncate">{active.place}</h2>
                   <button
                     onClick={() => setActivePlace(null)}
-                    className="text-[11px] text-text-muted hover:text-text shrink-0"
+                    className="min-h-11 lg:min-h-0 text-[11px] text-text-muted hover:text-text shrink-0"
                   >
                     {t("map.close")}
                   </button>
@@ -634,7 +636,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                             const hit = surnameStats.surnames.find((s) => s.surname === sn.surname);
                             if (hit) setSurnameKey((k) => (k === hit.key ? null : hit.key));
                           }}
-                          className="text-[11px] px-2 py-1 rounded-lg border border-border text-text-muted hover:bg-surface-2 transition-colors"
+                          className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg border border-border text-text-muted hover:bg-surface-2 transition-colors"
                         >
                           {sn.surname} <span className="tabular-nums opacity-70">{sn.count}</span>
                         </button>
@@ -658,7 +660,8 @@ export default function PlacesMap({ people, onSelect }: Props) {
                   <li key={a.place}>
                     <button
                       onClick={() => a.coords && pick(a.place, "birth")}
-                      className={`w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left transition-colors ${
+                      className={`
+            min-h-11 lg:min-h-0 w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left transition-colors ${
                         a.coords ? "hover:bg-surface-2" : "cursor-default"
                       }`}
                     >
@@ -695,7 +698,7 @@ export default function PlacesMap({ people, onSelect }: Props) {
                     <li key={a.place}>
                       <button
                         onClick={() => pick(a.place, "burial")}
-                        className="w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left hover:bg-surface-2 transition-colors"
+                        className="min-h-11 lg:min-h-0 w-full flex items-center gap-3 px-2 py-1.5 -mx-2 rounded-lg text-left hover:bg-surface-2 transition-colors"
                       >
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: BURIAL_COLOR, opacity: 0.85 }} />
                         <span className="text-sm text-text truncate flex-1 min-w-0">{a.place}</span>
@@ -938,7 +941,7 @@ function PersonList({
         <li key={p.id}>
           <button
             onClick={() => onSelect(p.id)}
-            className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
+            className="min-h-11 lg:min-h-0 w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors text-left"
           >
             <Avatar person={p} size="xs" />
             <span className="text-sm text-text truncate flex-1 min-w-0">{fullName(p)}</span>

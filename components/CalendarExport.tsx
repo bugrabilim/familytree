@@ -169,7 +169,7 @@ export default function CalendarExport({ people }: Props) {
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-text-muted">{t("cal.export.types")}</span>
-          <label className="flex items-center gap-1.5 text-[11px] text-text cursor-pointer select-none">
+          <label className="flex items-center gap-1.5 min-h-11 lg:min-h-0 text-[11px] text-text cursor-pointer select-none">
             <input type="checkbox" checked={allTypesOn} onChange={(e) => (e.target.checked ? allTypes() : noTypes())} className="ui-check" />
             {t("cal.export.all")}
           </label>
@@ -181,7 +181,7 @@ export default function CalendarExport({ people }: Props) {
               type="button"
               onClick={() => toggleType(tt.key)}
               aria-pressed={typeChecked(tt.key)}
-              className={`h-8 px-2.5 rounded-lg text-xs font-medium border transition-colors ${
+              className={`h-11 lg:h-8 px-2.5 rounded-lg text-xs font-medium border transition-colors ${
                 typeChecked(tt.key)
                   ? "border-primary bg-primary-soft text-primary"
                   : "border-border bg-surface text-text-muted hover:text-text"
@@ -198,7 +198,7 @@ export default function CalendarExport({ people }: Props) {
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-medium text-text-muted">{t("cal.export.people")}</span>
-          <label className="flex items-center gap-1.5 text-[11px] text-text cursor-pointer select-none">
+          <label className="flex items-center gap-1.5 min-h-11 lg:min-h-0 text-[11px] text-text cursor-pointer select-none">
             <input type="checkbox" checked={allPeopleOn} onChange={(e) => (e.target.checked ? allPeople() : noPeople())} className="ui-check" />
             {t("cal.export.everyone")}
           </label>
@@ -207,12 +207,12 @@ export default function CalendarExport({ people }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("cal.export.searchPlaceholder")}
-          className="w-full h-9 px-3 mb-2 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
+          className="w-full h-11 lg:h-9 px-3 mb-2 rounded-xl bg-surface-2 border border-border text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary"
         />
         <ul className="max-h-64 overflow-y-auto space-y-0.5 pr-0.5">
           {filteredPeople.map((p) => (
             <li key={p.id}>
-              <label className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 rounded-lg hover:bg-surface-2 transition-colors cursor-pointer">
+              <label className="w-full flex items-center gap-2.5 px-2 py-1.5 -mx-1 min-h-11 lg:min-h-0 rounded-lg hover:bg-surface-2 transition-colors cursor-pointer">
                 <input
                   type="checkbox"
                   checked={personChecked(p.id)}
@@ -238,7 +238,7 @@ export default function CalendarExport({ people }: Props) {
           type="button"
           onClick={exportIcs}
           disabled={chosen.length === 0}
-          className="h-9 px-3.5 rounded-xl bg-primary text-primary-text text-xs font-medium flex items-center gap-1.5 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          className="h-11 lg:h-9 px-3.5 rounded-xl bg-primary text-primary-text text-xs font-medium flex items-center gap-1.5 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
             <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
