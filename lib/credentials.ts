@@ -126,7 +126,7 @@ export async function verifyLogin(
      * ADRES KİMLİKTEN ÇÖZÜLÜYOR, sentetik adres yalnız yedek.
      *
      * Kurucu gerçek e-postasını bağladığında Auth kullanıcısının adresi
-     * onunla değişiyor (`updateAccountAuthEmail`); sentetik adres o andan
+     * onunla değişiyor (`confirmAccountAuthEmail`); sentetik adres o andan
      * sonra Auth'ta kimseye ait değil. Bcrypt yedeği bunu gizliyordu —
      * yedek kalkınca aynı durum, e-postasını bağlamış kurucu için
      * KİLİTLENME oluyor.

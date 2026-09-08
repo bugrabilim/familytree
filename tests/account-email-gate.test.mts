@@ -25,6 +25,11 @@ const authUsers = read("../lib/auth-users.ts");
 const sayfa = read("../app/verify-email/[token]/page.tsx");
 const istemci = read("../app/verify-email/[token]/VerifyEmailClient.tsx");
 
+/** Olumsuz iddialardan önce yorumlar ayıklanır. */
+const kodu = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const bindKod = kodu(bind);
+const authKod = kodu(authUsers);
+
 /* --- Kural tek yerde --------------------------------------------------- */
 check(/export function canRecoverByEmail/.test(lib), "kurtarma kuralı tek işlevde");
 check(/if \(!a\.authEmailVerified\) return false;/.test(lib), "doğrulanmamış reddediliyor");
@@ -62,16 +67,39 @@ check(/emailTokenHash: null/.test(verify), "jeton TEK KULLANIMLIK (doğrulamayla
 // ÇAĞRI yerine bak, içe aktarma satırına değil: `includes` ikisini ayırmıyor.
 check(/if \(verifyWouldCollide\([^)]*\)\)/.test(verify), "tekillik doğrulamada gerçekten ÇAĞRILIYOR");
 
-/* --- Supabase tarafı: yazmak ile doğrulamak ayrı yetki ----------------- */
+/* --- Supabase tarafı: DOĞRULANMAMIŞ adres Auth'a hiç girmiyor ---------- */
+/*
+ * Eski kural "yazarken 'doğrulandı' deme"ydi ve gerekçesi sağlamdı, ama
+ * bedeli görülmemişti: doğrulanmamış adres Auth'ta hesabın GİRİŞ adresi
+ * hâline geliyordu. Proje e-posta onayını zorunlu tutuyorsa o kullanıcı
+ * giriş yapamaz — bcrypt yedeği kalktığı için (Faz 4/1b) doğrudan
+ * kilitlenme, üstelik kullanıcının hiçbir hata yapmadığı bir akışta.
+ *
+ * Kural artık daha güçlü: doğrulanmamış adres Auth'a HİÇ yazılmıyor.
+ * Bağlama Auth'a dokunmuyor; adres yalnız doğrulama tamamlanınca ve
+ * `email_confirm: true` ile giriyor.
+ */
 {
-  const i = authUsers.indexOf("export async function updateAccountAuthEmail");
-  const govde = authUsers.slice(i, authUsers.indexOf("\n}", i));
-  check(i > 0, "updateAccountAuthEmail var");
-  check(!govde.includes("email_confirm"),
-    "adres yazma Supabase'e 'doğrulandı' DEMİYOR");
+  check(!authKod.includes("updateAccountAuthEmail"),
+    "gelişigüzel adres yazan işlev KALDIRILDI (yanlışlıkla çağrılamaz)");
+  check(!bindKod.includes("confirmAccountAuthEmail"),
+    "bağlama ucu adresi ONAYLAMIYOR");
+  check(!/resetAccountAuthEmail\(ctx\.accountId,/.test(bindKod),
+    "geri döndürme işlevi adres ALMIYOR (yalnız sentetiğe döner)");
+
   const j = authUsers.indexOf("export async function confirmAccountAuthEmail");
   check(j > 0 && authUsers.slice(j, authUsers.indexOf("\n}", j)).includes("email_confirm: true"),
-    "onay ayrı bir işlevde");
+    "onay ayrı bir işlevde ve orada 'doğrulandı' deniyor");
+  check(verify.includes("confirmAccountAuthEmail("),
+    "Auth'a yazma YALNIZ doğrulama ucundan");
+
+  const i = authUsers.indexOf("export async function resetAccountAuthEmail");
+  const govde = authUsers.slice(i, authUsers.indexOf("\n}", i));
+  check(i > 0, "sentetiğe döndürme işlevi var");
+  check(/email: authEmailForAccount\(accountId\)/.test(govde),
+    "her zaman sentetik adrese döndürüyor (adres tahmin etmiyor)");
+  check(govde.includes("email_confirm: true"),
+    "sentetik adres ONAYLI yazılıyor — e-postasını kaldıran kullanıcı kendini kilitlemesin");
 }
 
 /* --- Sayfa görüntülemesi yan etki üretmiyor ---------------------------- */

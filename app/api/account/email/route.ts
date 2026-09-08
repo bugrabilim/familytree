@@ -8,7 +8,7 @@ import {
   emailTakenBy,
   planEmailChange,
 } from "@/lib/account-email";
-import { updateAccountAuthEmail } from "@/lib/auth-users";
+import { resetAccountAuthEmail } from "@/lib/auth-users";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
       emailTokenExpires: null,
     });
     try {
-      await updateAccountAuthEmail(ctx.accountId, "");
+      await resetAccountAuthEmail(ctx.accountId);
     } catch (e) {
       console.warn(`[3e] auth e-posta temizleme (${ctx.accountId}):`, (e as Error).message);
     }
@@ -174,15 +174,19 @@ export async function POST(req: NextRequest) {
   });
 
   /*
-   * Supabase Auth tarafını da güncelle (best-effort) — orada da DOĞRULANMAMIŞ
-   * olarak. Başarısızlık bağlamayı geri almıyor: Blob kaynak doğruluğu ve
-   * göç/denetim araçları bu ayrışmayı zaten yakalar.
+   * SUPABASE AUTH'A BURADA DOKUNULMUYOR — ve bu bir düzeltme.
+   *
+   * Eskiden adres burada, daha bizde doğrulanmadan Auth'a yazılıyordu.
+   * Doğrulanmamış adres Auth'ta o hesabın GİRİŞ adresi hâline geliyordu:
+   * proje e-posta onayını zorunlu tutuyorsa kullanıcı giriş yapamaz ve
+   * bcrypt yedeği kalktığı için (Faz 4/1b) bu doğrudan kilitlenme demek —
+   * doğrulama postası eline geçmezse kalıcı olarak.
+   *
+   * Artık adres Auth'a yalnız doğrulama TAMAMLANINCA yazılıyor
+   * (`confirmAccountAuthEmail`, `app/api/account/email/verify`). Bağlama ile
+   * doğrulama arasındaki pencerede hesabın giriş adresi sentetik adres
+   * olarak kalıyor, yani giriş her koşulda çalışıyor.
    */
-  try {
-    await updateAccountAuthEmail(ctx.accountId, sonraki.authEmail);
-  } catch (e) {
-    console.warn(`[3e] auth e-posta güncelleme (${ctx.accountId}):`, (e as Error).message);
-  }
 
   const link = `${SITE_URL}/verify-email/${encodeURIComponent(token)}`;
   let sent = false;

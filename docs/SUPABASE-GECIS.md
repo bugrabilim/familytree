@@ -249,6 +249,25 @@ aynı şey değil.
 
 Kapı: `tests/login-path-gate.test.mts`.
 
+### Dördüncü hata: doğrulanmamış adres Auth'a yazılıyordu
+
+Bağlama akışı, adres daha **bizde doğrulanmadan** onu Auth'a yazıyordu —
+`email_confirm` bilerek verilmeden. Gerekçe sağlamdı (*doğrulanmamış adres
+kurtarma yolu değildir*) ama bedeli görülmemişti: doğrulanmamış adres
+Auth'ta o hesabın **giriş adresi** hâline geliyordu. Proje e-posta onayını
+zorunlu tutuyorsa böyle bir kullanıcı giriş yapamaz — ve doğrulama postası
+eline geçmezse kalıcı olarak.
+
+Çözüm kuralı esnetmek değil, yazmayı **ertelemek**: bağlama artık Auth'a hiç
+dokunmuyor. Adres Auth'a yalnız doğrulama tamamlandıktan sonra ve
+`email_confirm: true` ile giriyor. Kural böylece daha da güçlendi —
+doğrulanmamış adres Auth'a **hiç** girmiyor.
+
+`updateAccountAuthEmail` (gelişigüzel adres yazabilen işlev) kaldırıldı;
+yerine yalnız sentetik adrese döndüren `resetAccountAuthEmail` var ve o
+`email_confirm: true` yazıyor: e-postasını **kaldıran** kullanıcı kendini
+dışarı kilitleyemesin.
+
 ### 2 — Geri dönüşü olmayan parça
 
 `users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri
