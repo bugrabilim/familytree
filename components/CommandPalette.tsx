@@ -6,6 +6,7 @@ import Avatar from "./ui/Avatar";
 import { lifeSpan } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { usePrivacy } from "./PrivacyContext";
 import { isMasked } from "@/lib/privacy";
 import { useT } from "@/lib/i18n";
@@ -62,6 +63,17 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
 
   useEscapeKey(onClose);
 
+  /*
+   * Palet zaten `aria-modal="true"` diyordu ve arama girdisine kendi
+   * odaklanıyordu — ama Tab paletten çıkabiliyor ve kapanışta odak açan
+   * düğmeye dönmüyordu. Kanca ikisini de kapatıyor. Girdiye odaklanma
+   * KORUNUYOR: kanca "panelde odak zaten varsa dokunma" diyor ve yukarıdaki
+   * efekt bu satırdan önce çalışıyor.
+   */
+  const layerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef, { layerRef });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") {
@@ -88,10 +100,11 @@ export default function CommandPalette({ people: rawPeople, onSelect, onClose, o
   }, [cursor]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[12vh] px-4">
+    <div ref={layerRef} className="fixed inset-0 z-[60] flex items-start justify-center pt-[12vh] px-4">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in" onClick={onClose} aria-hidden />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={t("palette.aria")}

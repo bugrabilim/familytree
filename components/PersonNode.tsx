@@ -162,7 +162,7 @@ function PersonNode({ data }: NodeProps) {
             </button>
             <span
               className="absolute -top-1 -left-1 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
-              title="Çevre"
+              title={t("node.associate")}
               aria-hidden
             >
               🤝
@@ -181,7 +181,7 @@ function PersonNode({ data }: NodeProps) {
       <button
         onClick={() => onSelect(person.id)}
         onDoubleClick={() => onOpen?.(person.id)}
-        title="Tıkla: profili aç ve merkeze al"
+        title={t("node.openHint")}
         style={{ width, height }}
         className={`
           relative overflow-hidden
@@ -199,9 +199,9 @@ function PersonNode({ data }: NodeProps) {
         {focused && !selected && (
           <span
             className="absolute top-1 left-1 px-1.5 py-px rounded-full bg-accent text-[9px] font-semibold text-white shadow-soft z-10"
-            title="Ağacın odak noktası"
+            title={t("node.focusTitle")}
           >
-            odak
+            {t("node.focus")}
           </span>
         )}
 
@@ -224,7 +224,7 @@ function PersonNode({ data }: NodeProps) {
       {associate && (
         <span
           className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 grid place-items-center rounded-full bg-accent text-white text-[10px] shadow-soft"
-          title="Çevre"
+          title={t("node.associate")}
           aria-hidden
         >
           🤝
@@ -235,13 +235,13 @@ function PersonNode({ data }: NodeProps) {
       {!readOnly && !associate && (
         <>
           {canAddParent && (
-            <AddNub label="Ebeveyn ekle" position="top" onClick={stop(() => onQuickAdd("parent", person.id))} />
+            <AddNub label={t("node.addParent")} position="top" onClick={stop(() => onQuickAdd("parent", person.id))} />
           )}
-          <AddNub label="Çocuk ekle" position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
-          <AddNub label="Eş ekle" position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
-          <AddNub label="Kardeş ekle" position="left" onClick={stop(() => onQuickAdd("sibling", person.id))} />
+          <AddNub label={t("node.addChild")} position="bottom" onClick={stop(() => onQuickAdd("child", person.id))} />
+          <AddNub label={t("node.addSpouse")} position="right" onClick={stop(() => onQuickAdd("spouse", person.id))} />
+          <AddNub label={t("node.addSibling")} position="left" onClick={stop(() => onQuickAdd("sibling", person.id))} />
           {/* Yakın çevre (arkadaş) ekle — mor, köşede, 🤝 */}
-          <AddNub label="Yakın çevre ekle" position="corner" tone="accent" icon="friend" onClick={stop(() => onQuickAdd("associate", person.id))} />
+          <AddNub label={t("node.addAssociate")} position="corner" tone="accent" icon="friend" onClick={stop(() => onQuickAdd("associate", person.id))} />
         </>
       )}
     </div>

@@ -266,8 +266,21 @@ export default function ShareDialog({
           </Button>
         </section>
 
+        {/*
+          Hata İÇERİĞİN ÜSTÜNDE: en altta duruyordu ve uzun bir bağlantı
+          listesinde ekranın dışında kalıyordu. Gösterilen ama görülmeyen bir
+          hata, gösterilmeyen bir hatadan farksız.
+        */}
+        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+
         {/* Mevcut bağlantılar */}
-        {shares === null ? (
+        {/*
+            B10 — hata varken "boş" ya da "yükleniyor" GÖSTERİLMİYOR.
+            Başarısız istek listeyi boş bırakıyor ve ekran aynı anda hem
+            "yüklenemedi" hem "hiç kayıt yok" diyordu. İkincisi bir OLGU
+            İDDİASI ve yanlış — kayıtlar olabilir, okunamadı.
+          */}
+        {error ? null : shares === null ? (
           <p className="text-sm text-text-muted">{t("share.loading")}</p>
         ) : shares.length === 0 ? (
           <p className="text-sm text-text-muted">{t("share.none")}</p>
@@ -278,8 +291,6 @@ export default function ShareDialog({
             ))}
           </div>
         )}
-
-        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
       </div>
     </Modal>
   );

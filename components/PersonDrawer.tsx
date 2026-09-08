@@ -1,7 +1,7 @@
 "use client";
 
 import { userMessage } from "@/lib/error-text";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   EDUCATION_LEVELS,
   LIFE_EVENT_TYPES,
@@ -41,6 +41,7 @@ import CalendarAdd from "./CalendarAdd";
 import { resolveAssociations } from "@/lib/associates";
 import { ASSOCIATION_TYPES } from "@/types/family";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { usePrivacy } from "./PrivacyContext";
 import { useReadOnly } from "./ReadOnlyContext";
 import BondSection from "./BondSection";
@@ -316,6 +317,37 @@ export default function PersonDrawer({
 
   useEscapeKey(onClose);
 
+  /*
+   * ═══ B8 — BU PANEL DAR EKRANDA MODAL, GENİŞ EKRANDA DEĞİL ═══
+   *
+   * Karar her katman için ayrı verildi; buraya kipsellik "her zaman" diye
+   * yazılamazdı çünkü davranış gerçekten iki türlü:
+   *
+   *  • 320/390'da `inset-x-0 bottom-0` + `bg-black/35` perde ile açılıyor,
+   *    ölçülen kutu 390×680 — sayfanın %85'i. Arkadaki ağaca ne tıklanır ne
+   *    de bakılır. Bu, adı konmamış bir modaldir.
+   *  • `sm`den itibaren perde hiç çizilmiyor (`sm:hidden`), panel sağda
+   *    340px'lik kendi sütununda duruyor ve kullanıcı ağaçta gezinmeye
+   *    devam ediyor — başka bir kişiye tıklamak paneli DEĞİŞTİRİYOR. Burada
+   *    `aria-modal` koymak düpedüz yanlış olurdu: yardımcı teknolojiye
+   *    "dışarısı yok" derken dışarısı hem var hem de asıl iş orada.
+   *
+   * Bu yüzden `role="dialog"` her iki hâlde de duruyor (kapatma düğmesi olan,
+   * ESC ile kapanan, üste binen bir kutu — landmark değil), `aria-modal` ve
+   * odak hapsi ise YALNIZ perdenin gerçekten var olduğu genişlikte.
+   */
+  const [mobil, setMobil] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const uygula = () => setMobil(mq.matches);
+    uygula();
+    mq.addEventListener("change", uygula);
+    return () => mq.removeEventListener("change", uygula);
+  }, []);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  useDialogLayer(panelRef, { layerRef, enabled: mobil });
+
   const handleDelete = async () => {
     setDeleting(true);
     setError("");
@@ -329,7 +361,10 @@ export default function PersonDrawer({
   };
 
   return (
-    <>
+    /* `display: contents` — kutu yerleşimde HİÇ yok, ama DOM'da var: `inert`
+       zinciri perde ile paneli birlikte saran bir düğüme ihtiyaç duyuyor
+       (yoksa perde de etkisizleşir ve "boşluğa dokununca kapan" ölür). */
+    <div ref={layerRef} className="contents">
       {/* Mobil arka plan */}
       <div
         className="fixed inset-0 z-30 bg-black/35 sm:hidden animate-fade-in"
@@ -338,6 +373,9 @@ export default function PersonDrawer({
       />
 
       <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal={mobil || undefined}
         className="
           fixed z-40 bg-bg-elevated border-border shadow-modal flex flex-col
           inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t animate-slide-up
@@ -1079,7 +1117,7 @@ export default function PersonDrawer({
       </aside>
 
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
-    </>
+    </div>
   );
 }
 
@@ -1090,12 +1128,21 @@ export default function PersonDrawer({
  */
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEscapeKey(onClose);
+  /*
+   * Işık kutusu koşulsuz bir modal: ekranın tamamını %80 siyahla kaplıyor,
+   * her genişlikte aynı davranıyor. `aria-modal` zaten yazıyordu; eksik olan
+   * onu doğrulayan mekanizmaydı. Kök hem perde hem panel olduğu için
+   * `layerRef` yok — zincir buradan başlıyor.
+   */
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef);
   const t = useT();
   const [enhanced, setEnhanced] = useState(false);
   const canEnhance = isCloudinaryImage(src);
   const shown = enhanced ? enhancedUrl(src) : src;
   return (
     <div
+      ref={panelRef}
       className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"

@@ -1207,7 +1207,7 @@ export default function PersonForm({
       <details className="rounded-xl border border-border overflow-hidden group">
         <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
           <span className="text-xs font-medium text-text">
-            Yaşam olayları
+            {t("form.eventsSection")}
             {events.length > 0 && <span className="ml-1.5 text-primary">· {events.length}</span>}
           </span>
           <span className="text-[11px] text-text-muted">isteğe bağlı</span>
@@ -1224,14 +1224,14 @@ export default function PersonForm({
                 <div className="flex gap-1.5">
                   <input
                     inputMode="numeric"
-                    aria-label="Olay tarihi"
+                    aria-label={t("form.eventDateAria")}
                     className={`${field} tabular-nums flex-1`}
                     value={ev.date}
                     onChange={(e) => updateEvent(ev.id, { date: e.target.value })}
                     placeholder="GG.AA.YYYY"
                   />
                   <select
-                    aria-label="Olay türü"
+                    aria-label={t("form.eventTypeAria")}
                     value={ev.type in LIFE_EVENT_TYPES ? ev.type : "diger"}
                     onChange={(e) => updateEvent(ev.id, { type: e.target.value })}
                     className="h-10 px-2 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary flex-1 min-w-0"
@@ -1243,7 +1243,7 @@ export default function PersonForm({
                   <button
                     type="button"
                     onClick={() => removeEvent(ev.id)}
-                    aria-label="Olayı kaldır"
+                    aria-label={t("form.removeEvent")}
                     className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -1252,18 +1252,18 @@ export default function PersonForm({
                   </button>
                 </div>
                 <input
-                  aria-label="Olay başlığı"
+                  aria-label={t("form.eventTitleAria")}
                   className={field}
                   value={ev.title}
                   onChange={(e) => updateEvent(ev.id, { title: e.target.value })}
-                  placeholder="Başlık — ör. İlkokul mezuniyeti"
+                  placeholder={t("form.eventTitlePlaceholder")}
                 />
                 <input
-                  aria-label="Olay yeri"
+                  aria-label={t("form.eventPlaceAria")}
                   className={field}
                   value={ev.place}
                   onChange={(e) => updateEvent(ev.id, { place: e.target.value })}
-                  placeholder="Yer (isteğe bağlı)"
+                  placeholder={t("form.eventPlacePlaceholder")}
                 />
               </div>
             ))
@@ -1279,7 +1279,7 @@ export default function PersonForm({
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Olay ekle
+            {t("form.addEvent")}
           </button>
         </div>
       </details>
@@ -1288,7 +1288,7 @@ export default function PersonForm({
       <details className="rounded-xl border border-border overflow-hidden group">
         <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
           <span className="text-xs font-medium text-text">
-            Kaynaklar
+            {t("form.sourcesSection")}
             {sources.length > 0 && <span className="ml-1.5 text-primary">· {sources.length}</span>}
           </span>
           <span className="text-[11px] text-text-muted">isteğe bağlı</span>
@@ -1304,7 +1304,7 @@ export default function PersonForm({
               <div key={s.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
                 <div className="flex gap-1.5">
                   <select
-                    aria-label="Kaynak türü"
+                    aria-label={t("form.sourceTypeAria")}
                     value={s.kind in SOURCE_KINDS ? s.kind : "diger"}
                     onChange={(e) => updateSource(s.id, { kind: e.target.value })}
                     className="h-10 px-2 rounded-xl bg-surface border border-border text-xs text-text focus:outline-none focus:border-primary flex-1 min-w-0"
@@ -1316,7 +1316,7 @@ export default function PersonForm({
                   <button
                     type="button"
                     onClick={() => removeSource(s.id)}
-                    aria-label="Kaynağı kaldır"
+                    aria-label={t("form.removeSource")}
                     className="w-10 h-10 shrink-0 grid place-items-center rounded-xl text-text-muted hover:text-danger hover:bg-danger-soft transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -1325,25 +1325,25 @@ export default function PersonForm({
                   </button>
                 </div>
                 <input
-                  aria-label="Kaynak başlığı"
+                  aria-label={t("form.sourceTitleAria")}
                   className={field}
                   value={s.title}
                   onChange={(e) => updateSource(s.id, { title: e.target.value })}
-                  placeholder="Başlık — ör. 1927 Nüfus Sayımı"
+                  placeholder={t("form.sourceTitlePlaceholder")}
                 />
                 <input
-                  aria-label="Kaynak bağlantısı"
+                  aria-label={t("form.sourceUrlAria")}
                   className={field}
                   value={s.url}
                   onChange={(e) => updateSource(s.id, { url: e.target.value })}
-                  placeholder="Bağlantı (isteğe bağlı)"
+                  placeholder={t("form.sourceUrlPlaceholder")}
                 />
                 <input
-                  aria-label="Kaynak notu"
+                  aria-label={t("form.sourceNoteAria")}
                   className={field}
                   value={s.note}
                   onChange={(e) => updateSource(s.id, { note: e.target.value })}
-                  placeholder="Not / atıf (isteğe bağlı)"
+                  placeholder={t("form.sourceNotePlaceholder")}
                 />
               </div>
             ))
@@ -1357,7 +1357,7 @@ export default function PersonForm({
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Kaynak ekle
+            {t("form.addSource")}
           </button>
         </div>
       </details>
@@ -1652,10 +1652,10 @@ export default function PersonForm({
             className="w-full flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors"
           >
             <span className="text-xs font-medium text-text">
-              Aile bağları
+              {t("form.linksSection")}
               {form.parentIds.length + form.spouseIds.length + form.formerSpouseIds.length > 0 && (
                 <span className="ml-1.5 text-primary">
-                  · {form.parentIds.length + form.spouseIds.length + form.formerSpouseIds.length} seçili
+                  · {t("form.linksSelected", { count: form.parentIds.length + form.spouseIds.length + form.formerSpouseIds.length })}
                 </span>
               )}
             </span>
@@ -1670,8 +1670,8 @@ export default function PersonForm({
           {showLinks && (
             <div className="p-3 space-y-3.5 bg-surface">
               <LinkPicker
-                title="Ebeveynler"
-                hint="en fazla 2"
+                title={t("form.parents")}
+                hint={t("form.parentsHint")}
                 people={others}
                 selected={form.parentIds}
                 disabledWhenUnselected={form.parentIds.length >= 2}
@@ -1696,20 +1696,20 @@ export default function PersonForm({
                         </p>
                         <div className="grid grid-cols-2 gap-1.5">
                           <select
-                            aria-label="Bağ türü"
+                            aria-label={t("form.linkKindAria")}
                             value={link.kind ?? "biological"}
                             onChange={(e) =>
                               setLink({ kind: e.target.value as ParentLink["kind"] })
                             }
                             className="h-8 px-2 rounded-lg bg-surface border border-border text-[11px] text-text focus:outline-none focus:border-primary"
                           >
-                            <option value="biological">Kan bağı</option>
+                            <option value="biological">{t("form.biological")}</option>
                             {Object.entries(PARENT_KIND_LABELS).map(([k, l]) => (
                               <option key={k} value={k}>{l}</option>
                             ))}
                           </select>
                           <select
-                            aria-label="İlişki durumu"
+                            aria-label={t("form.estrangementAria")}
                             value={link.estranged ?? ""}
                             onChange={(e) =>
                               setLink({
@@ -1718,7 +1718,7 @@ export default function PersonForm({
                             }
                             className="h-8 px-2 rounded-lg bg-surface border border-border text-[11px] text-text focus:outline-none focus:border-primary"
                           >
-                            <option value="">İlişki sürüyor</option>
+                            <option value="">{t("form.relationOngoing")}</option>
                             {Object.entries(ESTRANGEMENT_LABELS).map(([k, l]) => (
                               <option key={k} value={k}>{l.child}</option>
                             ))}
@@ -1730,14 +1730,14 @@ export default function PersonForm({
                 </div>
               )}
               <LinkPicker
-                title="Eş / eşler"
+                title={t("form.spouses")}
                 people={others}
                 selected={form.spouseIds}
                 onToggle={(id) => toggleLink("spouseIds", id)}
               />
               <LinkPicker
-                title="Eski eş / eşler"
-                hint="boşanma"
+                title={t("form.formerSpouses")}
+                hint={t("form.formerSpousesHint")}
                 people={others}
                 selected={form.formerSpouseIds}
                 onToggle={(id) => toggleLink("formerSpouseIds", id)}

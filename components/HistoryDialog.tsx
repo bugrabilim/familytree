@@ -123,9 +123,24 @@ export default function HistoryDialog({
 
   return (
     <Modal title={t("history.title")} subtitle={t("history.subtitle")} onClose={onClose}>
-      {entries === null && !error ? (
+      {/*
+        Hata İÇERİĞİN ÜSTÜNDE: en altta duruyordu ve uzun bir geçmiş
+        listesinde ekranın dışında kalıyordu. Gösterilen ama görülmeyen bir
+        hata, gösterilmeyen bir hatadan farksız.
+      */}
+      {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl mb-3">{error}</p>}
+
+      {/*
+        B10 — hata varken "boş" ya da "yükleniyor" GÖSTERİLMİYOR.
+        `entries === null && !error` yalnız YÜKLENİYOR satırını koruyordu;
+        istek başarısız olup `entries` boş diziye düştüğünde "Henüz geri
+        alınabilecek bir güncelleme yok." yazılıyordu. Bu bir OLGU İDDİASI ve
+        yanlış: güncellemeler olabilir, okunamadı — üstelik kullanıcı bunu
+        "geçmişim silinmiş" diye okur.
+      */}
+      {error ? null : entries === null ? (
         <p className="text-sm text-text-muted">{t("history.loading")}</p>
-      ) : entries && entries.length === 0 ? (
+      ) : entries.length === 0 ? (
         <p className="text-sm text-text-muted">{t("history.empty")}</p>
       ) : (
         <div>
@@ -209,7 +224,6 @@ export default function HistoryDialog({
           </div>
         </div>
       )}
-      {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl mt-3">{error}</p>}
     </Modal>
   );
 }

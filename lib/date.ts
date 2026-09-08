@@ -210,13 +210,32 @@ export function signedDaysToAnniversary(
   return null;
 }
 
-/** "12 gün sonra" / "Bugün" / "Yarın" / "Dün" / "3 gün önce" */
-export function humanizeDays(days: number): string {
-  if (days === 0) return "Bugün";
-  if (days === 1) return "Yarın";
-  if (days === -1) return "Dün";
-  if (days < 0) return `${-days} gün önce`;
-  return `${days} gün sonra`;
+/**
+ * Göreli gün farkının DİLDEN BAĞIMSIZ tarifi.
+ *
+ * Eskiden burası doğrudan "Bugün" / "3 gün önce" döndürüyordu ve Takvim
+ * sekmesi İngilizce arayüzde Türkçe konuşuyordu. Sözlük parite testi bunu
+ * göremezdi: ortada bir ANAHTAR yoktu ki bir yarısı eksik olsun.
+ *
+ * Bu modül saf ve dilsiz kalmalı — takvim mantığı yerel ayarla ilgilenmez ve
+ * `useT()` bir React kancası, buraya giremez. İki dilin dizesini içeri
+ * koymak da çözüm değildi: uygulamanın bütün metni tek yerde (`i18n-dict`)
+ * duruyor, üçüncü bir sözlük açmak o kuralı bozardı ve bir sonraki dil
+ * eklendiğinde burası unutulurdu.
+ *
+ * Bu yüzden işlev metin değil KARAR döndürüyor: hangi kalıp, kaç gün.
+ * Biçimlendirme çağıranın (ve sözlüğün) işi.
+ */
+export type GoreliGun =
+  | { kind: "today" | "tomorrow" | "yesterday" }
+  | { kind: "past" | "future"; days: number };
+
+export function relativeDays(days: number): GoreliGun {
+  if (days === 0) return { kind: "today" };
+  if (days === 1) return { kind: "tomorrow" };
+  if (days === -1) return { kind: "yesterday" };
+  if (days < 0) return { kind: "past", days: -days };
+  return { kind: "future", days };
 }
 
 export { AYLAR };

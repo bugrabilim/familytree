@@ -1181,6 +1181,40 @@ function TreeDepthControl({
       kaydırma alanı olurdu.
     */
     <div className="shrink-0 flex flex-nowrap items-center gap-1.5 h-11 lg:h-9">
+      {/*
+        ═══ DAR EKRANDA DERİNLİK BİR SAYI DEĞİL, BİR CÜMLE ═══
+
+        On düğmelik şerit `lg`de rahat sığıyor ve fareyle tek tıkta
+        seçim veriyor — orada değişen bir şey yok. Ama 320-768 arasında
+        şerit satıra sığmıyor, kayıyor; kaydığı anda ETKİN derinliği
+        gösteren tek işaret (dolu renkli düğme) ekranın dışında kalıyordu.
+        Ölçüldü: 320px'te denetim satırında derinliğe dair görünen hiçbir
+        şey yoktu. Kullanıcı "ağacın neden 40 kişi gösterdiğini" okuyacağı
+        yeri kaydırarak aramak zorundaydı.
+
+        Bu yüzden dar ekranda aynı seçim KOMPAKT bir açılır kutuya
+        dönüşüyor: kutunun kapalı hâli zaten seçili değeri yazar, yani
+        etkin derinlik tanım gereği görünür ve ~110px yer kaplar. Seçenek
+        kümesi birebir aynı (0-8 + "Tümü"), dokunma boyu 44px, ve yerel
+        kutu ekran okuyucuda düğme şeridinden daha iyi anlatılıyor.
+      */}
+      <label className="lg:hidden shrink-0 relative">
+        <span className="sr-only">{t("ws.depth.label")}</span>
+        <select
+          value={depth}
+          onChange={(e) => onChange(Number(e.target.value))}
+          title={t("ws.depth.label")}
+          className="h-11 pl-2.5 pr-7 rounded-lg bg-surface border border-border text-[11px] font-medium text-text appearance-none focus:outline-none focus:border-primary"
+        >
+          {sayilar.map((d) => (
+            <option key={d} value={d}>{t("ws.depth.gen", { d })}</option>
+          ))}
+          {metinler.map((o) => (
+            <option key={o.d} value={o.d}>{o.l}</option>
+          ))}
+        </select>
+        <span aria-hidden className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-text-muted">▾</span>
+      </label>
       {focusPerson && (
         <button
           onClick={onGoToFocus}
@@ -1198,7 +1232,7 @@ function TreeDepthControl({
           söylemeyen bir çentiğe dönüşüyordu. */}
       {focusPerson && <span className="h-4 w-px bg-border shrink-0" />}
       {/* Dokunmada 36px (24px'ti, aralığı 2px'ti); farede eskisi gibi kompakt. */}
-      <div className="flex items-center gap-1 lg:gap-0.5 shrink-0">
+      <div className="hidden lg:flex items-center gap-1 lg:gap-0.5 shrink-0">
         {sayilar.map((d) => (
           <button
             key={d}
