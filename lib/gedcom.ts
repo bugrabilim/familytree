@@ -1,4 +1,4 @@
-import type { LifeEvent, Person } from "@/types/family";
+import type { LifeEvent, Person, Source } from "@/types/family";
 import { nanoid } from "nanoid";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -67,6 +67,25 @@ function gedcomToDate(gedDate: string): string | undefined {
 }
 
 export type GedcomVersion = "5.5.1" | "7.0";
+
+/**
+ * `PLAC` altına koordinat yazar (`MAP` / `LATI` / `LONG`).
+ *
+ * GEDCOM işaret yönünü HARFLE veriyor: `N`/`S` ve `E`/`W`. Eksi işaretli
+ * ondalık yazmak yaygın bir hata ve okuyucuların çoğu onu sessizce atıyor —
+ * yani koordinat "gönderilmiş" görünüp hiçbir yerde belirmiyor.
+ *
+ * Derinlik parametre, çünkü aynı yapı `BIRT`in de `BURI`nin de altında,
+ * farklı seviyelerde kullanılabiliyor.
+ */
+function yerKoordinati(lines: string[], seviye: number, c: { lat: number; lng: number }): void {
+  const yon = (v: number, arti: string, eksi: string) =>
+    `${v < 0 ? eksi : arti}${Math.abs(v).toFixed(6)}`;
+  lines.push(`${seviye + 1} MAP`);
+  lines.push(`${seviye + 2} LATI ${yon(c.lat, "N", "S")}`);
+  lines.push(`${seviye + 2} LONG ${yon(c.lng, "E", "W")}`);
+}
+
 
 /**
  * GEDCOM dışa aktarımı. VARSAYILAN 5.5.1'dir ve öyle kalır: alandaki
@@ -182,11 +201,39 @@ export function exportGedcom(
 
   /** 7.0 için: medya URL'si → üst düzey OBJE kaydının xref'i. */
   const objeXref = new Map<string, string>();
+  /*
+   * KAYNAK KAYITLARI — soy ağacı yazılımlarının en çok değer verdiği veri ve
+   * GEDCOM'un en kanonik yapısı; hiç yazılmıyordu. Kullanıcı her doğum
+   * tarihine "Mezar taşı" / "1927 Nüfus Sayımı" atfı giriyor, dosyayı başka
+   * bir programa açtığında kayıtların hiçbirinin dayanağı olmuyordu.
+   *
+   * Anahtar BAŞLIK + TÜR: aynı kaynağı gösteren kişiler tek `SOUR` kaydını
+   * paylaşsın (`objeXref` ile aynı gerekçe). Kaynağın kendi `id`si kişiye
+   * özel olduğu için anahtar olamaz — o hâlde on kişinin atfettiği tek nüfus
+   * sayımı, dosyada on ayrı kaynak olurdu.
+   */
+  const sourXref = new Map<string, { xref: string; kaynak: Source }>();
+  const sourAnahtar = (k: Source) => `${k.title}\u0000${k.kind ?? ""}\u0000${k.url ?? ""}`;
 
   /* ---- INDI kayıtları ---- */
   for (const p of people) {
     lines.push(`0 ${idToGed.get(p.id)} INDI`);
     lines.push(`1 NAME ${p.firstName} /${p.lastName}/`);
+    /*
+     * AD ALT ETİKETLERİ — bu uygulamanın çekirdek durumu buna bağlı.
+     *
+     * 1934 öncesi kuşakta `lastName` BOŞ ve kişi "Şaban oğlu Mehmed" olarak
+     * kayıtlı. Yalnız `1 NAME Mehmed //` yazdığımızda kişi başka bir
+     * programda kimliksiz kalıyordu: soyadı yok, baba adı yok. `lib/name.ts`
+     * bütün patronymic mantığını taşıyor ve dışa aktarımda kayboluyordu.
+     *
+     * `NICK` her iki sürümde standart. Baba adının standart bir etiketi YOK
+     * (NPFX/GIVN/SPFX/SURN/NSFX kümesinde karşılığı yok) — `SURN`a yazmak
+     * olmayan bir soyadı UYDURMAK olurdu. Bu yüzden satıcı uzantısı; dosya
+     * aynı kalıbı `_PEDI` için de kullanıyor ve gerekçesi orada yazılı.
+     */
+    if (p.nickname) lines.push(`2 NICK ${p.nickname}`);
+    if (p.patronymic) lines.push(`2 _PATRONYM ${p.patronymic}`);
     if (p.gender === "male") lines.push("1 SEX M");
     else if (p.gender === "female") lines.push("1 SEX F");
     else if (p.gender === "other") lines.push("1 SEX X");
@@ -196,6 +243,13 @@ export function exportGedcom(
       lines.push("1 BIRT");
       if (bd) lines.push(`2 DATE ${bd}`);
       if (p.birthPlace) lines.push(`2 PLAC ${p.birthPlace}`);
+      /*
+       * Koordinat, kullanıcının ELLE düzelttiği veri: coğrafi kodlama yanlış
+       * köyü seçtiğinde haritadan doğru noktayı işaretliyor (alanın var oluş
+       * sebebi bu). Yalnız metni dışa aktarmak, o düzeltmeyi atmak demekti.
+       * `PLAC/MAP/LATI/LONG` hem 5.5.1'de hem 7.0'da standart.
+       */
+      if (p.birthCoords) yerKoordinati(lines, 2, p.birthCoords);
     }
 
     const dd = dateToGedcom(p.deathDate);
@@ -205,13 +259,50 @@ export function exportGedcom(
       if (p.deathCause) lines.push(`2 CAUS ${p.deathCause}`);
     }
 
+    /*
+     * MEZAR — `BURI` her iki sürümde standart bir olay. Uygulamada haritalı
+     * bir özellik ve kullanıcılar titizlikle dolduruyor; GEDCOM'da tek satırı
+     * yoktu, yani başka bir programa geçince mezar bilgisi tamamen gidiyordu.
+     */
+    if (p.burialPlace || p.burialCoords) {
+      lines.push("1 BURI");
+      if (p.burialPlace) lines.push(`2 PLAC ${p.burialPlace}`);
+      if (p.burialCoords) yerKoordinati(lines, 2, p.burialCoords);
+    }
+
     if (p.occupation) lines.push(`1 OCCU ${p.occupation}`);
     if (p.education) lines.push(`1 EDUC ${p.education}`);
+    // Standart INDI öznitelikleri; ikisi de 5.5.1 ve 7.0'da var.
+    if (p.religion) lines.push(`1 RELI ${p.religion}`);
+    if (p.nationality) lines.push(`1 NATI ${p.nationality}`);
+    /*
+     * `code` "kalıcı ve paylaşılabilir kimlik" diye tanımlanmış (types/family)
+     * ama dışa aktarımda kalıcı değildi. `REFN` tam olarak bunun için var.
+     */
+    if (p.code) lines.push(`1 REFN ${p.code}`);
 
     // Fotoğraflar — kapak + galeri, URL olarak taşınır (GEDCOM medyayı gömmez;
     // MyHeritage vb. `OBJE/FILE` URL'lerini okur). Yinelenenler atlanır.
+    /*
+     * VİDEO VE BELGELER DE MEDYA. Döngü yalnız fotoğrafları alıyordu, oysa
+     * aynı dosyadaki `MEDIA_TYPES` tablosu pdf/mp3/mp4/webm/mov türlerini
+     * zaten tanımlıyor — yani tablo bu medyayı bekliyor, üreten döngü hiç
+     * göndermiyordu. `OBJE/FILE/FORM` her medya türü için geçerli.
+     */
     const media: string[] = [];
-    for (const url of [p.photo, ...(p.photos ?? [])]) {
+    for (const url of [
+      p.photo,
+      ...(p.photos ?? []),
+      ...(p.videos ?? []),
+      ...(p.documents ?? []),
+      /*
+       * SESLİ ANILAR DA BURADA — aşağıdaki anı döngüsünde DEĞİL. Orada
+       * eklemeyi denedim ve sessizce kayboluyordu: `OBJE` satırları bu
+       * listeden hemen sonra yazılıyor, anı döngüsü ise çok daha aşağıda.
+       * Yani ses "eklenmiş" görünüp dosyaya hiç girmiyordu.
+       */
+      ...(p.memories ?? []).map((a) => a.audio),
+    ]) {
       if (url && !media.includes(url)) media.push(url);
     }
     for (const url of media) {
@@ -254,6 +345,33 @@ export function exportGedcom(
         }
       }
     }
+    /*
+     * KAYNAK ATIFLARI. `1 SOUR @Sx@` her iki sürümde standart; kaydın kendisi
+     * dosyanın sonunda üst düzey `0 @Sx@ SOUR` olarak yazılıyor.
+     */
+    for (const k of p.sources ?? []) {
+      if (!k?.title) continue;
+      const anahtar = sourAnahtar(k);
+      let kayit = sourXref.get(anahtar);
+      if (!kayit) {
+        kayit = { xref: `@S${String(sourXref.size + 1).padStart(4, "0")}@`, kaynak: k };
+        sourXref.set(anahtar, kayit);
+      }
+      lines.push(`1 SOUR ${kayit.xref}`);
+      // Kişiye ÖZEL not atıfta kalıyor; ortak kayda taşınsaydı başkasının
+      // notu haline gelirdi.
+      if (k.note) lines.push(`2 NOTE ${k.note}`);
+    }
+
+    /*
+     * ANILARIN METNİ. Sesleri yukarıdaki medya listesinde toplanıyor —
+     * `OBJE` satırları oradan, bu noktadan çok önce yazılıyor.
+     */
+    for (const a of p.memories ?? []) {
+      const metin = [a.prompt, a.text].filter(Boolean).join(" — ");
+      if (metin) lines.push(`1 NOTE ${metin}`);
+    }
+
     // Ait olduğu aileler — evlat edinme burada PEDI ile belirtilir
     const ci = cocukAile.get(p.id);
     if (ci !== undefined) {
@@ -301,6 +419,15 @@ export function exportGedcom(
     }
     if (fam.divorced) lines.push("1 DIV Y");
   });
+
+  // Kaynak kayıtları — atıfların gösterdiği yer.
+  for (const { xref, kaynak } of sourXref.values()) {
+    lines.push(`0 ${xref} SOUR`);
+    lines.push(`1 TITL ${kaynak.title}`);
+    // `kind` serbest metin olabiliyor; `TEXT` her iki sürümde de serbest.
+    if (kaynak.kind) lines.push(`1 TEXT ${kaynak.kind}`);
+    if (kaynak.url) lines.push(v7 ? `1 EXID ${kaynak.url}` : `1 NOTE ${kaynak.url}`);
+  }
 
   // 7.0: medya kayıtları en sonda, TRLR'den önce.
   for (const [url, xref] of objeXref) {
