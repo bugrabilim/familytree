@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { resolveFounder } from "@/lib/tree-context";
 import { restoreTree } from "@/lib/trees";
 
 export const dynamic = "force-dynamic";
@@ -17,16 +17,19 @@ export const dynamic = "force-dynamic";
  * silebilir. Şifre sormak, geri almayı silmekten zor hâle getirirdi.
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!(session.user.isFounder ?? true))
-    return NextResponse.json({ error: "Yalnız ağaç sahibi yönetebilir." }, { status: 403 });
+  // Ortak kurucu kapısı — gerekçe `lib/tree-context.ts`te.
+  const ctx = await resolveFounder();
+  if (!ctx.ok)
+    return NextResponse.json(
+      { error: ctx.status === 403 ? "Yalnız ağaç sahibi yönetebilir." : "Yetkisiz" },
+      { status: ctx.status }
+    );
 
   const body = await req.json().catch(() => ({}));
   const treeId = typeof body.treeId === "string" ? body.treeId : "";
   if (!treeId) return NextResponse.json({ error: "treeId gerekli." }, { status: 400 });
 
-  const r = await restoreTree(session.user.id, treeId);
+  const r = await restoreTree(ctx.accountId, treeId);
   if (!r.ok) {
     return NextResponse.json(
       {

@@ -128,8 +128,12 @@ for (const r of rotalar()) {
      * kopyalananlardan DAHA sıkı — şifresiz demo oturumunu da reddediyor
      * (gerekçe `lib/operator-access.ts`). Kopya kapılar kalktığı için
      * `isFounder`/`canManage` artık o rotaların kaynağında geçmiyor.
+     *
+     * `resolveFounder(` aynı sebeple listede: kurucu şartını KENDİ içinde
+     * taşıyor ve üstüne silinmekte olan hesap + şifre sıfırlama çağı
+     * denetimlerini ekliyor (`lib/tree-context.ts`).
      */
-    const kapili = /canEdit\(|canPropose\(|canManage\(|operatorVerdict\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
+    const kapili = /canEdit\(|canPropose\(|canManage\(|operatorVerdict\(|resolveFounder\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
     if (kapili) continue;
     check(r in KAPISIZ, `${r} → hiçbir rol kapısı yok ve muafiyet listesinde de değil`);
   }

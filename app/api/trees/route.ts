@@ -1,18 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { createTree, listDeletedTrees, listTrees, renameTree, softDeleteTree } from "@/lib/trees";
-import { resolveActiveTree } from "@/lib/tree-context";
+import { resolveFounder } from "@/lib/tree-context";
+import { findUserById } from "@/lib/users";
 import { GRACE_DAYS } from "@/lib/retention";
 
 export const dynamic = "force-dynamic";
 
-/** Yalnız founder (ağaç kuran) çoklu ağaç yönetebilir. */
+/**
+ * Yalnız founder (ağaç kuran) çoklu ağaç yönetebilir.
+ *
+ * ## Neden `auth()` DEĞİL, `resolveActiveTree()`
+ *
+ * Bu kapı oturumu doğrudan `auth()`ten okuyordu ve iki koruma DIŞARIDA
+ * kalıyordu — ikisi de yalnız `resolveActiveTree` içinde yaşıyor:
+ *
+ *  · SİLİNMEKTE OLAN HESAP (`isAccountDeleted`). "Hesabımı sildim" diyen
+ *    kullanıcı, açık sekmesinden bekleme süresi boyunca ağaç kurmaya,
+ *    silmeye ve yeniden adlandırmaya devam edebiliyordu.
+ *  · ŞİFRE SIFIRLAMA ÇAĞI (`sessionEpochOf`). Çerezi çalınan kullanıcının
+ *    belgelenmiş çaresi şifresini sıfırlamak; o çare buradaki uçlarda
+ *    işlemiyordu. Saldırgan aynı çerezle `DELETE /api/trees` çağırıp ağacı
+ *    yumuşak silebiliyor, bekleme süresi dolduğunda zamanlanmış iş onu
+ *    KALICI olarak siliyordu.
+ *
+ * `tests/session-revoke-gate.test.mts` mekanizmayı yalnız `tree-context`
+ * içinde kilitliyordu; denetimi hiç ÇAĞIRMAYAN rotaları kimse denetlemiyordu.
+ *
+ * ## Yan kazanç: mobil
+ *
+ * `auth()` yalnız çerez okuyor. React Native isteği çerez taşımadığı için
+ * bu uç mobilde HER ZAMAN 401 dönüyordu ve istemci hatayı yutuyordu — yani
+ * çoklu ağacı olan kurucunun mobil ağaç seçicisi kalıcı olarak boştu.
+ * `resolveActiveTree` `Bearer` jetonunu da çözüyor.
+ *
+ * Ağaç ADI oturumdan değil DEPODAN okunuyor: mobil oturumda çerez yok,
+ * dolayısıyla addan da yoksun kalırdık ve ana ağaç "Ağaç" diye görünürdü.
+ */
 async function founderCtx() {
-  const session = await auth();
-  if (!session?.user?.id) return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
-  if (!(session.user.isFounder ?? true))
-    return { error: NextResponse.json({ error: "Yalnız ağaç sahibi yönetebilir." }, { status: 403 }) };
-  return { accountId: session.user.id, treeName: session.user.treeName ?? session.user.name ?? "Ağaç" };
+  const ctx = await resolveFounder();
+  if (!ctx.ok)
+    return {
+      error: NextResponse.json(
+        { error: ctx.status === 403 ? "Yalnız ağaç sahibi yönetebilir." : "Yetkisiz" },
+        { status: ctx.status }
+      ),
+    };
+  const u = await findUserById(ctx.accountId);
+  return { accountId: ctx.accountId, treeName: u?.familyName ?? "Ağaç", activeTreeId: ctx.treeId };
 }
 
 /**
@@ -25,17 +59,13 @@ async function founderCtx() {
 export async function GET() {
   const c = await founderCtx();
   if ("error" in c) return c.error;
-  const [trees, deleted, active] = await Promise.all([
+  const [trees, deleted] = await Promise.all([
     listTrees(c.accountId, c.treeName),
     listDeletedTrees(c.accountId),
-    resolveActiveTree(),
   ]);
-  return NextResponse.json({
-    trees,
-    deleted,
-    graceDays: GRACE_DAYS,
-    activeTreeId: active.ok ? active.treeId : c.accountId,
-  });
+  // Aktif ağaç kimliği artık kapıdan geliyor — ikinci bir çözümleme, aynı
+  // işi tekrar yapıp sonucunu farklı ele alma riski demekti.
+  return NextResponse.json({ trees, deleted, graceDays: GRACE_DAYS, activeTreeId: c.activeTreeId });
 }
 
 /** Yeni ağaç oluştur. */

@@ -123,5 +123,40 @@ check(/setIssuedAt\(\)/.test(token), "mobil jeton iat'i İMZALIYOR");
   check(/status: 401/.test(sonra), "bulunamayan üye REDDEDİLİYOR");
 }
 
+
+/* ── Kurucuya özel uçlar da geri çağırmadan GEÇİYOR ─────────────────────── */
+/*
+ * Bu kapı mekanizmayı yalnız `tree-context` İÇİNDE kilitliyordu; denetimi
+ * hiç ÇAĞIRMAYAN rotaları kimse denetlemiyordu. `/api/trees`,
+ * `/api/trees/switch` ve `/api/trees/restore` oturumu doğrudan `auth()`ten
+ * okuyordu, dolayısıyla iki koruma da onlarda YOKTU:
+ *
+ *  · "hesabımı sildim" diyen kullanıcı, açık sekmesinden bekleme süresi
+ *    boyunca ağaç kurmaya/silmeye/yeniden adlandırmaya devam edebiliyordu;
+ *  · çerezi çalınan kullanıcının belgelenmiş çaresi (şifre sıfırlama) bu
+ *    uçlarda işlemiyordu — saldırgan aynı çerezle ağacı yumuşak siliyor,
+ *    bekleme süresi dolunca zamanlanmış iş onu KALICI olarak siliyordu.
+ */
+{
+  const ROTALAR = [
+    "../app/api/trees/route.ts",
+    "../app/api/trees/switch/route.ts",
+    "../app/api/trees/restore/route.ts",
+  ];
+  for (const yol of ROTALAR) {
+    const ad = yol.split("/").slice(-2).join("/");
+    const src = kodu(read(yol));
+    check(/resolveFounder\(/.test(src), `${ad}: ortak kurucu kapısından geçiyor`);
+    check(!/\bauth\(\)/.test(src), `${ad}: oturumu DOĞRUDAN okumuyor (kopya kapı yok)`);
+  }
+  const ctx = kodu(read("../lib/tree-context.ts"));
+  const i = ctx.indexOf("export async function resolveFounder");
+  const govde = ctx.slice(i, ctx.indexOf("\n}\n", i) + 3);
+  check(i > -1, "resolveFounder bulundu");
+  check(/resolveActiveTree\(\)/.test(govde),
+    "kurucu kapısı geri çağırma denetimlerini TAŞIYAN çözümlemeyi kullanıyor");
+  check(/isFounder/.test(govde), "üstüne kurucu şartını ekliyor");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

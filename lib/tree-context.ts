@@ -209,3 +209,44 @@ export async function resolveActiveTree(): Promise<TreeContext> {
   }
   return { ok: true, accountId, treeId: accountId, role: homeRole, isFounder: true, authorId };
 }
+
+/** `resolveFounder` sonucu — kurucuya özel uçlar için. */
+export type FounderContext =
+  | { ok: false; status: number }
+  /*
+   * Alan adı `treeId` — `activeTreeId` DEĞİL. Bu modülün değişmezi
+   * "`ok: true` dönen her dal bir ağaç taşır" ve `tests/tree-identity-gate`
+   * onu dosya boyunca sayarak koruyor. Aynı şeye ikinci bir ad vermek,
+   * değişmezi teknik olarak korurken okunamaz hâle getirirdi.
+   */
+  | { ok: true; accountId: string; treeId: string };
+
+/**
+ * KURUCUYA ÖZEL uçların kapısı (çoklu ağaç yönetimi).
+ *
+ * `/api/trees`, `/api/trees/switch` ve `/api/trees/restore` oturumu
+ * DOĞRUDAN `auth()`ten okuyordu ve üçü de aynı üç satırı kopyalamıştı.
+ * Bunun iki bedeli vardı:
+ *
+ *  · SİLİNMEKTE OLAN HESAP ve ŞİFRE SIFIRLAMA ÇAĞI denetimleri yalnız
+ *    `resolveActiveTree` içinde yaşıyor. Denetimi hiç çağırmayan bu üç
+ *    rota, "hesabımı sildim" diyen kullanıcının ve çerezi çalınmış
+ *    kullanıcının ağaç silmesine izin vermeye devam ediyordu — üstelik
+ *    yumuşak silinen ağacı bekleme süresi sonunda zamanlanmış iş KALICI
+ *    olarak siliyor.
+ *  · `auth()` yalnız çerez okuyor, dolayısıyla üçü de mobilde her zaman
+ *    401 dönüyordu.
+ *
+ * Kapının burada durması bilinçli: oturum çözümlemesinin evi burası ve
+ * kopya bir kapı, düzeltmenin üç yerden yapılmasını gerektirirdi.
+ *
+ * `403` gerekçesi çağırana bırakılıyor — mesaj uca göre değişiyor
+ * ("yönetebilir" / "geçiş yapabilir") ve kitaplığın kullanıcı metni
+ * üretmesi o farkı silerdi.
+ */
+export async function resolveFounder(): Promise<FounderContext> {
+  const ctx = await resolveActiveTree();
+  if (!ctx.ok) return { ok: false, status: ctx.status };
+  if (!ctx.isFounder) return { ok: false, status: 403 };
+  return { ok: true, accountId: ctx.accountId, treeId: ctx.treeId };
+}

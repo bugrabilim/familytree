@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { accessibleTreeIds, hasTreeAccess } from "@/lib/trees";
-import { ACTIVE_TREE_COOKIE } from "@/lib/tree-context";
+import { ACTIVE_TREE_COOKIE, resolveFounder } from "@/lib/tree-context";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +9,17 @@ export const dynamic = "force-dynamic";
  * yetki çerezle taşınır ve her istekte yeniden doğrulanır (bkz. resolveActiveTree).
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-  if (!(session.user.isFounder ?? true))
-    return NextResponse.json({ error: "Yalnız ağaç sahibi geçiş yapabilir." }, { status: 403 });
+  // Ortak kurucu kapısı: silinmekte olan hesap ve şifre sıfırlama çağı
+  // denetimleri buradan geliyor; `auth()` ikisini de atlıyordu (ve mobilde
+  // her zaman 401 veriyordu). Gerekçe `lib/tree-context.ts`te.
+  const ctx = await resolveFounder();
+  if (!ctx.ok)
+    return NextResponse.json(
+      { error: ctx.status === 403 ? "Yalnız ağaç sahibi geçiş yapabilir." : "Yetkisiz" },
+      { status: ctx.status }
+    );
 
-  const accountId = session.user.id;
+  const accountId = ctx.accountId;
   const body = await req.json().catch(() => ({}));
   const treeId = typeof body.treeId === "string" ? body.treeId : "";
   if (!treeId) return NextResponse.json({ error: "treeId gerekli." }, { status: 400 });
