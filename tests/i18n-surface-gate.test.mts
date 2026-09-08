@@ -27,10 +27,21 @@ const kodu = (src: string) =>
 
 /* ══ 1. Genel yüzeyde sabit erişilebilir ad YOK ═════════════════════════ */
 /*
- * Kapsam, oturum AÇMADAN görülen yüzey: açılış/tanıtım, kimlik ekranları,
- * hukuki sayfalar, durum ekranları. Uygulama içi diyaloglarda (PersonForm,
- * PersonNode) hâlâ sabit Türkçe etiketler var; onlar ayrı bir iş ve bu kapı
- * onları KAPSAMIYOR — kapsasaydı test kırmızı doğar, kimse de düzeltmezdi.
+ * Kapsam iki halkalı. Dış halka, oturum AÇMADAN görülen yüzey: açılış/tanıtım,
+ * kimlik ekranları, hukuki sayfalar, durum ekranları.
+ *
+ * İç halka B5'te eklendi: UYGULAMANIN İÇİ. İlk turda "ayrı bir iş" diye
+ * kapsam dışı bırakılmıştı ve tam olarak orada birikti — kart üzerindeki
+ * hızlı-ekleme düğmeleri ("Ebeveyn ekle", "Çocuk ekle"…), odak rozeti
+ * ("odak", "Ağacın odak noktası"), çevre ipucu ("Çevre"), pencere kapatma
+ * düğmesi ("Kapat") ve kişi formunun on yedi alan etiketi İngilizce arayüzde
+ * Türkçe konuşuyordu. Bunların çoğunda sözlük karşılığı ZATEN VARDI
+ * (`form.eventDateAria`, `form.parents`…) ama JSX'e bağlanmamıştı: yani
+ * eksik olan çeviri değil, kablo idi — ve hiçbir test kabloyu aramıyordu.
+ *
+ * `PersonDrawer` bilerek dışarıda: tek sabit dizesi `title="Google Maps"`,
+ * yani çevrilecek bir şey değil özel ad. Kapsama alınsaydı ya sahte bir
+ * kırmızı ya da sahte bir anahtar üretirdi.
  */
 const YUZEY = [
   "../components/ThemeToggle.tsx",
@@ -44,12 +55,27 @@ const YUZEY = [
   "../app/login/LoginForm.tsx",
   "../app/register/RegisterForm.tsx",
   "../app/forgot-password/ForgotForm.tsx",
+  /* İç halka (B5) — uygulama içi yüzey. */
+  "../components/PersonNode.tsx",
+  "../components/PersonForm.tsx",
+  "../components/ui/Modal.tsx",
+  "../components/CalendarView.tsx",
 ];
 for (const f of YUZEY) {
   const src = kodu(read(f));
   const sabit: string[] = [];
-  /* (a) Düz öznitelik:  aria-label="Koyu tema" */
-  for (const m of src.matchAll(/\b(aria-label|title)="([^"]*)"/g)) sabit.push(`${m[1]}="${m[2]}"`);
+  /*
+   * (a) Düz öznitelik:  aria-label="Koyu tema"
+   *
+   * `label` ve `hint` de burada. Sebebi mutasyonla bulundu: kart üzerindeki
+   * hızlı-ekleme düğmesi kendi bileşeni (`AddNub`) ve erişilebilir adını
+   * `label` PROPUNDAN alıyor (`title={label} aria-label={label}`). Yalnız
+   * `aria-label|title` aranınca `<AddNub label="Ebeveyn ekle">` mutasyonu
+   * kapıdan geçiyordu — yani düzeltilen arızanın tam olarak kendisi geri
+   * gelebiliyordu. Erişilebilir ad hangi propla taşınıyorsa kural onu da
+   * kapsamalı.
+   */
+  for (const m of src.matchAll(/\b(aria-label|title|label|hint)="([^"]*)"/g)) sabit.push(`${m[1]}="${m[2]}"`);
   /*
    * (b) İfade içindeki dize: aria-label={dark ? "Açık temaya geç" : "…"}
    *
@@ -57,7 +83,7 @@ for (const f of YUZEY) {
    * (a)'yı atlatıp aynı arızayı geri getiriyordu. `t(` geçen ifadeler
    * geçerli — çeviri oradan zaten geliyor.
    */
-  for (const m of src.matchAll(/\b(aria-label|title)=\{([^}]*)\}/g)) {
+  for (const m of src.matchAll(/\b(aria-label|title|label|hint)=\{([^}]*)\}/g)) {
     if (/\bt\(/.test(m[2])) continue;
     if (/"[^"]*[A-Za-zçğıöşüÇĞİÖŞÜ][^"]*"|'[^']*[A-Za-zçğıöşüÇĞİÖŞÜ][^']*'/.test(m[2]))
       sabit.push(`${m[1]}={${m[2].slice(0, 60)}}`);
@@ -118,6 +144,44 @@ for (const k of ["theme.toDark", "theme.toLight", "theme.dark", "theme.light", "
   /* Ve gerçekten ÇEVRİLMİŞ olmalı — iki yarıya aynı Türkçeyi kopyalamak
      pariteyi geçerdi ama İngilizce kullanıcıya hiçbir şey kazandırmazdı. */
   check(tr[k] !== en[k], `${k}: iki yarı birbirinin kopyası değil`);
+}
+
+/* ══ 5. B5'te eklenen/bağlanan anahtarlar ══════════════════════════════ */
+/*
+ * Şablonla kurulan anahtarlar (`t(`date.rel.${r.kind}`)`) 3. bölümün statik
+ * taramasına GÖRÜNMEZ; burada tek tek yazılı olmalarının sebebi bu. Takvim
+ * rozetleri ("Bugün", "3 gün önce") tam olarak böyle kaçmıştı: metin
+ * `lib/date.ts` içinde üretiliyordu, ortada anahtar yoktu, parite testi de
+ * iki boş kümeyi karşılaştırıp yeşil veriyordu.
+ */
+for (const k of [
+  "date.rel.today", "date.rel.tomorrow", "date.rel.yesterday",
+  "date.rel.past", "date.rel.future",
+  "node.addParent", "node.addChild", "node.addSpouse", "node.addSibling",
+  "node.addAssociate", "node.focus", "node.focusTitle", "node.associate", "node.openHint",
+  "modal.close", "ws.depth.label", "ws.depth.gen",
+]) {
+  check(!!tr[k]?.trim() && !!en[k]?.trim(), `${k}: TR+EN dolu`);
+  check(tr[k] !== en[k], `${k}: iki yarı birbirinin kopyası değil`);
+}
+
+/* ══ 6. `lib/date.ts` DİLSİZ ═══════════════════════════════════════════ */
+/*
+ * Göreli gün metni oradan çıkıyordu ve saf bir kütüphanenin dili olamaz:
+ * `useT()` bir React kancası, oraya giremez; iki dilin dizesini modüle
+ * gömmek de "bütün metin tek sözlükte" kuralını kırardı ve üçüncü dil
+ * eklendiğinde burası unutulurdu. Çözüm işlevin METİN değil KARAR
+ * döndürmesi. İddia da o kararın geri metne dönmesini yakalıyor.
+ */
+{
+  const d = read("../lib/date.ts");
+  const govde = kodu(d);
+  check(/export function relativeDays/.test(govde), "göreli gün kararı dilsiz bir işlevden geliyor");
+  check(!/return "Bugün"|return "Yarın"|return "Dün"|gün önce`|gün sonra`/.test(govde),
+    "lib/date.ts arayüz metni üretmiyor");
+  /* Ve tek çağıran metni sözlükten kuruyor. */
+  const cal = kodu(read("../components/CalendarView.tsx"));
+  check(/relativeDays\(/.test(cal) && /date\.rel\./.test(cal), "takvim rozeti sözlükten besleniyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

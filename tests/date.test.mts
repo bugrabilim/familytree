@@ -1,4 +1,4 @@
-import { normalizeDateInput, displayToStored, isValidDateInput, signedDaysToAnniversary, humanizeDays, formatLong } from "../lib/date.ts";
+import { normalizeDateInput, displayToStored, isValidDateInput, signedDaysToAnniversary, relativeDays, formatLong } from "../lib/date.ts";
 
 // [giriş, beklenen normalize, beklenen stored, geçerli mi]
 const cases: Array<[string, string, string, boolean]> = [
@@ -41,9 +41,17 @@ check("5 gün önce = -5 (pencere içinde)", signedDaysToAnniversary(iso(-5), 10
 check("40 gün sonra = null (gelecek pencere dışı)", signedDaysToAnniversary(iso(40), 10, 30) === null);
 check("20 gün önce = null (geçmiş pencere dışı)", signedDaysToAnniversary(iso(-20), 10, 30) === null);
 check("yalnız yıl = null", signedDaysToAnniversary("1990", 10, 30) === null);
-check("humanize dün", humanizeDays(-1) === "Dün");
-check("humanize 3 gün önce", humanizeDays(-3) === "3 gün önce");
-check("humanize bugün", humanizeDays(0) === "Bugün");
+/*
+ * Göreli gün artık METİN değil KARAR döndürüyor: `lib/date` dilsiz kaldı,
+ * dizeler `i18n-dict`e taşındı (İngilizce arayüzde "3 gün önce" yazıyordu).
+ * İddialar da bu yüzden dizeye değil karara bakıyor — dize dönseydi test
+ * yalnız Türkçe kurulumda geçerdi ki asıl arıza tam olarak buydu.
+ */
+check("göreli dün", relativeDays(-1).kind === "yesterday");
+check("göreli 3 gün önce", JSON.stringify(relativeDays(-3)) === JSON.stringify({ kind: "past", days: 3 }));
+check("göreli bugün", relativeDays(0).kind === "today");
+check("göreli yarın", relativeDays(1).kind === "tomorrow");
+check("göreli 5 gün sonra", JSON.stringify(relativeDays(5)) === JSON.stringify({ kind: "future", days: 5 }));
 
 /* --- BOZUK AY: ekrana "undefined" YAZILMAZ ----------------------------- */
 /*

@@ -17,6 +17,7 @@ import TreeSchema from "./TreeSchema";
 import RelationMatrix from "./RelationMatrix";
 import { usePrivacy } from "./PrivacyContext";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { useT, useLang, type TFunction } from "@/lib/i18n";
 import { generatePreface } from "@/lib/preface";
 import { uploadCover } from "@/lib/actions";
@@ -112,6 +113,18 @@ export default function BookView({ people, allPeople, familyName, coverPhoto, on
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   useEscapeKey(onClose);
+
+  /*
+   * B8 — kitap kipsel bir penceredir, adı da öyle olsun.
+   *
+   * Portal ile `body` altına çiziliyor, ekranın tamamını opak bir zeminle
+   * kaplıyor, arkasındaki uygulamayla hiçbir etkileşim mümkün değil ve ESC
+   * ile kapanıyor. Yani davranış zaten kipseldi; eksik olan tek şey bunu
+   * yardımcı teknolojiye SÖYLEMEKTİ. Sözün karşılığını `useDialogLayer`
+   * ödüyor — onsuz `aria-modal` eklemek yeni bir yalan olurdu.
+   */
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef);
 
   const handleCoverFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -467,7 +480,13 @@ export default function BookView({ people, allPeople, familyName, coverPhoto, on
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900/92 backdrop-blur-sm animate-fade-in">
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={bookTitle}
+      className="fixed inset-0 z-50 flex flex-col bg-neutral-900/92 backdrop-blur-sm animate-fade-in"
+    >
       {/* Araç çubuğu */}
       <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 shrink-0 text-neutral-200">
         <p className="text-sm font-medium truncate">{bookTitle}</p>

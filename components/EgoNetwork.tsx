@@ -19,6 +19,7 @@ import { layoutEgo, type EgoAlter, type EgoCategory } from "@/lib/ego-layout";
 import { usePrivacy } from "./PrivacyContext";
 import { isMasked } from "@/lib/privacy";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { useT } from "@/lib/i18n";
 
 interface Props {
@@ -54,6 +55,15 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
   const { view, hideLiving } = usePrivacy();
   const [centerId, setCenterId] = useState(personId);
   useEscapeKey(onClose ?? (() => {}));
+
+  /*
+   * Gömülü hâlde bu bir SEKME İÇERİĞİ (`absolute inset-0`, üst çubuk yerinde,
+   * başka sekmelere geçilebiliyor) — `aria-modal` zaten konmuyor ve odak
+   * hapsi konsaydı kullanıcı sekmeler arasında geçemezdi. Tam ekran hâlde ise
+   * gerçek bir pencere; söz veren `aria-modal` orada, sözü tutan kanca da.
+   */
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef, { enabled: !embedded });
 
   const idx = useMemo(() => indexPeople(people), [people]);
   const rawCenter = idx.get(centerId);
@@ -132,6 +142,7 @@ export default function EgoNetwork({ personId, people, onClose, onOpenProfile, e
 
   return (
     <div
+      ref={panelRef}
       className={`${embedded ? "absolute inset-0" : "fixed inset-0 z-[60]"} flex flex-col bg-bg animate-fade-in`}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : true}

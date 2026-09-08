@@ -97,10 +97,23 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
       <div className="space-y-5">
         <p className="text-sm text-text-muted leading-relaxed">{t("pair.intro")}</p>
 
+        {/*
+          Hata İÇERİĞİN ÜSTÜNDE: en altta duruyordu ve uzun bir listede ekranın
+          dışında kalıyordu. Gösterilen ama görülmeyen bir hata, gösterilmeyen
+          bir hatadan farksız.
+        */}
+        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
+
         {/* Bağlı ağaçlar */}
         <section>
           <h3 className="text-sm font-semibold text-text mb-2">{t("pair.linkedTitle")}</h3>
-          {pairings === null ? (
+          {/*
+            B10 — hata varken "boş" ya da "yükleniyor" GÖSTERİLMİYOR.
+            Başarısız istek listeyi boş bırakıyor ve ekran aynı anda hem
+            "yüklenemedi" hem "hiç kayıt yok" diyordu. İkincisi bir OLGU
+            İDDİASI ve yanlış — kayıtlar olabilir, okunamadı.
+          */}
+          {error ? null : pairings === null ? (
             <p className="text-sm text-text-muted">{t("pair.loading")}</p>
           ) : pairings.length === 0 ? (
             <p className="text-sm text-text-muted">{t("pair.none")}</p>
@@ -153,7 +166,6 @@ export default function PairDialog({ onClose }: { onClose: () => void }) {
           )}
         </section>
 
-        {error && <p className="text-xs text-danger bg-danger-soft px-3 py-2.5 rounded-xl">{error}</p>}
       </div>
     </Modal>
   );

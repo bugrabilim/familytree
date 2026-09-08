@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import {
   ReactFlow,
@@ -468,6 +468,39 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
   }, [locateReq, positions, setCenter, getZoom, dim.w, dim.h]);
 
   /*
+   * Denetim satırının "devamı var" işareti.
+   *
+   * `no-scrollbar` çubuğu gizliyor (sekme şeridiyle aynı idiom) ve gizli
+   * çubuk, kaydırılabilirliğin tek görsel kanıtıydı. Eskiden sağ uçtaki opak
+   * sabit küme bu kanıtı da yutuyordu: satır kayabiliyordu ama kullanıcıya
+   * kayabildiğini söyleyen hiçbir şey yoktu. Küme dışarı alındıktan sonra
+   * geriye kalan eksik bu — kenardaki soluklaşma onu kapatıyor ve YALNIZ
+   * gerçekten taşma varken çiziliyor; hep duran bir soluklaşma "daha var"
+   * diye yalan söylerdi.
+   */
+  const kayanRef = useRef<HTMLDivElement>(null);
+  const [dahaVar, setDahaVar] = useState(false);
+  const olc = useCallback(() => {
+    const el = kayanRef.current;
+    if (el) setDahaVar(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+  }, []);
+  /* Bağımlılık listesi YOK: satırın içeriği (odak rozeti, "Bağ kur") her
+     çizimde değişebiliyor, ölçüm de her çizimden sonra tazelenmeli.
+     `setDahaVar` aynı değerde geri çekiliyor, yani döngü kurmuyor. */
+  useEffect(olc);
+  useEffect(() => {
+    const el = kayanRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", olc, { passive: true });
+    const ro = new ResizeObserver(olc);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", olc);
+      ro.disconnect();
+    };
+  }, [olc]);
+
+  /*
    * ═══ TUVAL ALANI GERÇEKTEN TUVALE AİT ═════════════════════════════════
    *
    * Denetim kapısı (H2'nin kalan yarısı). Bütün ağaç denetimleri — kuşak
@@ -499,17 +532,55 @@ function Canvas({ people, selectedId, focusId, depth = 3, highlightIds, onSelect
         Denetim satırı. Sarmıyor, KAYIYOR — üst çubuktaki sekme şeridiyle
         (H3) aynı idiom: sarma satır yüksekliğini öngörülemez yapar ve dar
         ekranda başlığı büyütür; tek satır + yatay kaydırma yüksekliği
-        sabitler. Yakınlaştırma kümesi `sticky right-0` ile şeridin sağ
-        ucuna çivili: şerit kayarken bile ekranda kalıyor, çünkü kaydırıp
-        aramak zorunda kalınacak son şey "uzaklaştır" düğmesidir.
+        sabitler.
+
+        ═══ SABİT KÜME, KAYDIRMA KABININ KARDEŞİDİR — ÇOCUĞU DEĞİL ═══
+
+        Yakınlaştırma kümesi bir kez `sticky right-0` ile KAYDIRILAN KABIN
+        İÇİNE konmuştu. Niyet doğruydu ("uzaklaştır düğmesi hep görünsün"),
+        mekanizma yanlıştı ve arıza tam olarak şuydu: `sticky` bir çocuk,
+        kabın kaydırma genişliğinden yer AYIRMAZ. Kap kendi içeriğini
+        kümenin altına da dizer; küme ise opak bir zeminle o içeriğin
+        üstünde durur. Yani "hep görünür" olmasının bedelini, altında kalan
+        kardeşleri ödüyordu: 320px'te kuşak düğmeleri 0-3, 390px'te 1-5,
+        768px'te "Bağ kur"un tamamı `elementFromPoint` ile küme döndürüyordu
+        — tıklama gidiyor, hiçbir şey olmuyor. `no-scrollbar` da satırın
+        kaydırılabildiğine dair tek işareti kaldırdığı için, kullanıcının
+        örtülen düğmeye ulaşacak bir yolu bile yoktu.
+
+        Bir konum ayarıyla (daha az `pl`, daha dar küme) kapatılamaz: üst
+        üste binme, sabit elemanın kaydırma alanının İÇİNDE olmasının doğal
+        sonucu. Örtüşmeyi ortadan kaldıran tek yapı, kümeyi kaydırma alanının
+        DIŞINA — kardeşine — almaktır. O zaman küme yer kaplayan normal bir
+        flex çocuğu olur, kaydırılan alanın genişliği `flex-1 min-w-0` ile
+        kalan boşluğa göre hesaplanır ve altına hiçbir şey giremez, çünkü
+        "altı" diye bir yer kalmaz.
+
+        Bu hata bir kez yapılmış ve geri gelmişti; `tests/canvas-chrome-gate`
+        artık kaydırma kabının içindeki `sticky` çocuğu doğrudan yasaklıyor.
       */}
       <div
         role="toolbar"
         aria-label={t("tree.toolbar")}
-        className="shrink-0 flex items-center gap-2 h-14 lg:h-12 px-3 border-b border-border bg-bg-elevated overflow-x-auto no-scrollbar"
+        className="shrink-0 flex items-center h-14 lg:h-12 border-b border-border bg-bg-elevated"
       >
-        {toolbar}
-        <div className="ml-auto sticky right-0 shrink-0 flex items-center pl-2 bg-bg-elevated">
+        {/* (a) Kayan yarı — kalan bütün boşluğu alır, taşarsa kendi içinde kayar. */}
+        <div className="relative flex-1 min-w-0 h-full">
+          <div
+            ref={kayanRef}
+            className="h-full flex items-center gap-2 px-3 overflow-x-auto no-scrollbar"
+          >
+            {toolbar}
+          </div>
+          {dahaVar && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-bg-elevated to-transparent"
+            />
+          )}
+        </div>
+        {/* (b) Sabit yarı — kaydırma alanının DIŞINDA; hiçbir şeyin üstünde durmuyor. */}
+        <div className="shrink-0 flex items-center pl-2 pr-3 border-l border-border">
           {/*
             Düğmeler React Flow'un `ControlButton`ı olarak kalıyor: dokunma
             boyunu (44px, lg'de 36px) veren `.react-flow__controls-button`

@@ -6,7 +6,7 @@ import Avatar from "./ui/Avatar";
 import CalendarAdd from "./CalendarAdd";
 import CalendarExport from "./CalendarExport";
 import MemorialCalendar from "./MemorialCalendar";
-import { calcAge, humanizeDays, signedDaysToAnniversary } from "@/lib/date";
+import { calcAge, relativeDays, signedDaysToAnniversary } from "@/lib/date";
 import { fullName } from "@/lib/name";
 import { isMasked } from "@/lib/privacy";
 import { usePrivacy } from "./PrivacyContext";
@@ -26,6 +26,22 @@ interface Props {
 export default function CalendarView({ people, onSelect }: Props) {
   const { view, hideLiving } = usePrivacy();
   const t = useT();
+
+  /*
+   * "Bugün / Yarın / 3 gün önce" rozetinin metni.
+   *
+   * `lib/date` artık dize değil KARAR döndürüyor (`relativeDays`); dizeyi
+   * sözlükten burada kuruyoruz. Sebep: o modül saf ve dilsiz — takvim
+   * aritmetiğinin yerel ayarla işi yok — ama arayüzün her metni tek sözlükte
+   * durmalı. Metin oradayken İngilizce oturumda Türkçe okunuyordu ve parite
+   * testi bunu göremiyordu, çünkü ortada anahtar yoktu.
+   */
+  const goreliMetin = (days: number) => {
+    const r = relativeDays(days);
+    return r.kind === "past" || r.kind === "future"
+      ? t(`date.rel.${r.kind}`, { d: r.days })
+      : t(`date.rel.${r.kind}`);
+  };
 
   // 🎂 Doğum günleri · 💍 evlilik yıldönümleri · 🕯️ anma günleri — tek liste.
   // Yıldönümleri, gizlilik için maskeli kopyadan türetilir: gizli yaşayan bir
@@ -159,7 +175,7 @@ export default function CalendarView({ people, onSelect }: Props) {
             {subtext}
           </div>
           <span className={`text-[11px] font-medium px-2 py-1 rounded-lg shrink-0 ${badgeCls}`}>
-            {humanizeDays(ev.days)}
+            {goreliMetin(ev.days)}
           </span>
         </button>
         <CalendarAdd event={{ title: calTitle, date: occDate, yearly: true }} className="mr-1" />

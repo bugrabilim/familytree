@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { useLang, useT } from "@/lib/i18n";
 import { importAnyFile } from "@/lib/import-client";
 import { setTheme } from "./ThemeToggle";
@@ -103,6 +104,20 @@ export default function AiChat({
   const { lang, setLang } = useLang();
   const { setHideLiving } = usePrivacy();
   useEscapeKey(onClose);
+
+  /*
+   * B8 — sohbet paneli ADSIZ bir `<aside>` idi: `aria-label` yoktu, yani
+   * ekran okuyucunun bölge listesinde "banner/complementary" diye geçen,
+   * neye ait olduğu belirsiz bir kutu olarak duruyordu. Üstelik landmark
+   * DEĞİL: arkasında tıklayınca kapanan tam ekran bir perde var, yani
+   * uygulamanın geri kalanı erişilemez — bu bir kipsel penceredir.
+   *
+   * Zincir `layerRef`ten başlıyor ki perde etkisizleşmesin; perdeye
+   * tıklayarak kapatma bu paneldeki tek "boşluğa tıkla" davranışı.
+   */
+  const layerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  useDialogLayer(panelRef, { layerRef });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -333,12 +348,16 @@ export default function AiChat({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex justify-end">
+    <div ref={layerRef} className="fixed inset-0 z-[60] flex justify-end">
       {/* Arka plan — tıklayınca kapanır (geçmiş korunur) */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] animate-fade-in" onClick={onClose} aria-hidden />
 
       {/* Yandan kayan sohbet paneli */}
       <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("ai.chat.title")}
         className="relative w-full max-w-md h-full bg-bg-elevated border-l border-border shadow-modal flex flex-col animate-slide-in-right"
         onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
         onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}

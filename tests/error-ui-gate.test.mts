@@ -96,9 +96,26 @@ const kodu = (src: string) =>
  * İkincisi YANLIŞ — kayıtlar olabilir, okunamadı — ve ikisi yan yana
  * durduğunda kullanıcı hangisine inanacağını bilemiyor.
  */
+/*
+ * B10 — LİSTE UZADI, ÇÜNKÜ KALIP TEK BİR EKRANA AİT DEĞİLDİ.
+ *
+ * "Üyeler yüklenemedi." (kırmızı) ile "Henüz davetli üye yok." aynı ekranda
+ * yan yana duruyordu. İkincisi bir OLGU İDDİASI ve istek başarısızken YANLIŞ:
+ * üyeler olabilir, okunamadı — yöneticiye davet ettiği kişilerin silindiğini
+ * düşündürür. `grep "Henüz"` ile taranınca aynı desen beş pencerede daha
+ * çıktı; hepsi aynı gövdeden geliyor (catch listeyi boş bırakıyor, boş liste
+ * "hiç yok" yazdırıyor). Bu yüzden liste düzeltilen HER ekranı sayıyor.
+ *
+ * `CouncilDialog` listede yok çünkü zinciri zaten `error ? null : box === null`
+ * ile başlıyor ve dört alt listenin hepsi o dalın içinde.
+ */
 for (const [f, bos] of [
   ["../components/GatheringsDialog.tsx", 'gathering.empty'],
   ["../components/ObituaryView.tsx", 'obit.empty'],
+  ["../components/MembersDialog.tsx", 'members.noMembers'],
+  ["../components/HistoryDialog.tsx", 'history.empty'],
+  ["../components/PairDialog.tsx", 'pair.none'],
+  ["../components/ShareDialog.tsx", 'share.none'],
 ] as const) {
   const src = kodu(read(f));
   const i = src.indexOf(bos);
@@ -119,6 +136,25 @@ for (const [f, bos] of [
    * gösterilmeyen bir hatadan farksız.
    */
   check(g.indexOf("{error &&") < g.indexOf("<ul"), "hata satırı listeden ÖNCE");
+}
+{
+  /*
+   * Aynı gerekçe dört pencerede daha: hata satırı, HAKKINDA olduğu içerikten
+   * önce gelmeli. `HistoryDialog`, `PairDialog` ve `ShareDialog`ta en altta
+   * duruyordu — uzun bir geçmiş/bağlantı listesinde ekranın dışında kalıyor,
+   * kullanıcı boş listeye bakıp hatayı hiç görmüyordu.
+   */
+  for (const f of [
+    "../components/MembersDialog.tsx",
+    "../components/HistoryDialog.tsx",
+    "../components/PairDialog.tsx",
+    "../components/ShareDialog.tsx",
+  ]) {
+    const src = kodu(read(f));
+    const iHata = src.indexOf("{error &&");
+    const iBos = src.indexOf("error ? null :");
+    check(iHata > -1 && iBos > iHata, `${f.replace("../", "")}: hata satırı içerikten ÖNCE`);
+  }
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);

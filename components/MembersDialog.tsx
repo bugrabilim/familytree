@@ -180,7 +180,17 @@ export default function MembersDialog({ treeName, onClose }: Props) {
         {/* Üyeler */}
         <section>
           <h3 className="text-xs font-semibold text-text mb-2">{t("members.membersTitle")}</h3>
-          {loading ? (
+          {/*
+            B10 — HATA VARKEN "HENÜZ ÜYE YOK" DENMEZ.
+            İstek başarısız olduğunda `members` boş dizide kalıyor ve ekran
+            aynı anda iki şey söylüyordu: "Üyeler yüklenemedi." (kırmızı) ve
+            hemen altında "Henüz davetli üye yok." İkincisi bir OLGU İDDİASI
+            ve yanlış — üyeler olabilir, okunamadı. Yöneticiye "kimseyi davet
+            etmemişsin" demek, davet ettiği kişilerin kaybolduğunu düşündürür.
+            Hata varken tek doğru cümle hatanın kendisi. "Yükleniyor" da aynı
+            zincirde: başarısız bir istek "sürüyor" değildir.
+          */}
+          {error ? null : loading ? (
             <p className="text-sm text-text-muted">{t("members.loading")}</p>
           ) : members.length === 0 ? (
             <p className="text-sm text-text-muted">{t("members.noMembers")}</p>

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   title?: ReactNode;
@@ -19,7 +21,21 @@ const WIDTHS = {
 };
 
 export default function Modal({ title, subtitle, onClose, children, footer, size = "md" }: Props) {
+  const t = useT();
   useEscapeKey(onClose);
+
+  /*
+   * ODAK YÖNETİMİ TEK YERDE (B2). On iki çağıran bu dosyaya bakmadan
+   * `role="dialog" aria-modal="true"` sözünü tutar hâle geliyor: açılışta odak
+   * içeri girer, Tab pencereden çıkmaz, kapanışta odak açan düğmeye döner ve
+   * arka plan `inert` olur. Gerekçenin tamamı `lib/useDialogLayer.ts`te.
+   *
+   * `layerRef` perdeyi de saran dış kutu: zinciri buradan başlatmasaydık
+   * perde etkisizleşir ve "boşluğa tıklayınca kapan" davranışı ölürdü.
+   */
+  const layerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef, { layerRef });
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -30,7 +46,7 @@ export default function Modal({ title, subtitle, onClose, children, footer, size
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div ref={layerRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in"
         onClick={onClose}
@@ -38,6 +54,7 @@ export default function Modal({ title, subtitle, onClose, children, footer, size
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         className={`
@@ -61,7 +78,7 @@ export default function Modal({ title, subtitle, onClose, children, footer, size
             </div>
             <button
               onClick={onClose}
-              aria-label="Kapat"
+              aria-label={t("modal.close")}
               className="w-8 h-8 shrink-0 grid place-items-center rounded-lg text-text-muted hover:text-text hover:bg-surface-2 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>

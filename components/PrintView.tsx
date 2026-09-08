@@ -1,7 +1,7 @@
 "use client";
 
 import nextDynamic from "next/dynamic";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Person } from "@/types/family";
 import { fullName } from "@/lib/name";
@@ -17,6 +17,8 @@ import { EDUCATION_LEVELS, LIFE_EVENT_TYPES } from "@/types/family";
 import { computeStats } from "@/lib/relations";
 import { usePrivacy } from "./PrivacyContext";
 import { useT, useLang } from "@/lib/i18n";
+import useEscapeKey from "@/lib/useEscapeKey";
+import useDialogLayer from "@/lib/useDialogLayer";
 import { aggregatePlaces } from "@/lib/places";
 import { generatePreface } from "@/lib/preface";
 import { computeAlmanac } from "@/lib/book-stats";
@@ -54,6 +56,27 @@ export default function PrintView({ people, allPeople, familyName, coverPhoto, o
   const { view } = usePrivacy();
   const t = useT();
   const { lang } = useLang();
+
+  /*
+   * B4 — ESC BURADA DA KAPATIR.
+   *
+   * Yazdırma önizlemesi, `useEscapeKey`i kullanMAYAN tek tam ekran katmandı:
+   * sohbet, kitap, komut paleti, çevre haritası, kişi paneli ve bütün
+   * pencereler ESC ile kapanıyordu. Kullanıcı bir tuşun "her yerde" çalışıp
+   * çalışmadığını tek tek denemez; bir yerde çalışmayınca tuşa değil kendine
+   * güvenmez. Katmanlı yığın sayesinde ESC yine yalnız EN ÜSTTEKİ katmanı
+   * kapatır.
+   *
+   * B8 — VE KATMAN GERÇEKTEN BİR PENCERE.
+   *
+   * Ekranın tamamını opak bir zeminle kaplıyor, altındaki uygulamayla
+   * etkileşim yok ve tek çıkışı "Kapat". Bu tanımın kendisi kipsel penceredir;
+   * `role="dialog" + aria-modal` yalnız ADINI koyuyor. Sözü tutan mekanizma
+   * (odak içeri, Tab içeride, arka plan `inert`) `useDialogLayer`da.
+   */
+  useEscapeKey(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogLayer(panelRef);
 
   // Kitap yazdırma modunu işaretle — @media print yalnız .print-root'u basar
   // (görünüm yazdırma modundan `body.print-view` ile ayrılır).
@@ -173,7 +196,13 @@ export default function PrintView({ people, allPeople, familyName, coverPhoto, o
       : undefined;
 
   return createPortal(
-    <div className="print-root fixed inset-0 z-50 overflow-y-auto bg-neutral-100 text-black">
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("print.previewTitle")}
+      className="print-root fixed inset-0 z-50 overflow-y-auto bg-neutral-100 text-black"
+    >
       {/* Araç çubuğu — yazdırmada gizli */}
       <div className="print:hidden sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 h-14 border-b border-neutral-200 bg-white/90 backdrop-blur">
         <p className="text-sm font-medium text-neutral-700">{t("print.previewTitle")}</p>
