@@ -187,5 +187,47 @@ check(/u\.id === g\.accountId/.test(rota), "aile adı yalnız çağıranın kend
 check(/`hesap \$\{u\.id\}`/.test(rota), "diğer hesaplar kimlikle maskeleniyor");
 check(/isSoftDeleted\(u\)/.test(rota), "silinmiş hesaplar kapsam dışı");
 
+/* --- Ağaç kapsamı GENEL --------------------------------------------------
+ *
+ * Kapı üretimde bir kez "hazır" dedi ve raporunda tek ağaç vardı; envanterde
+ * üç ağaç daha duruyordu. Yani kapı, korumakla görevli olduğu yerde kördü.
+ * Kapsamın geri daralması sessiz bir gerileme olurdu — yeşil yine yeşil
+ * görünür, yalnız daha az şeye bakar. Bu yüzden kilitleniyor.
+ */
+{
+  // Ağaç bloğunu gövdeden ayır: dosyanın başka yerindeki `listTrees` geçişi
+  // iddiayı yanıltmasın (bu tuzağa bu depoda daha önce düşüldü).
+  const bas = rota.indexOf("let trees: Olcum<AgacOlgusu[]>");
+  const son = rota.indexOf("/* --- Auth envanteri");
+  check(bas > 0 && son > bas, "ağaç ölçüm bloğu bulunabiliyor");
+  const blok = rota.slice(bas, son);
+
+  check(
+    blok.includes("getUsersData"),
+    "ağaç kapsamı bütün hesapları geziyor (getUsersData)"
+  );
+  check(
+    blok.includes("allTreeIds"),
+    "başka hesapların ağaçları `allTreeIds` ile sayılıyor"
+  );
+  check(
+    !blok.includes("const liste = await listTrees(g.accountId, g.homeName);\n    const out"),
+    "kapsam yalnız çağıranın ağaçlarıyla sınırlı DEĞİL"
+  );
+  // Okunamayan kayıt sessizce atlanmamalı: tek bir catch bütün olguyu
+  // `olculemedi` yapmalı, yoksa kör nokta biçim değiştirip geri gelir.
+  check(
+    /catch \(e\) \{\s*trees = olculemedi<AgacOlgusu\[\]>\(neden\(e\)\);/.test(blok),
+    "ağaç envanteri okunamazsa olgu `olculemedi` oluyor"
+  );
+  // Başkasının ağaç ADI rapora girmemeli.
+  check(
+    /`ağaç \$\{id\}`/.test(blok),
+    "başkasının ağacı yalnız kimliğiyle raporlanıyor"
+  );
+  // Silinmiş hesaplar kapsam dışı — hesap listesindeki kuralla aynı hizada.
+  check(blok.includes("isSoftDeleted"), "yumuşak silinmiş hesap kapsam dışı");
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
