@@ -2,6 +2,33 @@
 
 Aile verisi değerlidir; iki bağımsız yedek katmanı önerilir.
 
+## 0) Kullanıcıya verilen söz (madde 62)
+
+Kullanım Şartları'na geçen taahhüt şu: **saklama süresine sınır yok + her an
+tam dışa aktarım.** Ürün sahibinin kararı (2026-09-07); benim önerim "X yıl"
+idi, süre sınırı koymamak tercih edildi.
+
+Bu sözün ayakta durmasını sağlayan şey bu belgedeki katmanlar **değil** —
+onlar bizim altyapımıza bağlı, dolayısıyla ömrümüz kadar ömürleri var.
+Sözü taşıyan tek şey **kullanıcının kendi kopyası**: tek dosyalık HTML
+yedeği (#318). Ağacın tamamı (kişiler, tarihler, ilişkiler, notlar) o
+dosyanın içinde ve dosya bizden bağımsız açılıyor.
+
+Pratik sonuç — **bu üçü bozulursa taahhüt de bozulur**, ve bozulduğu
+hiçbir hata mesajından anlaşılmaz:
+
+1. Dışa aktarım **koşulsuz** kalmalı: ücrete, plana, hesap durumuna ya da
+   "önce şunu yap"a bağlanamaz. Bağlandığı an "her an" sözü düşer.
+2. HTML yedeği **kendi kendine yeterli** kalmalı: dışarıdan yazı tipi,
+   betik, resim çekiyorsa kullanıcının cihazında değil, bizim sunucumuzda
+   duruyor demektir. Kapı: `tests/export-html-gate.test.mts`.
+3. Yeni bir `Person` alanı eklendiğinde dışa aktarıma da eklenmeli. Yoksa
+   veri sessizce kopyanın dışında kalır — sözü delen en olası yol bu,
+   çünkü hiçbir test "eksik alan" diye bağırmaz.
+
+Hizmet bir gün sonlandırılacaksa Şartlar'da verilen söz: **önceden duyuru +
+o süre boyunca dışa aktarımın açık kalması.**
+
 ## 1) Vercel Blob — ana kaynak (anlık yedek)
 
 Aile ağacı verisi (`family-data-<treeId>.json`), kimlik deposu (`users.json`)
