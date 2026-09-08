@@ -354,5 +354,53 @@ const kodu = (src: string) =>
   }
 }
 
+/* ── Kişi ÇİZEN her görünüm `view()`ten geçiyor ─────────────────────────── */
+/*
+ * Bulunan hata: `TableView` gizlilik katmanının TAMAMEN dışındaydı. Ham
+ * `people` dizisini okuyup her sütunu düz metin basıyordu — doğum tarihi/yeri,
+ * din, mezhep, etnik köken, yönelim, ölüm nedeni, hastalıklar, biyografi.
+ * `confidential` bir kayıt ve `privateFields` ile gizlenmiş her alan, davetli
+ * her üyeye açıktı; üstelik sütun süzgeci o sütunun TÜM farklı değerlerini
+ * liste hâlinde açtığı için sütun daraltılmış olsa bile okunabiliyordu.
+ *
+ * Ham veri zaten istemcide (belgelenmiş tasarım: maske bir EKRAN katmanı).
+ * Tam da bu yüzden maskelemeyi atlayan TEK bir bileşen yetiyor — kapı bu
+ * listeyi tutuyor.
+ */
+{
+  const GORUNUMLER = [
+    "../components/TableView.tsx",
+    "../components/CalendarView.tsx",
+    "../components/PanelView.tsx",
+    "../components/BookView.tsx",
+    "../components/PrintView.tsx",
+  ];
+  for (const yol of GORUNUMLER) {
+    const ad = yol.split("/").pop()!;
+    const src = kodu(read(yol));
+    check(/usePrivacy\(\)/.test(src), `${ad}: gizlilik bağlamını alıyor`);
+    check(/\bview\(|map\(view\)/.test(src), `${ad}: kişileri view()'ten geçiriyor`);
+  }
+}
+{
+  /*
+   * DÜZENLENEBİLİR görünümde ek kural: gizli hücre SALT-OKUNUR olmalı.
+   * Boş bir girdi kutusu gösterilseydi, kullanıcının oraya yazdığı her şey
+   * arkasındaki gerçek veriyi sessizce silerdi — göremediği bir alanı
+   * düzenlemiş olurdu.
+   */
+  const src = kodu(read("../components/TableView.tsx"));
+  check(/const gorunen = /.test(src) && /people\.map\(view\)/.test(src),
+    "TableView: satırlar maskeli listeden besleniyor");
+  check(/\[\.\.\.gorunen\]/.test(src), "TableView: sıralama/arama da maskeli listeden");
+  check(/gizliMi\(/.test(src), "TableView: gizli hücre ayrı ele alınıyor");
+  {
+    // Gizli dal, düzenlenebilir `Cell`den ÖNCE dönmeli.
+    const g = src.indexOf("gizliMi(p, c)");
+    const c = src.indexOf("<Cell", g);
+    check(g > -1 && c > g, "TableView: gizli hücre düzenlenebilir hücreden ÖNCE dönüyor");
+  }
+}
+
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);

@@ -10,6 +10,7 @@ import { fullName } from "@/lib/name";
 import { entrySourceLabel } from "@/lib/entry-source";
 import { isAssociate } from "@/lib/associates";
 import { useReadOnly } from "./ReadOnlyContext";
+import { usePrivacy } from "./PrivacyContext";
 import { useT, useLang, type TFunction } from "@/lib/i18n";
 import Button from "./ui/Button";
 
@@ -83,6 +84,37 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
   const t = useT();
   const { lang } = useLang();
   const { readOnly } = useReadOnly();
+  const { view } = usePrivacy();
+
+  /*
+   * GİZLİLİK KATMANI — bu görünümde HİÇ YOKTU.
+   *
+   * Tablo, ham `people` dizisini okuyup her sütunu düz metin basıyordu:
+   * doğum tarihi/yeri, mezar yeri, din, mezhep, etnik köken, uyruk, dil,
+   * yönelim, ölüm nedeni, doğuştan/kronik hastalık, biyografi. Yani
+   * `confidential` işaretli bir kayıt ve `privateFields` ile gizlenmiş her
+   * alan, davetli her üyeye açıktı — üstelik başlıktaki süzgeç o sütunun
+   * TÜM farklı değerlerini liste hâlinde açtığı için sütun daraltılmış olsa
+   * bile okunabiliyordu.
+   *
+   * `types/family.ts`: `privateFields` "görüntü katmanında HERKESTEN
+   * gizlenir", `confidential` "her yerde, AİLE İÇİNDE DE maskeler". Kural
+   * buydu; bu dosya onun dışında kalmıştı.
+   */
+  const gorunen = useMemo(() => people.map(view), [people, view]);
+
+  /*
+   * Ham kayıtlar YALNIZ "bu hücre gizli mi" sorusunu yanıtlamak için
+   * tutuluyor; hiçbir yerde ÇİZİLMİYOR. Gerekli, çünkü göremediği bir alanı
+   * düzenletmek veri kaybettirir: kullanıcı boş görünen bir hücreye yazsa,
+   * arkasındaki gerçek veriyi haberi olmadan silerdi. Gizli hücre bu yüzden
+   * salt-okunur.
+   */
+  const hamById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const gizliMi = (p: Person, c: Col) => {
+    const ham = hamById.get(p.id);
+    return !!ham && c.get(ham) !== c.get(p);
+  };
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDel, setConfirmDel] = useState(false);
@@ -135,13 +167,13 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
 
   /** Arama sorgusuna göre süz (sütun süzgeçleri hariç). */
   const searched = useMemo(() => {
-    const base = [...people].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
+    const base = [...gorunen].sort((a, b) => fullName(a).localeCompare(fullName(b), "tr"));
     const q = norm(query.trim());
     if (!q) return base;
     return base.filter((p) =>
       norm([fullName(p), p.birthDate ?? "", p.deathDate ?? "", p.birthPlace ?? "", p.code ?? ""].join(" ")).includes(q)
     );
-  }, [people, query]);
+  }, [gorunen, query]);
 
   /** Bir sütun HARİÇ tüm süzgeçleri uygula (Excel'de olduğu gibi: bir sütunun
    *  seçenek listesi kendi süzgecinden etkilenmez). */
@@ -465,6 +497,23 @@ export default function TableView({ people, onAdd, onChanged }: Props) {
                     return (
                       <td key={c.key} className="px-3 py-1.5 whitespace-nowrap text-text-muted">
                         {v || <span className="text-text-muted">—</span>}
+                      </td>
+                    );
+                  }
+                  if (gizliMi(p, c)) {
+                    /*
+                     * Gizli hücre DÜZENLENEMEZ. Boş bir girdi kutusu
+                     * gösterseydik, kullanıcının oraya yazdığı her şey
+                     * arkasındaki gerçek veriyi sessizce silerdi — göremediği
+                     * bir alanı düzenlemiş olurdu.
+                     */
+                    return (
+                      <td
+                        key={c.key}
+                        className="px-3 py-1.5 whitespace-nowrap text-text-muted"
+                        title={t("privacy.hiddenCell")}
+                      >
+                        <span aria-label={t("privacy.hiddenCell")}>•••</span>
                       </td>
                     );
                   }
