@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { readFamilyFromBlob } from "@/lib/blob";
-import { allTreeIds, listTrees } from "@/lib/trees";
+import { listTrees } from "@/lib/trees";
 import { getUsersData } from "@/lib/users";
 import { isSoftDeleted } from "@/lib/retention";
 import { DEMO_FAMILY_NAME, DEMO_USER_ID } from "@/lib/demo-account";
@@ -93,7 +93,24 @@ const neden = (e: unknown) => (e as Error)?.message || "bilinmeyen hata";
  * kapı da (şüphede daima "hazır değil" kuralı) onu hazır saymıyor. Yani
  * kısmi ölçüm kısmi cevap verir, sahte bir yeşil değil.
  */
-async function agacOlcusu(t: { treeId: string; name: string }): Promise<AgacOlgusu> {
+/*
+ * KARŞILAŞTIRMA ADI İLE RAPOR ADI AYRI — ve bu ayrım bir hatanın bedeliyle
+ * öğrenildi.
+ *
+ * `treeDrift` Blob'daki ağaç adını Postgres'teki adla karşılaştırıyor
+ * (`lib/drift.ts`). Kapsam genişletilirken (#335) başkasının ağacına maskeli
+ * bir YER TUTUCU ad veriliyordu (`ağaç <id>`) ve o yer tutucu doğrudan
+ * karşılaştırmaya giriyordu. Sonuç: Postgres'teki gerçek adla hiçbir zaman
+ * eşleşmiyor, yani ÇAĞIRANIN KENDİSİNE AİT OLMAYAN HER AĞAÇ sahte bir
+ * "kayma var" engeli üretiyordu. Üretimde iki ağaç bu yüzden kirli göründü.
+ *
+ * Maskeleme bir RAPORLAMA kuralı; ölçümün girdisi olamaz. `ad` gerçek adı
+ * taşıyor ve yalnız karşılaştırmada kullanılıyor, `etiket` ise rapora çıkan.
+ */
+async function agacOlcusu(
+  t: { treeId: string; name: string },
+  etiket?: string
+): Promise<AgacOlgusu> {
   /*
    * SALT BLOB. `getFamilyData` KULLANILAMAZ: Faz 2d'den beri önce Postgres'e
    * bakıyor, yani "ayna kaynağı yakalamış mı" sorusunu Postgres'i
@@ -173,7 +190,7 @@ async function agacOlcusu(t: { treeId: string; name: string }): Promise<AgacOlgu
     driftClean = olculemedi<boolean>(neden(e));
   }
 
-  return { treeId: t.treeId, name: t.name, blobPeople, dbPeople, inDb, driftClean, stamp };
+  return { treeId: t.treeId, name: etiket ?? t.name, blobPeople, dbPeople, inDb, driftClean, stamp };
 }
 
 /* ── Hesap olguları ───────────────────────────────────────────────────────── */
@@ -242,8 +259,8 @@ export async function GET() {
          * Başkasının ağacı: ad rapora GİRMİYOR, yalnız kimliği — hesap
          * etiketlerindeki maskeleme kuralının aynısı.
          */
-        for (const id of await allTreeIds(u.id)) {
-          out.push(await agacOlcusu({ treeId: id, name: `ağaç ${id}` }));
+        for (const t of await listTrees(u.id, u.familyName)) {
+          out.push(await agacOlcusu(t, `ağaç ${t.treeId}`));
         }
       }
     }
