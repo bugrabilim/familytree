@@ -23,8 +23,15 @@ check(iGet > 0 && iPost > iGet, "GET ve POST bulundu");
 
 /* --- Yetki: üç kapı da yerinde ------------------------------------------ */
 check(rota.includes("await auth()"), "oturum çözülüyor");
-check(/isFounder/.test(rota), "founder denetimi var");
-check(/canManage\(session\.user\.role\)/.test(rota), "yönetici denetimi var");
+/*
+ * Yetki denetimi ORTAK operatör kapısına taşındı (`lib/operator-access.ts`).
+ * Kopya kapı, şifresiz demo oturumunun yönetim uçlarını açtığı hatanın
+ * kaynağıydı: demo bilerek `isFounder: true` + `role: "yonetici"` taşıyor,
+ * yani kopyalanan iki denetim onu hiç durdurmuyordu. Kararın doğruluk
+ * tablosu `tests/operator-access.test.mts`te.
+ */
+check(/operatorVerdict\(/.test(rota), "ortak operatör kapısından geçiyor");
+check(!/canManage\(/.test(rota), "kendi kopya kapısını KURMUYOR");
 check(rota.includes("isSupabaseConfigured"), "Supabase yapılandırması denetleniyor");
 {
   // Her iki yöntem de AYNI kapıdan geçmeli.

@@ -107,8 +107,8 @@ for (const r of rotalar()) {
     "account/notify/route.ts": "Hesap sahibinin kendi tercihi; isFounder istiyor.",
     "account/restore/route.ts":
       "Silinmekte olan hesabı geri alma; oturum ve rol YOK, kimlik şifreyle kanıtlanıyor.",
-    "admin/drift/route.ts": "Kendi ağaçlarının denetimi; isFounder + canManage.",
-    "admin/migrate/route.ts": "Kendi ağaçlarının göçü; isFounder + canManage.",
+    "admin/drift/route.ts": "Kendi ağaçlarının denetimi; ortak operatör kapısı.",
+    "admin/migrate/route.ts": "Kendi ağaçlarının göçü; ortak operatör kapısı.",
     "trees/route.ts": "Kendi ağaç listesi; kapsam hesabın kendisi.",
     "trees/switch/route.ts": "Aktif ağaç seçimi; kapsam hesabın kendisi.",
     "tree/join/route.ts": "Davetle katılma; rolü davet belirliyor.",
@@ -123,7 +123,13 @@ for (const r of rotalar()) {
 
   for (const r of rotalar()) {
     const src = kodu(read(`../app/api/${r}`));
-    const kapili = /canEdit\(|canPropose\(|canManage\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
+    /*
+     * `operatorVerdict(` listede: yönetim uçlarının ORTAK kapısı ve
+     * kopyalananlardan DAHA sıkı — şifresiz demo oturumunu da reddediyor
+     * (gerekçe `lib/operator-access.ts`). Kopya kapılar kalktığı için
+     * `isFounder`/`canManage` artık o rotaların kaynağında geçmiyor.
+     */
+    const kapili = /canEdit\(|canPropose\(|canManage\(|operatorVerdict\(|isFounder|CRON_SECRET|verifyWebhook\(|isAdminAccount\(/.test(src);
     if (kapili) continue;
     check(r in KAPISIZ, `${r} → hiçbir rol kapısı yok ve muafiyet listesinde de değil`);
   }

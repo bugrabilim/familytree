@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { operatorVerdict } from "@/lib/operator-access";
 import type { Person } from "@/types/family";
 import { auth } from "@/auth";
-import { canManage } from "@/lib/roles";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { readFamilyFromBlob } from "@/lib/blob";
 import { listTrees } from "@/lib/trees";
@@ -37,17 +37,14 @@ export const dynamic = "force-dynamic";
 
 async function guard() {
   const session = await auth();
-  if (!session?.user?.id)
-    return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
-  if (!(session.user.isFounder ?? true))
-    return { error: NextResponse.json({ error: "Yalnız ağaç sahibi denetleyebilir." }, { status: 403 }) };
-  if (!canManage(session.user.role))
-    return { error: NextResponse.json({ error: "Yönetici olmalısınız." }, { status: 403 }) };
+  const karar = operatorVerdict(session?.user);
+  if (!karar.ok)
+    return { error: NextResponse.json({ error: karar.error }, { status: karar.status }) };
   if (!isSupabaseConfigured())
     return { error: NextResponse.json({ error: "Supabase yapılandırılmamış." }, { status: 503 }) };
   return {
-    accountId: session.user.id,
-    homeName: session.user.treeName ?? session.user.name ?? "Ağaç",
+    accountId: karar.accountId,
+    homeName: session?.user?.treeName ?? session?.user?.name ?? "Ağaç",
   };
 }
 

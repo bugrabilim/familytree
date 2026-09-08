@@ -50,11 +50,20 @@ for (const yasak of ["purgeTree", "saveFamilyData", "dbDeletePeople", "softDelet
   check(!src.includes(yasak), `veri silme çağrısı yok: ${yasak}`);
 }
 
-/* --- 4) Yetki kapısı drift ucuyla aynı hizada ---------------------------- */
+/* --- 4) Yetki kapısı ORTAK operatör kapısı ------------------------------- */
+/*
+ * Eskiden bu uç kendi üç satırlık kapısını kuruyordu (`auth` → `isFounder`
+ * → `canManage`) ve ŞİFRESİZ DEMO OTURUMU üçünü de geçiyordu: demo bilerek
+ * `isFounder: true` + `role: "yonetici"` taşıyor. Yani bu uç — ortak
+ * `users.json` satırını silen uç — internetten açılabiliyordu.
+ *
+ * Kopya kapı kaldırıldı. Kararın doğruluk tablosu ve her yönetim rotasında
+ * kullanıldığı `tests/operator-access.test.mts`te.
+ */
 
 check(/await auth\(\)/.test(src), "oturum denetleniyor");
-check(/isFounder/.test(src), "founder denetleniyor");
-check(/canManage/.test(src), "yönetici rolü denetleniyor");
+check(/operatorVerdict\(/.test(src), "ortak operatör kapısından geçiyor");
+check(!/canManage\(/.test(src), "kendi kopya kapısını KURMUYOR");
 // Kapı HER iki işleyicide de çağrılmalı; GET'i açık bırakmak demo satırının
 // varlığını oturumsuz birine söylerdi.
 const guardCalls = (src.match(/await guard\(\)/g) ?? []).length;

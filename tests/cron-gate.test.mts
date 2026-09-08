@@ -179,7 +179,14 @@ check(/console\.(log|warn)\(/.test(rota), "özet günlüğe yazılıyor");
    */
   check(/const makine = !!secret &&/.test(health), "sır yoksa makine yolu KAPALI");
   check(/if \(!makine\) \{/.test(health), "makine değilse oturum denetimi sürüyor");
-  check(/canManage\(session\.user\.role\)/.test(health), "oturum yolunda yönetici şartı duruyor");
+  /*
+   * Yönetici şartı artık ORTAK operatör kapısında (`lib/operator-access.ts`):
+   * kopya kapı, şifresiz demo oturumunun yönetim uçlarını açtığı hatanın
+   * kaynağıydı. Kapının kendi doğruluk tablosu ve her rotada kullanıldığı
+   * `tests/operator-access.test.mts`te; burada yalnız oturum yolunun bir
+   * kapıdan GEÇTİĞİ duruyor.
+   */
+  check(/operatorVerdict\(/.test(health), "oturum yolunda yetki şartı duruyor");
   /* Sır sorgu dizesinden okunmuyor: erişim günlüklerine ve geçmişe düşerdi. */
   check(!/searchParams\.get\("token"\)/.test(health), "sır sorgu dizesinden alınmıyor");
 

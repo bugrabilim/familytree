@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { operatorVerdict } from "@/lib/operator-access";
 import { auth } from "@/auth";
-import { canManage } from "@/lib/roles";
 import { deleteUserRow, findUserById } from "@/lib/users";
 import { DEMO_USER_ID } from "@/lib/demo-id";
 
@@ -34,12 +34,9 @@ export const dynamic = "force-dynamic";
  */
 async function guard() {
   const session = await auth();
-  if (!session?.user?.id)
-    return { error: NextResponse.json({ error: "Yetkisiz" }, { status: 401 }) };
-  if (!(session.user.isFounder ?? true))
-    return { error: NextResponse.json({ error: "Yalnız ağaç sahibi yapabilir." }, { status: 403 }) };
-  if (!canManage(session.user.role))
-    return { error: NextResponse.json({ error: "Yönetici olmalısınız." }, { status: 403 }) };
+  const karar = operatorVerdict(session?.user);
+  if (!karar.ok)
+    return { error: NextResponse.json({ error: karar.error }, { status: karar.status }) };
   return { ok: true as const };
 }
 
