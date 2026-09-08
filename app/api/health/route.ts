@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { canManage } from "@/lib/roles";
+import { operatorVerdict } from "@/lib/operator-access";
 import { pingBlob } from "@/lib/blob";
 import { pingCloudinary } from "@/lib/cloudinary";
 import { isSupabaseConfigured, pingSupabase, supabaseEnvPresence } from "@/lib/supabase";
@@ -56,10 +56,15 @@ export async function GET(req: NextRequest) {
   const makine = !!secret && auth_ === `Bearer ${secret}`;
 
   if (!makine) {
+    /*
+     * Oturum yolu artık ORTAK operatör kapısından geçiyor. Eskiden yalnız
+     * `canManage` sorulduğu için ŞİFRESİZ demo oturumu buradan altyapı
+     * durumunu (hangi ortam değişkenleri tanımlı, sağlayıcı ping'leri)
+     * okuyabiliyordu — gerekçe `lib/operator-access.ts`te.
+     */
     const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
-    if (!canManage(session.user.role))
-      return NextResponse.json({ error: "Yönetici olmalısınız." }, { status: 403 });
+    const karar = operatorVerdict(session?.user);
+    if (!karar.ok) return NextResponse.json({ error: karar.error }, { status: karar.status });
   }
 
   const [blob, cloudinary, supabase] = await Promise.all([

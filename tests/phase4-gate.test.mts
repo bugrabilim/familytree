@@ -59,13 +59,19 @@ const govdesi = (kaynak: string, ad: string) => {
   const b = govdesi(drift, "guard");
   check(a.length > 0 && b.length > 0, "iki uçta da guard() bulundu");
   /*
-   * Üç denetimin de AYNEN durduğu iddiası: oturum, founder, yönetici — artı
-   * Supabase yapılandırması (yoksa ölçülecek bir şey yok).
+   * İki ucun AYNI kapıdan geçtiği iddiası. Founder + yönetici denetimleri
+   * artık ortak `operatorVerdict`in içinde — bu iyileşme bir hatanın
+   * sonucu: kopyalanan kapı, ŞİFRESİZ demo oturumunun yönetim uçlarını
+   * açtığını kimseye göstermiyordu (demo bilerek `isFounder: true` +
+   * `role: "yonetici"` taşıyor). Kararın doğruluk tablosu ve her yönetim
+   * rotasında kullanıldığı `tests/operator-access.test.mts`te.
+   *
+   * `isSupabaseConfigured` kapının DIŞINDA kalıyor ve kalmalı: bir yetki
+   * sorusu değil, "ölçülecek bir şey var mı" sorusu.
    */
   for (const denetim of [
     "await auth()",
-    "session.user.isFounder",
-    "canManage(session.user.role)",
+    "operatorVerdict(",
     "isSupabaseConfigured()",
   ]) {
     check(a.includes(denetim), `phase4 kapısında var: ${denetim}`);
