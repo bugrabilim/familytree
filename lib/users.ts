@@ -3,6 +3,7 @@ import { hash as bcryptHash } from "bcryptjs";
 import type { User, UsersData } from "@/types/user";
 import { dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
 import { isSoftDeleted } from "@/lib/retention";
 
@@ -139,6 +140,35 @@ export async function createUser(
     ...(recoveryCodeIndex ? { recoveryCodeIndex } : {}),
     createdAt: new Date().toISOString(),
   };
+  /*
+   * KİMLİK ÖNCE AUTH'A, SONRA users.json'a — ve artık best-effort DEĞİL.
+   *
+   * Eskiden içe aktarma en sonda, try/catch içindeydi. Bcrypt yedeği varken
+   * zararsızdı: Auth'a yazılamamış hesap yine bcrypt'le giriyordu. Faz 4'te
+   * o yedek kalkıyor, dolayısıyla sessizce düşmüş TEK bir içe aktarma,
+   * kullanıcının hiç giriş yapamadığı bir hesap demek — ve bu ancak
+   * kullanıcı giriş denediğinde, gün(ler) sonra fark edilirdi.
+   *
+   * SIRA DA DEĞİŞTİ. Yazma users.json'dan sonra olsaydı ve içe aktarma
+   * düşseydi, elde girilemeyen ama ADI TUTULMUŞ bir hesap satırı kalırdı:
+   * kullanıcı yeniden kaydolmayı denediğinde "bu adla zaten bir hesap var"
+   * yanıtını alırdı. Şimdi hata yerelde hiçbir iz bırakmadan dönüyor, ad
+   * boşta kalıyor, kullanıcı yeniden deneyebiliyor.
+   *
+   * Supabase yapılandırılmamışsa (yerel geliştirme) ve demo gibi UUID
+   * olmayan kimliklerde atlanıyor — o kurulumlarda Auth kullanıcısı zaten
+   * hiç yaratılmıyor, olmayan bir kayda bakıp kaydı engellemek kendi kendine
+   * kesinti olurdu.
+   */
+  if (isSupabaseConfigured() && isUuid(user.id)) {
+    const r = await importAccountToAuth(user);
+    if (r !== "created" && r !== "exists") {
+      throw new Error(
+        `Hesap kimliği Supabase Auth'a yazılamadı: ${typeof r === "string" ? r : r.error}`
+      );
+    }
+  }
+
   data.users.push(user);
   await saveUsersData(data);
   // Faz 3 — çift-yazma (best-effort): hesabı Postgres'e de yaz. Giriş hâlâ
@@ -172,16 +202,6 @@ export async function createUser(
     });
   } catch (e) {
     console.warn(`[cift-yazma] ev agaci→postgres (${user.id}):`, (e as Error).message);
-  }
-  // Faz 3c — yeni founder'ı Supabase Auth'a da aktar (mevcut bcrypt hash'iyle),
-  // böylece bayrak açıkken Supabase üzerinden giriş yapabilir. Yalnız gerçek
-  // (UUID) hesaplar; demo (UUID değil) dışlanır. Best-effort — kaydı bozmaz.
-  if (isUuid(user.id)) {
-    try {
-      await importAccountToAuth(user);
-    } catch (e) {
-      console.warn(`[3c] account→auth (${user.id}):`, (e as Error).message);
-    }
   }
   return user;
 }

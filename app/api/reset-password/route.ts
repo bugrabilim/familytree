@@ -7,7 +7,7 @@ import {
   issueRecoveryCode,
 } from "@/lib/users";
 import { planRecoveryLookup } from "@/lib/recovery-code";
-import { updateAccountAuthPassword } from "@/lib/auth-users";
+import { syncAccountAuthPassword } from "@/lib/auth-users";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 /**
@@ -156,16 +156,37 @@ export async function POST(req: NextRequest) {
       console.warn(`[kurtarma] yeni kod üretilemedi (${user.id}):`, (e as Error).message);
     }
 
-    await applyRecoveryReset(user.id, { passwordHash: newPasswordHash, ...kodYamasi });
-
-    // Faz 3c — Supabase Auth şifresini de senkronla (düz-metinle, en güvenilir
-    // yol). Böylece sıfırlanmış ESKİ şifre Supabase üzerinden kabul edilemez.
-    // Best-effort: hata sıfırlamayı bozmaz (bcrypt zaten güncellendi).
+    /*
+     * ÖNCE SUPABASE AUTH, SONRA YEREL — ve senkron artık best-effort DEĞİL.
+     *
+     * `SUPABASE_AUTH_LOGIN` açıkken giriş önce Auth'u deniyor. Senkron
+     * sessizce düşerse Auth'ta ESKİ şifre kalır: kullanıcıya "sıfırlandı"
+     * denir ama eski şifreyi bilen girmeye devam eder. Sıfırlamanın tek
+     * anlamı tam olarak buydu.
+     *
+     * Sıra bu yüzden ters çevrildi. Auth yazılamazsa yerelde hiçbir şey
+     * değişmemiş olur — kullanıcı eski şifresiyle kalır ve yeniden dener.
+     * Yarım bir sıfırlama yerine hiç yapılmamış bir sıfırlama.
+     *
+     * Kalan pencere kabul edilmiş: Auth yazıldıktan SONRA yerel yazma
+     * düşerse yeni şifre Auth üzerinden çalışır, eski şifre yalnız bcrypt
+     * yedeği açıkken çalışır (o yedek Faz 4'te kalkıyor). Ters sıradaki
+     * pencereden — eski şifrenin geçerli kalması — kesinlikle daha iyi.
+     */
     try {
-      await updateAccountAuthPassword(user.id, newPassword);
+      await syncAccountAuthPassword({ ...user, passwordHash: newPasswordHash }, newPassword);
     } catch (e) {
-      console.warn(`[3c] Supabase Auth şifre senkronu başarısız (${user.id}):`, (e as Error).message);
+      console.error(`[faz4] Auth şifre senkronu başarısız (${user.id}):`, (e as Error).message);
+      return NextResponse.json(
+        {
+          error:
+            "Şifre şu anda sıfırlanamadı; hesabınızda hiçbir şey değişmedi. Birkaç dakika sonra tekrar deneyin.",
+        },
+        { status: 503 }
+      );
     }
+
+    await applyRecoveryReset(user.id, { passwordHash: newPasswordHash, ...kodYamasi });
 
     // `recoveryCode` yalnız yenileme başarılıysa dolu; arayüz null gelirse
     // kutuyu hiç göstermiyor (kullanıcıya var olmayan bir kod okutmayalım).

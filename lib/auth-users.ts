@@ -151,15 +151,70 @@ export async function supabaseVerifyPassword(email: string, password: string): P
   }
 }
 
+/** `syncAccountAuthPassword` sonucu — hangi yoldan yazıldığını söyler. */
+export type AuthPasswordSync = "guncellendi" | "onarildi" | "atlandi";
+
 /**
- * Founder'ın Supabase Auth şifresini DÜZ-METİNLE günceller (parola sıfırlama
- * sonrası senkron). Böylece sıfırlanmış eski şifre Supabase üzerinden kabul
- * edilemez. Best-effort — hata fırlatır, çağıran best-effort sarar.
+ * Şifre sıfırlamayı Supabase Auth'a YAZAR ve yazdığını KANITLAR (Faz 4/1a).
+ *
+ * ## Neden eski best-effort senkron yetmiyordu
+ *
+ * Kaldırılan `updateAccountAuthPassword` best-effort çağrılıyordu ve gerekçesi
+ * hep aynıydı: "bcrypt zaten
+ * güncellendi". Yani senkronun ağı bcrypt'ti. Bcrypt yedeği kalkınca o ağ
+ * yok — ama asıl mesele, ağın BUGÜN de delik olması:
+ *
+ * `SUPABASE_AUTH_LOGIN` açıkken giriş ÖNCE Supabase'i deniyor. Senkron
+ * sessizce düşerse Auth'ta ESKİ şifre kalır ve o eski şifreyle giriş
+ * yapılmaya devam edilir — sıfırlama kullanıcıya "başarılı" dendiği hâlde
+ * saldırganı dışarı atmamış olur. Sıfırlamanın tek anlamı buydu.
+ *
+ * Bu yüzden çağıran taraf artık şunu yapıyor: ÖNCE burası, SONRA yerel
+ * yazma. Burası fırlatırsa yerelde hiçbir şey değişmemiş olur — kullanıcı
+ * eski şifresiyle kalır ve yeniden dener. Yarım bir sıfırlama yerine hiç
+ * yapılmamış bir sıfırlama; ikisi arasında seçim yapılıyorsa doğrusu bu.
+ *
+ * ## Onarım yolu
+ *
+ * Auth kullanıcısı hiç oluşmamış olabilir: kayıt sırasındaki içe aktarma
+ * best-effort ve sessizce düşebiliyor (`createUser`). O hesabın sıfırlaması
+ * "kullanıcı yok" diye kalıcı olarak reddedilseydi, bir kere düşmüş bir
+ * içe aktarma hesabı sonsuza dek sıfırlanamaz yapardı. Bulunamazsa YENİ
+ * hash'le oluşturuyoruz → `"onarildi"`.
+ *
+ * "Zaten var" yanıtı ONARIM SAYILMAZ ve fırlatır: id ile güncelleme
+ * düştüğü hâlde e-posta çakışıyorsa, kayıt BAŞKA bir id altında demektir ve
+ * o kaydın şifresini yazdığımızı kanıtlayamayız. Kanıtlayamadığımız şeye
+ * "senkron oldu" diyemeyiz.
+ *
+ * Supabase yapılandırılmamışsa ya da kimlik UUID değilse (demo) `"atlandi"`
+ * döner — o kurulumlarda Auth kullanıcısı hiç yaratılmıyor, olmayan bir
+ * kaydı bekleyip sıfırlamayı engellemek kendi kendine kesinti olurdu.
  */
-export async function updateAccountAuthPassword(accountId: string, newPassword: string): Promise<void> {
-  if (!isSupabaseConfigured() || !isUuid(accountId) || !newPassword) return;
-  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, { password: newPassword });
-  if (error) throw new Error(error.message);
+export async function syncAccountAuthPassword(
+  account: { id: string; familyName: string; passwordHash: string },
+  newPassword: string
+): Promise<AuthPasswordSync> {
+  if (!isSupabaseConfigured() || !isUuid(account.id)) return "atlandi";
+  if (!newPassword) throw new Error("Yeni şifre boş");
+
+  const { error } = await supabaseAdmin().auth.admin.updateUserById(account.id, {
+    password: newPassword,
+  });
+  if (!error) return "guncellendi";
+
+  const msg = (error.message || "").toLowerCase();
+  const yok = msg.includes("not found") || error.status === 404;
+  if (!yok) throw new Error(error.message);
+
+  const r = await importAccountToAuth(account);
+  if (r === "created") return "onarildi";
+  if (r === "exists") {
+    throw new Error(
+      "Auth kaydı bu kimlikle bulunamadı ama e-posta başka bir kayıtta kullanılıyor — şifre yazıldığı kanıtlanamıyor"
+    );
+  }
+  throw new Error(typeof r === "string" ? `Auth kaydı oluşturulamadı (${r})` : r.error);
 }
 
 /**
