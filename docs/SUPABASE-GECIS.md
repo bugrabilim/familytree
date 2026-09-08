@@ -181,14 +181,60 @@ Bu, Faz 4'ün ön koşullarından yalnız BİRİ; hepsini bir arada ölçen kap�
 
 ## Faz 4 — Eski yolu kaldırma (temizlik)
 
-Yapılacak iş:
+Yapılacak iş **üç parça**, ikisi tamam:
 
-- NextAuth Credentials bcrypt yedeği kaldırılır (giriş tümüyle Supabase Auth).
-- Blob tabanlı `users.json` kimlik deposu emekliye ayrılır (veri zaten
-  Postgres + Auth'ta). Blob yalnız gerekiyorsa dosya için kalır.
+| parça | durum | geri alınır mı |
+|---|---|---|
+| **1a** — kimlik/şifre senkronu best-effort olmaktan çıkar | ✅ | evet (kod) |
+| **1b** — kurucunun bcrypt yedeği varsayılan olarak kapanır | ✅ | **evet, anında** (`AUTH_BCRYPT_FALLBACK=1`) |
+| **2** — Blob tabanlı `users.json` kimlik deposu emekliye ayrılır | bekliyor | **hayır** |
 
-Bu, depodaki tek **geri dönüşü olmayan** iş: bcrypt yedeği kalktıktan sonra
-Auth kaydı olmayan bir hesabın giriş yolu kalıcı olarak yok olur.
+### 1a — Senkron artık kanıtlanıyor
+
+Bcrypt yedeği, üç ayrı sessiz düşüşün ağıydı: kayıtta Auth'a içe aktarma,
+sıfırlamada Auth şifre senkronu, ve ikisinin sırası. Üçü de best-effort
+çağrılıyordu ve gerekçe hep aynıydı — *"bcrypt zaten güncellendi"*.
+
+Sıfırlamadaki düşüş bcrypt'ten **bağımsız olarak** bir açıktı: giriş önce
+Auth'u denediği için, senkron düşünce Auth'ta **eski şifre** kalıyor ve o
+şifreyi bilen girmeye devam ediyordu — kullanıcıya "sıfırlandı" denmiş
+olmasına rağmen.
+
+Şimdi: **önce Auth, sonra yerel.** Auth yazılamazsa `503` dönüyor ve
+hesapta hiçbir şey değişmiyor. Kayıtta içe aktarma `users.json`'dan önce ve
+zorunlu — düşerse girilemeyen ama adı rezerve etmiş hesap doğmuyor.
+Kapı: `tests/auth-sync-gate.test.mts`.
+
+### 1b — Yedek kapandı, kilitlenme imkânsız kaldı
+
+`SUPABASE_AUTH_LOGIN=1` iken kurucunun bcrypt yolu artık **denenmiyor**.
+Yedek dururken Supabase Auth asıl kaynak değil, yalnız hızlı bir ön
+kontroldü: Auth'ta silinen ya da şifresi değiştirilen bir hesap
+`users.json`'daki eski hash'le girmeye devam ediyordu.
+
+İki koruma bunun bir kilitlenmeye dönüşmesini engelliyor:
+
+- **`SUPABASE_AUTH_LOGIN` kapalıyken yedek zorla açık** (`lib/auth-flags.ts`).
+  Yani tek bir değişkeni silmek — ya da yanlış yazmak — bütün kurucuları
+  dışarıda bırakamaz. Doğruluk tablosu çalıştırılarak sınanıyor:
+  `tests/auth-flags.test.mts`.
+- **`AUTH_BCRYPT_FALLBACK=1`** acil durum anahtarı. Supabase Auth
+  kesintisinde girişin tamamen durmaması için; kesinti bitince kaldırılır.
+  Arka kapı değil: yerel hash sıfırlamalarda güncellendiği için (1a) yedek
+  açıldığında eski bir şifre dirilmiyor.
+
+**ÜYELER BU KAPININ DIŞINDA.** Davetli üyelerin `auth.users` kaydı yok;
+girişleri her koşulda bcrypt'ten doğrulanıyor. Bcrypt'i "giriş yolundan
+kaldırdık" diye toptan silmek davetli herkesi aynı anda dışarıda bırakırdı
+ve kurucu girebildiği için arıza günlerce görünmeyebilirdi. Kapı:
+`tests/login-path-gate.test.mts`.
+
+### 2 — Geri dönüşü olmayan parça
+
+`users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri
+dönüşü olmayan** iş: o noktadan sonra Auth kaydı olmayan bir hesabın giriş
+yolu kalıcı olarak yok olur. 1b canlıda birkaç gün beklemeden yapılmamalı —
+bu bekleme, 1b'nin geri alınabilir olmasının tek sebebi.
 
 ### Ön koşullar artık düzyazı değil — `GET /api/admin/phase4`
 

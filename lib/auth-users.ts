@@ -104,20 +104,9 @@ export async function authUserExists(accountId: string): Promise<boolean | null>
   }
 }
 
-/* ── Faz 3c — giriş doğrulamasını Supabase Auth'a çevir (bcrypt yedekli) ─────── */
-
-/**
- * 3c bayrağı: giriş doğrulaması Supabase Auth'u DENESİN mi?
- *
- * Varsayılan KAPALI → davranış bugünküyle bire bir aynı (sıfır ek gecikme).
- * `SUPABASE_AUTH_LOGIN=1` yapıldığında (Email sağlayıcısı açık + hesaplar
- * içe aktarılmışken) giriş önce Supabase'i dener, başarısızsa bcrypt'e düşer.
- * İstediğin an değişkeni kaldırarak anında geri alınır.
- */
-export function isSupabaseLoginEnabled(): boolean {
-  const v = (process.env.SUPABASE_AUTH_LOGIN || "").trim().toLowerCase();
-  return v === "1" || v === "true" || v === "on" || v === "yes";
-}
+/* ── Giriş yolu bayrakları — `lib/auth-flags.ts`te (test edilebilsinler diye).
+ *    Mevcut çağıranlar bozulmasın diye buradan yeniden dışa veriliyor. ──── */
+export { isBcryptFallbackEnabled, isSupabaseLoginEnabled } from "@/lib/auth-flags";
 
 const VERIFY_TIMEOUT_MS = 5000;
 

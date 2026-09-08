@@ -1,7 +1,12 @@
 import { compare } from "bcryptjs";
 import { findUserByFamilyName } from "@/lib/users";
 import { findMemberByPassword, findMemberByUsername } from "@/lib/members";
-import { authEmailForAccount, isSupabaseLoginEnabled, supabaseVerifyPassword } from "@/lib/auth-users";
+import {
+  authEmailForAccount,
+  isBcryptFallbackEnabled,
+  isSupabaseLoginEnabled,
+  supabaseVerifyPassword,
+} from "@/lib/auth-users";
 import { isSoftDeleted } from "@/lib/retention";
 import type { TreeRole, User } from "@/types/user";
 
@@ -41,8 +46,9 @@ export interface SessionUser {
 /**
  * Ağaç adı + şifre (+ isteğe bağlı kullanıcı adı) doğrular.
  *
- * Sıra: kullanıcı adı verildiyse YALNIZ o üye; verilmediyse (bayrak açıksa)
- * Supabase Auth → bcrypt (kurucu) → adsız üyeler arasında şifre eşleşmesi.
+ * Sıra: kullanıcı adı verildiyse YALNIZ o üye; verilmediyse Supabase Auth
+ * (kurucu) → bcrypt (kurucu, YALNIZ yedek açıkken) → adsız üyeler arasında
+ * şifre eşleşmesi.
  * Web `authorize()` ve mobil `/api/mobile/login` bunu paylaşır — tek kaynak.
  * Doğrulama başarısızsa `null`.
  */
@@ -120,7 +126,23 @@ export async function verifyLogin(
     }
   }
 
-  if (await compare(password, user.passwordHash)) {
+  /*
+   * KURUCUNUN BCRYPT YOLU ARTIK VARSAYILAN OLARAK KAPALI (Faz 4).
+   *
+   * Yedek durduğu sürece Supabase Auth asıl kaynak değil, yalnız hızlı bir
+   * ön kontroldü: Auth'ta silinen ya da şifresi değiştirilen bir hesap
+   * `users.json`'daki eski hash'le girmeye devam ediyordu. Auth'a geçmiş
+   * sayılmanın koşulu, Auth HAYIR dediğinde girişin de hayır demesi.
+   *
+   * Kapatma kararı bu satırda değil, `isBcryptFallbackEnabled()`te: orada
+   * `SUPABASE_AUTH_LOGIN` kapalıysa yedek zorla açık kalıyor, yani tek bir
+   * değişkeni silmek kurucuları kilitleyemiyor.
+   *
+   * ÜYE YOLLARI BUNUN DIŞINDA — hem yukarıdaki adla giriş hem aşağıdaki
+   * adsız eşleşme. Üyelerin `auth.users` kaydı YOK; onları da bu kapıdan
+   * geçirmek, davetli herkesi anında dışarıda bırakmak olurdu.
+   */
+  if (isBcryptFallbackEnabled() && (await compare(password, user.passwordHash))) {
     return founderSession;
   }
 
@@ -170,5 +192,12 @@ export async function verifyFounderPassword(
   if (isSupabaseLoginEnabled()) {
     if (await supabaseVerifyPassword(authEmailForAccount(user.id), password)) return true;
   }
+  /*
+   * Aynı kapı burada da: `verifyLogin` bcrypt'i kabul etmiyorsa, hesabı
+   * SİLME/GERİ ALMA teyidi de kabul etmemeli. Ayrılsalardı girişte
+   * reddedilen bir şifre hesabın tamamını silmeye yetebilirdi — ve bu, iki
+   * ayrı dosyaya bakmadan görülemezdi.
+   */
+  if (!isBcryptFallbackEnabled()) return false;
   return compare(password, user.passwordHash);
 }
