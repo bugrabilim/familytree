@@ -64,27 +64,37 @@ check(/updatedAt: kutu\.updatedAt \?\? ""/.test(src),
   }
 }
 
-/* --- 4. Dış etkiler gövdenin DIŞINDA ---------------------------------- */
+/* --- 4. Ayna TEK yazma noktasında, gövdede değil ---------------------- */
 /*
- * Gövde çakışmada YENİDEN KOŞUYOR. Postgres aynası, Supabase Auth ve
- * önbellek temizliği içeride olsalardı iki kez çalışırlardı.
+ * Bu bölümün kuralı DEĞİŞTİ ve sebebi kayda geçsin.
+ *
+ * Önce "ayna mutasyon gövdesinin dışında olsun" deniyordu: gövde çakışmada
+ * yeniden koşuyor, içeride bir ayna yazması iki kez çalışırdı. Kural
+ * doğruydu ama yetersizdi — dışarıda olmak, aynanın ÇAĞRILDIĞI anlamına
+ * gelmiyordu. Sekiz yazma yolunun BEŞİ (bildirim tercihi, kimlik e-postası,
+ * sıfırlama jetonu, silme damgası, satır silme) aynaya hiç dokunmuyordu ve
+ * bu kapı onu görmüyordu.
+ *
+ * Ayna artık `saveUsersData` içinde — depoya yazan tek nokta. Orası
+ * `mutateStore`ta yalnız BAŞARILI yazmada çalışıyor (çakışmada `yaz`
+ * hiç çağrılmıyor), dolayısıyla eski kaygı da ortadan kalkıyor: iki kez
+ * koşma ihtimali yok.
  */
-for (const [ad, disEtki] of [
-  ["updateUserPassword", "dbUpdateAccountPassword("],
-  ["applyRecoveryReset", "dbUpdateAccountPassword("],
-  ["createUser", "dbUpsertAccount("],
-] as const) {
-  const i = src.indexOf(`export async function ${ad}(`);
+{
+  const i = src.indexOf("async function saveUsersData");
   const govde = src.slice(i, src.indexOf("\n}\n", i) + 3);
-  const mut = govde.indexOf("mutateUsers");
-  /*
-   * Gövdenin kapanışı `}, "<etiket>");` — `});` aramak yanılıyordu, çünkü
-   * `dbUpsertTree({ ... });` de öyle bitiyor ve DAHA SONRA geliyordu.
-   */
-  const kapanis = govde.indexOf('}, "', mut);
-  const etki = govde.indexOf(disEtki);
-  check(etki > -1 && mut > -1 && etki > kapanis,
-    `${ad}: ${disEtki} mutasyon gövdesinin DIŞINDA (çakışmada iki kez koşmasın)`);
+  check(i > -1, "tek yazma noktası bulundu");
+  check(govde.includes("dbUpsertAccount("), "ayna tek yazma noktasında");
+  check(/for \(const u of data\.users\)/.test(govde),
+    "hesapların TAMAMI aynalanıyor (ayna kendi kendini onarsın)");
+  check(/catch/.test(govde), "ayna best-effort — Blob asıl kaynak, kimlik işlemi düşmesin");
+}
+{
+  // Ve kopya ayna çağrıları KALMADI: kuralın sekiz yere dağılması, beşinde
+  // hiç uygulanmamasının sebebiydi.
+  const kopya = (src.match(/dbUpsertAccount\(/g) ?? []).length;
+  check(kopya === 1, `tek ayna çağrısı var (${kopya} bulundu)`);
+  check(!src.includes("dbUpdateAccountPassword"), "şifreye özel ayna yolu kaldırıldı");
 }
 
 /* --- 5. Ad tekilliği ATOMİK pencerede ---------------------------------- */

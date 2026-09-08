@@ -270,6 +270,56 @@ dışarı kilitleyemesin.
 
 ### 2 — Geri dönüşü olmayan parça
 
+`users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri dönüşü
+olmayan** iş: o noktadan sonra Auth kaydı olmayan bir hesabın giriş yolu
+kalıcı olarak yok olur.
+
+#### 2a — Ayna tamamlandı ✅ (2026-09-08)
+
+Bu bölüm "veri zaten Postgres + Auth'ta" diyordu. **Yanlıştı.** `User`
+tipinin **on sekiz alanının on üçü** yalnız `users.json`da yaşıyordu: ayna
+beş sütunla açılmış, sonradan eklenen hiçbir alan oraya yazılmamıştı ve
+hiçbir şey bunu sormuyordu.
+
+`users.json` o hâliyle emekliye ayrılsaydı, **hata vermeden** şunlar
+giderdi:
+
+| Alan | Sonucu |
+|---|---|
+| `deletedAt` | Yumuşak silinmiş hesap **geri diriler** — silme kararı iptal olur |
+| `sessionEpoch` | Şifre sıfırlama oturumları **düşürmez**; çalınmış çerez yaşar |
+| `recoveryCodeIndex` | Kurtarma koduyla sıfırlama **hiç çalışmaz** |
+| `resetToken*`, `emailToken*` | Yoldaki bütün sıfırlama/doğrulama bağlantıları ölür |
+| `authEmail*` | E-postayla kurtarma yolu kapanır |
+| `notify*` (4 alan) | Bildirim **onayları** sıfırlanır (onay kaydı) |
+
+Yapılanlar:
+
+* `supabase/schema.sql` + üretim göçü (`accounts_identity_columns`): 13 sütun
+  eklendi, hepsi `if not exists`. Üretimde doğrulandı: **5 → 18 sütun**.
+* `dbUpsertAccount` on sekiz alanın tamamını yazıyor. Boşluklar `?? null` —
+  `undefined` gönderilen alanı Supabase yazmıyor, yani bir alanın SİLİNMESİ
+  aynaya hiç ulaşmazdı ve silinmiş bir onay geri gelirdi.
+* Ayna **tek yazma noktasında** (`saveUsersData`). Önce üç yolda kopya çağrı
+  vardı ve kalan **beş** yazma yolu aynaya hiç dokunmuyordu.
+* `accounts_recovery_code_index_key`: kod tek başına hesabı gösterdiği için
+  okuma Postgres'e döndüğünde bu arama indekssiz tam tarama olurdu.
+
+Kapı: `tests/account-mirror-gate.test.mts` — `User` tipini **kaynak** sayıyor,
+yeni bir alan aynaya yazılmazsa test kırılır. Elle liste, düzeltilen hatanın
+aynısını testin içinde yeniden kurmak olurdu.
+
+#### 2b — Okuma yolu (sırada)
+
+Kimlik okumaları Postgres'e döner, Blob geri düşüş olarak kalır; bayrakla ve
+geri alınabilir. Ön koşulu: aynanın **dolu** olduğunun ölçülmesi — 2a şemayı
+açtı, satırlar bir sonraki kimlik yazmasında dolacak.
+
+#### 2c — Blob'un bırakılması
+
+Geri dönüşü olmayan adım. `GET /api/admin/phase4` `hazir: true` demeden ve
+2b bir süre canlıda durmadan yapılmaz.
+
 `users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri
 dönüşü olmayan** iş: o noktadan sonra Auth kaydı olmayan bir hesabın giriş
 yolu kalıcı olarak yok olur. 1b canlıda birkaç gün beklemeden yapılmamalı —

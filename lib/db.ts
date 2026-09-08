@@ -359,6 +359,25 @@ export async function getPlatformStats(): Promise<{ trees: number; people: numbe
 /* ── Hesaplar (founder) — Faz 3, şimdilik yalnız çift-yazma aynası ─────────── */
 
 /** Founder hesabını ekle/güncelle (çift-yazma). */
+/**
+ * Hesabın TAM satırını aynaya yazar (Faz 4 / parça 2'nin ön koşulu).
+ *
+ * ## Neden tamamı
+ *
+ * Ayna beş sütun yazıyordu ve `docs/SUPABASE-GECIS.md` parça 2'yi "veri
+ * zaten Postgres + Auth'ta" diye tarif ediyordu. Değildi: `User` tipinin on
+ * sekiz alanının on üçü yalnız `users.json`da yaşıyordu. `users.json` o
+ * hâliyle emekliye ayrılsaydı yumuşak silinmiş hesap geri diriler, şifre
+ * sıfırlama oturumları düşürmez, kurtarma koduyla sıfırlama hiç çalışmazdı
+ * — hiçbiri hata vermeden. Sütun sütun gerekçe `supabase/schema.sql`de.
+ *
+ * ## Boşluk `null`, `undefined` değil
+ *
+ * `undefined` gönderilen alanı Supabase yazmıyor; yani bir alanın SİLİNMESİ
+ * aynaya hiç ulaşmazdı. Kullanıcı bildirim adresini kaldırdığında ayna eski
+ * adresi tutmaya devam ederdi — ve okuma yolu Postgres'e döndüğünde silinmiş
+ * bir onay geri gelirdi. `?? null` bu yüzden her isteğe bağlı alanda.
+ */
 export async function dbUpsertAccount(u: User): Promise<void> {
   const { error } = await supabaseAdmin().from("accounts").upsert(
     {
@@ -367,20 +386,25 @@ export async function dbUpsertAccount(u: User): Promise<void> {
       password_hash: u.passwordHash,
       recovery_code_hash: u.recoveryCodeHash ?? "",
       created_at: u.createdAt,
+      recovery_code_index: u.recoveryCodeIndex ?? null,
+      session_epoch: u.sessionEpoch ?? null,
+      deleted_at: u.deletedAt ?? null,
+      auth_email: u.authEmail ?? null,
+      auth_email_verified: u.authEmailVerified ?? null,
+      email_token_hash: u.emailTokenHash ?? null,
+      email_token_expires: u.emailTokenExpires ?? null,
+      reset_token_hash: u.resetTokenHash ?? null,
+      reset_token_expires: u.resetTokenExpires ?? null,
+      notify_email: u.notifyEmail ?? null,
+      notify_reminders: u.notifyReminders ?? null,
+      notify_memorials: u.notifyMemorials ?? null,
+      notify_newsletter: u.notifyNewsletter ?? null,
     },
     { onConflict: "id" }
   );
   if (error) throw new Error(`accounts upsert: ${error.message}`);
 }
 
-/** Founder şifresini güncelle (çift-yazma). Büyük/küçük harf duyarsız eşleşme. */
-export async function dbUpdateAccountPassword(familyName: string, passwordHash: string): Promise<void> {
-  const { error } = await supabaseAdmin()
-    .from("accounts")
-    .update({ password_hash: passwordHash })
-    .ilike("family_name", familyName);
-  if (error) throw new Error(`accounts password update: ${error.message}`);
-}
 
 /** Doğrulama: Postgres'te bu ağaç için kaç kişi var? */
 export async function dbCountPeople(treeId: string): Promise<number> {

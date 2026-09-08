@@ -43,10 +43,25 @@ check(/isHome:\s*true/.test(govdeCreate), "ev ağacı `isHome: true` ile açıl�
 check(/treeId:\s*user\.id/.test(govdeCreate), "ağacın kimliği hesabın kimliği");
 check(/ownerAccount:\s*user\.id/.test(govdeCreate), "ağacın sahibi hesabın kendisi");
 
-// Hesap satırından SONRA gelmeli: `trees.owner_account` hesabı işaret ediyor.
-const iHesap = govdeCreate.indexOf("dbUpsertAccount(");
+/*
+ * Hesap satırından SONRA gelmeli: `trees.owner_account` hesabı işaret ediyor.
+ *
+ * Hesap satırının YAZILDIĞI YER değişti — artık `createUser` gövdesinde
+ * doğrudan `dbUpsertAccount` yok; ayna tek noktada, `saveUsersData` içinde
+ * (gerekçe orada: sekiz yazma yolunun beşi aynaya hiç dokunmuyordu).
+ * Değişmez aynı kaldı, yalnız hesap yazması `mutateUsers` çağrısının
+ * ardında.
+ */
+const iHesap = govdeCreate.indexOf("mutateUsers");
 const iAgac = govdeCreate.indexOf("dbUpsertTree(");
 check(iHesap > 0 && iAgac > iHesap, "ağaç satırı hesap satırından sonra yazılıyor");
+{
+  // Ve o çağrının gerçekten hesabı aynaladığını ayrı doğrula: yukarıdaki
+  // sıra iddiası, ayna oradan çıkarılırsa sessizce anlamsızlaşırdı.
+  const i = src.indexOf("async function saveUsersData");
+  const govde = src.slice(i, src.indexOf("\n}\n", i));
+  check(govde.includes("dbUpsertAccount("), "hesap aynası tek yazma noktasında");
+}
 
 /*
  * Ayna yazımı kullanıcı akışını BOZMAMALI. Blob kaynak doğruluğu; Postgres

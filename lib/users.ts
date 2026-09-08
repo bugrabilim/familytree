@@ -1,7 +1,7 @@
 import { put, list, get } from "@vercel/blob";
 import { hash as bcryptHash } from "bcryptjs";
 import type { User, UsersData } from "@/types/user";
-import { dbUpdateAccountPassword, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
+import { dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
@@ -46,6 +46,37 @@ async function saveUsersData(data: UsersData): Promise<void> {
     allowOverwrite: true,
     contentType: "application/json",
   });
+
+  /*
+   * AYNA BURADA — sekiz yazma yolunun her birinde değil.
+   *
+   * Önce `createUser` ve iki şifre yolu kendi `dbUpsertAccount` /
+   * `dbUpdateAccountPassword` çağrısını taşıyordu; kalan BEŞ yazma yolu
+   * (bildirim tercihi, kimlik e-postası, sıfırlama jetonu, silme damgası,
+   * satır silme) aynaya hiç dokunmuyordu. Yani ayna, Faz 4 parça 2'nin
+   * dayanacağı kaynak olmasına rağmen sessizce eskiyordu.
+   *
+   * Depoya yazan tek nokta burası (`tests/users-store-gate.test.mts` doğrudan
+   * `saveUsersData` çağrısı kalmadığını kilitliyor), dolayısıyla aynayı
+   * burada tutmak onu UNUTULAMAZ yapıyor — bugünün tekrar eden hatası olan
+   * "kuralı kopyala" deseninin tersi.
+   *
+   * TAMAMI yazılıyor, yalnız değişen satır değil: kimlik yazmaları seyrek
+   * (kayıt, şifre sıfırlama, tercih, silme) ve hesap sayısı küçük. Bedeli
+   * karşılığında ayna kendi kendini onarıyor — kayma denetiminin var olma
+   * sebebi tam da aynaların sessizce eskimesiydi.
+   *
+   * BEST-EFFORT: Blob asıl kaynak. Ayna yazılamazsa kimlik işlemi
+   * başarısız SAYILMAZ; parça 2'ye geçmeden önce kayma denetimi zaten
+   * çalıştırılacak (`GET /api/admin/drift`).
+   */
+  for (const u of data.users) {
+    try {
+      await dbUpsertAccount(u);
+    } catch (e) {
+      console.warn(`[cift-yazma] account→postgres (${u.id}):`, (e as Error).message);
+    }
+  }
 }
 
 /**
@@ -224,11 +255,6 @@ export async function createUser(
   }, "hesap");
   // Faz 3 — çift-yazma (best-effort): hesabı Postgres'e de yaz. Giriş hâlâ
   // Blob'dan doğrulanıyor; hata giriş/kayıt akışını ETKİLEMEZ.
-  try {
-    await dbUpsertAccount(user);
-  } catch (e) {
-    console.warn(`[cift-yazma] account→postgres (${user.id}):`, (e as Error).message);
-  }
   /*
    * EV AĞACININ SATIRI DA BURADA AÇILIYOR — yoksa ayna o hesap için TAMAMEN
    * ölü kalıyordu.
@@ -381,13 +407,6 @@ export async function updateUserPassword(
   return { yaz: true, sonuc: user.familyName };
   }, "şifre");
   if (!yazildi) return false;
-  // Çift-yazma (best-effort): Postgres aynasındaki şifreyi de güncelle.
-  // Gövdenin DIŞINDA: çakışmada gövde yeniden koşuyor, ayna iki kez yazmasın.
-  try {
-    await dbUpdateAccountPassword(yazildi, newPasswordHash);
-  } catch (e) {
-    console.warn(`[cift-yazma] account password→postgres (${yazildi}):`, (e as Error).message);
-  }
   return true;
 }
 
@@ -436,12 +455,6 @@ export async function applyRecoveryReset(
   return { yaz: true, sonuc: user.familyName };
   }, "kurtarma sıfırlaması");
   if (!yazildi) return false;
-  // Ayna gövdenin DIŞINDA — çakışmada gövde yeniden koşuyor.
-  try {
-    await dbUpdateAccountPassword(yazildi, patch.passwordHash);
-  } catch (e) {
-    console.warn(`[cift-yazma] account password→postgres (${id}):`, (e as Error).message);
-  }
   return true;
 }
 
