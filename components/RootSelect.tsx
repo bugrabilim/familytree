@@ -44,7 +44,7 @@ export default function RootSelect({
           id={id}
           value={root.id}
           onChange={(e) => onSetRoot(e.target.value)}
-          className="max-w-[16rem] sm:max-w-xs h-7 -ml-1 px-1 rounded-lg bg-transparent hover:bg-surface-2 border border-transparent hover:border-border text-sm font-medium text-text cursor-pointer focus:outline-none focus:border-primary transition-colors"
+          className="max-w-[16rem] sm:max-w-xs h-11 lg:h-7 -ml-1 px-1 rounded-lg bg-transparent hover:bg-surface-2 border border-transparent hover:border-border text-sm font-medium text-text cursor-pointer focus:outline-none focus:border-primary transition-colors"
         >
           {sirali.map((p) => {
             const mp = view(p);

@@ -138,7 +138,7 @@ export default function MemorialCalendar({
         <button
           onClick={() => setOffset((o) => o - 1)}
           aria-label={t("memorialCal.prev")}
-          className="w-8 h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
+          className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
         >
           ‹
         </button>
@@ -146,14 +146,14 @@ export default function MemorialCalendar({
         <button
           onClick={() => setOffset((o) => o + 1)}
           aria-label={t("memorialCal.next")}
-          className="w-8 h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
+          className="w-11 h-11 lg:w-8 lg:h-8 rounded-lg border border-border text-text-muted hover:bg-accent-soft transition-colors"
         >
           ›
         </button>
         {!isThisMonth && (
           <button
             onClick={() => setOffset(0)}
-            className="text-[11px] px-2 py-1 rounded-lg bg-accent-soft text-accent hover:bg-accent-soft/70 transition-colors"
+            className="min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg bg-accent-soft text-accent hover:bg-accent-soft/70 transition-colors"
           >
             {t("memorialCal.today")}
           </button>
@@ -169,7 +169,8 @@ export default function MemorialCalendar({
               key={k}
               onClick={() => toggle(k)}
               aria-pressed={on}
-              className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
+              className={`
+            min-h-11 lg:min-h-0 text-[11px] px-2 py-1 rounded-lg border transition-colors ${
                 on
                   ? "border-accent bg-accent-soft text-accent"
                   : "border-border text-text-muted hover:bg-accent-soft/40"
@@ -208,7 +209,7 @@ export default function MemorialCalendar({
                     >
                       <button
                         onClick={() => onSelect(o.personId)}
-                        className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
+                        className="min-h-11 lg:min-h-0 flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
                       >
                         <Avatar person={person} size="sm" />
                         <div className="min-w-0 flex-1">

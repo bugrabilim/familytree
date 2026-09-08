@@ -103,6 +103,17 @@ export default function FanChart({
 
   return (
     <div className="h-full flex flex-col">
+      {/*
+        B9 — GÖRÜNÜMÜN BAŞLIĞI. Ekran okuyucunun başlık gezinmesi (H tuşu)
+        bu görünümde tamamen boştu: `h1..h6` sayısı sıfırdı, yani kullanıcı
+        "hangi sayfadayım" sorusunu yanıtlayamıyordu.
+
+        `sr-only`: başlık görsel olarak yok, çünkü sekme şeridi ve denetim
+        satırı zaten aynı bilgiyi gözle veriyor — ekrana ikinci bir başlık
+        koymak görsel gürültü olurdu. Metin sekmenin etiketiyle AYNI
+        sözlük anahtarından geliyor; ikisi kendiliğinden eşleşiyor.
+      */}
+      <h1 className="sr-only">{t("view.yelpaze.label")}</h1>
       {/* Kontrol çubuğu — merkez kişi + kuşak sayısı (Soy sayfasıyla aynı) */}
       <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-bg-elevated/60">
         <RootSelect

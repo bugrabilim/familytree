@@ -49,7 +49,7 @@ export default function CalendarAdd({ event, className = "" }: { event: CalEvent
         title={t("cal.add")}
         aria-label={t("cal.add")}
         aria-expanded={open}
-        className={`w-7 h-7 grid place-items-center rounded-lg text-text-muted hover:text-primary hover:bg-surface-2 transition-colors ${className}`}
+        className={`w-11 h-11 lg:w-7 lg:h-7 grid place-items-center rounded-lg text-text-muted hover:text-primary hover:bg-surface-2 transition-colors ${className}`}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
           <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />

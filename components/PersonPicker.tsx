@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n";
  * duyunca buraya taşındı.
  */
 export const pickerSelectCls =
-  "w-full h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
+  "w-full h-11 lg:h-9 px-2.5 rounded-xl bg-surface-2 border border-border text-sm text-text focus:outline-none focus:border-primary cursor-pointer";
 
 export default function PersonPicker({
   people,

@@ -69,7 +69,7 @@ export default function AiAssist({ person }: { person: Person }) {
             onClick={() => run(m)}
             disabled={busy}
             aria-pressed={mode === m}
-            className={`h-8 px-3 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50 ${
+            className={`h-11 lg:h-8 px-3 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50 ${
               mode === m
                 ? "border-primary bg-primary-soft text-primary"
                 : "border-primary/40 bg-primary-soft/50 text-primary hover:bg-primary/15"

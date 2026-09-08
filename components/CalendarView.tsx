@@ -167,7 +167,7 @@ export default function CalendarView({ people, onSelect }: Props) {
       <li key={ev.key} className={`flex items-center gap-1 rounded-xl transition-colors ${rowBg}`}>
         <button
           onClick={() => onSelect(person.id)}
-          className="flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
+          className="min-h-11 lg:min-h-0 flex-1 min-w-0 flex items-center gap-3 px-2 py-2 text-left"
         >
           <Avatar person={person} size="sm" />
           <div className="min-w-0 flex-1">
@@ -196,6 +196,17 @@ export default function CalendarView({ people, onSelect }: Props) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto p-4 sm:p-6 grid gap-6">
+      {/*
+        B9 — GÖRÜNÜMÜN BAŞLIĞI. Ekran okuyucunun başlık gezinmesi (H tuşu)
+        bu görünümde tamamen boştu: `h1..h6` sayısı sıfırdı, yani kullanıcı
+        "hangi sayfadayım" sorusunu yanıtlayamıyordu.
+
+        `sr-only`: başlık görsel olarak yok, çünkü sekme şeridi ve denetim
+        satırı zaten aynı bilgiyi gözle veriyor — ekrana ikinci bir başlık
+        koymak görsel gürültü olurdu. Metin sekmenin etiketiyle AYNI
+        sözlük anahtarından geliyor; ikisi kendiliğinden eşleşiyor.
+      */}
+        <h1 className="sr-only">{t("view.takvim.label")}</h1>
         {/* Yaklaşan olaylar — İstatistikler'den taşındı. */}
         <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-3 mb-3">

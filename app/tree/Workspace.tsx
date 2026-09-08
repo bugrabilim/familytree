@@ -1219,7 +1219,7 @@ function TreeDepthControl({
         <button
           onClick={onGoToFocus}
           title={t("ws.depth.focusTitle")}
-          className="flex items-center gap-1.5 h-9 lg:h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
+          className="flex items-center gap-1.5 h-11 lg:h-9 lg:h-7 pl-1 pr-2 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
         >
           <Avatar person={focusPerson} size="xs" />
           <span className="text-[11px] font-medium text-text whitespace-nowrap max-w-20 truncate">
@@ -1238,7 +1238,7 @@ function TreeDepthControl({
             key={d}
             onClick={() => onChange(d)}
             title={t("ws.depth.genHint", { d })}
-            className={`h-9 w-9 lg:h-6 lg:w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
+            className={`h-11 lg:h-9 w-9 lg:h-6 lg:w-6 grid place-items-center rounded-md text-[11px] font-medium tabular-nums transition-colors ${
               depth === d
                 ? "bg-primary text-primary-text"
                 : "text-text-muted hover:text-text hover:bg-surface-2"
@@ -1252,7 +1252,7 @@ function TreeDepthControl({
             key={o.d}
             onClick={() => onChange(o.d)}
             title={o.ipucu}
-            className={`h-9 lg:h-6 px-2 lg:px-1.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
+            className={`h-11 lg:h-9 lg:h-6 px-2 lg:px-1.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
               depth === o.d
                 ? "bg-primary text-primary-text"
                 : "text-text-muted hover:text-text hover:bg-surface-2"

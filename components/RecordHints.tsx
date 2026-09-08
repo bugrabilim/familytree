@@ -47,7 +47,7 @@ export default function RecordHints({ person }: { person: Person }) {
           <button
             onClick={search}
             disabled={busy}
-            className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text disabled:opacity-50"
+            className="h-11 lg:h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text disabled:opacity-50"
           >
             {busy ? t("records.searching") : t("records.search")}
           </button>
@@ -57,7 +57,7 @@ export default function RecordHints({ person }: { person: Person }) {
           href={webUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text"
+          className="h-11 lg:h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-xs font-medium text-text"
         >
           {t("records.google")}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">

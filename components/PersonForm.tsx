@@ -910,14 +910,15 @@ export default function PersonForm({
         </div>
         <div>
           <label className={label} htmlFor="pf-soyad">
-            Soyad {form.patronymic.trim() ? <span className="text-text-muted font-normal">(baba adı var — opsiyonel)</span> : "*"}
+            {t("form.lastNameBare")}{" "}
+            {form.patronymic.trim() ? <span className="text-text-muted font-normal">{t("form.lastNameOptional")}</span> : "*"}
           </label>
           <input
             id="pf-soyad"
             className={`${field} ${errors.lastName ? "border-danger ring-2 ring-danger/15" : ""}`}
             value={form.lastName}
             onChange={(e) => set("lastName", e.target.value)}
-            placeholder="Yılmaz"
+            placeholder={t("form.lastNamePlaceholder")}
           />
           {errors.lastName && <p className="text-[11px] text-danger mt-1">{errors.lastName}</p>}
         </div>
@@ -925,7 +926,7 @@ export default function PersonForm({
 
       {/* Cinsiyet — segmented (Madde 15: "bilinmiyor" yok) */}
       <div>
-        <span className={label}>Cinsiyet</span>
+        <span className={label}>{t("form.gender")}</span>
         <div className={`grid grid-cols-3 gap-1 p-1 rounded-xl bg-surface-2 border ${errors.gender ? "border-danger ring-2 ring-danger/15" : "border-border"}`}>
           {([
             { v: "female", l: "Kadın" },
@@ -952,34 +953,34 @@ export default function PersonForm({
       {/* Tarihler */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={label} htmlFor="pf-dogum">Doğum tarihi</label>
+          <label className={label} htmlFor="pf-dogum">{t("form.birthDate")}</label>
           <input
             id="pf-dogum"
             inputMode="numeric"
             className={`${field} tabular-nums ${errors.birthDate ? "border-danger ring-2 ring-danger/15" : ""}`}
             value={form.birthDate}
             onChange={(e) => set("birthDate", e.target.value)}
-            placeholder="GG.AA.YYYY"
+            placeholder={t("form.datePlaceholder")}
           />
           {errors.birthDate ? (
             <p className="text-[11px] text-danger mt-1">{errors.birthDate}</p>
           ) : age !== null ? (
             <p className="text-[11px] text-primary mt-1 font-medium">
-              {form.deathDate ? `${age} yaşında vefat etti` : `${age} yaşında`}
+              {form.deathDate ? t("form.diedAtAge", { age }) : t("form.ageIs", { age })}
             </p>
           ) : (
-            <p className="text-[11px] text-text-muted mt-1">Sadece yıl da olur</p>
+            <p className="text-[11px] text-text-muted mt-1">{t("form.yearOnly")}</p>
           )}
         </div>
         <div>
-          <label className={label} htmlFor="pf-olum">Ölüm tarihi</label>
+          <label className={label} htmlFor="pf-olum">{t("form.deathDate")}</label>
           <input
             id="pf-olum"
             inputMode="numeric"
             className={`${field} tabular-nums ${errors.deathDate ? "border-danger ring-2 ring-danger/15" : ""}`}
             value={form.deathDate}
             onChange={(e) => set("deathDate", e.target.value)}
-            placeholder="Yaşıyorsa boş"
+            placeholder={t("form.deathDatePlaceholder")}
           />
           {errors.deathDate && <p className="text-[11px] text-danger mt-1">{errors.deathDate}</p>}
         </div>
@@ -1011,7 +1012,7 @@ export default function PersonForm({
           className={`${field} tabular-nums ${errors.officialBirthDate ? "border-danger ring-2 ring-danger/15" : ""}`}
           value={form.officialBirthDate}
           onChange={(e) => set("officialBirthDate", e.target.value)}
-          placeholder="GG.AA.YYYY"
+          placeholder={t("form.datePlaceholder")}
         />
         {errors.officialBirthDate ? (
           <p className="text-[11px] text-danger mt-1">{errors.officialBirthDate}</p>
@@ -1023,13 +1024,13 @@ export default function PersonForm({
       {/* Ölüm nedeni — yalnızca vefat tarihi varsa göster */}
       {form.deathDate.trim() && (
         <div>
-          <label className={label} htmlFor="pf-olum-neden">Ölüm nedeni</label>
+          <label className={label} htmlFor="pf-olum-neden">{t("form.deathCause")}</label>
           <input
             id="pf-olum-neden"
             className={field}
             value={form.deathCause}
             onChange={(e) => set("deathCause", e.target.value)}
-            placeholder="Kalp yetmezliği, trafik kazası…"
+            placeholder={t("form.deathCausePlaceholder")}
           />
         </div>
       )}
@@ -1057,7 +1058,7 @@ export default function PersonForm({
 
       {/* Doğum yeri */}
       <div>
-        <label className={label} htmlFor="pf-yer">Doğum yeri</label>
+        <label className={label} htmlFor="pf-yer">{t("form.birthPlace")}</label>
         {/*
           Öneri listesi modern VE tarihî adlarda arıyor (madde 38). Alan
           serbest metin olarak kalıyor: yazılan eski ad kayıtta durabilmeli.
@@ -1067,7 +1068,7 @@ export default function PersonForm({
           className={field}
           value={form.birthPlace}
           onChange={(v) => set("birthPlace", v)}
-          placeholder="Trabzon, Türkiye"
+          placeholder={t("form.birthPlacePlaceholder")}
         />
         {/* Haritada konum — aynı adlı köy/mahalle karışıklığında doğru noktayı
             işaretlemek için (isteğe bağlı). Yer adı METNİ değişmez. */}
@@ -1094,49 +1095,49 @@ export default function PersonForm({
       {/* Kimlik ve aidiyet — katlanır, isteğe bağlı */}
       <details className="rounded-xl border border-border overflow-hidden group">
         <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
-          <span className="text-xs font-medium text-text">Köken bilgileri</span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-xs font-medium text-text">{t("form.originSection")}</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={label} htmlFor="pf-din">Din</label>
+              <label className={label} htmlFor="pf-din">{t("form.religion")}</label>
               <input id="pf-din" className={field} value={form.religion}
-                onChange={(e) => set("religion", e.target.value)} placeholder="İslam, Hristiyanlık…" />
+                onChange={(e) => set("religion", e.target.value)} placeholder={t("form.religionPlaceholder")} />
             </div>
             <div>
-              <label className={label} htmlFor="pf-mezhep">Mezhep / cemaat</label>
+              <label className={label} htmlFor="pf-mezhep">{t("form.denomination")}</label>
               <input id="pf-mezhep" className={field} value={form.denomination}
-                onChange={(e) => set("denomination", e.target.value)} placeholder="Hanefi, Alevi, Ortodoks…" />
+                onChange={(e) => set("denomination", e.target.value)} placeholder={t("form.denominationPlaceholder")} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={label} htmlFor="pf-dil">Ana dil</label>
+              <label className={label} htmlFor="pf-dil">{t("form.language")}</label>
               <input id="pf-dil" className={field} value={form.language}
-                onChange={(e) => set("language", e.target.value)} placeholder="Türkçe, Kürtçe, Rumca…" />
+                onChange={(e) => set("language", e.target.value)} placeholder={t("form.languagePlaceholder")} />
             </div>
             <div>
-              <label className={label} htmlFor="pf-koken">Etnik köken</label>
+              <label className={label} htmlFor="pf-koken">{t("form.ethnicity")}</label>
               <input id="pf-koken" className={field} value={form.ethnicity}
-                onChange={(e) => set("ethnicity", e.target.value)} placeholder="Türk, Çerkes, Arnavut…" />
+                onChange={(e) => set("ethnicity", e.target.value)} placeholder={t("form.ethnicityPlaceholder")} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={label} htmlFor="pf-uyruk">Uyruk</label>
+              <label className={label} htmlFor="pf-uyruk">{t("form.nationality")}</label>
               <input id="pf-uyruk" className={field} value={form.nationality}
-                onChange={(e) => set("nationality", e.target.value)} placeholder="Türkiye, Almanya…" />
+                onChange={(e) => set("nationality", e.target.value)} placeholder={t("form.nationalityPlaceholder")} />
             </div>
             <div>
-              <label className={label} htmlFor="pf-yonelim">Cinsel yönelim</label>
+              <label className={label} htmlFor="pf-yonelim">{t("form.orientation")}</label>
               <input id="pf-yonelim" className={field} value={form.orientation}
-                onChange={(e) => set("orientation", e.target.value)} placeholder="Eşcinsel, Biseksüel…" />
+                onChange={(e) => set("orientation", e.target.value)} placeholder={t("form.orientationPlaceholder")} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={label} htmlFor="pf-meslek">Meslek</label>
+              <label className={label} htmlFor="pf-meslek">{t("form.occupation")}</label>
               <input id="pf-meslek" className={field} value={form.occupation}
                 list="pf-meslek-list"
                 onChange={(e) => set("occupation", e.target.value)}
@@ -1146,7 +1147,7 @@ export default function PersonForm({
                   const canon = v ? occupationCanon.get(normalizeTr(v)) : undefined;
                   if (canon && canon !== form.occupation) set("occupation", canon);
                 }}
-                placeholder="Öğretmen, Balıkçı, Terzi…" />
+                placeholder={t("form.occupationPlaceholder")} />
               <datalist id="pf-meslek-list">
                 {occupationOptions.map((o) => (
                   <option key={o} value={o} />
@@ -1169,10 +1170,10 @@ export default function PersonForm({
             </div>
           </div>
           <div>
-            <label className={label} htmlFor="pf-patronim">Baba adı (soyadı yoksa)</label>
+            <label className={label} htmlFor="pf-patronim">{t("form.patronymic")}</label>
             <input id="pf-patronim" className={field} value={form.patronymic}
               onChange={(e) => set("patronymic", e.target.value)}
-              placeholder="Şaban oğlu, Veli kızı… (Soyadı Kanunu öncesi)" />
+              placeholder={t("form.patronymicPlaceholder")} />
           </div>
           {/* Sülale — SERBEST METİN. Hazır bir liste ya da soyaddan öneri
              BİLEREK yok; gerekçesi `types/family.ts`te yazılı. */}
@@ -1185,21 +1186,19 @@ export default function PersonForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={label} htmlFor="pf-dogustan">Doğuştan sağlık durumu</label>
+              <label className={label} htmlFor="pf-dogustan">{t("form.congenital")}</label>
               <input id="pf-dogustan" className={field} value={form.congenitalCondition}
                 onChange={(e) => set("congenitalCondition", e.target.value)}
-                placeholder="Down sendromu, doğuştan görme engeli…" />
+                placeholder={t("form.congenitalPlaceholder")} />
             </div>
             <div>
-              <label className={label} htmlFor="pf-hastalik">Yaşarken sağlık sorunu</label>
+              <label className={label} htmlFor="pf-hastalik">{t("form.health")}</label>
               <input id="pf-hastalik" className={field} value={form.healthCondition}
                 onChange={(e) => set("healthCondition", e.target.value)}
-                placeholder="Bel fıtığı, diyabet, çocuk felci…" />
+                placeholder={t("form.healthPlaceholder")} />
             </div>
           </div>
-          <p className="text-[11px] text-text-muted -mt-1">
-            Kalıtsal ve sonradan gelen durumları izlemek isteyen aileler için. Boş bırakabilirsin.
-          </p>
+          <p className="text-[11px] text-text-muted -mt-1">{t("form.healthNote")}</p>
         </div>
       </details>
 
@@ -1210,14 +1209,11 @@ export default function PersonForm({
             {t("form.eventsSection")}
             {events.length > 0 && <span className="ml-1.5 text-primary">· {events.length}</span>}
           </span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {events.length === 0 ? (
-            <p className="text-[11px] text-text-muted">
-              Evlilik, mezuniyet, göç, askerlik… ömrün dönüm noktalarını ekle. Zaman
-              çizelgesinde sıralı gösterilir.
-            </p>
+            <p className="text-[11px] text-text-muted">{t("form.eventsEmpty")}</p>
           ) : (
             events.map((ev) => (
               <div key={ev.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
@@ -1228,7 +1224,7 @@ export default function PersonForm({
                     className={`${field} tabular-nums flex-1`}
                     value={ev.date}
                     onChange={(e) => updateEvent(ev.id, { date: e.target.value })}
-                    placeholder="GG.AA.YYYY"
+                    placeholder={t("form.datePlaceholder")}
                   />
                   <select
                     aria-label={t("form.eventTypeAria")}
@@ -1291,14 +1287,11 @@ export default function PersonForm({
             {t("form.sourcesSection")}
             {sources.length > 0 && <span className="ml-1.5 text-primary">· {sources.length}</span>}
           </span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {sources.length === 0 ? (
-            <p className="text-[11px] text-text-muted">
-              Bu bilgiyi nereden biliyoruz? Belge, nüfus kaydı, fotoğraf, mezar
-              taşı, kitap, sözlü anlatım… Kaynağı ekleyip kişi panelinde gösterebilirsin.
-            </p>
+            <p className="text-[11px] text-text-muted">{t("form.sourcesEmpty")}</p>
           ) : (
             sources.map((s) => (
               <div key={s.id} className="rounded-lg bg-surface-2 p-2.5 space-y-2">
@@ -1369,7 +1362,7 @@ export default function PersonForm({
             {t("memory.section")}
             {memories.length > 0 && <span className="ml-1.5 text-primary">· {memories.length}</span>}
           </span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           <p className="text-[11px] text-text-muted">{t("memory.hint")}</p>
@@ -1454,7 +1447,7 @@ export default function PersonForm({
             {kind === "cevre" && <span className="ml-1.5 text-accent">· {t("assoc.isAssociate")}</span>}
             {associations.length > 0 && <span className="ml-1.5 text-primary">· {associations.length}</span>}
           </span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           {/* Kişi türü */}
@@ -1466,7 +1459,7 @@ export default function PersonForm({
                 {t("assoc.kindMember")}
               </button>
               <button type="button" onClick={() => { setKind("cevre"); if (initial?.confidential === undefined) setConfidential(true); }}
-                className={`px-3 py-1.5 transition-colors ${kind === "cevre" ? "bg-accent text-white" : "text-text-muted hover:text-text"}`}>
+                className={`px-3 py-1.5 transition-colors ${kind === "cevre" ? "bg-accent text-accent-on" : "text-text-muted hover:text-text"}`}>
                 {t("assoc.kindAssociate")}
               </button>
             </div>
@@ -1531,7 +1524,7 @@ export default function PersonForm({
               </span>
             )}
           </span>
-          <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+          <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
         </summary>
         <div className="p-3 space-y-3 bg-surface">
           <label className="flex items-start gap-2.5 cursor-pointer">
@@ -1623,7 +1616,7 @@ export default function PersonForm({
         <details className="rounded-xl border border-border overflow-hidden group">
           <summary className="flex items-center justify-between px-3.5 py-2.5 bg-surface-2 hover:bg-surface-3 transition-colors cursor-pointer list-none">
             <span className="text-xs font-medium text-text">{t("contact.section")}</span>
-            <span className="text-[11px] text-text-muted">isteğe bağlı</span>
+            <span className="text-[11px] text-text-muted">{t("form.optional")}</span>
           </summary>
           <div className="p-3 bg-surface">
             <ContactSection personId={initial.id} />
@@ -1633,13 +1626,13 @@ export default function PersonForm({
 
       {/* Notlar */}
       <div>
-        <label className={label} htmlFor="pf-bio">Hikâyesi</label>
+        <label className={label} htmlFor="pf-bio">{t("form.bio")}</label>
         <textarea
           id="pf-bio"
           className={`${field} h-24 py-2.5 resize-none leading-relaxed`}
           value={form.bio}
           onChange={(e) => set("bio", e.target.value)}
-          placeholder="Mesleği, anıları, aile içindeki yeri…"
+          placeholder={t("form.bioPlaceholder")}
         />
       </div>
 
@@ -1782,11 +1775,11 @@ export default function PersonForm({
             : oneriModu
               ? t("proposal.submit")
               : personId
-                ? "Güncelle"
-                : "Kaydet"}
+                ? t("form.update")
+                : t("form.save")}
         </Button>
         <Button type="button" variant="secondary" onClick={onCancel}>
-          İptal
+          {t("form.cancel")}
         </Button>
       </div>
     </form>
