@@ -207,8 +207,27 @@ check(/isSoftDeleted\(u\)/.test(rota), "silinmiş hesaplar kapsam dışı");
     "ağaç kapsamı bütün hesapları geziyor (getUsersData)"
   );
   check(
-    blok.includes("allTreeIds"),
-    "başka hesapların ağaçları `allTreeIds` ile sayılıyor"
+    (blok.match(/listTrees\(/g) ?? []).length >= 2,
+    "her hesabın ağaçları `listTrees` ile sayılıyor (çağıranınki de, başkasınınki de)"
+  );
+  /*
+   * MASKELEME KARŞILAŞTIRMAYA GİREMEZ — bu iddia bir hatanın bedeliyle
+   * yazıldı. #335'te başkasının ağacına maskeli bir yer tutucu ad
+   * (`ağaç <id>`) veriliyor ve o ad doğrudan `treeDrift`e gidiyordu;
+   * `treeDrift` adı Postgres'teki adla karşılaştırdığı için çağıranın
+   * kendisine ait OLMAYAN her ağaç sahte bir "kayma var" üretiyordu.
+   * Üretimde iki ağaç bu yüzden kirli göründü ve biri o yüzden silindi.
+   *
+   * Maskeleme bir RAPORLAMA kuralı; ölçümün girdisi olamaz. Yer tutucu
+   * yalnız ETİKET argümanında geçebilir.
+   */
+  check(
+    !/agacOlcusu\(\s*\{[^}]*name:\s*`ağaç/.test(blok),
+    "maskeli yer tutucu karşılaştırma adı olarak GEÇMİYOR"
+  );
+  check(
+    /agacOlcusu\(t,\s*`ağaç \$\{t\.treeId\}`\)/.test(blok),
+    "maskeleme yalnız etiket argümanında"
   );
   check(
     !blok.includes("const liste = await listTrees(g.accountId, g.homeName);\n    const out"),
@@ -220,10 +239,10 @@ check(/isSoftDeleted\(u\)/.test(rota), "silinmiş hesaplar kapsam dışı");
     /catch \(e\) \{\s*trees = olculemedi<AgacOlgusu\[\]>\(neden\(e\)\);/.test(blok),
     "ağaç envanteri okunamazsa olgu `olculemedi` oluyor"
   );
-  // Başkasının ağaç ADI rapora girmemeli.
+  // Başkasının ağaç ADI rapora girmemeli — ama yalnız raporda maskelenmeli.
   check(
-    /`ağaç \$\{id\}`/.test(blok),
-    "başkasının ağacı yalnız kimliğiyle raporlanıyor"
+    /`ağaç \$\{t\.treeId\}`/.test(blok),
+    "başkasının ağacı raporda yalnız kimliğiyle görünüyor"
   );
   // Silinmiş hesaplar kapsam dışı — hesap listesindeki kuralla aynı hizada.
   check(blok.includes("isSoftDeleted"), "yumuşak silinmiş hesap kapsam dışı");
