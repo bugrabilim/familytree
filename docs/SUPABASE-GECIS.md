@@ -267,6 +267,7 @@ aile adı rapora **girmez** — yalnız kimliği.
 | `auth-eksik` | engel | `auth.users`ta karşılığı olmayan hesap var → bcrypt yedeği kalkınca bir daha giremez. |
 | `demo-acikta` | engel | Demo **hâlâ `users.json`da bir hesap satırı** olarak duruyor. Demo bir hesap değil, bir vitrin (aşağıya bak); emekliye ayrılan depoda kimlik kalıntısı bırakılmaz. |
 | `giris-denenmemis` | engel | Hiçbir hesap Supabase Auth ile giriş yapmamış (`last_sign_in_at` boş). Faz 4 sonrası **tek** giriş yolu bu olacak. |
+| `yedek-acik` | engel | Kurucunun bcrypt yedeği bugün **deneniyor**. İki sebebi var ve onarımları farklı: `AUTH_BCRYPT_FALLBACK` açık (acil durum anahtarı kullanımda → Supabase Auth'a bugün güvenilmiyor), ya da `SUPABASE_AUTH_LOGIN` kapalı (bcrypt zaten tek yol). Kalan parça `users.json`'ı emekliye ayırıyor — yani bcrypt yolunun **okuduğu** dosyayı. `giris-denenmemis`in kapatmadığı boşluğu kapatıyor: geçmişte bir kez Supabase üzerinden girilmiş olması, bugün bcrypt'in tek yol olduğunu değiştirmiyor. |
 | `damga-yok` | uyarı | `trees.updated_at` boş. Veri kaybettirmiyor (sürüm jetonu kişi damgalarına düşüyor); yazma yolunun o ağaçta henüz işlemediğini gösterir. |
 | `olculemedi` | değişken | Olgu **ölçülemedi**. Ölçülemeyen olgunun ağırlığı, o olgunun en kötü olası değerinin ağırlığıdır. |
 

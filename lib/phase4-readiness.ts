@@ -96,6 +96,25 @@ export type EngelKodu =
   | "giris-denenmemis" // hiçbir hesap Supabase Auth ile giriş yapmamış
   | "damga-yok" // trees.updated_at null
   /**
+   * BCRYPT YEDEĞİ HÂLÂ AÇIK.
+   *
+   * Faz 4'ün kalan parçası `users.json`ı kimlik deposu olmaktan çıkarıyor —
+   * yani bcrypt yolunun OKUDUĞU dosyayı. Yedek açıkken o parçayı yapmak
+   * kendi içinde çelişik: ya yedek sessizce ölü bir dosyaya bakar, ya da
+   * dosya kalır ve "emekliye ayrıldı" doğru olmaz.
+   *
+   * İki ayrı sebep aynı sonucu veriyor ve ikisi de engel:
+   *  · `AUTH_BCRYPT_FALLBACK` açık → acil durum anahtarı KULLANIMDA, yani
+   *    Supabase Auth'a bugün güvenilmiyor demektir. Güvenilmeyen bir yolu
+   *    tek yol yapmak, kapının tam olarak engellemesi gereken şey.
+   *  · `SUPABASE_AUTH_LOGIN` kapalı → bcrypt zaten TEK yol (bayrak o
+   *    durumda zorla açık, `lib/auth-flags.ts`). `users.json` giderse geriye
+   *    hiçbir giriş yolu kalmaz. Bu, `giris-denenmemis` uyarısının
+   *    yakalamadığı bir durum: geçmişte bir kez girilmiş olması bugün
+   *    bcrypt'in tek yol olduğunu değiştirmiyor.
+   */
+  | "yedek-acik"
+  /**
    * DEMO HÂLÂ KİMLİK DEPOSUNDA.
    *
    * Bu kodun ANLAMI TERSİNE ÇEVRİLDİ ve sebebi bir ürün kararı: demo bir
@@ -184,6 +203,14 @@ export interface Olgular {
   accounts: Olcum<HesapOlgusu[]>;
   /** `SUPABASE_AUTH_LOGIN` bayrağı. Env'den okunur, her zaman ölçülebilir. */
   supabaseLoginEnabled: boolean;
+  /**
+   * Kurucunun bcrypt yedeği bugün DENENİYOR mu? (`isBcryptFallbackEnabled`)
+   *
+   * Ayrı bir alan, çünkü iki bayrağın BİLEŞİMİ: `SUPABASE_AUTH_LOGIN`
+   * kapalıyken bu zorla `true`dur. Kapının burada türetmesi, aynı kuralın
+   * iki yerde yazılması ve zamanla ayrışması demek olurdu.
+   */
+  bcryptFallbackEnabled: boolean;
 }
 
 export interface Karar {
@@ -210,12 +237,46 @@ export function phase4Readiness(olgular: Olgular): Karar {
 
   agaclariDenetle(olgular, engeller);
   hesaplariDenetle(olgular, engeller);
+  yedegiDenetle(olgular, engeller);
 
   const sayim = {
     engel: engeller.filter((e) => e.agirlik === "engel").length,
     uyari: engeller.filter((e) => e.agirlik === "uyari").length,
   };
   return { hazir: sayim.engel === 0, engeller, sayim };
+}
+
+/* ── Giriş yedeği ─────────────────────────────────────────────────────────── */
+
+/**
+ * Bcrypt yedeği kapalı mı? Faz 4'ün KALAN parçasının ön koşulu.
+ *
+ * Kalan parça `users.json`ı kimlik deposu olmaktan çıkarıyor — yani bcrypt
+ * yolunun okuduğu dosyayı. Yedek açıkken bunu yapmak kendi içinde çelişik.
+ *
+ * Bu denetim, `giris-denenmemis`in yakalayamadığı bir boşluğu kapatıyor: o
+ * denetim GEÇMİŞTE en az bir Supabase girişi görürse yeterli sayıyor.
+ * `SUPABASE_AUTH_LOGIN` bugün kapalıysa geçmişteki o giriş bir şey
+ * kanıtlamıyor — bugün bcrypt tek yol, ve dosya giderse giriş yolu hiç
+ * kalmıyor.
+ */
+function yedegiDenetle(olgular: Olgular, engeller: Engel[]): void {
+  if (!olgular.bcryptFallbackEnabled) return;
+
+  /*
+   * İki sebep ayrı ayrı söyleniyor: onarımları farklı. Biri "bayrağı
+   * kaldır", öteki "Supabase girişini aç ve bir süre koştur".
+   */
+  const neden = olgular.supabaseLoginEnabled
+    ? "AUTH_BCRYPT_FALLBACK açık — acil durum anahtarı KULLANIMDA, yani Supabase Auth'a bugün güvenilmiyor. Kesinti bitmişse değişkeni kaldırın."
+    : "SUPABASE_AUTH_LOGIN kapalı: bcrypt bugün TEK giriş yolu. Geçmişte bir kez Supabase üzerinden girilmiş olması bunu değiştirmiyor.";
+
+  engeller.push(
+    ENGEL(
+      "yedek-acik",
+      `${neden} Faz 4'ün kalan parçası users.json'ı emekliye ayırıyor — yani bcrypt yolunun OKUDUĞU dosyayı. Yedek açıkken yapılırsa geriye çalışan bir giriş yolu kalmayabilir.`
+    )
+  );
 }
 
 /* ── Ağaçlar: ayna ve kayma ───────────────────────────────────────────────── */
