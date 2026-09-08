@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { hash } from "bcryptjs";
 import { getUsersData, updateUserPassword, updateUserResetToken } from "@/lib/users";
 import { checkResetToken } from "@/lib/password-reset";
-import { updateAccountAuthPassword } from "@/lib/auth-users";
+import { syncAccountAuthPassword } from "@/lib/auth-users";
 import { rateLimitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -94,21 +94,31 @@ export async function POST(req: NextRequest) {
   }
 
   const newPasswordHash = await hash(newPassword, 12);
+
+  /*
+   * ÖNCE SUPABASE AUTH, SONRA YEREL — gerekçesi kurtarma kodu yolundakiyle
+   * aynı ve orada uzun yazılı (`app/api/reset-password/route.ts`): senkron
+   * sessizce düşerse Auth'ta ESKİ şifre kalır ve sıfırlama saldırganı dışarı
+   * atmamış olur. Yazılamazsa yerelde hiçbir şeye dokunmuyoruz; jeton da
+   * ayakta kalır, kullanıcı aynı bağlantıyla yeniden dener.
+   */
+  try {
+    await syncAccountAuthPassword({ ...user!, passwordHash: newPasswordHash }, newPassword);
+  } catch (e) {
+    console.error(`[faz4] Auth şifre senkronu başarısız (${user!.id}):`, (e as Error).message);
+    return NextResponse.json(
+      {
+        error:
+          "Şifre şu anda sıfırlanamadı; hesabınızda hiçbir şey değişmedi. Birkaç dakika sonra tekrar deneyin.",
+      },
+      { status: 503 }
+    );
+  }
+
   // `updateUserPassword` bekleyen sıfırlama jetonunu da düşürüyor (tek kullanım).
   await updateUserPassword(user!.familyName, newPasswordHash);
   // Kuşak-kemer: şifre yolu değişse bile jetonun düştüğünden emin ol.
   await updateUserResetToken(user!.id, { resetTokenHash: null, resetTokenExpires: null });
-
-  /*
-   * Supabase Auth şifresini de senkronla — yoksa SIFIRLANMIŞ ESKİ şifre
-   * Supabase üzerinden hâlâ kabul edilirdi. Best-effort: bcrypt zaten
-   * güncellendi, hata sıfırlamayı geri almaz.
-   */
-  try {
-    await updateAccountAuthPassword(user!.id, newPassword);
-  } catch (e) {
-    console.warn(`[3c] Supabase Auth şifre senkronu başarısız (${user!.id}):`, (e as Error).message);
-  }
 
   return NextResponse.json({ ok: true });
 }

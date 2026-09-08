@@ -146,8 +146,12 @@ check(!/findUserByFamilyName/.test(kK), "kullanma ucu ağaç adı istemiyor");
 /* --- Supabase Auth şifresi de senkronlanıyor ---------------------------- */
 /*
  * Yoksa SIFIRLANMIŞ ESKİ şifre Supabase üzerinden hâlâ kabul edilirdi.
+ *
+ * Senkron artık best-effort değil: sırası, düşünce ne olacağı ve onarım
+ * yolu `tests/auth-sync-gate.test.mts`te. Burada yalnız ÇAĞRILDIĞI duruyor —
+ * o kapı kalksa bile bu satır sıfırlamanın Auth'a hiç uğramamasını yakalar.
  */
-check(/updateAccountAuthPassword\(/.test(kK), "Supabase Auth şifresi senkronlanıyor");
+check(/syncAccountAuthPassword\(/.test(kK), "Supabase Auth şifresi senkronlanıyor");
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
 if (fail > 0) process.exit(1);
