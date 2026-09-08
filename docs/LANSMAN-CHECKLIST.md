@@ -12,6 +12,16 @@ Zorunlu:
 - [ ] Supabase: `SUPABASE_URL` (ya da `NEXT_PUBLIC_SUPABASE_URL`),
       `SUPABASE_SERVICE_ROLE_KEY` (ya da `SUPABASE_SECRET_KEY`),
       `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] **`AUTH_BCRYPT_FALLBACK` ÜRETİMDE TANIMLI OLMAMALI.** Bu değişken bir
+      acil durum anahtarı: Supabase Auth kesintisinde kurucu girişini eski
+      bcrypt yoluna geri açar (Faz 4/1b). Kesinti bitince **kaldırılmalı** —
+      açık kaldığında `auth.users`'ta silinmiş ya da şifresi değiştirilmiş
+      bir hesap `users.json`'daki eski hash'le girmeye devam eder, yani
+      Supabase Auth asıl kaynak olmaktan çıkar. Denetim: Vercel > Settings >
+      Environment Variables'da böyle bir satır **görünmemeli**.
+      (`SUPABASE_AUTH_LOGIN` kapalıysa bu değişkenin zaten hiçbir etkisi
+      yoktur — o durumda bcrypt tek yoldur ve kapatılamaz.)
+
 - [ ] **`CRON_SECRET` LANSMAN ÖNCESİ DÖNDÜRÜLECEK.** Geliştirme sırasında
       değer bir sohbet penceresine yapıştırıldı; yani artık bir kayıtta
       duruyor ve sır sayılamaz. MVP'de kabul edilebilir, canlıda değil:
