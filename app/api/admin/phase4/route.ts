@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { canManage } from "@/lib/roles";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { readFamilyFromBlob } from "@/lib/blob";
-import { listTrees } from "@/lib/trees";
+import { allTreeIds, listTrees } from "@/lib/trees";
 import { getUsersData } from "@/lib/users";
 import { isSoftDeleted } from "@/lib/retention";
 import { DEMO_FAMILY_NAME, DEMO_USER_ID } from "@/lib/demo-account";
@@ -49,8 +49,10 @@ export const dynamic = "force-dynamic";
  *
  * ## Kapsam ve gizlilik
  *
- * Ağaçlar `listTrees` ile giriş yapan kurucunun ağaçlarıyla sınırlı — drift
- * ucundaki kapsamın aynısı. HESAPLAR ise zorunlu olarak GENEL: "her hesap
+ * Ağaçlar da HESAPLAR da GENEL. Ağaç kapsamı önce çağıranın ağaçlarıyla
+ * sınırlıydı (drift ucundaki kapsamı kopyalayarak) ve kapı bu yüzden
+ * envanterdeki başka ağaçları hiç ölçmeden "hazır" diyebiliyordu — bkz.
+ * ağaç bloğundaki gerekçe. Hesaplar zaten genel: "her hesap
  * Auth'a taşındı mı" sorusu doğası gereği tek bir hesaba bakarak
  * cevaplanamaz, ve yalnız çağıranın hesabına bakan bir kapı, başka bir
  * hesabın kilitlenmesini görmeden "hazır" derdi (geri dönüşü olmayan işte en
@@ -204,11 +206,47 @@ export async function GET() {
   if ("error" in g) return g.error;
 
   /* --- Ağaçlar ----------------------------------------------------------- */
+  /*
+   * KAPSAM GENEL — ve bu bir düzeltme.
+   *
+   * Bu blok önce `listTrees(g.accountId)` ile YALNIZ ÇAĞIRANIN ağaçlarına
+   * bakıyordu, drift ucundaki kapsamı kopyalayarak. Üretimde ölçünce hata
+   * ortaya çıktı: kapı "hazır" dedi ve raporunda tek ağaç vardı, oysa
+   * envanterde üç hesap ve üç ağaç daha duruyordu. Yani kapı, korumakla
+   * görevli olduğu yerde kördü.
+   *
+   * Drift ucunda dar kapsam DOĞRU: orası bir onarım aracı ve kimse
+   * başkasının ağacını onarmamalı. Burası ölçüm aracı ve sorusu "Faz 4
+   * HERKES için güvenli mi" — tek bir ağacı ölçmeden verilen "evet", geri
+   * dönüşü olmayan işte en pahalı yanlış cevap.
+   *
+   * Bir hesabın ağaç kaydı OKUNAMAZSA bütün olgu `olculemedi` olur; o
+   * hesabın ağaçları sessizce listeden düşmez. Düşseydi kör nokta biçim
+   * değiştirip geri gelirdi: "listede yok" ile "sorunu yok" aynı şey
+   * sanılırdı.
+   *
+   * Demo bu döngüye girmiyor, çünkü kimlik deposunda satırı yok. Girseydi
+   * de anlamı olmazdı: demo verisi her girişte yeniden üretiliyor,
+   * kaybedilecek bir şey taşımıyor.
+   */
   let trees: Olcum<AgacOlgusu[]>;
   try {
-    const liste = await listTrees(g.accountId, g.homeName);
+    const { users } = await getUsersData();
     const out: AgacOlgusu[] = [];
-    for (const t of liste) out.push(await agacOlcusu(t));
+    for (const u of users.filter((x) => !isSoftDeleted(x))) {
+      if (u.id === g.accountId) {
+        // Kendi ağaçları: gerçek adlarıyla.
+        for (const t of await listTrees(g.accountId, g.homeName)) out.push(await agacOlcusu(t));
+      } else {
+        /*
+         * Başkasının ağacı: ad rapora GİRMİYOR, yalnız kimliği — hesap
+         * etiketlerindeki maskeleme kuralının aynısı.
+         */
+        for (const id of await allTreeIds(u.id)) {
+          out.push(await agacOlcusu({ treeId: id, name: `ağaç ${id}` }));
+        }
+      }
+    }
     trees = olculdu(out);
   } catch (e) {
     trees = olculemedi<AgacOlgusu[]>(neden(e));
