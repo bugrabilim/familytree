@@ -66,21 +66,44 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
     [rawPeople, scope]
   );
 
-  const stats = useMemo(() => computeStats(people), [people]);
+  // Gizli alanlar sayım/gösterime sızmasın diye maskeli kopya üzerinde çalışırız.
+  // Kimlik (`id`) maskede korunur → seçim çalışır.
+  const shown = useMemo(() => people.map(view), [people, view]);
+
+  /*
+   * SAYIM MASKELİ LİSTEDEN — panelin geri kalanıyla aynı, ama burası öyle
+   * DEĞİLDİ ve fark sessizdi.
+   *
+   * `computeStats` `oldestLivingAge`, `oldestBirthYear`, `avgLifespan` ve
+   * `topBirthPlace` üretiyor; hepsi ham `birthDate`/`birthPlace`ten. Ham
+   * listeden hesaplandığında SAYININ KENDİSİ gizlenen kaydı ele veriyor:
+   * `hideLiving` açıkken bile "yaşayanların en yaşlısı: 97" yazıyor, yani
+   * kartında doğum tarihi gizlenen kişinin yaşını yıl hassasiyetinde
+   * veriyordu. `privateFields: ["birthPlace"]` seçmiş kişiler "en çok
+   * görülen doğum yeri" sayımına giriyor, `confidential` bir kişinin doğum
+   * yılı `oldestBirthYear`i belirleyebiliyordu.
+   *
+   * `BookView` ve `PrintView` zaten `computeStats(masked)` çağırıyordu;
+   * ham çağıran tek yer burasıydı.
+   */
+  const stats = useMemo(() => computeStats(shown), [shown]);
   const idx = useMemo(() => indexPeople(people), [people]);
 
   // Yaklaşan olaylar TAKVİM sayfasına taşındı (bkz. CalendarView).
 
+  /*
+   * SEÇİM de maskeli listeden. Çizim zaten `view()`ten geçiyordu, ama
+   * LİSTEYE KİMİN GİRDİĞİ ham tarihlerden hesaplanıyordu: doğum tarihi
+   * gizlenmiş biri "en yaşlı beş" arasında adıyla görünüyor, yani gizlenen
+   * veri listeye üye olmakla ele veriliyordu. Maskeli listede o kişinin
+   * tarihi yok, dolayısıyla listeye hiç girmiyor.
+   */
   const eldest = useMemo(() => {
-    return [...people]
+    return [...shown]
       .filter((p) => p.birthDate)
       .sort((a, b) => (a.birthDate ?? "").localeCompare(b.birthDate ?? ""))
       .slice(0, 5);
-  }, [people]);
-
-  // Gizli alanlar sayım/gösterime sızmasın diye maskeli kopya üzerinde çalışırız
-  // (panelin geri kalanıyla tutarlı). Kimlik (`id`) maskede korunur → seçim çalışır.
-  const shown = useMemo(() => people.map(view), [people, view]);
+  }, [shown]);
 
   // Yaşa göre sıralı (yaşayan = bugüne, vefat = ölüme kadar). #6/#7 için ortak.
   const byAge = useMemo(
@@ -462,9 +485,12 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
             {/* En eski kayıtlar — yaş aralığının yanında (#E). */}
             <Card title={t("panel.card.oldest")} empty={eldest.length === 0 ? t("panel.card.noDated") : undefined}>
               <ul className="space-y-1">
-                {eldest.map((rawP) => {
-                  const p = view(rawP);
-                  const masked = isMasked(rawP, hideLiving);
+                {eldest.map((p) => {
+                  // `eldest` artık MASKELİ listeden geliyor; burada ikinci bir
+                  // `view()` yoktu-varmış gibi durmasın diye kaldırıldı.
+                  // `isMasked` maskeli kopyada da doğru yanıtı veriyor:
+                  // `confidential` ve `deathDate` maskede korunuyor.
+                  const masked = isMasked(p, hideLiving);
                   return (
                     <li key={p.id}>
                       <button
@@ -664,7 +690,7 @@ export default function PanelView({ people: rawPeople, onSelect, onAdd, mode = "
                 demek yanlış olurdu. Gizlilik `lib/report-card.ts` içinde
                 uygulanıyor — gizli kayıtlar sayılıyor ama adsız geliyor.
               */}
-              <ReportCardView people={people} onSelect={onSelect} />
+              <ReportCardView people={shown} onSelect={onSelect} />
             </Card>
           )}
 
