@@ -43,7 +43,7 @@ import {
   type Observance,
   type Window,
 } from "./memorials.ts";
-import { stripPrivateFields } from "./privacy.ts";
+import { forOutbound } from "./privacy.ts";
 
 export interface MemorialNotice extends Observance {
   /** Görünen ad — bildirim metni bunun üstüne kurulur. */
@@ -81,15 +81,14 @@ export function todaysMemorialNotices(
   const dateStr = localISO(today);
   const window: Window = { from: dateStr, to: dateStr };
 
-  // Gizlilik adım 1: confidential kayıt hiçbir bildirimde görünmez (yukarıdaki
-  // dosya başlığındaki gerekçe).
-  const eligible = people.filter((p) => !p.confidential);
-
-  // Gizlilik adım 2: kalan herkes alan-bazlı gizliliğin (privateFields) süzgecinden
-  // geçer. `id`/`firstName`/`lastName`/`deathDate` hiçbir grupta olmadığından bugün
-  // sonucu değiştirmiyor ama gelecekteki bir grup bu alanları kapsarsa (bkz. dosya
-  // başlığı) bildirim otomatik susar.
-  const masked = eligible.map(stripPrivateFields);
+  /*
+   * Giden kanal süzgeci — iki adım (confidential mutlak dışlanır, kalan
+   * herkes `privateFields`ten geçer) artık `lib/privacy.ts`teki ORTAK
+   * işlevde. Buradaki kopya, aynı kuralın LLM kanalında hiç uygulanmadığının
+   * fark edilmemesinin sebebiydi: kural bir dosyanın içinde yaşarken
+   * "bütün giden kanallar" diye okunamıyor.
+   */
+  const masked = forOutbound(people);
   const byId = new Map(masked.map((p) => [p.id, p]));
 
   return memorialCalendar(masked, window, config).reduce<MemorialNotice[]>((out, o) => {

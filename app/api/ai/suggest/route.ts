@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
+import { forOutbound } from "@/lib/privacy";
 import { canEdit } from "@/lib/roles";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { isGeminiConfigured, geminiGenerate } from "@/lib/gemini";
@@ -55,7 +56,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Gizli kişi için AI kapalı." }, { status: 400 });
 
   const lang = body.lang === "en" ? "en" : "tr";
-  const prompt = buildSuggestPrompt(person, people, mode, lang);
+  /*
+   * GİDEN KANAL SÜZGECİ — bu uçta `confidential` kapısı zaten vardı
+   * (yukarıda), ama yalnız KONU kişiye bakıyordu. Prompt'a giren şeyler
+   * süzülmüyordu: konu kişinin `privateFields` ile gizlenmiş `bio`/`events`i
+   * ve ağacın geri kalanındaki gizli kayıtlar Gemini'ye gidiyordu — üstelik
+   * gizlenmiş hikâye, üretilen biyografi olarak arayüze geri dönebiliyordu.
+   *
+   * Kural `lib/privacy.ts` → `forOutbound`; posta kanalında zaten uygulanıyor.
+   */
+  const [konu] = forOutbound([person]);
+  const prompt = buildSuggestPrompt(konu ?? person, forOutbound(people), mode, lang);
   const system =
     lang === "en"
       ? "You are a careful family historian. Stay strictly faithful to the given facts; never invent details."

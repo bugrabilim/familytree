@@ -162,6 +162,40 @@ export function viewPerson(p: Person, hideLiving: boolean): Person {
   return stripContact(isMasked(p, hideLiving) ? maskPerson(p) : stripPrivateFields(p));
 }
 
+/**
+ * DIŞARI ÇIKAN kanallar için gizlilik süzgeci: e-posta ve LLM.
+ *
+ * ## Neden `viewPerson`den ayrı
+ *
+ * `viewPerson` bir EKRAN katmanı: `hideLiving` gibi kullanıcı tercihlerini
+ * ve maskelemeyi taşıyor, ve maskelenen kişi listede KALIYOR (adıyla, çünkü
+ * ağaç çizilebilsin). Dışarı çıkan bir kanalda "kalması" doğru değil:
+ * gizli kayıt hiç görünmemeli.
+ *
+ * Kural `lib/memorial-notify.ts` başlığında zaten yazılıydı ve iki adımdı:
+ *  1. `confidential` kayıt MUTLAK dışlanır;
+ *  2. kalan herkes alan-bazlı gizlilikten (`privateFields`) geçer.
+ *
+ * ## Neden burada
+ *
+ * Kural iki giden kanaldan yalnız BİRİNDE uygulanıyordu. `/api/ai/chat`,
+ * `/api/ai/act` ve `/api/ai/voice` ham ağacı olduğu gibi Gemini'ye
+ * gönderiyordu — `confidential` kayıtlar ve `privateFields` ile gizlenmiş
+ * alanlar dâhil. Uçlar `canEdit` istediği için uygulama İÇİNDE yeni bir
+ * kişiye veri açılmıyordu; sızıntı DIŞARIYAydı.
+ *
+ * Bunun bilinçli bir boşluk olmadığının kanıtı deponun kendisinde:
+ * `/api/ai/suggest` gizli kişide zaten "AI kapalı" diyor, yani AI'ın bir
+ * gizlilik sınırı olduğu kabul edilmiş — koruma yalnız KONU kişiye
+ * konmuş, prompt'a giren listeye konmamıştı.
+ *
+ * Kuralı kopyalamak yerine tek işlev: bugün üç ayrı hata, aynı kuralın
+ * kopyalanmasından çıktı.
+ */
+export function forOutbound(people: readonly Person[]): Person[] {
+  return people.filter((p) => !p.confidential).map(stripPrivateFields);
+}
+
 /** `viewPerson`'ın liste hâli. */
 export function viewAll(people: Person[], hideLiving: boolean): Person[] {
   return people.map((p) => viewPerson(p, hideLiving));

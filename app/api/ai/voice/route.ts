@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFamilyData } from "@/lib/blob";
+import { forOutbound } from "@/lib/privacy";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit } from "@/lib/roles";
 import { isGeminiConfigured, geminiGenerateParts, type GeminiPart } from "@/lib/gemini";
@@ -67,7 +68,16 @@ export async function POST(req: NextRequest) {
   const subjectId = String(form.get("subjectId") ?? "");
 
   const data = await getFamilyData(ctx.treeId);
-  const subject = subjectId ? data.people.find((p) => p.id === subjectId) : undefined;
+  // Giden kanal süzgeci — gerekçe `lib/privacy.ts` → `forOutbound`.
+  const people = forOutbound(data.people);
+  /*
+   * Konu kişi gizliyse süzgeçten geçmiyor, dolayısıyla `subject` tanımsız
+   * kalıyor ve ses kaydı ona bağlanamıyor. Bu, `/api/ai/suggest`in gizli
+   * kişide açıkça verdiği yanıtla aynı: AI o kayda dokunmuyor.
+   */
+  const subject = subjectId ? people.find((p) => p.id === subjectId) : undefined;
+  if (subjectId && !subject)
+    return NextResponse.json({ error: "Gizli kişi için AI kapalı." }, { status: 403 });
 
   const part: GeminiPart = {
     inlineData: { mimeType: mime, data: Buffer.from(await file.arrayBuffer()).toString("base64") },
@@ -76,7 +86,7 @@ export async function POST(req: NextRequest) {
   let out: string;
   try {
     out = await geminiGenerateParts(
-      [{ text: buildVoicePrompt(subject, question, data.people, lang) }, part],
+      [{ text: buildVoicePrompt(subject, question, people, lang) }, part],
       buildVoiceSystem(lang),
       { temperature: 0.1, maxOutputTokens: 8192, timeoutMs: 45000, retries: 0 }
     );
