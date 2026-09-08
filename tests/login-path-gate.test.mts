@@ -119,7 +119,48 @@ check(!/findMemberByPassword|findMemberByUsername/.test(teyit),
     "tek bir değişkeni silmek kurucuları kilitleyemiyor");
 }
 
-/* --- 6. Yedek açıkken de eski şifre kabul edilmiyor ------------------- */
+/* --- 6. Adres KİMLİKTEN çözülüyor (bağlanan e-posta kilitlemesin) ----- */
+/*
+ * Kurucu gerçek e-postasını bağlayınca Auth kullanıcısının adresi onunla
+ * DEĞİŞİYOR (`updateAccountAuthEmail`, Faz 3e). Sentetik adres o andan
+ * sonra Auth'ta kimseye ait değil.
+ *
+ * Bcrypt yedeği açıkken görünmüyordu: giriş sessizce yedeğe düşüyor,
+ * kullanıcı sorunsuz giriyordu. Yedek kalkınca (1b) aynı durum
+ * KİLİTLENME — e-postasını bağlamış kurucu hesabına hiç giremiyor.
+ * Bu bölüm o hatanın geri gelmesini engelliyor.
+ */
+
+const auth = kodu(read("../lib/auth-users.ts"));
+
+for (const [ad, govde] of [["giriş", giris], ["teyit", teyit]] as const) {
+  check(/authEmailOfAccount\(user\.id\)/.test(govde), `${ad}: adres kimlikten çözülüyor`);
+  check(/\?\?\s*authEmailForAccount\(user\.id\)/.test(govde),
+    `${ad}: arama düşerse sentetik adrese DÜŞÜLÜYOR (ölçememek girişi kesmiyor)`);
+  check(/supabaseVerifyPassword\(email, password, user\.id\)/.test(govde),
+    `${ad}: oturumun bu hesaba ait olduğu doğrulanıyor`);
+  check(!/supabaseVerifyPassword\(authEmailForAccount\(user\.id\), password\)/.test(govde),
+    `${ad}: sentetik adresle KOŞULSUZ deneme kalmadı`);
+}
+
+{
+  const g = auth.slice(auth.indexOf("export async function supabaseVerifyPassword"));
+  const govde = g.slice(0, g.indexOf("\n}\n") + 3);
+  const i = govde.indexOf("expectedUserId && data.user?.id !== expectedUserId");
+  check(i > -1, "kimlik denetimi var: farklı hesabın oturumu kabul edilmiyor");
+  const at = govde.indexOf("return true", i);
+  const red = govde.indexOf("return false", i);
+  check(red > -1 && (at === -1 || red < at), "uyuşmazlıkta ÖNCE reddediliyor");
+}
+{
+  const g = auth.slice(auth.indexOf("export async function authEmailOfAccount"));
+  const govde = g.slice(0, g.indexOf("\n}\n") + 3);
+  check(/getUserById\(accountId\)/.test(govde), "adres accountId ile aranıyor (tahmin listesi değil)");
+  check(/return null/.test(govde) && !/throw/.test(govde),
+    "arama düşerse null döner, fırlatmaz (giriş kesilmez)");
+}
+
+/* --- 7. Yedek açıkken de eski şifre kabul edilmiyor ------------------- */
 /*
  * Acil durum anahtarı, sıfırlamaları geçersiz kılan bir arka kapı OLMAMALI.
  * Bu ancak yerel hash sıfırlamalarda güncelleniyorsa doğru — Faz 4/1a orada

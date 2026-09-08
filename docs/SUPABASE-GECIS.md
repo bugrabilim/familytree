@@ -229,6 +229,26 @@ kaldırdık" diye toptan silmek davetli herkesi aynı anda dışarıda bırakır
 ve kurucu girebildiği için arıza günlerce görünmeyebilirdi. Kapı:
 `tests/login-path-gate.test.mts`.
 
+### Yedeğin altından çıkan üçüncü hata: bağlanan e-posta
+
+Kurucu gerçek e-postasını bağladığında Auth kullanıcısının adresi onunla
+**değiştiriliyor** (`updateAccountAuthEmail`, Faz 3e). Giriş ise hep
+**sentetik** adresle deneniyordu (`<accountId>@hesap.soyagaci.local`) — o
+adres artık Auth'ta kimseye ait değil.
+
+Bcrypt yedeği açıkken bu görünmüyordu: giriş sessizce yedeğe düşüyor,
+kullanıcı sorunsuz giriyordu. 1b'den sonra aynı durum **kilitlenme**:
+e-postasını bağlamış bir kurucu hesabına hiç giremez.
+
+Çözüm tahmin değil, kimlikten çözüm: `auth.users.id === accountId` olduğu
+için adres `getUserById` ile okunuyor; arama düşerse sentetik adrese
+düşülüyor (ölçememek girişi kesmemeli). Ayrıca oturumun **gerçekten o
+hesaba ait olduğu** doğrulanıyor — `users.json` doğrulanmamış adreste
+tekilliği zorlamadığı için "şu adresle girilebildi" ile "şu hesaba girildi"
+aynı şey değil.
+
+Kapı: `tests/login-path-gate.test.mts`.
+
 ### 2 — Geri dönüşü olmayan parça
 
 `users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri

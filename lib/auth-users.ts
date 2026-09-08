@@ -118,16 +118,39 @@ const VERIFY_TIMEOUT_MS = 5000;
  * yoluna düşmelidir (kullanıcı henüz içe aktarılmamış, Email sağlayıcısı kapalı,
  * ağ/zaman aşımı, vb. hepsi `false` döner). Hata fırlatmaz; oturum saklamaz.
  */
-export async function supabaseVerifyPassword(email: string, password: string): Promise<boolean> {
+export async function supabaseVerifyPassword(
+  email: string,
+  password: string,
+  /**
+   * Beklenen `auth.users.id` — verildiğinde oturumun GERÇEKTEN bu hesaba ait
+   * olduğu doğrulanır.
+   *
+   * Adres artık hesaba göre çözülüyor (kurucu gerçek e-postasını
+   * bağlayabiliyor, `updateAccountAuthEmail`), yani "şu adresle girilebildi"
+   * ile "şu HESABA girildi" aynı şey değil. Denetim olmasaydı, bir hesabın
+   * kaydındaki adres başka bir hesabın Auth adresiyle çakıştığında o
+   * hesabın oturumu açılabilirdi — `users.json` doğrulanmamış adreste
+   * tekilliği zorlamıyor (`app/api/account/email/route.ts`).
+   */
+  expectedUserId?: string
+): Promise<boolean> {
   const client = supabaseAuthClient();
   if (!client) return false;
   try {
     const signIn = client.auth.signInWithPassword({ email, password });
     const timeout = new Promise<null>((r) => setTimeout(() => r(null), VERIFY_TIMEOUT_MS));
     const res = await Promise.race([signIn, timeout]);
-    if (!res) return false; // zaman aşımı → bcrypt'e düş
+    if (!res) return false; // zaman aşımı
     const { data, error } = res;
     if (error || !data?.session) return false;
+    if (expectedUserId && data.user?.id !== expectedUserId) {
+      try {
+        await client.auth.signOut();
+      } catch {
+        /* önemsiz */
+      }
+      return false;
+    }
     // Sunucuda oturum tutmuyoruz (persistSession:false) — yine de nazikçe kapat.
     try {
       await client.auth.signOut();
@@ -260,6 +283,41 @@ export async function deleteAccountAuthUser(accountId: string): Promise<void> {
     const msg = (error.message || "").toLowerCase();
     if (msg.includes("not found") || error.status === 404) return;
     throw new Error(error.message);
+  }
+}
+
+/**
+ * Hesabın Auth'taki GÜNCEL e-postası — giriş bu adresi kullanmalı.
+ *
+ * ## Neden `authEmailForAccount` tek başına yetmiyor
+ *
+ * Sentetik adres yalnız BAŞLANGIÇ adresi. Kurucu gerçek e-postasını
+ * bağladığında Auth kullanıcısının adresi onunla DEĞİŞTİRİLİYOR
+ * (`updateAccountAuthEmail`, Faz 3e). O andan sonra sentetik adres Auth'ta
+ * kimseye ait değil, dolayısıyla onunla yapılan giriş denemesi başarısız.
+ *
+ * Bcrypt yedeği açıkken bu görünmezdi: giriş sessizce yedeğe düşüyor,
+ * kullanıcı sorunsuz giriyordu. Yedek kalkınca (Faz 4/1b) aynı durum
+ * KİLİTLENME oluyor — e-postasını bağlamış bir kurucu hesabına hiç
+ * giremiyor. Faz 4'ün kaldırdığı ağın altından çıkan üçüncü hata bu.
+ *
+ * Adresi tahmin etmek yerine KİMLİKTEN çözüyoruz: `auth.users.id` zaten
+ * accountId'ye eşit (`importAccountToAuth`), dolayısıyla tek ve kesin bir
+ * kaynak var. Tahmin listesi denenebilirdi ama her aday ayrı bir giriş
+ * denemesi demek — hem yavaş hem de yanlış hesaba girme riski açık.
+ *
+ * `null` döner: yapılandırma yok, kimlik UUID değil, kullanıcı yok ya da
+ * arama düştü. Çağıran o durumda sentetik adrese düşer — arama düştü diye
+ * girişi tümden kesmek, çözmeye çalıştığımız kilitlenmeyi geri getirirdi.
+ */
+export async function authEmailOfAccount(accountId: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !isUuid(accountId)) return null;
+  try {
+    const { data, error } = await supabaseAdmin().auth.admin.getUserById(accountId);
+    if (error) return null;
+    return data?.user?.email?.trim() || null;
+  } catch {
+    return null;
   }
 }
 
