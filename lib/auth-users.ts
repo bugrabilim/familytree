@@ -126,7 +126,7 @@ export async function supabaseVerifyPassword(
    * olduğu doğrulanır.
    *
    * Adres artık hesaba göre çözülüyor (kurucu gerçek e-postasını
-   * bağlayabiliyor, `updateAccountAuthEmail`), yani "şu adresle girilebildi"
+   * bağlayabiliyor, `confirmAccountAuthEmail`), yani "şu adresle girilebildi"
    * ile "şu HESABA girildi" aynı şey değil. Denetim olmasaydı, bir hesabın
    * kaydındaki adres başka bir hesabın Auth adresiyle çakıştığında o
    * hesabın oturumu açılabilirdi — `users.json` doğrulanmamış adreste
@@ -230,20 +230,41 @@ export async function syncAccountAuthPassword(
 }
 
 /**
- * Supabase Auth kullanıcısının e-postasını günceller (Faz 3e).
+ * Hesabı SENTETİK iç adresine döndürür (kullanıcı bağladığı e-postayı
+ * kaldırdığında).
  *
- * `email_confirm` BİLEREK verilmiyor: adres bizim tarafımızda henüz
- * doğrulanmadı ve Supabase'e "doğrulandı" demek, kendi kurduğumuz kuralı
- * (doğrulanmamış adres kurtarma yolu değildir) Supabase üzerinden delmek
- * olurdu. Doğrulama bizde tamamlanınca `confirmAccountAuthEmail` çağrılır.
+ * ## Neden "adresi yaz" işlevi kaldırıldı
  *
- * Adres BOŞSA hesap sentetik iç adresine geri döner — Auth kullanıcısı
- * e-postasız kalamaz.
+ * Eskiden bu işlev herhangi bir adresi yazabiliyordu ve bağlama akışı, adres
+ * daha BİZDE DOĞRULANMADAN onu Auth'a yazıyordu — `email_confirm` bilerek
+ * verilmeden, yani Auth'ta doğrulanmamış olarak. Gerekçe sağlamdı
+ * (doğrulanmamış adres kurtarma yolu değildir), ama bedeli görülmemişti:
+ *
+ * Doğrulanmamış adres, Auth'ta o hesabın GİRİŞ adresi hâline geliyordu.
+ * Proje e-posta onayını zorunlu tuttuğunda böyle bir kullanıcı giriş
+ * yapamaz; bcrypt yedeği kalkınca (Faz 4/1b) bu doğrudan KİLİTLENME
+ * demektir — üstelik kullanıcının hiçbir hata yapmadığı bir akışta,
+ * doğrulama postası eline geçmezse kalıcı olarak.
+ *
+ * Çözüm, kuralı esnetmek değil, yazmayı ERTELEMEK: bağlama artık Auth'a hiç
+ * dokunmuyor. Adres Auth'a yalnız BİZDE doğrulandıktan sonra ve
+ * `email_confirm: true` ile yazılıyor (`confirmAccountAuthEmail`). Böylece
+ * "doğrulanmamış adresi doğrulanmış gösterme" kuralı da korunuyor, çünkü
+ * doğrulanmamış adres Auth'a hiç girmiyor.
+ *
+ * ## Neden burada `email_confirm: true` VAR
+ *
+ * Sentetik adres bizim ürettiğimiz, posta kutusu olmayan bir anahtar
+ * (`importAccountToAuth` da onu onaylı oluşturuyor). Onaysız yazsaydık
+ * e-postasını KALDIRAN kullanıcı kendini dışarı kilitleyebilirdi — kaldırma
+ * işleminin böyle bir yetkisi yok.
  */
-export async function updateAccountAuthEmail(accountId: string, email: string): Promise<void> {
+export async function resetAccountAuthEmail(accountId: string): Promise<void> {
   if (!isSupabaseConfigured() || !isUuid(accountId)) return;
-  const hedef = email.trim() || authEmailForAccount(accountId);
-  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, { email: hedef });
+  const { error } = await supabaseAdmin().auth.admin.updateUserById(accountId, {
+    email: authEmailForAccount(accountId),
+    email_confirm: true,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -293,7 +314,7 @@ export async function deleteAccountAuthUser(accountId: string): Promise<void> {
  *
  * Sentetik adres yalnız BAŞLANGIÇ adresi. Kurucu gerçek e-postasını
  * bağladığında Auth kullanıcısının adresi onunla DEĞİŞTİRİLİYOR
- * (`updateAccountAuthEmail`, Faz 3e). O andan sonra sentetik adres Auth'ta
+ * (`confirmAccountAuthEmail`, Faz 3e). O andan sonra sentetik adres Auth'ta
  * kimseye ait değil, dolayısıyla onunla yapılan giriş denemesi başarısız.
  *
  * Bcrypt yedeği açıkken bu görünmezdi: giriş sessizce yedeğe düşüyor,
