@@ -145,11 +145,22 @@ const kodu = (src: string) =>
 /* ══ 4. KALICI SİLME KİMİN İŞİ ═════════════════════════════════════════ */
 {
   /*
-   * Kalıcı silme kullanıcıya AÇILMIYOR. Tek tetikleyici, bekleme süresi
-   * dolduğunda koşan zamanlanmış iş. Bir gün bir uca "hemen sil" eklenirse
-   * bekleme süresinin tamamı anlamsızlaşır — kapı onu yakalar.
+   * Kalıcı silme KULLANICIYA açılmıyor. Tek tetikleyici, bekleme süresi
+   * dolduğunda koşan zamanlanmış iş. Bir gün bir KULLANICI ucuna "hemen sil"
+   * eklenirse bekleme süresinin tamamı anlamsızlaşır — kapı onu yakalar.
+   *
+   * `admin/accounts` ikinci izinli: OPERATÖR ucu ve kullanıcıya kapalı
+   * (`Authorization: Bearer <CRON_SECRET>`, `cron/backup` ile aynı sınır).
+   * Gerekçesi ürün kararı: şifresi hatırlanmayan hesaplar için şifre teyitli
+   * `/api/account/delete` yolu tanımı gereği çalışmıyor ve o hesaplar hiçbir
+   * yoldan silinemiyordu. Bekleme süresi kaldırılmadı — kullanıcı yüzeyinde
+   * hâlâ tek yol o; yalnız operatörün elinde ikinci bir düğme var.
+   *
+   * MUAFİYET BOŞ ÇEK DEĞİL: aşağıda bu ucun kalıcı silme dalının sırla,
+   * ad teyidiyle ve demo reddiyle korunduğu ayrıca kanıtlanıyor. Ayrıntılı
+   * kilit `tests/admin-accounts-gate.test.mts`te.
    */
-  const izinli = new Set(["cron/backup"]);
+  const izinli = new Set(["cron/backup", "admin/accounts"]);
   const { readdirSync, statSync } = await import("node:fs");
   const KOK = new URL("../app/api", import.meta.url).pathname;
   const rotalar = (dir: string, base = ""): string[] => {
@@ -165,6 +176,22 @@ const kodu = (src: string) =>
     const src = kodu(readFileSync(`${KOK}/${r}/route.ts`, "utf8"));
     const kalici = /purgeAccount\(|purgeTreeStorage\(|sweepExpired\(/.test(src);
     if (kalici) check(izinli.has(r), `${r}: kalıcı silme çağırıyor ama izinli değil`);
+  }
+
+  /*
+   * İzinlinin BEDELİ. Operatör ucu kalıcı silmeyi çağırabiliyorsa, o dalın
+   * üç koruması da yerinde olmalı; biri düşerse muafiyet gerekçesini
+   * kaybeder.
+   */
+  {
+    const ops = kodu(read("../app/api/admin/accounts/route.ts"));
+    check(/CRON_SECRET/.test(ops), "operatör ucu kullanıcıya değil, sınıra açık");
+    check(!/canManage|resolveActiveTree/.test(ops), "operatör ucu oturum kapısına dayanmıyor");
+    const iOnay = ops.indexOf("confirmMatches(");
+    const iSil = ops.indexOf("purgeAccount(");
+    check(iOnay > -1 && iSil > iOnay, "kalıcı silme ad teyidinin ARDINDAN");
+    check(ops.indexOf("DEMO_USER_ID") > -1 && ops.indexOf("DEMO_USER_ID") < iSil,
+      "demo hesabı kalıcı silmeden önce reddediliyor");
   }
 
   const backup = kodu(read("../app/api/cron/backup/route.ts"));
