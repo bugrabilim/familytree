@@ -11,6 +11,7 @@ import { dbCountPeople, dbGetPeopleRows, dbGetTreeRow } from "@/lib/db";
 import { treeDrift } from "@/lib/drift";
 import {
   authEmailForAccount,
+  isBcryptFallbackEnabled,
   isSupabaseLoginEnabled,
   listAuthUsers,
   type AuthUserOzeti,
@@ -336,7 +337,12 @@ export async function GET() {
     accounts = olculemedi<HesapOlgusu[]>(neden(e));
   }
 
-  const olgular = { trees, accounts, supabaseLoginEnabled: isSupabaseLoginEnabled() };
+  const olgular = {
+    trees,
+    accounts,
+    supabaseLoginEnabled: isSupabaseLoginEnabled(),
+    bcryptFallbackEnabled: isBcryptFallbackEnabled(),
+  };
   const karar = phase4Readiness(olgular);
 
   return NextResponse.json({

@@ -100,6 +100,25 @@ check(!/\bgetFamilyData\s*\(/.test(rota), "ölçüm getFamilyData KULLANMIYOR");
 check(rota.includes("dbCountPeople(") || rota.includes("dbGetPeopleRows("), "ayna tarafı Postgres'ten ölçülüyor");
 check(rota.includes("dbGetTreeRow("), "ağaç satırı ve damgası Postgres'ten okunuyor");
 check(rota.includes("treeDrift("), "kayma denetimi mevcut çekirdekten geliyor (kopya mantık yok)");
+
+/*
+ * BAYRAKLAR KAPIYA GERÇEKTEN GİRİYOR.
+ *
+ * `bcryptFallbackEnabled` kararı ENGEL üretiyor (`yedek-acik`), ama yalnız
+ * rota onu olgulara koyarsa. Alan `Olgular`da zorunlu olduğu hâlde bu
+ * yakalanmaz: testler tsconfig dışında (`exclude: ["tests"]`) ve
+ * `--experimental-strip-types` altında eksik alan sessizce `undefined`
+ * oluyor — yani "yedek kapalı" diye okunuyor. Kapının en tehlikeli hâli:
+ * hiçbir şey söylemeden hep yeşil.
+ */
+check(rota.includes("isBcryptFallbackEnabled()"), "yedek bayrağı olgulara ölçülerek giriyor");
+check(rota.includes("isSupabaseLoginEnabled()"), "Supabase giriş bayrağı olgulara giriyor");
+{
+  const bas = rota.indexOf("const olgular = {");
+  const blok = rota.slice(bas, rota.indexOf("phase4Readiness(", bas));
+  check(/bcryptFallbackEnabled:\s*isBcryptFallbackEnabled\(\)/.test(blok),
+    "alan türetilmiyor, bayrak modülünden okunuyor (kural tek yerde)");
+}
 check(/listTrees\(g\.accountId/.test(rota), "ağaç kapsamı giriş yapan hesabın ağaçları");
 check(!/searchParams\.get\("treeId"\)/.test(rota), "ağaç kimliği dışarıdan alınmıyor");
 
@@ -146,6 +165,7 @@ check(!/deger\s*\?\?/.test(saf), "ölçülemeyen değer varsayılana düşürül
       authUser: olculdu(true), lastSignInAt: olculdu("2026-01-01T00:00:00Z"),
     }]),
     supabaseLoginEnabled: true,
+    bcryptFallbackEnabled: false,
   });
   check(k.hazir === false, "tek bir ölçülemeyen olgu bile kapıyı kapatıyor");
   check(k.engeller.some((e) => e.kod === "olculemedi" && e.agirlik === "engel"),
@@ -153,7 +173,7 @@ check(!/deger\s*\?\?/.test(saf), "ölçülemeyen değer varsayılana düşürül
 }
 {
   // Ve boş envanter "temiz" sayılmıyor (ikinci varlık sebebi).
-  const k = phase4Readiness({ trees: olculdu([]), accounts: olculdu([]), supabaseLoginEnabled: true });
+  const k = phase4Readiness({ trees: olculdu([]), accounts: olculdu([]), supabaseLoginEnabled: true, bcryptFallbackEnabled: false });
   check(k.hazir === false, "boş envanterde kapı kapalı");
 }
 

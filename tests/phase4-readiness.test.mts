@@ -50,6 +50,7 @@ const temiz = (over: Partial<Olgular> = {}): Olgular => ({
   trees: olculdu([temizAgac()]),
   accounts: olculdu([temizHesap()]),
   supabaseLoginEnabled: true,
+  bcryptFallbackEnabled: false,
   ...over,
 });
 
@@ -162,7 +163,7 @@ for (const [ad, agac] of [
 }
 {
   // Her ikisi de boş: yine de hazır DEĞİL (ve "hiç engel yok" demiyor).
-  const k = phase4Readiness({ trees: olculdu([]), accounts: olculdu([]), supabaseLoginEnabled: true });
+  const k = phase4Readiness({ trees: olculdu([]), accounts: olculdu([]), supabaseLoginEnabled: true, bcryptFallbackEnabled: false });
   check(k.hazir === false && k.sayim.engel === 2, "tamamen boş envanter iki ayrı engel üretiyor");
 }
 
@@ -253,6 +254,7 @@ for (const [ad, agac] of [
   const k = phase4Readiness(temiz({
     accounts: olculdu([temizHesap({ lastSignInAt: olculdu(null) })]),
     supabaseLoginEnabled: false,
+    bcryptFallbackEnabled: true,
   }));
   check(k.hazir === false, "hiç Supabase girişi yokken hazır DEĞİL");
   check(engelKodlari(k.engeller).includes("giris-denenmemis"), "giris-denenmemis engeli var");
@@ -302,9 +304,10 @@ for (const [ad, agac] of [
 }
 {
   // Bayrak kapalı ama yol daha önce kanıtlanmış → uyarı, engel değil.
-  const k = phase4Readiness(temiz({ supabaseLoginEnabled: false }));
-  check(k.hazir === true, "kanıtlanmış yol + kapalı bayrak = uyarı");
-  check(k.engeller.length === 1 && k.engeller[0].agirlik === "uyari", "yalnız uyarı üretiliyor");
+  const k = phase4Readiness(temiz({ supabaseLoginEnabled: false, bcryptFallbackEnabled: true }));
+  check(k.hazir === false, "kapalı bayrak artık ENGEL: bcrypt tek yol, users.json gidemez");
+  check(engelKodlari(k.engeller).includes("yedek-acik"), "yedek-acik engeli var");
+  check(kodlar(k.engeller).includes("giris-denenmemis"), "giris-denenmemis uyarısı yine düşüyor");
 }
 {
   /*
@@ -345,12 +348,54 @@ for (const [ad, agac] of [
       temizHesap({ accountId: "demo-hesap", label: "Demirtaş (demo)", isDemo: true, authUser: olculdu(false), lastSignInAt: olculdu(null) }),
     ]),
     supabaseLoginEnabled: false,
+    bcryptFallbackEnabled: true,
   });
   check(k.hazir === false, "üretim durumu: Faz 4 HAZIR DEĞİL");
   const e = new Set(engelKodlari(k.engeller));
   check(e.has("demo-acikta"), "üretim: demo satırı hâlâ users.json'da (elle temizlenecek kalıntı)");
   check(e.has("giris-denenmemis"), "üretim: Supabase girişi hiç yapılmamış");
   check(k.sayim.uyari === 3, "üretim: üç ağacın damgası uyarı olarak düşüyor");
+}
+
+
+/* ── 12. Bcrypt yedeği açıkken Faz 4 durur ────────────────────────────────── */
+/*
+ * Kalan parça `users.json`ı emekliye ayırıyor — bcrypt yolunun OKUDUĞU
+ * dosyayı. Yedek açıkken yapılırsa geriye çalışan bir giriş yolu kalmayabilir.
+ */
+
+{
+  const k = phase4Readiness(temiz({ bcryptFallbackEnabled: true }));
+  check(k.hazir === false, "yedek açıkken hazır DEĞİL");
+  check(engelKodlari(k.engeller).includes("yedek-acik"), "yedek-acik ENGEL ağırlığında");
+  const e = k.engeller.find((x) => x.kod === "yedek-acik")!;
+  check(/AUTH_BCRYPT_FALLBACK açık/.test(e.ayrinti),
+    "bayrak açıkken gerekçe 'acil durum anahtarı kullanımda' diyor");
+  check(/users\.json/.test(e.ayrinti), "gerekçe hangi dosyanın gittiğini söylüyor");
+}
+{
+  // Aynı engel, ÖTEKİ sebeple: Supabase girişi kapalı → bcrypt zaten tek yol.
+  const k = phase4Readiness(temiz({ supabaseLoginEnabled: false, bcryptFallbackEnabled: true }));
+  const e = k.engeller.find((x) => x.kod === "yedek-acik")!;
+  check(/SUPABASE_AUTH_LOGIN kapalı/.test(e.ayrinti), "öteki sebep ayrı anlatılıyor (onarımı farklı)");
+  check(!/AUTH_BCRYPT_FALLBACK/.test(e.ayrinti), "yanlış onarıma yönlendirmiyor");
+}
+{
+  /*
+   * `giris-denenmemis`in kapatamadığı boşluk: geçmişte bir Supabase girişi
+   * VAR (yani o denetim yalnız uyarı veriyor) ama bayrak bugün kapalı.
+   * Kapı bunu artık durduruyor.
+   */
+  const k = phase4Readiness(temiz({ supabaseLoginEnabled: false, bcryptFallbackEnabled: true }));
+  const gd = k.engeller.find((x) => x.kod === "giris-denenmemis");
+  check(gd?.agirlik === "uyari", "eski denetim hâlâ yalnız uyarı veriyor");
+  check(k.hazir === false, "ama yeni denetim kapıyı kapatıyor (boşluk kapandı)");
+}
+{
+  // Yedek kapalıyken hiçbir şey eklenmiyor.
+  const k = phase4Readiness(temiz());
+  check(k.hazir === true, "yedek kapalıyken hazır");
+  check(!kodlar(k.engeller).includes("yedek-acik"), "yedek kapalıyken kod hiç görünmüyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
