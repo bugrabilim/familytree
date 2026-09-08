@@ -1,4 +1,5 @@
 import type { Gender, Person } from "@/types/family";
+import { PERSON_FIELDS } from "./person-fields.ts";
 import { nanoid } from "nanoid";
 import { extractEmbedded } from "./export-html.ts";
 
@@ -299,7 +300,29 @@ export function parseJson(text: string): Person[] {
     const lastName = str(o.lastName ?? o.last ?? o.surname).trim();
     if (!firstName && !lastName) continue;
     const kaynakId = str(o.id).trim();
+    /*
+     * İÇERİK ALANLARI KAYIT DEFTERİNDEN — elle yazılmış beyaz listeden değil.
+     *
+     * Burada sabit bir liste vardı: `birthPlace, occupation, nickname,
+     * patronymic, bio, photo` + iki tarih. Geri kalan OTUZ YEDİ alan sessizce
+     * düşüyordu — anılar, ses kayıtları, kaynaklar, galeri, videolar,
+     * belgeler, yaşam olayları, evlat edinme bağları, ve `confidential` /
+     * `privateFields` gizlilik işaretleri dâhil.
+     *
+     * En kötü yanı sessizliği: rota `{ count: N }` dönüyor ve kişi sayısı
+     * DOĞRU oluyor, dolayısıyla kayıp fark edilmiyor. Oysa uygulamanın
+     * kullanıcıya verdiği söz tam olarak bunun tersi — tek dosyalık HTML
+     * yedeği "hem bakılan hem GERİ YÜKLENEBİLEN" bir arşiv
+     * (`docs/YEDEKLEME.md` §0, Kullanım Şartları). O söz bu satırlarda
+     * tutulur ya da tutulmaz.
+     *
+     * `PERSON_FIELDS` doğru kaynak, çünkü sunucunun sahip olduğu alanlar
+     * (`code`, `addedBy`, `entrySource`) ve üçüncü kişiye ait iletişim/onay
+     * alanları zaten `EXCLUDED_FIELDS`ta — defterden gelen hiçbir şey onları
+     * içeremez. Yani kapsam genişledi ama güven sınırı AYNI kaldı.
+     */
     const p: Person = {
+      ...icerikAlanlari(o),
       id: (kaynakId && idMap.get(kaynakId)) || nanoid(),
       firstName,
       lastName,
@@ -307,15 +330,82 @@ export function parseJson(text: string): Person[] {
       parentIds: cevir(strArr(o.parentIds)),
       spouseIds: cevir(strArr(o.spouseIds)),
     };
-    if (str(o.birthDate)) p.birthDate = str(o.birthDate);
-    if (str(o.deathDate)) p.deathDate = str(o.deathDate);
-    for (const k of ["birthPlace", "occupation", "nickname", "patronymic", "bio", "photo"] as const) {
-      setText(p, k, str(o[k]));
-    }
     if (Array.isArray(o.formerSpouseIds)) p.formerSpouseIds = cevir(strArr(o.formerSpouseIds));
+
+    /*
+     * EBEVEYN BAĞININ NİTELİĞİ — anahtarlar kimlik olduğu için ÇEVRİLMELİ.
+     *
+     * `parentLinks` bir `Record<ebeveynId, ParentLink>`: evlat edinme, üvey,
+     * koruyucu aile, kopukluk ve serbest not. Ham hâliyle kopyalansaydı
+     * anahtarlar DOSYADAKİ kimliklere bakardı ve ağaçtaki hiçbir ebeveyne
+     * denk gelmezdi — yani veri "geldi" görünür, hiçbir yerde görünmezdi.
+     * Çözülemeyen anahtar atılıyor (sarkan bağ üretme kuralı, yukarısı).
+     */
+    if (o.parentLinks && typeof o.parentLinks === "object" && !Array.isArray(o.parentLinks)) {
+      const baglar: Record<string, unknown> = {};
+      for (const [kaynakId, deger] of Object.entries(o.parentLinks as Record<string, unknown>)) {
+        const yeniId = idMap.get(kaynakId.trim());
+        if (yeniId && deger && typeof deger === "object") baglar[yeniId] = deger;
+      }
+      if (Object.keys(baglar).length) p.parentLinks = baglar as Person["parentLinks"];
+    }
+
+    /*
+     * YAKIN ÇEVRE BAĞLARI — `personId` de bir kimlik, o da çevrilmeli.
+     * Karşılığı dosyada olmayan bağ atılıyor: kimsenin göstermediği bir
+     * kimliğe bakan "Kirve: (boş)" satırı veriden beter.
+     */
+    if (Array.isArray(o.associations)) {
+      const bagli = (o.associations as unknown[])
+        .filter((a): a is Record<string, unknown> => !!a && typeof a === "object")
+        .map((a) => ({ ...a, personId: idMap.get(str(a.personId).trim()) }))
+        .filter((a) => !!a.personId);
+      if (bagli.length) p.associations = bagli as Person["associations"];
+    }
+
     people.push(p);
   }
   return people;
+}
+
+/**
+ * Kayıt defterindeki KULLANICI İÇERİĞİ alanlarını gelen nesneden çıkarır.
+ *
+ * `buildPersonFields` (POST yolu) yerine ayrı bir işlev, çünkü güven düzeyi
+ * farklı: POST'un gövdesini kendi formumuz üretiyor, buraya gelen dosya ise
+ * YABANCI olabilir. Bu yüzden tür uyuşmazlığı sessizce kabul edilmiyor —
+ * metin alanına sayı, dizi alanına nesne gelirse alan ATLANIYOR. Yoksa
+ * `events.map(e => e.title)` gibi her yer, dosyanın biçimine güvenmek
+ * zorunda kalırdı.
+ *
+ * Kimlik taşıyan alanlar (`parentLinks`, `associations`) burada DEĞİL:
+ * onların içindeki kimliklerin çevrilmesi gerekiyor, çağıran ayrıca yapıyor.
+ */
+function icerikAlanlari(o: Record<string, unknown>): Partial<Person> {
+  const out: Record<string, unknown> = {};
+  for (const spec of PERSON_FIELDS) {
+    const k = String(spec.key);
+    if (k === "associations") continue; // kimlik çevirisi gerekiyor
+    const v = o[k];
+    if (v === undefined || v === null) continue;
+    switch (spec.merge) {
+      case "array":
+        if (Array.isArray(v)) out[k] = v;
+        break;
+      case "bool":
+        if (typeof v === "boolean") out[k] = v;
+        break;
+      case "obj":
+        if (typeof v === "object" && !Array.isArray(v)) out[k] = v;
+        break;
+      default: {
+        const t = typeof v === "string" ? v.trim() : "";
+        if (t) out[k] = t;
+        break;
+      }
+    }
+  }
+  return out as Partial<Person>;
 }
 
 /** Biçime göre CSV/JSON içe aktarma (GEDCOM rotada ayrıca ele alınır). */
