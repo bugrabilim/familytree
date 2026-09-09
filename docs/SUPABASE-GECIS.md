@@ -355,11 +355,55 @@ Varsayılan **yeni davranış**, çünkü kapatılmayan bir bayrak koruma değil
 
 Kapı: `tests/identity-read-gate.test.mts`.
 
-#### 2c — Blob'un bırakılması (sırada)
+#### 2c-1 — Okumanın tek kapısı ✅ (2026-09-09)
 
-Geri dönüşü olmayan tek adım: yazma yolunun da aynaya geçmesi ve
-`users.json`'ın bırakılması. `GET /api/admin/phase4` `hazir: true` demeden ve
-2b-2 bir süre canlıda durmadan yapılmaz.
+2b-2 yalnız `lib/users.ts` içindeki beş bulucuyu çevirmişti. Dosyanın
+**dışında** on çağıran daha listeyi doğrudan Blob'dan okuyordu: hatırlatma
+postaları, bildirim tercihleri, e-posta ve şifre sıfırlama **jetonları**,
+davet ekranındaki ağaç adı, operatör konsolu ve **süresi dolmuş hesap
+süpürgesi**.
+
+Yazma aynaya çevrilir çevrilmez bunların hepsi bayat veriye bakmaya
+başlayacaktı ve hiçbiri hata vermeyecekti: kapatılmış bir bildirim onayı geri
+gelir, harcanmış bir sıfırlama jetonu ikinci kez çalışır, kalıcı silme
+süpürgesi silme damgasını hiç görmezdi.
+
+`listUsers()` artık kimlik listesinin tek kapısı. Blob'un **kendisine**
+bakması gereken iki araç (kayma taraması, göç ucu) `KAPI-DISI: BLOB-ASLI`
+işaretiyle gerekçesini yazıyor.
+
+Kapı: `tests/identity-read-door.test.mts`.
+
+#### 2c-2 — Yazma aynaya ✅ (2026-09-09)
+
+Sekiz yazma yolu `users.json`'ı okuyup tamamını geri yazıyordu. Artık hepsi
+Postgres'te **tek satıra** yazıyor.
+
+**Bu bir zayıflama değil, güçlenme.** Blob'da koşullu yazma yok; koruma
+"yazmadan hemen önce yeniden oku, damga değiştiyse baştan al" diyordu —
+pencereyi daraltan ama kapatmayan bir çözüm. Postgres'te
+`update … where updated_at = $eski` soruyu ve yazmayı **tek ifadede**
+yapıyor: pencere kapanıyor. İkinci kazanç, iki **farklı** hesaba yazan iki
+isteğin artık hiç çakışmaması; üçüncüsü, ad tekilliğini "önce bak sonra yaz"
+yerine `accounts_family_name_key` indeksinin belirlemesi.
+
+`users.json` artık ayna: her başarılı yazmadan sonra Postgres'ten yeniden
+kuruluyor. **Boş liste yazılmıyor** — geçici bir okuma sorunu geri düşüş
+kopyasının kendisini silerdi.
+
+Acil durum anahtarı `IDENTITY_WRITE_BLOB=1` yazmayı eski hâline alır.
+Okumadan **ayrı** bir anahtar: yalnız yazmada bir sorun görüldüğünde okumanın
+da geri alınması gerekmesin diye.
+
+Kapılar: `tests/account-write-door.test.mts`,
+`tests/store-mutate-row.test.mts` (davranış — sahte depo ile çakışma,
+yeniden deneme ve tükenme yolları gerçekten koşuyor).
+
+#### 2c-3 — `users.json`'ın büsbütün bırakılması (sırada)
+
+Geri dönüşü olmayan adım: aynanın ve geri düşüşün kaldırılması.
+`GET /api/admin/phase4` `hazir: true` demeden ve 2c-2 bir süre canlıda
+durmadan yapılmaz.
 
 `users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri
 dönüşü olmayan** iş: o noktadan sonra Auth kaydı olmayan bir hesabın giriş

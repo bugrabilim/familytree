@@ -37,17 +37,29 @@ check(/data\.updatedAt = new Date\(\)\.toISOString\(\)/.test(src),
 check(/updatedAt: kutu\.updatedAt \?\? ""/.test(src),
   "damgası olmayan ESKİ dosya tutarlı bir başlangıç alıyor");
 
-/* --- 2. Doğrudan yazma YOK: tek kapı `mutateUsers` --------------------- */
+/* --- 2. Doğrudan yazma YOK: kapı dışında depoya dokunan yok ------------ */
 /*
- * Asıl kural bu. Tek bir `saveUsersData` çağrısı korumanın dışında kalsa,
- * o yol sessizce eski davranışa döner.
+ * Asıl kural bu. Tek bir doğrudan yazma korumanın dışında kalsa, o yol
+ * sessizce eski davranışa döner.
+ *
+ * Faz 4 / 2c-2'den sonra kapı ÜÇ tane (`hesabiDegistir`, `hesabiEkle`,
+ * `hesabiSil`) ve asıl depo Postgres. `mutateUsers` acil durum anahtarı
+ * (`IDENTITY_WRITE_BLOB=1`) yolunda duruyor; kaldırılırsa geri dönüş yolu
+ * da kalkmış olur.
  */
 {
   const cagrilar = src.match(/await saveUsersData\(/g) ?? [];
   check(cagrilar.length === 0, `doğrudan saveUsersData çağrısı kalmadı (${cagrilar.length})`);
-  check(/function mutateUsers</.test(src), "ortak sarmalayıcı var");
+  check(/function mutateUsers</.test(src), "Blob sarmalayıcısı (acil durum yolu) duruyor");
   check(/mutateStore\(getUsersData, saveUsersData,/.test(src),
     "sarmalayıcı ortak korumayı kullanıyor (kopya mantık yok)");
+  /*
+   * `blobaYaz` DOĞRUDAN çağrılamaz: `saveUsersData` (acil durum yolu) ve
+   * `blobAynasi` (ayna) dışında bir çağrı, kimlik dosyasını hiçbir korumadan
+   * geçmeden yazmak olurdu.
+   */
+  const ham = (src.match(/await blobaYaz\(/g) ?? []).length;
+  check(ham === 2, `ham Blob yazması yalnız iki yerde (${ham})`);
 }
 
 /* --- 3. Sekiz yazma yolunun hepsi sarmalayıcıdan geçiyor -------------- */
@@ -56,12 +68,26 @@ check(/updatedAt: kutu\.updatedAt \?\? ""/.test(src),
     "createUser", "updateUserNotify", "updateUserAuthEmail", "updateUserResetToken",
     "updateUserPassword", "applyRecoveryReset", "setUserDeletedAt", "deleteUserRow",
   ];
+  const KAPILAR = ["hesabiDegistir", "hesabiEkle", "hesabiSil"];
   for (const ad of YAZANLAR) {
     const i = src.indexOf(`export async function ${ad}(`);
     const govde = src.slice(i, src.indexOf("\n}\n", i) + 3);
     check(i > -1, `${ad} bulundu`);
-    check(govde.includes("mutateUsers"), `${ad}: korumadan geçiyor`);
+    /*
+     * Ad ARANIYOR, `ad(` değil: çağrılar tip argümanı taşıyor
+     * (`hesabiDegistir<boolean>(…)`) ve paranteze bakan bir arama onları
+     * hiç görmüyordu — testin kendi sessiz boşluğu.
+     */
+    check(KAPILAR.some((k) => govde.includes(k)), `${ad}: korumadan geçiyor`);
+    /*
+     * Ve kapıyı ATLAYIP depoya kendi başına dokunmuyor: `mutateUsers` artık
+     * yalnız kapıların içinde çağrılıyor, yazma yolları onu doğrudan
+     * kullanamaz (kullansaydı ayna yolu o yol için sessizce devre dışı
+     * kalırdı).
+     */
+    check(!govde.includes("mutateUsers"), `${ad}: kapıyı atlamıyor`);
   }
+  for (const k of KAPILAR) check(src.includes(`async function ${k}`), `kapı var: ${k}`);
 }
 
 /* --- 4. Ayna TEK yazma noktasında, gövdede değil ---------------------- */
@@ -104,13 +130,32 @@ check(/updatedAt: kutu\.updatedAt \?\? ""/.test(src),
  * hem yazan tek yer burası.
  */
 {
-  const i = src.indexOf("export async function createUser(");
+  const i = src.indexOf("async function hesabiEkle(");
   const govde = src.slice(i, src.indexOf("\n}\n", i) + 3);
+  check(i > -1, "ekleme kapısı bulundu");
+  // Blob yolu (acil durum): denetim mutasyonun İÇİNDE ve eklemeden ÖNCE.
   const mut = govde.indexOf("mutateUsers");
   const denetim = govde.indexOf("familyName.toLowerCase()");
   const push = govde.indexOf("data.users.push(");
-  check(denetim > mut && push > denetim, "ad denetimi mutasyonun İÇİNDE ve eklemeden ÖNCE");
-  check(/throw new Error\(AD_DOLU\)/.test(govde), "çakışmada işaretli hata fırlıyor");
+  check(denetim > mut && push > denetim, "Blob yolu: ad denetimi mutasyonun İÇİNDE");
+  /*
+   * Ayna yolu: denetim JS'te DEĞİL, şemadaki benzersizlik indeksinde.
+   * "Önce bak, sonra yaz" iki istektir ve arasında yarış vardır; indeks
+   * kararı tek ifadede veriyor.
+   */
+  check(/dbInsertAccount\(/.test(govde), "ayna yolu: satır ekleme çağrısı var");
+  const dbSrc = kodu(read("../lib/db.ts"));
+  const j = dbSrc.indexOf("export async function dbInsertAccount");
+  const dbGovde = dbSrc.slice(j, dbSrc.indexOf("\n}\n", j) + 3);
+  check(/23505/.test(dbGovde), "benzersizlik ihlali koduna bakılıyor");
+  check(/\.insert\(/.test(dbGovde) && !/\.upsert\(/.test(dbGovde),
+    "ekleme UPSERT değil (upsert var olan hesabı sessizce EZERDİ)");
+  check(/accounts_family_name_key/.test(read("../supabase/schema.sql")),
+    "ad tekilliği için veritabanı indeksi var");
+
+  const cu = src.slice(src.indexOf("export async function createUser("));
+  check(/throw new Error\(AD_DOLU\)/.test(cu.slice(0, cu.indexOf("\n}\n") + 3)),
+    "çakışmada işaretli hata fırlıyor");
   check(/export const AD_DOLU/.test(src), "işaret dışa veriliyor (rotalar 409'a çevirsin)");
   check(!/Bu adla zaten/.test(src), "kitaplık KULLANICI METNİ üretmiyor (dil rotanın işi)");
 }

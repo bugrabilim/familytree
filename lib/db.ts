@@ -243,8 +243,21 @@ export async function dbDeleteAccountRow(accountId: string): Promise<void> {
 export async function dbGetAccountRows(): Promise<User[]> {
   const { data, error } = await supabaseAdmin().from("accounts").select("*");
   if (error) throw new Error(`accounts select: ${error.message}`);
+  return (data ?? []).map(satirdanUser);
+}
+
+/**
+ * Bir `accounts` satırını `User`a çevirir.
+ *
+ * `dbGetAccountRows` içinde gömülüydü; tek satır okuyan yol
+ * (`dbGetAccountRow`) eklenince kopyalanacaktı. Kopyalanan bir eşlemede
+ * sonradan eklenen bir alan yalnız BİR yolda görünür — ve hangi yolun
+ * okuduğu çağırana göre değiştiği için hata ancak belli bir akışta ortaya
+ * çıkardı.
+ */
+function satirdanUser(r: Record<string, unknown>): User {
   const yok = (v: unknown) => (v === null || v === undefined ? undefined : v);
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+  return {
     id: String(r.id),
     familyName: String(r.family_name ?? ""),
     passwordHash: String(r.password_hash ?? ""),
@@ -263,7 +276,7 @@ export async function dbGetAccountRows(): Promise<User[]> {
     notifyReminders: yok(r.notify_reminders) as boolean | undefined,
     notifyMemorials: yok(r.notify_memorials) as boolean | undefined,
     notifyNewsletter: yok(r.notify_newsletter) as boolean | undefined,
-  }));
+  };
 }
 
 /**
@@ -433,31 +446,160 @@ export async function getPlatformStats(): Promise<{ trees: number; people: numbe
  * adresi tutmaya devam ederdi — ve okuma yolu Postgres'e döndüğünde silinmiş
  * bir onay geri gelirdi. `?? null` bu yüzden her isteğe bağlı alanda.
  */
+/**
+ * `User` → `accounts` sütunları. ÜÇ yazma yolunun da tek kaynağı.
+ *
+ * Eskiden bu nesne `dbUpsertAccount`ın gövdesindeydi. Faz 4 / 2c-2 iki yazma
+ * yolu daha ekliyor (satır ekleme ve koşullu güncelleme); nesne orada
+ * kalsaydı kopyalanırdı ve yarın eklenen bir alan yollardan yalnız birine
+ * yazılırdı. Hata da alanın yazıldığı yola göre değişirdi: kayıtta var,
+ * güncellemede yok gibi.
+ *
+ * Bu, bu depoda beş kez tekrarlanmış desenin (KURALI KOPYALA) tam yeri;
+ * `tests/account-mirror-gate.test.mts` artık bu işlevi tarıyor ve üç yolun
+ * da onu kullandığını ayrıca kilitliyor.
+ */
+function hesapSatiri(u: User): Record<string, unknown> {
+  return {
+    id: u.id,
+    family_name: u.familyName,
+    password_hash: u.passwordHash,
+    recovery_code_hash: u.recoveryCodeHash ?? "",
+    created_at: u.createdAt,
+    recovery_code_index: u.recoveryCodeIndex ?? null,
+    session_epoch: u.sessionEpoch ?? null,
+    deleted_at: u.deletedAt ?? null,
+    auth_email: u.authEmail ?? null,
+    auth_email_verified: u.authEmailVerified ?? null,
+    email_token_hash: u.emailTokenHash ?? null,
+    email_token_expires: u.emailTokenExpires ?? null,
+    reset_token_hash: u.resetTokenHash ?? null,
+    reset_token_expires: u.resetTokenExpires ?? null,
+    notify_email: u.notifyEmail ?? null,
+    notify_reminders: u.notifyReminders ?? null,
+    notify_memorials: u.notifyMemorials ?? null,
+    notify_newsletter: u.notifyNewsletter ?? null,
+  };
+}
+
 export async function dbUpsertAccount(u: User): Promise<void> {
-  const { error } = await supabaseAdmin().from("accounts").upsert(
-    {
-      id: u.id,
-      family_name: u.familyName,
-      password_hash: u.passwordHash,
-      recovery_code_hash: u.recoveryCodeHash ?? "",
-      created_at: u.createdAt,
-      recovery_code_index: u.recoveryCodeIndex ?? null,
-      session_epoch: u.sessionEpoch ?? null,
-      deleted_at: u.deletedAt ?? null,
-      auth_email: u.authEmail ?? null,
-      auth_email_verified: u.authEmailVerified ?? null,
-      email_token_hash: u.emailTokenHash ?? null,
-      email_token_expires: u.emailTokenExpires ?? null,
-      reset_token_hash: u.resetTokenHash ?? null,
-      reset_token_expires: u.resetTokenExpires ?? null,
-      notify_email: u.notifyEmail ?? null,
-      notify_reminders: u.notifyReminders ?? null,
-      notify_memorials: u.notifyMemorials ?? null,
-      notify_newsletter: u.notifyNewsletter ?? null,
-    },
-    { onConflict: "id" }
-  );
+  const { error } = await supabaseAdmin()
+    .from("accounts")
+    .upsert(hesapSatiri(u), { onConflict: "id" });
   if (error) throw new Error(`accounts upsert: ${error.message}`);
+}
+
+/* ── Satır düzeyinde kimlik yazması (Faz 4 / 2c-2) ────────────────────────
+ *
+ * Yazma yolu `users.json`dan buraya taşınıyor. Kutu (tüm dosya) yerine SATIR
+ * yazmanın iki kazancı var ve ikisi de `lib/store-mutate.ts`teki `mutateRow`
+ * başında anlatılıyor: koşullu güncelleme kayıp yazma penceresini DARALTMAK
+ * yerine KAPATIYOR, ve iki farklı hesaba yazan iki istek artık birbiriyle
+ * hiç çakışmıyor.
+ * --------------------------------------------------------------------- */
+
+/**
+ * Tek hesabı kimliğinden ya da AĞAÇ ADINDAN okur — sürüm damgasıyla.
+ *
+ * Ad araması `ilike` ile yapılıyor (şemadaki benzersizlik indeksi de
+ * `lower(family_name)` üzerinde), ama sonuç ayrıca JS'te tam
+ * karşılaştırmadan geçiyor: `ilike` deseninde `%` ve `_` JOKER ve bir aile
+ * adı bunları içerebilir. Filtresiz bırakılsaydı "A%" adıyla giriş denemesi
+ * BAŞKA bir hesabın satırını getirebilirdi.
+ */
+export async function dbGetAccountRow(
+  bul: { id: string } | { familyName: string }
+): Promise<{ satir: User; damga: string | null } | null> {
+  const sb = supabaseAdmin().from("accounts").select("*");
+  const q = "id" in bul ? sb.eq("id", bul.id) : sb.ilike("family_name", bul.familyName);
+  const { data, error } = await q;
+  if (error) throw new Error(`account row: ${error.message}`);
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const r =
+    "id" in bul
+      ? rows[0]
+      : rows.find(
+          (x) => String(x.family_name ?? "").toLowerCase() === bul.familyName.toLowerCase()
+        );
+  if (!r) return null;
+  return { satir: satirdanUser(r), damga: (r.updated_at as string | null) ?? null };
+}
+
+/**
+ * Yeni hesap satırı ekler. Ad çakışmasında `"ad-dolu"` döner, HATA FIRLATMAZ.
+ *
+ * Tekillik denetimi burada bir `select` değil, şemadaki
+ * `accounts_family_name_key` (`lower(family_name)`) indeksi. Fark önemli:
+ * "önce bak, sonra yaz" iki istektir ve arasında yarış vardır — iki kişi
+ * aynı adla aynı anda kaydolduğunda ikisi de denetimi geçerdi. Benzersizlik
+ * indeksi kararı tek ifadede veriyor, yani yarışın kaybedeni her zaman
+ * belli.
+ *
+ * `23505` Postgres'in "benzersizlik ihlali" kodu. Başka bir hata (bağlantı,
+ * yetki, tip) yükselmeye devam ediyor: hepsini "ad dolu" saymak, kullanıcıya
+ * yanlış sebebi göstermek olurdu.
+ */
+export async function dbInsertAccount(u: User, damga: string): Promise<"ok" | "ad-dolu"> {
+  const { error } = await supabaseAdmin()
+    .from("accounts")
+    .insert({ ...hesapSatiri(u), updated_at: damga });
+  if (!error) return "ok";
+  if (error.code === "23505") return "ad-dolu";
+  throw new Error(`accounts insert: ${error.message}`);
+}
+
+/**
+ * KOŞULLU güncelleme: satırı yalnız damgası hâlâ `eskiDamga` ise yazar.
+ *
+ * Dönen `false` bir HATA DEĞİL, "araya biri girdi" demek; `mutateRow` bunu
+ * görünce işlemi baştan alıyor.
+ *
+ * `eskiDamga === null` ayrı ele alınıyor: SQL'de `updated_at = null` hiçbir
+ * satırla eşleşmez. Sütun sonradan eklendiği için göçten önce açılmış her
+ * hesabın damgası boş — `is null` yazılmasaydı o hesaplar bir daha hiç
+ * güncellenemez, kullanıcı da bunu ancak ilk şifre sıfırlamasında görürdü.
+ */
+export async function dbUpdateAccountIf(
+  u: User,
+  eskiDamga: string | null,
+  yeniDamga: string
+): Promise<boolean> {
+  /*
+   * `created_at` YAMADA YOK. Sütun `not null`; okunan satırda boş kalmış bir
+   * damga (eski/yarım veri) güncellemede geri yazılsaydı istek tip hatasıyla
+   * düşerdi — üstelik hesabın açılış tarihini güncellemek zaten hiçbir
+   * çağıranın istediği şey değil.
+   */
+  const yama = hesapSatiri(u);
+  delete yama.created_at;
+  const q = supabaseAdmin()
+    .from("accounts")
+    .update({ ...yama, updated_at: yeniDamga })
+    .eq("id", u.id);
+  const { data, error } = await (eskiDamga === null
+    ? q.is("updated_at", null)
+    : q.eq("updated_at", eskiDamga)
+  ).select("id");
+  if (error) throw new Error(`accounts conditional update: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/**
+ * Kimlik satırını siler ve GERÇEKTEN silindi mi bildirir.
+ *
+ * `dbDeleteAccountRow` de aynı işi yapıyor ama `void` dönüyor; yaşam
+ * döngüsü akışı (`lib/account-lifecycle.ts`) "silinecek satır var mıydı"
+ * sorusunun yanıtını rapora yazıyor. `void` dönen sürümle o rapor her zaman
+ * "silindi" derdi — olmayan bir satır için bile.
+ */
+export async function dbDeleteAccountRowIf(id: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("accounts")
+    .delete()
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(`accounts row delete: ${error.message}`);
+  return (data ?? []).length > 0;
 }
 
 

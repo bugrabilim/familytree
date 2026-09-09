@@ -137,6 +137,29 @@ alter table public.accounts add column if not exists notify_memorials    boolean
 alter table public.accounts add column if not exists notify_newsletter   boolean;
 
 /*
+ * SÜRÜM DAMGASI — kimlik yazmalarının karşılaştır-ve-değiştir dayanağı
+ * (Faz 4 / 2c-2).
+ *
+ * Yazma yolu `users.json`dan bu tabloya taşınıyor. Blob'da kayıp yazma
+ * koruması ancak DARALTILABİLİYORDU: koşullu yazma olmadığı için "damga
+ * hâlâ aynı mı" sorusu ile yazmanın kendisi iki ayrı istekti ve aralarında
+ * her zaman bir pencere kalıyordu.
+ *
+ * Burada aynı koruma GERÇEK oluyor:
+ *   update accounts set … , updated_at = $yeni
+ *    where id = $id and updated_at = $eski
+ * Soru ve yazma tek ifadede; hiçbir satır güncellenmediyse araya biri
+ * girmiştir ve bunu veritabanının kendisi söylüyor.
+ *
+ * `null` OLABİLİR ve bu bir eksiklik değil: sütun sonradan eklendi, var olan
+ * satırlarda değeri yok. Karşılaştırma bunu `is null` ile ele almak zorunda
+ * (`= null` hiçbir satırla eşleşmez) — yoksa göçten önce açılmış her hesap
+ * bir daha hiç güncellenemezdi ve bu, ilk şifre sıfırlamasına kadar
+ * görünmezdi.
+ */
+alter table public.accounts add column if not exists updated_at          timestamptz;
+
+/*
  * Kurtarma kodu İNDEKSTEN bulunuyor (`findUserByRecoveryIndex`): kod tek
  * başına hesabı gösterebiliyor, ağaç adı sorulmuyor. Okuma yolu Postgres'e
  * döndüğünde bu arama indekssiz tam tarama olurdu.

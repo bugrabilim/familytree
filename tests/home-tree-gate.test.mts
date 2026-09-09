@@ -46,21 +46,30 @@ check(/ownerAccount:\s*user\.id/.test(govdeCreate), "ağacın sahibi hesabın ke
 /*
  * Hesap satırından SONRA gelmeli: `trees.owner_account` hesabı işaret ediyor.
  *
- * Hesap satırının YAZILDIĞI YER değişti — artık `createUser` gövdesinde
- * doğrudan `dbUpsertAccount` yok; ayna tek noktada, `saveUsersData` içinde
- * (gerekçe orada: sekiz yazma yolunun beşi aynaya hiç dokunmuyordu).
- * Değişmez aynı kaldı, yalnız hesap yazması `mutateUsers` çağrısının
- * ardında.
+ * Hesap satırının YAZILDIĞI YER iki kez değişti. Önce `createUser`
+ * gövdesindeki doğrudan `dbUpsertAccount` çağrısı kalktı (ayna tek noktaya,
+ * `saveUsersData`ya toplandı: sekiz yazma yolunun beşi aynaya hiç
+ * dokunmuyordu). Sonra Faz 4 / 2c-2 ile hesap satırı ASIL kaynağa,
+ * Postgres'e yazılır oldu — kapı `hesabiEkle`.
+ *
+ * Değişmez her seferinde aynı kaldı: ağaç satırı hesap satırından sonra.
  */
-const iHesap = govdeCreate.indexOf("mutateUsers");
+const iHesap = govdeCreate.indexOf("hesabiEkle");
 const iAgac = govdeCreate.indexOf("dbUpsertTree(");
 check(iHesap > 0 && iAgac > iHesap, "ağaç satırı hesap satırından sonra yazılıyor");
 {
-  // Ve o çağrının gerçekten hesabı aynaladığını ayrı doğrula: yukarıdaki
-  // sıra iddiası, ayna oradan çıkarılırsa sessizce anlamsızlaşırdı.
+  /*
+   * Ve o çağrının gerçekten hesap satırını YAZDIĞINI ayrı doğrula: sıra
+   * iddiası, yazma oradan çıkarılırsa sessizce anlamsızlaşırdı. İki yol da
+   * kilitleniyor — ayna yolu (`dbInsertAccount`) ve acil durum anahtarının
+   * Blob yolu (`saveUsersData` içindeki `dbUpsertAccount`).
+   */
+  const g = src.slice(src.indexOf("async function hesabiEkle"));
+  check(g.slice(0, g.indexOf("\n}\n") + 3).includes("dbInsertAccount("),
+    "hesap satırı ASIL kaynağa yazılıyor");
   const i = src.indexOf("async function saveUsersData");
   const govde = src.slice(i, src.indexOf("\n}\n", i));
-  check(govde.includes("dbUpsertAccount("), "hesap aynası tek yazma noktasında");
+  check(govde.includes("dbUpsertAccount("), "acil durum yolunda ayna duruyor");
 }
 
 /*
