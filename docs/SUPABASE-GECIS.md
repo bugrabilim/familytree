@@ -337,17 +337,29 @@ satırında tam olarak bu oldu.
 
 Kapılar: `tests/account-drift.test.mts`, `tests/phase4-readiness.test.mts`.
 
-#### 2b-2 — Okumanın çevrilmesi (sırada)
+#### 2b-2 — Okuma aynadan ✅ (2026-09-09)
 
-`GET /api/admin/phase4` `kimlik-kaymasi` vermeden yapılmaz. Ayna satırları
-bir sonraki kimlik yazmasında (şifre değişimi, bildirim tercihi, kayıt)
-tazeleniyor; kapı o ana kadar kaymayı bildirmeye devam edecek — **bu doğru
-davranış**, "ölçülmedi" ile "temiz" aynı şey değil.
+Kimlik okumaları artık Postgres aynasından; Blob geri düşüş. **Yazma yolu
+değişmedi** ve bu bilinçli: `mutateUsers` Blob'u oku-değiştir-yaz yapıyor ve
+kayıp yazma koruması Blob'un kendi `updatedAt` damgasına dayanıyor. İkisini
+birlikte çevirmek, kilidin dayanağını da değiştirmek olurdu.
 
-#### 2c — Blob'un bırakılması
+Geri düşüş üç durumda: aynaya **ulaşılamadı**, ayna **boş**, ya da satır
+**yarım** (şifre özeti boş). Boş ayna "hiç hesap yok" diye okunsaydı her
+giriş "böyle bir ağaç yok" derdi — deponun "boş liste temiz sayılmaz"
+kuralının aynısı.
 
-Geri dönüşü olmayan adım. `GET /api/admin/phase4` `hazir: true` demeden ve
-2b bir süre canlıda durmadan yapılmaz.
+Acil durum anahtarı `IDENTITY_READ_BLOB=1` okumayı tümüyle Blob'a alır.
+Varsayılan **yeni davranış**, çünkü kapatılmayan bir bayrak koruma değil süs
+(`AUTH_BCRYPT_FALLBACK` ile aynı kalıp).
+
+Kapı: `tests/identity-read-gate.test.mts`.
+
+#### 2c — Blob'un bırakılması (sırada)
+
+Geri dönüşü olmayan tek adım: yazma yolunun da aynaya geçmesi ve
+`users.json`'ın bırakılması. `GET /api/admin/phase4` `hazir: true` demeden ve
+2b-2 bir süre canlıda durmadan yapılmaz.
 
 `users.json`'ın kimlik kaynağı olmaktan çıkması, depodaki tek **geri
 dönüşü olmayan** iş: o noktadan sonra Auth kaydı olmayan bir hesabın giriş

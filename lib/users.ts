@@ -1,7 +1,7 @@
 import { put, list, get } from "@vercel/blob";
 import { hash as bcryptHash } from "bcryptjs";
 import type { User, UsersData } from "@/types/user";
-import { dbUpsertAccount, dbUpsertTree } from "@/lib/db";
+import { dbGetAccountRows, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
@@ -113,13 +113,56 @@ export const AD_DOLU = "ad-dolu";
  * Katkı akışı için gerekli: kurucunun kimliği ağacın kimliğidir ve üye
  * listesinde tutulmaz, dolayısıyla adı ancak buradan çözülebiliyor.
  */
+/**
+ * KİMLİK OKUMALARININ KAYNAĞI — Faz 4 / 2b-2.
+ *
+ * Okuma artık Postgres aynasından; Blob geri düşüş. Yazma yolu DEĞİŞMEDİ:
+ * `mutateUsers` hâlâ Blob'u oku-değiştir-yaz yapıyor ve kayıp yazma koruması
+ * Blob'un kendi damgasına dayanıyor. İkisini birlikte çevirmek, kilidin
+ * dayanağını da değiştirmek olurdu; okuma ile yazmanın ayrı adımlar olması
+ * bilerek.
+ *
+ * ## Neden geri düşüş "satır yok"la sınırlı değil
+ *
+ * Aynaya HİÇ ULAŞILAMADIĞINDA ve ayna BOŞ olduğunda da Blob'a düşülüyor.
+ * Boş bir ayna "hiç hesap yok" diye okunsaydı her giriş "böyle bir ağaç
+ * yok" derdi — depodaki "boş liste temiz sayılmaz" kuralının aynısı.
+ *
+ * Şifre özeti boş bir satır da güvenilmez sayılıyor: yarım yazılmış bir
+ * satırla giriş doğrulamak, doğrulamamak demek.
+ *
+ * ## Acil durum anahtarı
+ *
+ * `IDENTITY_READ_BLOB=1` okumayı Blob'a geri alır. Bayrak varsayılan
+ * DEĞERİ yeni davranış, çünkü kapatılmayan bir bayrak koruma değil süstür
+ * (`AUTH_BCRYPT_FALLBACK` ile aynı kalıp).
+ */
+function blobKimlikZorlandiMi(): boolean {
+  const v = (process.env.IDENTITY_READ_BLOB || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+/** Kimlik satırları — ayna öncelikli, Blob geri düşüşlü. */
+async function kimlikSatirlari(): Promise<User[]> {
+  if (!blobKimlikZorlandiMi()) {
+    try {
+      const rows = await dbGetAccountRows();
+      // Boş ayna ya da yarım satır → aynaya güvenme.
+      if (rows.length > 0 && rows.every((u) => u.passwordHash)) return rows;
+    } catch (e) {
+      console.warn("[kimlik] ayna okunamadı, Blob'a düşülüyor:", (e as Error).message);
+    }
+  }
+  return (await getUsersData()).users;
+}
+
 export async function findUserById(id: string): Promise<User | null> {
-  const { users } = await getUsersData();
+  const users = await kimlikSatirlari();
   return users.find((u) => u.id === id) ?? null;
 }
 
 export async function findUserByFamilyName(familyName: string): Promise<User | null> {
-  const { users } = await getUsersData();
+  const users = await kimlikSatirlari();
   return users.find((u) => u.familyName.toLowerCase() === familyName.toLowerCase()) ?? null;
 }
 
@@ -136,7 +179,7 @@ export async function findUserByFamilyName(familyName: string): Promise<User | n
  */
 export async function findUserByRecoveryIndex(index: string): Promise<User | null> {
   if (!index) return null;
-  const { users } = await getUsersData();
+  const users = await kimlikSatirlari();
   let bulunan: User | null = null;
   for (const u of users) {
     if (u.recoveryCodeIndex && timingSafeEqualHex(u.recoveryCodeIndex, index)) bulunan = u;
@@ -528,7 +571,7 @@ let silinmisOnbellek: { ids: Set<string>; at: number } | null = null;
 export async function deletedAccountIds(): Promise<Set<string>> {
   const now = Date.now();
   if (silinmisOnbellek && now - silinmisOnbellek.at < ONBELLEK_MS) return silinmisOnbellek.ids;
-  const { users } = await getUsersData();
+  const users = await kimlikSatirlari();
   const ids = new Set(users.filter((u) => isSoftDeleted(u)).map((u) => u.id));
   silinmisOnbellek = { ids, at: now };
   return ids;
@@ -552,7 +595,7 @@ export async function sessionEpochOf(accountId: string): Promise<string | null> 
   const now = Date.now();
   if (!cagOnbellek || now - cagOnbellek.at >= ONBELLEK_MS) {
     try {
-      const { users } = await getUsersData();
+      const users = await kimlikSatirlari();
       const map = new Map<string, string>();
       for (const u of users) if (u.sessionEpoch) map.set(u.id, u.sessionEpoch);
       cagOnbellek = { map, at: now };
