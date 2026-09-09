@@ -115,6 +115,20 @@ export type EngelKodu =
    */
   | "yedek-acik"
   /**
+   * KİMLİK KAYMASI: `users.json` satırı ile Postgres aynası ayrışıyor.
+   *
+   * Kalan parça okuma yolunu Postgres'e çeviriyor; ayna yanlışsa o an
+   * hesabın kendisi yanlış olur. Ölçüm ALAN düzeyinde, çünkü eksiklik satır
+   * düzeyinde görünmüyor: `session_epoch` boş bir satır "eksik" değil, "çağ
+   * yok" diye okunur ve şifre sıfırlamanın oturum düşürme koruması sessizce
+   * ölür. `recoveryCodeIndex` boşsa kurtarma kodu hiç çalışmaz.
+   *
+   * "Aynada olup Blob'da olmayan" satır da bu koda giriyor: silinmiş bir
+   * kimliğin aynada yaşaması, okuma döndüğünde onu GERİ DİRİLTİR — demo
+   * satırında tam olarak bu oldu.
+   */
+  | "kimlik-kaymasi"
+  /**
    * DEMO HÂLÂ KİMLİK DEPOSUNDA.
    *
    * Bu kodun ANLAMI TERSİNE ÇEVRİLDİ ve sebebi bir ürün kararı: demo bir
@@ -196,6 +210,11 @@ export interface HesapOlgusu {
   authUser: Olcum<boolean>;
   /** Supabase Auth ile son giriş (ölçüldüğü hâlde `null` = hiç girilmemiş). */
   lastSignInAt: Olcum<string | null>;
+  /**
+   * Blob satırı ile ayna satırı ayrışan alanlar. Boş dizi = temiz.
+   * `aynadaVar: false` ise alan listesi anlamsız, satırın kendisi yok.
+   */
+  aynaKaymasi: Olcum<{ aynadaVar: boolean; ayrisan: string[] }>;
 }
 
 export interface Olgular {
@@ -415,6 +434,35 @@ function hesaplariDenetle(olgular: Olgular, engeller: Engel[]): void {
         )
       );
       continue;
+    }
+
+    /*
+     * KİMLİK KAYMASI — Auth denetiminden AYRI ve ondan önce.
+     *
+     * İkisi farklı soruları yanıtlıyor: Auth "bu hesap giriş yapabilir mi",
+     * ayna "bu hesabın verisi Postgres'te doğru mu". Bir hesabın Auth kaydı
+     * olup aynası bozuk olabilir; `continue` ile Auth dalına bağlansaydı o
+     * durum hiç raporlanmazdı.
+     */
+    if (!h.aynaKaymasi.olculdu) {
+      engeller.push(
+        ENGEL("olculemedi", `${h.label}: kimlik aynası karşılaştırılamadı — ${h.aynaKaymasi.neden}`)
+      );
+    } else if (!h.aynaKaymasi.deger.aynadaVar) {
+      engeller.push(
+        ENGEL(
+          "kimlik-kaymasi",
+          `${h.label}: Postgres aynasında hesap satırı YOK. Okuma yolu aynaya döndüğünde bu hesap kaybolur.`
+        )
+      );
+    } else if (h.aynaKaymasi.deger.ayrisan.length > 0) {
+      const alanlar = h.aynaKaymasi.deger.ayrisan;
+      engeller.push(
+        ENGEL(
+          "kimlik-kaymasi",
+          `${h.label}: ayna ${alanlar.length} alanda ayrışıyor (${alanlar.join(", ")}). Kimlik yazması ayna satırını tazeler; hiç yazma olmadıysa alanlar boş kalmıştır.`
+        )
+      );
     }
 
     if (!h.authUser.olculdu) {

@@ -43,6 +43,7 @@ const temizHesap = (over: Partial<HesapOlgusu> = {}): HesapOlgusu => ({
   hasPasswordHash: true,
   authUser: olculdu(true),
   lastSignInAt: olculdu("2026-09-07T08:00:00.000Z"),
+  aynaKaymasi: olculdu({ aynadaVar: true, ayrisan: [] }),
   ...over,
 });
 
@@ -396,6 +397,65 @@ for (const [ad, agac] of [
   const k = phase4Readiness(temiz());
   check(k.hazir === true, "yedek kapalıyken hazır");
   check(!kodlar(k.engeller).includes("yedek-acik"), "yedek kapalıyken kod hiç görünmüyor");
+}
+
+
+/* ── 13. Kimlik kayması Faz 4'ü durduruyor ────────────────────────────────── */
+/*
+ * Kalan parça okuma yolunu Postgres'e çeviriyor; ayna yanlışsa o an hesabın
+ * KENDİSİ yanlış olur. Ölçüm alan düzeyinde, çünkü eksiklik satır düzeyinde
+ * görünmüyor: `session_epoch` boş bir satır "eksik" değil "çağ yok" diye
+ * okunur ve şifre sıfırlamanın oturum düşürme koruması sessizce ölür.
+ */
+
+{
+  const k = phase4Readiness(temiz({
+    accounts: olculdu([temizHesap({
+      aynaKaymasi: olculdu({ aynadaVar: true, ayrisan: ["sessionEpoch", "recoveryCodeIndex"] }),
+    })]),
+  }));
+  check(k.hazir === false, "alan ayrışmasında hazır DEĞİL");
+  check(engelKodlari(k.engeller).includes("kimlik-kaymasi"), "kimlik-kaymasi engeli var");
+  const e = k.engeller.find((x) => x.kod === "kimlik-kaymasi")!;
+  check(/sessionEpoch/.test(e.ayrinti) && /recoveryCodeIndex/.test(e.ayrinti),
+    "gerekçe HANGİ alanların ayrıştığını sayıyor");
+}
+{
+  // Satırın hiç olmaması ayrı bir cümle hak ediyor: alan listesi anlamsız.
+  const k = phase4Readiness(temiz({
+    accounts: olculdu([temizHesap({ aynaKaymasi: olculdu({ aynadaVar: false, ayrisan: [] }) })]),
+  }));
+  check(engelKodlari(k.engeller).includes("kimlik-kaymasi"), "aynada satır yoksa da engel");
+  const e = k.engeller.find((x) => x.kod === "kimlik-kaymasi")!;
+  check(/satırı YOK/.test(e.ayrinti), "gerekçe satırın yokluğunu söylüyor");
+}
+{
+  // Ölçülemedi ≠ temiz.
+  const k = phase4Readiness(temiz({
+    accounts: olculdu([temizHesap({ aynaKaymasi: olculemedi("ağ hatası") })]),
+  }));
+  check(k.hazir === false, "ayna ölçülemediğinde hazır DEĞİL");
+  check(engelKodlari(k.engeller).includes("olculemedi"), "ölçülemedi olarak bildiriliyor");
+}
+{
+  /*
+   * Auth denetiminden AYRI: bir hesabın Auth kaydı olup aynası bozuk
+   * olabilir. `continue` ile Auth dalına bağlansaydı o durum hiç
+   * raporlanmazdı.
+   */
+  const k = phase4Readiness(temiz({
+    accounts: olculdu([temizHesap({
+      authUser: olculdu(true),
+      aynaKaymasi: olculdu({ aynadaVar: true, ayrisan: ["passwordHash"] }),
+    })]),
+  }));
+  check(engelKodlari(k.engeller).includes("kimlik-kaymasi"),
+    "Auth temizken bile ayna kayması bildiriliyor");
+}
+{
+  const k = phase4Readiness(temiz());
+  check(k.hazir === true, "ayna temizken hazır");
+  check(!kodlar(k.engeller).includes("kimlik-kaymasi"), "temizken kod hiç görünmüyor");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
