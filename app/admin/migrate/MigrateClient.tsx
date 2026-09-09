@@ -68,6 +68,11 @@ export default function MigrateClient() {
           aynı olduğunu göstermez. Onun için{" "}
           <Link href="/admin/drift" className="text-accent underline">kayma denetimi</Link> var.
         </p>
+        <p className="text-sm text-text-muted mb-6 leading-relaxed">
+          <b>Göçü başlat</b> ayrıca <b>hesap satırını aynaya yeniden yazar</b> (18 alanın hepsi).
+          Faz 4 kapısı <code>kimlik-kaymasi</code> bildiriyorsa burası onu temizler. <b>Önizle</b>
+          hiçbir şey yazmaz — kapı hâlâ kayma diyorsa muhtemelen yalnız önizleme çalıştırılmıştır.
+        </p>
 
         <div className="flex gap-2 mb-6">
           <button
