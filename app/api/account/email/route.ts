@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { getUsersData, updateUserAuthEmail } from "@/lib/users";
+import { listUsers, updateUserAuthEmail } from "@/lib/users";
 import {
   applyEmailChange,
   canRecoverByEmail,
@@ -77,7 +77,7 @@ export async function GET() {
   // 403 → bölüm ayarlar ekranında hiç çizilmiyor (bkz. AccountEmailSection).
   if (ctx.accountId === DEMO_USER_ID) return DEMO_RET();
 
-  const { users } = await getUsersData();
+  const users = await listUsers();
   const u = users.find((x) => x.id === ctx.accountId);
   const bekleyen =
     !!u?.emailTokenHash &&
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  const { users } = await getUsersData();
+  const users = await listUsers();
   const u = users.find((x) => x.id === ctx.accountId);
   if (!u) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });
 

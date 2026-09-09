@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsersData } from "@/lib/users";
+import { listUsers } from "@/lib/users";
 import { isSoftDeleted } from "@/lib/retention";
 import { getFamilyData, saveFamilyData } from "@/lib/blob";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
   let skipped = 0;
 
   try {
-    const { users } = await getUsersData();
+    const users = await listUsers();
     /*
      * DÖNDÜRÜLMÜŞ liste: kesilme her gün başka hesapları vurur (dosya başı).
      */
@@ -241,7 +241,7 @@ export async function GET(req: NextRequest) {
    */
   if (isUnsubConfigured()) {
     try {
-      const { users } = await getUsersData();
+      const users = await listUsers();
       for (const u of rotateForDay(users, today)) {
         /*
          * SİLİNMEKTE OLAN HESABIN AĞACINA DOKUNULMAZ. Yukarıdaki döngüde bu

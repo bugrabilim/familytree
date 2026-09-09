@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { hash } from "bcryptjs";
-import { getUsersData, updateUserPassword, updateUserResetToken } from "@/lib/users";
+import { listUsers, updateUserPassword, updateUserResetToken } from "@/lib/users";
 import { checkResetToken } from "@/lib/password-reset";
 import { syncAccountAuthPassword } from "@/lib/auth-users";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -58,9 +58,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Şifre en az 6 karakter olmalı." }, { status: 400 });
 
   const ozet = sha256(token);
-  let users: Awaited<ReturnType<typeof getUsersData>>["users"];
+  let users: Awaited<ReturnType<typeof listUsers>>;
   try {
-    ({ users } = await getUsersData());
+    users = await listUsers();
   } catch (e) {
     /*
      * Depo okunamadı. Kullanıcı süresi dolmuş bir bağlantıya tıkladığında

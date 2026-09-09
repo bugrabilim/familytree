@@ -1,5 +1,5 @@
 import { del } from "@vercel/blob";
-import { deleteUserRow, findUserById, getUsersData, setUserDeletedAt } from "@/lib/users";
+import { deleteUserRow, findUserById, listUsers, setUserDeletedAt } from "@/lib/users";
 import {
   allTreeIds,
   duePurgeTrees,
@@ -205,7 +205,7 @@ export interface SweepSummary {
  */
 export async function sweepExpired(now: Date = new Date()): Promise<SweepSummary> {
   const ozet: SweepSummary = { purgedAccounts: 0, purgedTrees: 0, failed: [] };
-  const { users } = await getUsersData();
+  const users = await listUsers();
 
   for (const u of users) {
     // 1) Süresi dolmuş HESAP → her şeyiyle gider; ağaçlarına ayrıca bakmaya

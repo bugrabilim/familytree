@@ -3,7 +3,7 @@ import { hash } from "bcryptjs";
 import { createHash } from "node:crypto";
 import { acceptInvite, findValidInvite } from "@/lib/members";
 import { checkUsername, normalizeUsername, USERNAME_MAX, USERNAME_MIN } from "@/lib/username";
-import { getUsersData } from "@/lib/users";
+import { listUsers } from "@/lib/users";
 import { demoTreeName } from "@/lib/demo-account";
 import { rateLimitShared } from "@/lib/rate-limit";
 
@@ -36,7 +36,7 @@ async function treeNameOf(treeId: string): Promise<string | null> {
    */
   const vitrin = demoTreeName(treeId);
   if (vitrin) return vitrin;
-  const { users } = await getUsersData();
+  const users = await listUsers();
   return users.find((u) => u.id === treeId)?.familyName ?? null;
 }
 

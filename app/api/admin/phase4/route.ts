@@ -7,6 +7,13 @@ import { auth } from "@/auth";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { readFamilyFromBlob } from "@/lib/blob";
 import { listTrees } from "@/lib/trees";
+/*
+ * KAPI-DISI: BLOB-ASLI — göç aracı KAYNAĞI okur, kapıyı değil.
+ *
+ * `listUsers()` ayna öncelikli; göç "Blob'da olanı aynaya taşı" demek.
+ * Kapıdan okusaydı araç, taşımadığı satırları taşınmış sayar ve eksik
+ * kalan hesaplar hiçbir yerde görünmezdi.
+ */
 import { getUsersData } from "@/lib/users";
 import { isSoftDeleted } from "@/lib/retention";
 import { DEMO_FAMILY_NAME, DEMO_USER_ID } from "@/lib/demo-account";

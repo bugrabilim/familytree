@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveActiveTree } from "@/lib/tree-context";
-import { getUsersData, updateUserNotify } from "@/lib/users";
+import { listUsers, updateUserNotify } from "@/lib/users";
 import { DEMO_USER_ID } from "@/lib/demo-account";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET() {
   if (!ctx.ok) return NextResponse.json({ error: "Yetkisiz" }, { status: ctx.status });
   if (!ctx.isFounder)
     return NextResponse.json({ error: "Yalnız hesap sahibi." }, { status: 403 });
-  const { users } = await getUsersData();
+  const users = await listUsers();
   const u = users.find((x) => x.id === ctx.accountId);
   return NextResponse.json({
     notifyEmail: u?.notifyEmail ?? "",

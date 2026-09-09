@@ -1,3 +1,11 @@
+/*
+ * KAPI-DISI: BLOB-ASLI — bu dosya BİLEREK Blob'un kendisini okuyor.
+ *
+ * Kimlik okumalarının kapısı `listUsers()` (ayna öncelikli). Kayma taraması
+ * ise tam olarak "Blob ne diyor, ayna ne diyor" sorusunu soruyor; kapıdan
+ * geçseydi aynayı aynayla karşılaştırır ve HER ZAMAN "kayma yok" derdi —
+ * yani ölçmeyi bıraktığını hiç söylemeden bırakırdı.
+ */
 import { getUsersData } from "@/lib/users";
 import { listTrees } from "@/lib/trees";
 import { readFamilyFromBlob } from "@/lib/blob";
