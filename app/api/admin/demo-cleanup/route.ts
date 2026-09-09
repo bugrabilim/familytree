@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { operatorVerdict } from "@/lib/operator-access";
 import { auth } from "@/auth";
 import { deleteUserRow, findUserById } from "@/lib/users";
+import { dbDeleteAccountRow } from "@/lib/db";
 import { DEMO_USER_ID } from "@/lib/demo-id";
 
 export const dynamic = "force-dynamic";
@@ -56,11 +57,40 @@ export async function POST() {
   const g = await guard();
   if ("error" in g) return g.error;
   const removed = await deleteUserRow(DEMO_USER_ID);
+
+  /*
+   * AYNADAKİ SATIR DA GİTMELİ — ve bu eksikti.
+   *
+   * Uç yalnız `users.json` satırını siliyordu; Postgres aynasındaki
+   * `demo-hesap` satırı şifre özetiyle birlikte duruyordu. Faz 4'ün kalan
+   * parçası okuma yolunu Postgres'e çeviriyor, yani o satır demoyu kimlik
+   * deposuna GERİ SOKARDI — `lib/demo-account.ts`in "demo bir hesap değil,
+   * bir vitrindir" kararının tam tersi.
+   *
+   * Kapı da görmüyordu: `phase4`in `demo-acikta` engeli `users.json`a
+   * bakıyor, aynaya bakmıyor. Yani temizlik "yapıldı" görünürken ayna
+   * kalıntıyı taşımaya devam ediyordu.
+   *
+   * `dbDeleteAccount` DEĞİL: o hesabın ağaçlarını da siler ve demo ağacı
+   * kalmalı (gerekçe `lib/db.ts` → `dbDeleteAccountRow`).
+   *
+   * Best-effort: Blob asıl kaynak, ayna yazılamazsa uç başarısız sayılmaz —
+   * ama sonuçta bildiriliyor ki "silindi" yanıtı yarım bir işi gizlemesin.
+   */
+  let aynaSilindi: boolean | string = true;
+  try {
+    await dbDeleteAccountRow(DEMO_USER_ID);
+  } catch (e) {
+    aynaSilindi = (e as Error).message;
+    console.warn(`[demo-temizlik] ayna satırı silinemedi:`, aynaSilindi);
+  }
+
   return NextResponse.json({
     ok: true,
     removed,
+    aynaSilindi,
     note: removed
-      ? "Demo kimlik satırı silindi. Ağaç ve kişiler yerinde; demo girişi etkilenmez."
-      : "Satır zaten yoktu; değişiklik olmadı.",
+      ? "Demo kimlik satırı silindi (Blob + Postgres aynası). Ağaç ve kişiler yerinde; demo girişi etkilenmez."
+      : "users.json satırı zaten yoktu; ayna yine de temizlendi.",
   });
 }

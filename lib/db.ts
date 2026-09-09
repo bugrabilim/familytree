@@ -212,6 +212,23 @@ export async function dbDeleteAccount(accountId: string): Promise<void> {
 }
 
 /**
+ * YALNIZ kimlik satırını siler; ağaçlara ve kişilere dokunmaz.
+ *
+ * `dbDeleteAccount` hesabın ağaçlarını da siliyor — hesap kalıcı silinirken
+ * doğru olan bu. Demo ise tersi: kimlik satırı gitmeli ama AĞAÇ KALMALI,
+ * çünkü demo bir hesap değil bir vitrin (`lib/demo-account.ts`) ve ziyaretçi
+ * her girişte o ağacı görüyor.
+ *
+ * Ayrı bir işlev olmasının sebebi bu ayrım. `dbDeleteAccount` çağrılsaydı
+ * demo temizliği, demo ağacını ve içindeki kişileri de silerdi — "ağaç ve
+ * kişiler yerinde" diyen ucun tam tersini yapardı.
+ */
+export async function dbDeleteAccountRow(accountId: string): Promise<void> {
+  const { error } = await supabaseAdmin().from("accounts").delete().eq("id", accountId);
+  if (error) throw new Error(`accounts row delete: ${error.message}`);
+}
+
+/**
  * Kimliği ANAHTARININ İÇİNDE geçen hız-sınırı satırlarını siler.
  *
  * Anahtarlar `<alan>:<accountId>` ya da `<alan>:<accountId>:<ip>` biçiminde
