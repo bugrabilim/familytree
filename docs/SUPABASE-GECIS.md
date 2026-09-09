@@ -309,11 +309,40 @@ Kapı: `tests/account-mirror-gate.test.mts` — `User` tipini **kaynak** sayıyo
 yeni bir alan aynaya yazılmazsa test kırılır. Elle liste, düzeltilen hatanın
 aynısını testin içinde yeniden kurmak olurdu.
 
-#### 2b — Okuma yolu (sırada)
+#### 2b — Kimlik kayması ölçülüyor ✅ (2026-09-09)
 
-Kimlik okumaları Postgres'e döner, Blob geri düşüş olarak kalır; bayrakla ve
-geri alınabilir. Ön koşulu: aynanın **dolu** olduğunun ölçülmesi — 2a şemayı
-açtı, satırlar bir sonraki kimlik yazmasında dolacak.
+İlk tasarım *"Postgres'ten oku, satır yoksa Blob'a düş ve geri doldur"* idi.
+**Tehlikeliydi** ve yazmadan önce vazgeçildi: eksiklik satır düzeyinde değil
+**alan** düzeyinde. `session_epoch` boş bir satır "eksik" değil, **"çağ yok"**
+diye okunur — geri düşüş hiç tetiklenmez ve şifre sıfırlamanın oturum
+düşürme koruması sessizce ölür. Aynı biçimde `recoveryCodeIndex` boşsa
+kurtarma kodu hiç çalışmaz, `authEmail` boşsa e-postayla kurtarma kapanır.
+
+Yani okumayı çevirmeden önce aynanın **eşit olduğu ölçülmeli**. Ağaçlar için
+bu araç zaten vardı (kayma denetimi); kimlik için yoktu.
+
+* `lib/account-drift.ts` — saf karşılaştırma (bağımlılıksız, testli). İki
+  incelik: `undefined`/`null`/`""` aynı şeyi söylüyor (eşitlenmezse her
+  dolmamış alan sahte kayma olur ve gerçeği gürültüde boğar), ve zaman
+  damgaları **an** olarak karşılaştırılıyor (Blob ISO-8601, Postgres
+  `2026-09-08 11:11:00+00` — ham dizge karşılaştırması her damgayı kayma
+  sayardı, kapı hiç yeşile dönmezdi).
+* `dbGetAccountRows` — aynayı `User` biçiminde okur, salt okuma.
+* `GET /api/admin/phase4` → yeni engel **`kimlik-kaymasi`**. Auth
+  denetiminden **ayrı**: bir hesabın Auth kaydı olup aynası bozuk olabilir.
+
+"Aynada olup Blob'da olmayan" satır da bu koda giriyor — silinmiş bir
+kimliğin aynada yaşaması, okuma döndüğünde onu **geri diriltir**. Demo
+satırında tam olarak bu oldu.
+
+Kapılar: `tests/account-drift.test.mts`, `tests/phase4-readiness.test.mts`.
+
+#### 2b-2 — Okumanın çevrilmesi (sırada)
+
+`GET /api/admin/phase4` `kimlik-kaymasi` vermeden yapılmaz. Ayna satırları
+bir sonraki kimlik yazmasında (şifre değişimi, bildirim tercihi, kayıt)
+tazeleniyor; kapı o ana kadar kaymayı bildirmeye devam edecek — **bu doğru
+davranış**, "ölçülmedi" ile "temiz" aynı şey değil.
 
 #### 2c — Blob'un bırakılması
 
@@ -356,6 +385,7 @@ aile adı rapora **girmez** — yalnız kimliği.
 | `auth-eksik` | engel | `auth.users`ta karşılığı olmayan hesap var → bcrypt yedeği kalkınca bir daha giremez. |
 | `demo-acikta` | engel | Demo **hâlâ `users.json`da bir hesap satırı** olarak duruyor. Demo bir hesap değil, bir vitrin (aşağıya bak); emekliye ayrılan depoda kimlik kalıntısı bırakılmaz. |
 | `giris-denenmemis` | engel | Hiçbir hesap Supabase Auth ile giriş yapmamış (`last_sign_in_at` boş). Faz 4 sonrası **tek** giriş yolu bu olacak. |
+| `kimlik-kaymasi` | engel | `users.json` satırı ile Postgres aynası **alan düzeyinde** ayrışıyor (ya da satır hiç yok / fazladan var). Kalan parça okuma yolunu aynaya çeviriyor: ayna yanlışsa o an hesabın **kendisi** yanlış olur. Satır düzeyinde bakmak yetmez — `session_epoch` boş bir satır "eksik" değil "çağ yok" diye okunur ve oturum düşürme koruması sessizce ölür. |
 | `yedek-acik` | engel | Kurucunun bcrypt yedeği bugün **deneniyor**. İki sebebi var ve onarımları farklı: `AUTH_BCRYPT_FALLBACK` açık (acil durum anahtarı kullanımda → Supabase Auth'a bugün güvenilmiyor), ya da `SUPABASE_AUTH_LOGIN` kapalı (bcrypt zaten tek yol). Kalan parça `users.json`'ı emekliye ayırıyor — yani bcrypt yolunun **okuduğu** dosyayı. `giris-denenmemis`in kapatmadığı boşluğu kapatıyor: geçmişte bir kez Supabase üzerinden girilmiş olması, bugün bcrypt'in tek yol olduğunu değiştirmiyor. |
 | `damga-yok` | uyarı | `trees.updated_at` boş. Veri kaybettirmiyor (sürüm jetonu kişi damgalarına düşüyor); yazma yolunun o ağaçta henüz işlemediğini gösterir. |
 | `olculemedi` | değişken | Olgu **ölçülemedi**. Ölçülemeyen olgunun ağırlığı, o olgunun en kötü olası değerinin ağırlığıdır. |

@@ -229,6 +229,44 @@ export async function dbDeleteAccountRow(accountId: string): Promise<void> {
 }
 
 /**
+ * Aynadaki hesap satırlarını `User` biçiminde okur — SALT OKUMA.
+ *
+ * Kimlik kayması denetimi için (`lib/account-drift.ts`). Sütun adları
+ * snake_case, `User` camelCase; dönüşüm burada tek yerde yapılıyor ki
+ * karşılaştırma katmanı veritabanı biçimini hiç bilmesin.
+ *
+ * Boş sütunlar `undefined`a çevriliyor: `User`ın isteğe bağlı alanları
+ * "yok"u böyle ifade ediyor ve karşılaştırma katmanı ikisini zaten aynı
+ * sayıyor — ama tipin kendisiyle tutarlı kalmak, çağıranın `null` ile
+ * uğraşmasını önlüyor.
+ */
+export async function dbGetAccountRows(): Promise<User[]> {
+  const { data, error } = await supabaseAdmin().from("accounts").select("*");
+  if (error) throw new Error(`accounts select: ${error.message}`);
+  const yok = (v: unknown) => (v === null || v === undefined ? undefined : v);
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    familyName: String(r.family_name ?? ""),
+    passwordHash: String(r.password_hash ?? ""),
+    recoveryCodeHash: String(r.recovery_code_hash ?? ""),
+    createdAt: String(r.created_at ?? ""),
+    recoveryCodeIndex: yok(r.recovery_code_index) as string | undefined,
+    sessionEpoch: yok(r.session_epoch) as string | undefined,
+    deletedAt: yok(r.deleted_at) as string | undefined,
+    authEmail: yok(r.auth_email) as string | undefined,
+    authEmailVerified: yok(r.auth_email_verified) as boolean | undefined,
+    emailTokenHash: yok(r.email_token_hash) as string | undefined,
+    emailTokenExpires: yok(r.email_token_expires) as string | undefined,
+    resetTokenHash: yok(r.reset_token_hash) as string | undefined,
+    resetTokenExpires: yok(r.reset_token_expires) as string | undefined,
+    notifyEmail: yok(r.notify_email) as string | undefined,
+    notifyReminders: yok(r.notify_reminders) as boolean | undefined,
+    notifyMemorials: yok(r.notify_memorials) as boolean | undefined,
+    notifyNewsletter: yok(r.notify_newsletter) as boolean | undefined,
+  }));
+}
+
+/**
  * Kimliği ANAHTARININ İÇİNDE geçen hız-sınırı satırlarını siler.
  *
  * Anahtarlar `<alan>:<accountId>` ya da `<alan>:<accountId>:<ip>` biçiminde

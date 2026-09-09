@@ -169,6 +169,7 @@ check(!/deger\s*\?\?/.test(saf), "ölçülemeyen değer varsayılana düşürül
     accounts: olculdu([{
       accountId: "a", label: "a", isDemo: false, hasPasswordHash: true,
       authUser: olculdu(true), lastSignInAt: olculdu("2026-01-01T00:00:00Z"),
+      aynaKaymasi: olculdu({ aynadaVar: true, ayrisan: [] }),
     }]),
     supabaseLoginEnabled: true,
     bcryptFallbackEnabled: false,

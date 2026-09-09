@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { compareAccounts } from "@/lib/account-drift";
+import { dbGetAccountRows } from "@/lib/db";
+import type { User } from "@/types/user";
 import { operatorVerdict } from "@/lib/operator-access";
 import { auth } from "@/auth";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -216,6 +219,19 @@ function authEslesmesi(
   );
 }
 
+/**
+ * Tek hesabın ayna karşılaştırması.
+ *
+ * `compareAccounts` liste alıyor; burada tek satır sorulduğu için tek
+ * elemanlı listeyle çağrılıyor. Kural katmanı (`lib/account-drift.ts`)
+ * bağımlılıksız kalsın diye ayrım böyle: karşılaştırma orada, G/Ç burada.
+ */
+function kaymaOzeti(u: User, ayna: User[]): { aynadaVar: boolean; ayrisan: string[] } {
+  const satir = ayna.find((a) => a.id === u.id);
+  const [k] = compareAccounts([u], satir ? [satir] : []);
+  return { aynadaVar: k.aynadaVar, ayrisan: k.ayrisan };
+}
+
 export async function GET() {
   const g = await guard();
   if ("error" in g) return g.error;
@@ -274,6 +290,22 @@ export async function GET() {
    * getirmiyor. Düşerse bütün hesap olguları `olculemedi` olur — sessizce
    * "Auth'ta yok" olmaz.
    */
+  /*
+   * KİMLİK AYNASI ENVANTERİ — Auth envanteriyle aynı kalıpta.
+   *
+   * Ayrı bir `try` bloğu: ayna okunamadığında Auth ölçümü de düşmemeli.
+   * Hata `olculemedi` olarak taşınıyor, boş liste DÖNMÜYOR — boş liste
+   * "aynada hiç hesap yok" diye okunur ve kapı bunu "hepsi kaymış" sanır
+   * (`lib/phase4-readiness.ts` başlığındaki "şüphede daima hazır değil").
+   */
+  let aynaListesi: User[] | null = null;
+  let aynaHatasi = "";
+  try {
+    aynaListesi = await dbGetAccountRows();
+  } catch (e) {
+    aynaHatasi = neden(e);
+  }
+
   let authListesi: AuthUserOzeti[] | null = null;
   let authHatasi = "";
   try {
@@ -327,6 +359,9 @@ export async function GET() {
           lastSignInAt: authListesi
             ? olculdu(eslesme?.lastSignInAt ?? null)
             : olculemedi<string | null>(authHatasi),
+          aynaKaymasi: aynaListesi
+            ? olculdu(kaymaOzeti(u, aynaListesi))
+            : olculemedi<{ aynadaVar: boolean; ayrisan: string[] }>(aynaHatasi),
         } satisfies HesapOlgusu;
       });
     accounts = olculdu(out);
