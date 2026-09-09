@@ -6,7 +6,12 @@ import { readFamilyFromBlob } from "@/lib/blob";
 import { getTreeAccess } from "@/lib/members";
 import { listTrees } from "@/lib/trees";
 import { findUserByFamilyName } from "@/lib/users";
-import { authUserExists, importAccountToAuth, type AuthImportResult } from "@/lib/auth-users";
+import {
+  authUserExists,
+  confirmAccountAuthEmail,
+  importAccountToAuth,
+  type AuthImportResult,
+} from "@/lib/auth-users";
 import {
   dbCountPeople,
   dbReplaceInvites,
@@ -98,6 +103,7 @@ export async function POST() {
   // bu adım yalnız arka planda Auth kullanıcısını hazırlar (best-effort).
   let account: string | boolean = false;
   let authUser: AuthImportResult | string = "atlandı";
+  let authEmail = "atlandı";
   try {
     const me = await findUserByFamilyName(g.homeName);
     if (me) {
@@ -105,6 +111,31 @@ export async function POST() {
       account = true;
       const r = await importAccountToAuth(me);
       authUser = typeof r === "string" ? r : `hata: ${r.error}`;
+
+      /*
+       * DOĞRULANMIŞ ADRESİ AUTH'A GERİ YAZ — onarım.
+       *
+       * Üretimde ölçüldü: bizim depoda `authEmailVerified: true` ve gerçek
+       * adres duruyordu, ama `auth.users` hâlâ sentetik adresi taşıyordu.
+       * Doğrulama anındaki `confirmAccountAuthEmail` best-effort ve sessizce
+       * düşebiliyor (ya da adres o kod eklenmeden önce doğrulanmış).
+       *
+       * Faz 4 Auth'u kimlik kaynağı yapıyor; kaynağın kullanıcının gerçek
+       * adresini bilmemesi, "doğrulanmış e-posta" kaydının hiçbir yerde
+       * karşılığı olmaması demek. Göç aracı zaten onarım aracı, yeri burası.
+       *
+       * YALNIZ DOĞRULANMIŞSA: doğrulanmamış adresi Auth'a yazmak, kendi
+       * kuralımızı (doğrulanmamış adres kurtarma yolu değildir) Auth
+       * üzerinden delmek olurdu — gerekçe `lib/auth-users.ts`te.
+       */
+      if (me.authEmail && me.authEmailVerified) {
+        try {
+          await confirmAccountAuthEmail(me.id, me.authEmail);
+          authEmail = "senkronlandı";
+        } catch (e) {
+          authEmail = `hata: ${(e as Error).message}`;
+        }
+      }
     }
   } catch (e) {
     account = `hata: ${(e as Error).message}`;
@@ -168,6 +199,7 @@ export async function POST() {
       account: g.accountId,
       accountMirrored: account,
       authUser, // "created" | "exists" | "skipped" | "hata: …"
+      authEmail, // "senkronlandı" | "atlandı" | "hata: …"
       ok,
       trees: summary,
     },
