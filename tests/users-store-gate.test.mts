@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 let ok = 0, fail = 0;
 const check = (cond: boolean, msg: string) => { if (cond) ok++; else { fail++; console.log(`✗ ${msg}`); } };
@@ -130,6 +130,57 @@ check(/updatedAt: kutu\.updatedAt \?\? ""/.test(src),
     check(i > -1, `${ad} kayıt: işaret karşılaştırılıyor`);
     check(i > -1 && /status: 409/.test(r.slice(i, i + 320)), `${ad} kayıt: işaret 409'a çevriliyor`);
   }
+}
+
+
+/* --- 6. Satır silen HER yol aynadan da siler --------------------------- */
+/*
+ * `saveUsersData` aynaya UPSERT yapıyor; listeden DÜŞEN bir satırı silmiyor.
+ * Dolayısıyla `users.json`dan bir satır kaldıran her yol, aynadaki
+ * karşılığını da kaldırmak zorunda — yoksa kayıt yalnız bir depoda ölür.
+ *
+ * Tam olarak bu oldu: `/api/admin/demo-cleanup` yalnız `users.json`
+ * satırını siliyordu ve `demo-hesap` şifre özetiyle birlikte aynada
+ * kalmıştı. Faz 4'ün kalan parçası okuma yolunu Postgres'e çeviriyor, yani
+ * o kalıntı demoyu kimlik deposuna GERİ SOKARDI. Kapı da görmüyordu:
+ * `phase4`in `demo-acikta` engeli `users.json`a bakıyor, aynaya bakmıyor.
+ *
+ * Silme yönü otomatik uzlaştırılmadı (aynada olup listede olmayanı silmek)
+ * bilerek: Blob okuması bir an eskiyse o mantık GERÇEK hesap satırlarını
+ * silerdi. Kaynak kaynağı değiştirmek üzereyken böyle bir çıkarım fazla
+ * tehlikeli; onun yerine her çağıran açıkça siliyor ve bu kapı unutulmasını
+ * engelliyor.
+ */
+{
+  const kok = new URL("../", import.meta.url).pathname;
+  const tara = (dizin: string, out: string[] = []): string[] => {
+    for (const g of readdirSync(dizin, { withFileTypes: true })) {
+      if (g.name === "node_modules" || g.name === ".next" || g.name === "apps") continue;
+      const yol = `${dizin}${g.name}`;
+      if (g.isDirectory()) tara(`${yol}/`, out);
+      else if (/\.tsx?$/.test(g.name)) out.push(yol);
+    }
+    return out;
+  };
+  const cagiranlar = tara(`${kok}app/`)
+    .concat(tara(`${kok}lib/`))
+    .filter((y) => !y.endsWith("lib/users.ts"))
+    .filter((y) => /deleteUserRow\(/.test(readFileSync(y, "utf8")));
+
+  check(cagiranlar.length >= 2, `deleteUserRow çağıranları bulundu (${cagiranlar.length})`);
+  for (const yol of cagiranlar) {
+    const ad = yol.slice(kok.length);
+    const src = kodu(readFileSync(yol, "utf8"));
+    check(/dbDeleteAccountRow\(|dbDeleteAccount\(/.test(src),
+      `${ad}: aynadaki satırı da siliyor`);
+  }
+}
+{
+  // Demo temizliği ağaca DOKUNMAMALI: demo bir hesap değil, bir vitrin.
+  const demo = kodu(read("../app/api/admin/demo-cleanup/route.ts"));
+  check(/dbDeleteAccountRow\(/.test(demo), "demo temizliği dar silmeyi kullanıyor");
+  check(!/dbDeleteAccount\(/.test(demo.replace(/dbDeleteAccountRow\(/g, "")),
+    "demo temizliği ağaçları silen geniş yolu KULLANMIYOR");
 }
 
 console.log(`\n${ok}/${ok + fail} geçti${fail ? `, ${fail} başarısız` : " ✓"}`);
