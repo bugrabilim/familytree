@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { purgeAccount, softDeleteAccount } from "@/lib/account-lifecycle";
-import { getUsersData } from "@/lib/users";
+import { listUsers } from "@/lib/users";
 import { allTreeIds } from "@/lib/trees";
 import { confirmMatches, GRACE_DAYS, graceInfo, isSoftDeleted } from "@/lib/retention";
 import { DEMO_USER_ID } from "@/lib/demo-id";
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
 
   let users;
   try {
-    ({ users } = await getUsersData());
+    users = await listUsers();
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
 
-  const { users } = await getUsersData();
+  const users = await listUsers();
   const user = users.find((u) => u.id === accountId);
   if (!user) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });
 

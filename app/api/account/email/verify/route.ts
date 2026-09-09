@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getUsersData, updateUserAuthEmail } from "@/lib/users";
+import { listUsers, updateUserAuthEmail } from "@/lib/users";
 import { verifyWouldCollide } from "@/lib/account-email";
 import { confirmAccountAuthEmail } from "@/lib/auth-users";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
    */
   let users;
   try {
-    ({ users } = await getUsersData());
+    users = await listUsers();
   } catch (e) {
     console.warn("[3e] hesap deposu okunamadı:", (e as Error).message);
     return NextResponse.json(

@@ -142,6 +142,25 @@ function blobKimlikZorlandiMi(): boolean {
   return v === "1" || v === "true" || v === "on" || v === "yes";
 }
 
+/**
+ * KİMLİK OKUMASININ TEK KAPISI — ayna öncelikli, Blob geri düşüşlü.
+ *
+ * Dışa açık, çünkü 2b-2 yalnız BU DOSYADAKİ beş bulucuyu çevirmişti; on
+ * çağıran daha `getUsersData()` diyerek listeyi doğrudan Blob'dan okuyordu
+ * (hatırlatma postaları, bildirim tercihleri, e-posta/şifre jetonları, davet
+ * ekranındaki ağaç adı, süresi dolmuş hesap süpürgesi). Yazma yolu aynaya
+ * çevrildiğinde o on okuma sessizce BAYAT veriye bakardı: kapatılmış bir
+ * bildirim onayı geri gelir, harcanmış bir sıfırlama jetonu ikinci kez
+ * çalışır, kalıcı silme süpürgesi silme damgasını hiç görmezdi.
+ *
+ * Kapının tek olması bunu bir daha yaşanamaz kılıyor: `getUsersData` artık
+ * yalnız BLOB'UN KENDİSİNE bakması gereken araçlarda (kayma taraması, göç
+ * uçları) çağrılıyor ve `tests/identity-read-door.test.mts` bunu kilitliyor.
+ */
+export async function listUsers(): Promise<User[]> {
+  return kimlikSatirlari();
+}
+
 /** Kimlik satırları — ayna öncelikli, Blob geri düşüşlü. */
 async function kimlikSatirlari(): Promise<User[]> {
   if (!blobKimlikZorlandiMi()) {

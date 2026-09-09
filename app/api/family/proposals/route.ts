@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { getFamilyData, saveFamilyData, versionMismatch } from "@/lib/blob";
 import { resolveActiveTree } from "@/lib/tree-context";
 import { canEdit, canPropose } from "@/lib/roles";
-import { getUsersData } from "@/lib/users";
+import { listUsers } from "@/lib/users";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { renderEmail } from "@/lib/email-template";
 import { SITE_URL } from "@/lib/site";
@@ -476,7 +476,7 @@ export async function PATCH(req: NextRequest) {
  */
 async function bildir(accountId: string, p: Proposal): Promise<void> {
   if (!isEmailConfigured()) return;
-  const { users } = await getUsersData();
+  const users = await listUsers();
   const u = users.find((x) => x.id === accountId);
   const adres = u?.notifyEmail?.trim();
   if (!adres) return;
