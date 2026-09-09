@@ -1,12 +1,20 @@
 import { put, list, get } from "@vercel/blob";
 import { hash as bcryptHash } from "bcryptjs";
 import type { User, UsersData } from "@/types/user";
-import { dbGetAccountRows, dbUpsertAccount, dbUpsertTree } from "@/lib/db";
+import {
+  dbDeleteAccountRowIf,
+  dbGetAccountRow,
+  dbGetAccountRows,
+  dbInsertAccount,
+  dbUpdateAccountIf,
+  dbUpsertAccount,
+  dbUpsertTree,
+} from "@/lib/db";
 import { importAccountToAuth, isUuid } from "@/lib/auth-users";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pickUniqueRecoveryCode, timingSafeEqualHex } from "@/lib/recovery-code";
 import { isSoftDeleted } from "@/lib/retention";
-import { mutateStore, type Degistirici } from "@/lib/store-mutate";
+import { mutateRow, mutateStore, type Degisiklik, type Degistirici } from "@/lib/store-mutate";
 
 const USERS_PATHNAME = "users.json";
 
@@ -37,7 +45,8 @@ export async function getUsersData(): Promise<UsersData> {
   return { users: kutu.users ?? [], updatedAt: kutu.updatedAt ?? "" };
 }
 
-async function saveUsersData(data: UsersData): Promise<void> {
+/** `users.json`u yazar — BAŞKA hiçbir şey yapmaz. */
+async function blobaYaz(data: UsersData): Promise<void> {
   // Her yazma damgayı ileri alır; koruma bunu karşılaştırıyor.
   data.updatedAt = new Date().toISOString();
   await put(USERS_PATHNAME, JSON.stringify(data), {
@@ -46,6 +55,10 @@ async function saveUsersData(data: UsersData): Promise<void> {
     allowOverwrite: true,
     contentType: "application/json",
   });
+}
+
+async function saveUsersData(data: UsersData): Promise<void> {
+  await blobaYaz(data);
 
   /*
    * AYNA BURADA — sekiz yazma yolunun her birinde değil.
@@ -96,6 +109,178 @@ async function saveUsersData(data: UsersData): Promise<void> {
  */
 function mutateUsers<T>(degistir: Degistirici<UsersData, T>, etiket = "hesap"): Promise<T> {
   return mutateStore(getUsersData, saveUsersData, degistir, etiket);
+}
+
+/* ── KİMLİK YAZMASININ ÜÇ KAPISI (Faz 4 / 2c-2) ───────────────────────────
+ *
+ * ## Ne değişti
+ *
+ * Sekiz yazma yolu `users.json`ı okuyup TAMAMINI geri yazıyordu. Artık
+ * hepsi Postgres'te TEK SATIRA yazıyor; `users.json` asıl kaynak olmaktan
+ * çıkıp geri düşüş kopyası oluyor.
+ *
+ * ## Neden bu bir zayıflama değil, güçlenme
+ *
+ * Blob'da koşullu yazma YOK. `mutateStore` bu yüzden "yazmadan hemen önce
+ * yeniden oku, damga değiştiyse baştan al" diyordu — pencereyi daraltan ama
+ * KAPATMAYAN bir koruma. Postgres'te `update … where updated_at = $eski`
+ * soruyu ve yazmayı tek ifadede yapıyor: pencere kapanıyor.
+ *
+ * İkinci kazanç: kutu modelinde iki FARKLI hesaba yazan iki istek de
+ * çakışıyordu (ikisi de aynı dosyayı yazıyor). Satır modelinde yalnız aynı
+ * hesaba yazanlar çakışıyor.
+ *
+ * Üçüncüsü ad tekilliği: "önce bak, sonra yaz" yerine şemadaki
+ * `accounts_family_name_key` indeksi karar veriyor.
+ *
+ * ## Blob artık ayna
+ *
+ * Her başarılı yazmadan sonra `users.json` Postgres'ten YENİDEN KURULUYOR
+ * (`blobAynasi`). Best-effort: yazılamazsa kimlik işlemi başarısız sayılmaz
+ * — çünkü asıl kaynak artık Postgres ve okuma da oradan (`listUsers`). Ayna
+ * yarım kalırsa bir sonraki kimlik yazması onu tümüyle yeniden kuruyor;
+ * `GET /api/admin/drift` de aradaki farkı görüyor.
+ *
+ * ## Acil durum anahtarı
+ *
+ * `IDENTITY_WRITE_BLOB=1` yazmayı Blob'a geri alır (kutu modeli + Postgres
+ * aynası — yani bu değişiklikten önceki davranışın aynısı). Supabase hiç
+ * yapılandırılmamışsa (yerel geliştirme) anahtar aranmadan Blob asıl kalır:
+ * olmayan bir aynaya yazmayı denemek, yerelde her kimlik işlemini
+ * öldürürdü.
+ * --------------------------------------------------------------------- */
+
+function aynayaYazilirMi(): boolean {
+  if (!isSupabaseConfigured()) return false;
+  const v = (process.env.IDENTITY_WRITE_BLOB || "").trim().toLowerCase();
+  return !(v === "1" || v === "true" || v === "on" || v === "yes");
+}
+
+/**
+ * `users.json`ı Postgres'ten yeniden kurar — BEST-EFFORT.
+ *
+ * Değişen satırı Blob'daki listeye yamamak yerine listenin TAMAMI aynadan
+ * kuruluyor. Yama yapılsaydı Blob'un kendi kayıp yazma sorunu geri gelirdi
+ * (oku-değiştir-yaz, kilitsiz); tam kurulum ise kendi kendini onarıyor:
+ * kaçırılmış bir aynalama bir sonraki kimlik yazmasında kapanıyor.
+ */
+async function blobAynasi(): Promise<void> {
+  try {
+    const users = await dbGetAccountRows();
+    /*
+     * BOŞ AYNA YAZILMAZ. Geçici bir okuma sorunu sıfır satır döndürseydi
+     * `users.json` BOŞALIRDI — ve o dosya tam olarak "ayna okunamazsa
+     * düşülecek yer". Yedeğin kendisini silen bir yedekleme olurdu.
+     */
+    if (users.length === 0) return;
+    await blobaYaz({ users, updatedAt: "" });
+  } catch (e) {
+    console.warn("[kimlik] Blob aynası güncellenemedi:", (e as Error).message);
+  }
+}
+
+/**
+ * TEK HESABI değiştirir — kimlik güncellemelerinin tek kapısı.
+ *
+ * `degistir` satırı YERİNDE değiştiriyor ve satır yoksa `null` alıyor;
+ * "bulunamadı" kararını çağıran veriyor (dönüş değeri de onun).
+ */
+async function hesabiDegistir<T>(
+  bul: { id: string } | { familyName: string },
+  degistir: (u: User | null) => Degisiklik<T>,
+  etiket: string
+): Promise<T> {
+  if (!aynayaYazilirMi()) {
+    return mutateUsers<T>((data) => {
+      const u =
+        "id" in bul
+          ? data.users.find((x) => x.id === bul.id)
+          : data.users.find(
+              (x) => x.familyName.toLowerCase() === bul.familyName.toLowerCase()
+            );
+      return degistir(u ?? null);
+    }, etiket);
+  }
+  let yazildi = false;
+  const sonuc = await mutateRow<User, T>(
+    () => dbGetAccountRow(bul),
+    (satir, eski, yeni) => dbUpdateAccountIf(satir, eski, yeni),
+    (u) => {
+      const r = degistir(u);
+      if (r.yaz) yazildi = true;
+      return r;
+    },
+    etiket
+  );
+  if (yazildi) await blobAynasi();
+  return sonuc;
+}
+
+/**
+ * Hesap satırı açar. Ad çakışmasında `"ad-dolu"` — fırlatmıyor.
+ *
+ * Ayna yolunda tekilliği veritabanı indeksi belirliyor (gerekçe
+ * `dbInsertAccount`); Blob yolunda eski davranış korunuyor.
+ */
+async function hesabiEkle(user: User): Promise<"ok" | "ad-dolu"> {
+  if (!aynayaYazilirMi()) {
+    try {
+      await mutateUsers<true>((data) => {
+        if (data.users.some((u) => u.familyName.toLowerCase() === user.familyName.toLowerCase()))
+          throw new Error(AD_DOLU);
+        data.users.push(user);
+        return { yaz: true, sonuc: true };
+      }, "hesap");
+    } catch (e) {
+      if ((e as Error).message === AD_DOLU) return "ad-dolu";
+      throw e;
+    }
+    return "ok";
+  }
+  const r = await dbInsertAccount(user, new Date().toISOString());
+  if (r === "ok") await blobAynasi();
+  return r;
+}
+
+/** `users.json`dan TEK satırı çıkarır. */
+function blobdanSil(id: string): Promise<boolean> {
+  return mutateUsers<boolean>((data) => {
+    const kalan = data.users.filter((u) => u.id !== id);
+    if (kalan.length === data.users.length) return { yaz: false, sonuc: false };
+    // Kutu YERİNDE değiştiriliyor: `{ users: kalan }` yazmak damgayı da
+    // düşürürdü ve koruma dayanağını kaybederdi.
+    data.users = kalan;
+    return { yaz: true, sonuc: true };
+  }, "hesap satırı");
+}
+
+/** Kimlik satırını KALICI siler; satır yoksa `false`. */
+async function hesabiSil(id: string): Promise<boolean> {
+  if (!aynayaYazilirMi()) return blobdanSil(id);
+  const ok = await dbDeleteAccountRowIf(id);
+  if (!ok) return false;
+  /*
+   * SİLME AYNAYA YENİDEN KURARAK YANSITILAMAZ — HEDEFLİ ÇIKARILIYOR.
+   *
+   * `blobAynasi` listeyi Postgres'ten yeniden kuruyor ama BOŞ liste yazmayı
+   * reddediyor (gerekçe orada: yedeğin kendisini silen bir yedekleme
+   * olurdu). Son hesap silindiğinde ayna boşalır, yeniden kurma erken döner
+   * ve `users.json` silinen hesabı TUTMAYA DEVAM EDER. Okuma yolu da boş
+   * aynayı güvenilmez sayıp Blob'a düştüğü için hesap GERİ DİRİLİR — üstelik
+   * şifresiyle birlikte.
+   *
+   * Bu deponun daha önce yaşadığı arızanın aynısı: `/api/admin/demo-cleanup`
+   * yalnız bir depodan siliyordu ve `demo-hesap` ötekinde kalmıştı.
+   *
+   * O yüzden silme iki depoda da AÇIKÇA yapılıyor. Blob tarafı best-effort:
+   * asıl kaynak artık Postgres ve satır oradan gitti.
+   */
+  try {
+    await blobdanSil(id);
+  } catch (e) {
+    console.warn(`[kimlik] Blob aynasından silinemedi (${id}):`, (e as Error).message);
+  }
+  return true;
 }
 
 /**
@@ -222,7 +407,13 @@ export async function findUserByRecoveryIndex(index: string): Promise<User | nul
 export async function issueRecoveryCode(): Promise<{ code: string; hash: string; index: string }> {
   let kullanilan: ReadonlySet<string>;
   try {
-    const { users } = await getUsersData();
+    /*
+     * KAPIDAN okunuyor, Blob'dan değil. Yazma yolu aynaya taşındıktan sonra
+     * `getUsersData()` ASIL KAYNAK değil bir kopya: yeni açılmış bir hesabın
+     * indeksi henüz oraya ulaşmamış olabilir ve benzersizlik denetimi tam da
+     * o satırı görmediği için "boşta" derdi.
+     */
+    const users = await kimlikSatirlari();
     kullanilan = new Set(users.map((u) => u.recoveryCodeIndex).filter((x): x is string => !!x));
   } catch {
     /*
@@ -309,12 +500,7 @@ export async function createUser(
    * son savunma; yarışı yalnız burası kapatabilir, çünkü tek atomik
    * pencerede hem bakıp hem yazan tek yer burası.
    */
-  await mutateUsers<true>((data) => {
-    if (data.users.some((u) => u.familyName.toLowerCase() === familyName.toLowerCase()))
-      throw new Error(AD_DOLU);
-    data.users.push(user);
-    return { yaz: true, sonuc: true };
-  }, "hesap");
+  if ((await hesabiEkle(user)) === "ad-dolu") throw new Error(AD_DOLU);
   // Faz 3 — çift-yazma (best-effort): hesabı Postgres'e de yaz. Giriş hâlâ
   // Blob'dan doğrulanıyor; hata giriş/kayıt akışını ETKİLEMEZ.
   /*
@@ -355,8 +541,7 @@ export async function updateUserNotify(
     notifyNewsletter?: boolean;
   }
 ): Promise<boolean> {
-  return mutateUsers<boolean>((data) => {
-  const user = data.users.find((u) => u.id === id);
+  return hesabiDegistir<boolean>({ id }, (user) => {
   if (!user) return { yaz: false, sonuc: false };
   if (patch.notifyEmail !== undefined) {
     const e = (patch.notifyEmail ?? "").trim();
@@ -397,8 +582,7 @@ export async function updateUserAuthEmail(
     emailTokenExpires?: string | null;
   }
 ): Promise<boolean> {
-  return mutateUsers<boolean>((data) => {
-  const user = data.users.find((u) => u.id === id);
+  return hesabiDegistir<boolean>({ id }, (user) => {
   if (!user) return { yaz: false, sonuc: false };
   user.authEmail = patch.authEmail || undefined;
   user.authEmailVerified = patch.authEmailVerified || undefined;
@@ -421,8 +605,7 @@ export async function updateUserResetToken(
   id: string,
   patch: { resetTokenHash: string | null; resetTokenExpires: string | null }
 ): Promise<boolean> {
-  return mutateUsers<boolean>((data) => {
-  const user = data.users.find((u) => u.id === id);
+  return hesabiDegistir<boolean>({ id }, (user) => {
   if (!user) return { yaz: false, sonuc: false };
   user.resetTokenHash = patch.resetTokenHash || undefined;
   user.resetTokenExpires = patch.resetTokenExpires || undefined;
@@ -434,10 +617,7 @@ export async function updateUserPassword(
   familyName: string,
   newPasswordHash: string
 ): Promise<boolean> {
-  const yazildi = await mutateUsers<string | null>((data) => {
-  const user = data.users.find(
-    (u) => u.familyName.toLowerCase() === familyName.toLowerCase()
-  );
+  const yazildi = await hesabiDegistir<string | null>({ familyName }, (user) => {
   if (!user) return { yaz: false, sonuc: null };
   user.passwordHash = newPasswordHash;
   /*
@@ -469,6 +649,15 @@ export async function updateUserPassword(
   return { yaz: true, sonuc: user.familyName };
   }, "şifre");
   if (!yazildi) return false;
+  /*
+   * OTURUM ÇAĞI ÖNBELLEĞİ DÜŞÜYOR.
+   *
+   * `sessionEpochOf` haritayı `ONBELLEK_MS` (15 sn) tutuyor. Düşürülmeseydi
+   * yeni yazılan çağ o süre boyunca görünmez kalır ve şifre sıfırlamanın
+   * ASIL AMACI olan "eski çerez artık geçmesin" korumasi on beş saniye
+   * gecikirdi. Bedava bir düzeltme: haritayı `null`lamak.
+   */
+  cagOnbellek = null;
   return true;
 }
 
@@ -491,8 +680,7 @@ export async function applyRecoveryReset(
   id: string,
   patch: { passwordHash: string; recoveryCodeHash?: string; recoveryCodeIndex?: string }
 ): Promise<boolean> {
-  const yazildi = await mutateUsers<string | null>((data) => {
-  const user = data.users.find((u) => u.id === id);
+  const yazildi = await hesabiDegistir<string | null>({ id }, (user) => {
   if (!user) return { yaz: false, sonuc: null };
   user.passwordHash = patch.passwordHash;
   if (patch.recoveryCodeHash) user.recoveryCodeHash = patch.recoveryCodeHash;
@@ -517,6 +705,7 @@ export async function applyRecoveryReset(
   return { yaz: true, sonuc: user.familyName };
   }, "kurtarma sıfırlaması");
   if (!yazildi) return false;
+  cagOnbellek = null; // gerekçe `updateUserPassword`ta
   return true;
 }
 
@@ -534,8 +723,7 @@ export async function applyRecoveryReset(
  * `users.json` zaten kimliğin tek kaynağı.
  */
 export async function setUserDeletedAt(id: string, deletedAt: string | null): Promise<boolean> {
-  const ok = await mutateUsers<boolean>((data) => {
-  const user = data.users.find((u) => u.id === id);
+  const ok = await hesabiDegistir<boolean>({ id }, (user) => {
   if (!user) return { yaz: false, sonuc: false };
   if (deletedAt) user.deletedAt = deletedAt;
   else delete user.deletedAt;
@@ -559,14 +747,7 @@ export async function setUserDeletedAt(id: string, deletedAt: string | null): Pr
 
 /** Hesabın `users.json` satırını KALICI olarak siler. */
 export async function deleteUserRow(id: string): Promise<boolean> {
-  const ok = await mutateUsers<boolean>((data) => {
-    const kalan = data.users.filter((u) => u.id !== id);
-    if (kalan.length === data.users.length) return { yaz: false, sonuc: false };
-    // Kutu YERİNDE değiştiriliyor: `{ users: kalan }` yazmak damgayı da
-    // düşürürdü ve koruma dayanağını kaybederdi.
-    data.users = kalan;
-    return { yaz: true, sonuc: true };
-  }, "hesap satırı");
+  const ok = await hesabiSil(id);
   if (ok) silinmisOnbellek = null;
   return ok;
 }

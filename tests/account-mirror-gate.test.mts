@@ -38,9 +38,26 @@ const alanlar = userAlanlari();
 check(alanlar.length >= 18, `User alanları okundu (${alanlar.length})`);
 
 const db = kodu(read("../lib/db.ts"));
-const upsert = db.slice(db.indexOf("export async function dbUpsertAccount"));
-const govde = upsert.slice(0, upsert.indexOf("\n}\n") + 3);
+/*
+ * Sütun nesnesi artık `dbUpsertAccount`ın gövdesinde değil, ortak
+ * `hesapSatiri`de. Faz 4 / 2c-2 iki yazma yolu daha ekledi (satır ekleme ve
+ * koşullu güncelleme); nesne upsert'ün içinde kalsaydı kopyalanırdı ve
+ * yarın eklenen bir alan yollardan yalnız birine yazılırdı — hata da alanın
+ * hangi yoldan yazıldığına göre değişirdi (kayıtta var, güncellemede yok).
+ */
+const builder = db.slice(db.indexOf("function hesapSatiri(u: User)"));
+const govde = builder.slice(0, builder.indexOf("\n}\n") + 3);
 const sema = read("../supabase/schema.sql");
+
+/* --- 0. ÜÇ yazma yolu da ortak nesneyi kullanıyor ---------------------- */
+{
+  check(govde.length > 200, "ortak sütun nesnesi bulundu");
+  for (const yol of ["dbUpsertAccount", "dbInsertAccount", "dbUpdateAccountIf"]) {
+    const i = db.indexOf(`export async function ${yol}`);
+    const g = db.slice(i, db.indexOf("\n}\n", i) + 3);
+    check(i > -1 && /hesapSatiri\(u\)/.test(g), `${yol}: ortak sütun nesnesini kullanıyor`);
+  }
+}
 
 /* --- 1. Her alan hem ŞEMADA hem AYNADA -------------------------------- */
 

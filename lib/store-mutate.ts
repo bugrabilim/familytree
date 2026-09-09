@@ -90,3 +90,71 @@ export async function mutateStore<B extends DamgaliKutu, T>(
    */
   throw new Error(`${etiket} kaydı şu an çok yoğun; birazdan tekrar dene.`);
 }
+
+/**
+ * TEK SATIR üzerinde OKU → DEĞİŞTİR → KOŞULLU YAZ (karşılaştır-ve-değiştir).
+ *
+ * ## `mutateStore`tan farkı ve neden ayrı
+ *
+ * `mutateStore` bir KUTUYU (tüm dosya) okuyup tamamını geri yazıyor ve
+ * yazmadan hemen önce yeniden okuyup damgaya bakıyor. Bu pencereyi
+ * DARALTIYOR ama kapatmıyor — çünkü Vercel Blob'da koşullu yazma yok:
+ * "damga hâlâ aynı mı" sorusu ile yazma arasında her zaman bir aralık
+ * kalıyor.
+ *
+ * Postgres'te o aralık yok. `update … where id = ? and updated_at = ?`
+ * soruyu ve yazmayı TEK ifadede yapıyor; satır güncellenmediyse araya biri
+ * girmiş demektir ve bunu veritabanının kendisi söylüyor. Bu yüzden burada
+ * "yazmadan önce yeniden oku" adımı YOK: olsaydı kapanmış bir pencereyi
+ * ikinci kez, daha zayıf biçimde denetlemek olurdu.
+ *
+ * ## İkinci kazanç: çakışma alanı daralıyor
+ *
+ * Kutu modelinde iki FARKLI hesaba yazan iki istek de çakışıyordu (ikisi de
+ * aynı dosyayı yazıyor). Satır modelinde çakışan yalnız AYNI hesaba yazan
+ * istekler; kimlik yazmaları zaten hesap başına seyrek olduğu için pratikte
+ * çakışma kalmıyor.
+ *
+ * ## Sözleşme
+ *
+ * `oku` satırı ve damgasını verir, satır yoksa `null`. `degistir` satırı
+ * YERİNDE değiştirir. `yaz` koşullu güncellemeyi yapar ve GERÇEKTEN
+ * yazıldıysa `true` döner — `false` "çakışma oldu" demektir, hata değil.
+ *
+ * Damga `null` olabilir: sütun sonradan eklendiği için eski satırlarda boş.
+ * `yaz` bunu "damgası olmayan satır" olarak ele almak zorunda (SQL'de
+ * `is null`, `= null` değil) — yoksa hiçbir eski satır bir daha
+ * güncellenemezdi.
+ */
+export type SatirYazici<R> = (
+  satir: R,
+  eskiDamga: string | null,
+  yeniDamga: string
+) => Promise<boolean>;
+
+export async function mutateRow<R, T>(
+  oku: () => Promise<{ satir: R; damga: string | null } | null>,
+  yaz: SatirYazici<R>,
+  /** Satır yoksa `null` alır — "bulunamadı" kararını çağıran verir. */
+  degistir: (satir: R | null) => Degisiklik<T> | Promise<Degisiklik<T>>,
+  etiket: string,
+  deneme: number = CAKISMA_DENEME
+): Promise<T> {
+  for (let i = 0; i < deneme; i++) {
+    const kayit = await oku();
+    const r = await degistir(kayit ? kayit.satir : null);
+    // Yazma yoksa çakışma da yok (gerekçe `mutateStore`ta).
+    if (!r.yaz) return r.sonuc;
+    /*
+     * Satır YOKKEN yazmak istenemez: `degistir` `null` aldığında yalnız
+     * "bulunamadı" diyebilir. Buraya düşmek, çağıranın sözleşmeyi bozduğu
+     * anlamına gelir; sessizce başarılı dönmek yazılmamış bir değişikliği
+     * yazılmış göstermek olurdu.
+     */
+    if (!kayit) throw new Error(`${etiket} kaydı yok; yazılamaz.`);
+    const yeniDamga = new Date().toISOString();
+    if (await yaz(kayit.satir, kayit.damga, yeniDamga)) return r.sonuc;
+    // Koşul tutmadı → araya biri girdi → baştan oku.
+  }
+  throw new Error(`${etiket} kaydı şu an çok yoğun; birazdan tekrar dene.`);
+}
