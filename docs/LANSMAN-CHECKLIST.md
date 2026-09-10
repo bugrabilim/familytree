@@ -57,9 +57,19 @@ Zorunlu:
 - [ ] `GEMINI_API_KEY` (+ ops. `GEMINI_MODEL`) — AI özellikleri için.
 
 E-posta (gönderim):
-- [ ] `RESEND_API_KEY`, `EMAIL_FROM` — ikisi de yoksa hiçbir posta gönderilmez
-      (sessiz değil: `isEmailConfigured()` çağıranlara söyler).
-- [ ] `EMAIL_REPLY_TO` — yanıtların döneceği adres.
+- [ ] `RESEND_API_KEY`, `EMAIL_FROM` — biri bile yoksa hiçbir posta gönderilmez.
+      Kod içinde sessiz değil (`isEmailConfigured()` çağıranlara söyler) ama
+      DIŞARIDAN sessizdi: günlük iş `skipped:"email-not-configured"` deyip 200
+      döner, hiçbir uç hata vermez, uygulama sağlıklı görünür.
+- [ ] `EMAIL_REPLY_TO` — yanıtların döneceği adres. Bir kat daha sinsi:
+      gönderim çalışır, yalnız ailenin verdiği yanıt hiçbir yere ulaşmaz.
+- [ ] **Doğrulama Vercel panelinden GÖZLE değil, uçtan:**
+      `curl -H "Authorization: Bearer $CRON_SECRET" https://<alan>/api/health`
+      → `services.email.ok: true` ve `replyReachable: true`; `env` bloğunda
+      üç değişken de `true` (yalnız var/yok görünür, değerler değil).
+      Posta kanalı `healthy` hesabına KATILMAZ — bilerek opsiyonel, ve bir
+      ping'i yok: yalnız gönderim yetkisi olan bir Resend anahtarı
+      `GET /domains`ta 401 döneceği için sağlık boşuna kırmızıya düşerdi.
 
 E-posta (gelen posta, `bilgi@soylus.com`) — **ortam değişkeni gerektirmez**,
 hepsi DNS ve Gmail tarafında:

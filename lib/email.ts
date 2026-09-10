@@ -46,6 +46,29 @@ export function replyAddress(): string | null {
   return process.env.EMAIL_REPLY_TO?.trim() || null;
 }
 
+/**
+ * Kanalın ortam değişkenleri VAR MI? — yalnız var/yok, değer değil.
+ *
+ * `/api/health` bunu yanıtına koyuyor ve gerekçe `CRON_SECRET`inkiyle birebir
+ * aynı: yapılandırma eksikken bu katman HİÇBİR HATA ÜRETMEDEN susuyor
+ * (`sendEmail` no-op döner, günlük iş `skipped:"email-not-configured"` deyip
+ * 200 döner). Dışarıdan bakınca uygulama sorunsuz görünür ama hatırlatma,
+ * davet ve şifre sıfırlama postalarının hiçbiri gitmez. Bu üç satır bugüne
+ * dek yalnız Vercel panelinden GÖZLE doğrulanabiliyordu
+ * (`docs/LANSMAN-CHECKLIST.md`).
+ *
+ * `EMAIL_REPLY_TO` için `process.env` değil `replyAddress()` soruluyor:
+ * yalnız boşluktan oluşan bir değer orada zaten "yok" sayılıyor ve o kuralın
+ * ikinci bir kopyası burada yaşamamalı.
+ */
+export function emailEnvPresence(): Record<string, boolean> {
+  return {
+    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+    EMAIL_FROM: !!process.env.EMAIL_FROM,
+    EMAIL_REPLY_TO: !!replyAddress(),
+  };
+}
+
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 /**
