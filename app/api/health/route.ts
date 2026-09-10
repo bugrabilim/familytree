@@ -4,6 +4,7 @@ import { operatorVerdict } from "@/lib/operator-access";
 import { pingBlob } from "@/lib/blob";
 import { pingCloudinary } from "@/lib/cloudinary";
 import { isSupabaseConfigured, pingSupabase, supabaseEnvPresence } from "@/lib/supabase";
+import { emailEnvPresence, isEmailConfigured, replyAddress } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,9 @@ export const dynamic = "force-dynamic";
  * O yüzden: Supabase YAPILANDIRILMIŞSA hesaba katılıyor. Yapılandırılmamış
  * bir kurulumda (yerel geliştirme) ayna diye bir şey yok, dolayısıyla
  * eksikliği de bir arıza değil.
+ *
+ * E-posta kanalı GÖRÜNÜYOR ama `healthy`ye KATILMIYOR — gerekçesi aşağıda,
+ * `services.email`in başında.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -87,9 +91,16 @@ export async function GET(req: NextRequest) {
      */
     CRON_SECRET: !!secret,
     ...supabaseEnvPresence(),
+    /*
+     * Aynı sessizliğin posta tarafı: bu üçü eksikken hiçbir uç hata
+     * döndürmüyor, yalnız posta gitmiyor. `EMAIL_REPLY_TO` ayrıca kendi
+     * başına sessiz — gönderim çalışır, ailenin verdiği YANIT kaybolur.
+     */
+    ...emailEnvPresence(),
   };
 
   const aynaGerekli = isSupabaseConfigured();
+  const emailAcik = isEmailConfigured();
   const healthy = blob.ok && cloudinary.ok && (!aynaGerekli || supabase.ok);
   return NextResponse.json(
     {
@@ -100,6 +111,33 @@ export async function GET(req: NextRequest) {
         cloudinary, // fotoğraf + ses
         // Postgres aynası — yapılandırılmışsa `healthy` hesabına KATILIYOR.
         supabase: { ...supabase, counted: aynaGerekli },
+        /*
+         * GİDEN POSTA — `healthy` hesabına katılmıyor ve PING de yok.
+         *
+         * Neden burada: anahtar düştüğünde hiçbir yerde alarm çalmıyor;
+         * hatırlatma, davet ve şifre sıfırlama postaları hiç gitmiyor.
+         * Yukarıdaki `CRON_SECRET` gerekçesinin aynısı.
+         *
+         * Neden PING YOK: Resend anahtarları izin kapsamlı — yalnız
+         * "gönderim" yetkisi verilmiş bir anahtar `GET /domains` çağrısında
+         * 401/403 döner, yani gönderim gayet çalışırken sağlık kırmızıya
+         * düşerdi. Yanlış alarm, hiç bakmamaktan kötü: izleme aracı bir kez
+         * boşuna öttükten sonra kimse ciddiye almıyor. Gerçekten
+         * gönderebildiğimizi kanıtlamanın tek yolu posta ATMAK ve bir sağlık
+         * ucu posta atmamalı.
+         *
+         * Neden `healthy` DEĞİŞMİYOR: kanal bilerek opsiyonel — anahtar
+         * yokken uygulamanın geri kalanı çalışıyor (`isEmailConfigured()`
+         * çağıranlara söylüyor). `counted: false` bunu yanıtın içinde de
+         * yazıyor, ki okuyan "yeşil ama posta mı gitmiyor" diye şaşırmasın.
+         */
+        email: {
+          ok: emailAcik,
+          ...(emailAcik ? {} : { error: "env eksik" }),
+          // false → gönderim çalışır, gelen yanıtlar hiçbir yere ulaşmaz.
+          replyReachable: !!replyAddress(),
+          counted: false,
+        },
       },
       env: envPresent, // yalnız var/yok (değer değil)
     },
